@@ -1,0 +1,833 @@
+{
+  "hello": "こんにちは",
+  "welcome": "ようこそ",
+  "username": "ユーザー名",
+  "password": "パスワード",
+  "passwordRequirements": "パスワードは9文字以上で、大文字、小文字、数字を含む必要があります。",
+  "post": "投稿",
+  "profile": "プロフィール",
+  "settings": "設定",
+  "loading": "読み込み中...",
+  "user": {
+    "anonymous": "匿名",
+    "posts": "投稿",
+    "noPosts": "投稿がありません",
+    "notFound": "ユーザーが見つかりません",
+    "noBio": "自己紹介がありません",
+    "unknown": "不明なユーザー",
+    "unknownUsername": "不明"
+  },
+  "login": {
+    "title": "ログイン",
+    "success": "ログインしました",
+    "failed": "ログインに失敗しました",
+    "goToLogin": "ログインはこちら",
+    "wizard": {
+      "username": {
+        "title": "ログイン",
+        "description": "ユーザー名を入力してください",
+        "notFound": "ユーザーが見つかりませんでした",
+        "checkingAvailability": "ユーザー名を確認中...",
+        "error": "ユーザー名の確認に失敗しました。もう一度お試しください。"
+      },
+      "password": {
+        "title": "パスワードを入力",
+        "description": "パスワードを入力してください",
+        "welcomeBack": "おかえりなさい！"
+      }
+    }
+  },
+  "logout": "ログアウト",
+  "logoutConfirm": {
+    "title": "ログアウトしますか？",
+    "description": "本当にログアウトしてもよろしいですか？",
+    "cancel": "キャンセル",
+    "confirm": "ログアウト"
+  },
+  "signup": {
+    "title": "新規登録",
+    "success": "アカウントを作成しました",
+    "failed": "アカウント作成に失敗しました",
+    "createAccount": "アカウントを作成",
+    "wizard": {
+      "terms": {
+        "title": "利用規約",
+        "description": "サービス利用規約をご確認ください",
+        "agree": "同意する",
+        "decline": "同意しない",
+        "checkbox": "利用規約に同意します"
+      },
+      "privacy": {
+        "title": "プライバシーポリシー",
+        "description": "プライバシーポリシーをご確認ください",
+        "agree": "同意する",
+        "decline": "同意しない",
+        "checkbox": "プライバシーポリシーに同意します"
+      },
+      "username": {
+        "title": "アカウントを作成",
+        "description": "ユーザー名を決めてください",
+        "alreadyExists": "このユーザー名は既に使われています",
+        "checkingAvailability": "ユーザー名を確認中...",
+        "error": "ユーザー名の確認に失敗しました。もう一度お試しください。"
+      },
+      "password": {
+        "title": "パスワードを設定",
+        "description": "パスワードを設定してください"
+      },
+      "inviteCode": {
+        "title": "招待コードを入力",
+        "description": "サーバー管理者から受け取った招待コードを入力してください",
+        "placeholder": "aB3cD4eF",
+        "label": "招待コード",
+        "required": "招待コードは必須です",
+        "invalid": "招待コードが無効です。サーバー管理者に確認してください。"
+      }
+    }
+  },
+  "auth": {
+    "required": "ログインが必要です",
+    "requiredDescription": "この機能を利用するにはログインが必要です",
+    "logout": "ログアウト"
+  },
+  "agreements": {
+    "accepted": "規約に同意しました",
+    "declined": "サービスを利用するには規約への同意が必要です"
+  },
+  "validation": {
+    "username": {
+      "requirements": "ユーザー名は3文字以上32文字以下で、英数字とアンダースコアのみ使用できます。",
+      "required": "ユーザー名は必須です",
+      "tooShort": "ユーザー名は3文字以上で入力してください",
+      "tooLong": "ユーザー名は32文字以下で入力してください",
+      "invalidCharacters": "ユーザー名は英数字とアンダースコアのみ使用できます"
+    },
+    "password": {
+      "required": "パスワードは必須です",
+      "tooShort": "パスワードは9文字以上で入力してください",
+      "tooLong": "パスワードは256文字以下で入力してください"
+    }
+  },
+  "error": {
+    "title": "エラーが発生しました",
+    "generic": "エラーが発生しました",
+    "authRequired": "認証が必要です",
+    "postIdRequired": "投稿IDが必要です",
+    "usernameRequired": "ユーザー名が必要です",
+    "auth": {
+      "sessionInvalid": "セッションが無効です。",
+      "loginStartFailed": "ログイン開始に失敗しました。",
+      "loginFailed": "ログインに失敗しました。",
+      "registrationFailed": "アカウント作成に失敗しました。"
+    }
+  },
+  "meta": {
+    "title": "{serverName}",
+    "description": "ミニSNS",
+    "pages": {
+      "home": "ホーム",
+      "login": "ログイン",
+      "signup": "新規登録",
+      "settings": "設定",
+      "settingsGeneral": "一般設定",
+      "settingsProfile": "プロフィール設定",
+      "settingsAppearance": "外観設定",
+      "setup": "プロフィール設定",
+      "adminSetup": "サーバー初期設定"
+    }
+  },
+  "timeline": {
+    "title": "タイムライン",
+    "noPosts": "投稿がありません",
+    "loadMore": "もっと見る"
+  },
+  "createPost": {
+    "title": "投稿する",
+    "placeholder": "いまどうしてる?",
+    "post": "投稿",
+    "posting": "投稿中...",
+    "uploadImage": "画像をアップロード",
+    "removeImage": "画像を削除",
+    "maxImages": "最大4枚まで",
+    "maxLength": "最大300文字まで",
+    "contentTooLong": "投稿内容は300文字以内で入力してください",
+    "characterCount": "{current}/{max}",
+    "success": "投稿しました",
+    "error": "投稿に失敗しました",
+    "uploadError": "画像のアップロードに失敗しました",
+    "invalidFileType": "画像ファイルを選択してください (PNG, JPG, JPEG, WebP)",
+    "tooManyFiles": "一度にアップロードできる画像は4枚までです",
+    "fileTooLarge": "ファイルサイズが大きすぎます（最大10MB）",
+    "dropImages": "画像をドロップ"
+  },
+  "language": {
+    "switcher": {
+      "label": "言語"
+    },
+    "japanese": "日本語",
+    "english": "English"
+  },
+  "theme": {
+    "toggle": "テーマを切り替え",
+    "light": "ライトモードに切り替え",
+    "dark": "ダークモードに切り替え"
+  },
+  "settings": {
+    "title": "設定",
+    "backToSettings": "設定に戻る",
+    "categories": {
+      "profile": "プロフィール",
+      "general": "一般",
+      "appearance": "外観"
+    },
+    "general": {
+      "title": "一般設定",
+      "language": {
+        "title": "言語",
+        "description": "表示言語を選ぶ",
+        "placeholder": "言語を選択"
+      }
+    },
+    "appearance": {
+      "title": "外観設定",
+      "theme": {
+        "title": "テーマ",
+        "description": "アプリのテーマを選ぶ",
+        "light": "ライト",
+        "dark": "ダーク",
+        "system": "システム",
+        "systemDescription": "OSの設定に従うようになります"
+      }
+    },
+    "language": {
+      "ja": "日本語",
+      "en": "English"
+    },
+    "profile": {
+      "title": "プロフィール設定",
+      "avatar": {
+        "title": "アバター",
+        "description": "プロフィール画像",
+        "upload": "アバターをアップロード",
+        "change": "アバターを変更",
+        "uploadButton": "アップロード",
+        "cancel": "キャンセル",
+        "uploading": "アップロード中...",
+        "updateSuccess": "アバターを更新しました",
+        "updateError": "アバターの更新に失敗しました",
+        "invalidFileType": "画像ファイルを選択してください"
+      },
+      "displayName": {
+        "title": "表示名",
+        "description": "プロフィールに表示される名前",
+        "placeholder": "表示名を入力してください"
+      },
+      "bio": {
+        "title": "自己紹介",
+        "description": "あなたについての短い説明",
+        "placeholder": "自己紹介を入力してください..."
+      },
+      "saveChanges": "変更を保存",
+      "saving": "保存中...",
+      "updateSuccess": "プロフィールを更新しました",
+      "updateError": "プロフィールの更新に失敗しました",
+      "unsavedChanges": "未保存の変更があります"
+    }
+  },
+  "userMenu": {
+    "viewProfile": "プロフィール",
+    "theme": "テーマ",
+    "language": "言語",
+    "closeMenu": "メニューを閉じる"
+  },
+  "common": {
+    "back": "戻る",
+    "close": "閉じる"
+  },
+  "nav": {
+    "home": "ホーム",
+    "openUserMenu": "ユーザーメニュー"
+  },
+  "reactions": {
+    "label": "{emoji} {count}件のリアクション",
+    "labelWithYourReaction": "{emoji} {count}件のリアクション（あなたもリアクション済み）",
+    "loginRequired": "リアクションするにはログインが必要です",
+    "error": "リアクションの処理中にエラーが発生しました"
+  },
+  "setup": {
+    "title": "プロフィール設定",
+    "welcomeTitle": "Cielへようこそ",
+    "welcomeDescription": "プロフィールを設定して始めましょう",
+    "skip": "後で設定する",
+    "next": "次へ",
+    "complete": "完了",
+    "saving": "保存中...",
+    "step": "ステップ",
+    "of": "/",
+    "back": "戻る",
+    "welcome": {
+      "title": "Cielへようこそ",
+      "description": "プロフィールを設定して{serverName}を始めましょう",
+      "start": "始める",
+      "changeLanguage": "言語変更"
+    },
+    "completed": {
+      "title": "プロフィール設定完了！",
+      "description": "準備が整いました。タイムラインを見に行きましょう",
+      "goToTimeline": "タイムラインを見る"
+    },
+    "displayName": {
+      "title": "表示名を設定",
+      "description": "あなたの名前やニックネームを入力してください",
+      "placeholder": "表示名を入力",
+      "label": "表示名"
+    },
+    "avatar": {
+      "title": "アバターを設定",
+      "description": "プロフィール画像をアップロードしてください",
+      "upload": "画像を選択",
+      "change": "画像を変更",
+      "uploading": "アップロード中..."
+    },
+    "bio": {
+      "title": "自己紹介を設定",
+      "description": "あなたについて教えてください",
+      "placeholder": "自己紹介を入力",
+      "label": "自己紹介"
+    },
+    "success": "プロフィールを保存しました",
+    "error": "保存に失敗しました"
+  },
+  "postCard": {
+    "justNow": "たった今",
+    "minutesAgo": "{count}分前",
+    "hoursAgo": "{count}時間前",
+    "daysAgo": "{count}日前",
+    "addReaction": "リアクションを追加",
+    "removeReaction": "リアクションを削除",
+    "viewProfile": "{name}のプロフィールを表示",
+    "reactionCount": "{emoji} {count}件のリアクション",
+    "yourReaction": "あなたもリアクション済み",
+    "searchEmoji": "絵文字を検索..."
+  },
+  "welcome": {
+    "title": "{serverName}へようこそ！",
+    "description": "{serverDescription}",
+    "descriptionFallback": "プラットフォームを探索して、あなたの考えをシェアしましょう"
+  },
+  "adminSetup": {
+    "title": "サーバー初期設定",
+    "step": "ステップ",
+    "of": "/",
+    "back": "戻る",
+    "next": "次へ",
+    "skip": "スキップ",
+    "complete": "完了",
+    "saving": "保存中...",
+    "welcome": {
+      "title": "Cielサーバーへようこそ",
+      "description": "サーバーの初期設定を行います。管理者アカウントを作成し、サーバーの基本情報を設定しましょう。",
+      "start": "セットアップを開始",
+      "changeLanguage": "言語変更"
+    },
+    "verifyPassword": {
+      "title": "セットアップパスワード",
+      "description": "サーバー管理者用のセットアップパスワードを入力してください。",
+      "label": "セットアップパスワード",
+      "placeholder": "セットアップパスワードを入力",
+      "verify": "パスワードを確認",
+      "verifying": "確認中...",
+      "error": "パスワードが正しくありません",
+      "invalidPassword": "パスワードが間違っています"
+    },
+    "createAdmin": {
+      "title": "管理者アカウント作成",
+      "description": "サーバー管理者用のアカウントを作成します。このアカウントは全ての管理機能にアクセスできます。",
+      "usernameLabel": "ユーザー名",
+      "usernamePlaceholder": "管理者のユーザー名",
+      "passwordLabel": "パスワード",
+      "passwordPlaceholder": "パスワードを入力",
+      "create": "アカウントを作成",
+      "creating": "作成中...",
+      "error": "アカウント作成に失敗しました",
+      "usernameRequired": "ユーザー名は必須です",
+      "passwordRequired": "パスワードは必須です"
+    },
+    "adminProfile": {
+      "title": "管理者プロフィール設定",
+      "description": "プロフィールを設定します（スキップ可能）"
+    },
+    "serverInfo": {
+      "title": "サーバー情報",
+      "description": "サーバーの基本情報を設定します",
+      "serverNameLabel": "サーバー名",
+      "serverNameDescription": "サーバーの名前",
+      "serverNamePlaceholder": "Ciel",
+      "serverDescriptionLabel": "サーバーの説明",
+      "serverDescriptionDescription": "サーバーの簡単な説明",
+      "serverDescriptionPlaceholder": "このサーバーについて説明してください",
+      "serverIconLabel": "サーバーアイコン",
+      "serverIconDescription": "サーバーのアイコン",
+      "uploadIcon": "アイコンをアップロード",
+      "changeIcon": "アイコンを変更",
+      "uploading": "アップロード中...",
+      "uploadSuccess": "アイコンをアップロードしました",
+      "uploadError": "アイコンのアップロードに失敗しました",
+      "nameRequired": "サーバー名は必須です"
+    },
+    "inviteSettings": {
+      "title": "招待設定",
+      "description": "新規ユーザー登録の方法を設定します",
+      "inviteOnlyLabel": "招待制",
+      "inviteOnlyDescription": "有効にすると、招待コードを持つユーザーのみが登録できます",
+      "inviteCodeLabel": "招待コード",
+      "inviteCodeDescription": "ユーザーが登録に必要なコード",
+      "inviteCodePlaceholder": "招待コードを入力",
+      "generateCode": "自動生成",
+      "generating": "生成中...",
+      "inviteOnlyNote": "招待制を有効にする場合は招待コードを設定してください",
+      "createInviteTitle": "最初の招待コードを作成",
+      "createInviteDescription": "招待コードの詳細設定を行います",
+      "usageLimitLabel": "使用制限",
+      "usageLimitUnlimited": "無制限",
+      "usageLimitLimited": "制限あり",
+      "maxUsesLabel": "最大使用回数",
+      "maxUsesPlaceholder": "10",
+      "expirationLabel": "有効期限",
+      "expirationNever": "無期限",
+      "expiration7Days": "7日後",
+      "expiration30Days": "30日後",
+      "expirationCustom": "カスタム",
+      "customDateLabel": "有効期限日時",
+      "noteLabel": "メモ（任意）",
+      "notePlaceholder": "例: ベータテスター用",
+      "createButton": "招待コードを作成",
+      "creating": "作成中...",
+      "createError": "招待コードの作成に失敗しました",
+      "codeCreated": "招待コードを作成しました",
+      "copyCode": "コピー",
+      "codeCopied": "コピーしました",
+      "copyError": "コードのコピーに失敗しました"
+    },
+    "complete": {
+      "title": "セットアップ完了！",
+      "description": "サーバーの初期設定が完了しました。ホームページに移動してCielを始めましょう。",
+      "goToHome": "ホームに移動",
+      "setupSummary": "セットアップ内容",
+      "adminAccount": "管理者アカウント: {username}",
+      "serverName": "サーバー名: {name}",
+      "inviteOnly": "招待制: {enabled}",
+      "enabled": "有効",
+      "disabled": "無効"
+    },
+    "error": {
+      "setupFailed": "セットアップに失敗しました",
+      "verifyPasswordFailed": "パスワード確認に失敗しました",
+      "createAdminFailed": "管理者アカウントの作成に失敗しました",
+      "completeFailed": "セットアップの完了処理に失敗しました"
+    }
+  },
+  "websocket": {
+    "inactivity": {
+      "title": "接続が一時停止されました",
+      "description": "サーバー負荷軽減のため、5分間の無操作により接続が一時停止されました。",
+      "reconnect": "再接続",
+      "dismiss": "OK"
+    }
+  },
+  "offline": {
+    "title": "オフラインです",
+    "description": "おっと、サーバーがオフラインのようです。時間を置いてアクセスしてみてください。",
+    "reload": "リロード"
+  },
+  "admin": {
+    "title": "管理画面",
+    "dashboard": {
+      "title": "ダッシュボード",
+      "welcome": "管理画面へようこそ",
+      "stats": {
+        "totalUsers": "総ユーザー数",
+        "totalPosts": "総投稿数",
+        "totalMedia": "総メディア数"
+      }
+    },
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "config": "サーバー設定",
+      "users": "ユーザー管理",
+      "posts": "投稿管理",
+      "media": "メディア管理",
+      "contentFilters": "コンテンツフィルター",
+      "invites": "招待コード管理",
+      "agreements": "契約書管理",
+      "ipBans": "IPバン管理",
+      "logs": "監査ログ"
+    },
+    "users": {
+      "title": "ユーザー管理",
+      "search": "ユーザーを検索",
+      "searchPlaceholder": "ユーザー名または表示名で検索",
+      "sort": "並び替え",
+      "sortOptions": {
+        "created_desc": "作成日: 新しい順",
+        "created_asc": "作成日: 古い順",
+        "username_asc": "ユーザー名: A-Z",
+        "username_desc": "ユーザー名: Z-A"
+      },
+      "table": {
+        "username": "ユーザー名",
+        "displayName": "表示名",
+        "roles": "ロール",
+        "createdAt": "作成日",
+        "actions": "操作"
+      },
+      "roles": {
+        "user": "ユーザー",
+        "admin": "管理者"
+      },
+      "loadingRoles": "読み込み中...",
+      "noResults": "ユーザーが見つかりません",
+      "viewDetails": "詳細を見る"
+    },
+    "posts": {
+      "title": "投稿管理",
+      "filterByUser": "ユーザーでフィルター",
+      "filterByUserPlaceholder": "ユーザーIDを入力",
+      "filterByVisibility": "表示状態でフィルター",
+      "allVisibility": "すべて",
+      "visibility": {
+        "public": "公開",
+        "hidden": "非表示",
+        "deleted": "削除済み"
+      },
+      "table": {
+        "content": "内容",
+        "author": "投稿者",
+        "visibility": "表示状態",
+        "createdAt": "作成日時",
+        "actions": "操作"
+      },
+      "noResults": "投稿が見つかりません",
+      "viewPost": "投稿を表示",
+      "changeVisibility": "表示状態を変更",
+      "deletePost": "投稿を削除",
+      "deleteConfirm": "本当にこの投稿を削除しますか？",
+      "deleteReason": "削除理由（任意）",
+      "deleteReasonPlaceholder": "削除理由を入力",
+      "deleteSuccess": "投稿を削除しました",
+      "deleteError": "投稿の削除に失敗しました",
+      "visibilityUpdateSuccess": "表示状態を更新しました",
+      "visibilityUpdateError": "表示状態の更新に失敗しました",
+      "selectVisibility": "表示状態を選択",
+      "updateVisibility": "表示状態を更新"
+    },
+    "media": {
+      "title": "メディア管理",
+      "filterByUser": "ユーザーでフィルター",
+      "filterByUserPlaceholder": "ユーザーIDを入力",
+      "table": {
+        "thumbnail": "サムネイル",
+        "filename": "ファイル名",
+        "uploader": "アップロード者",
+        "mimeType": "MIMEタイプ",
+        "size": "サイズ",
+        "uploadedAt": "アップロード日時",
+        "usedInPosts": "使用投稿数",
+        "actions": "操作"
+      },
+      "noResults": "メディアが見つかりません",
+      "viewMedia": "メディアを表示",
+      "deleteMedia": "メディアを削除",
+      "deleteConfirm": "本当にこのメディアを削除しますか？この操作は元に戻せません。",
+      "deleteReason": "削除理由（任意）",
+      "deleteReasonPlaceholder": "削除理由を入力",
+      "deleteSuccess": "メディアを削除しました",
+      "deleteError": "メディアの削除に失敗しました",
+      "bytes": "バイト",
+      "kb": "KB",
+      "mb": "MB"
+    },
+    "contentFilters": {
+      "title": "コンテンツフィルター",
+      "bannedWords": "禁止ワード",
+      "bannedImages": "禁止画像"
+    },
+    "ipBans": {
+      "title": "IPバン管理"
+    },
+    "agreements": {
+      "title": "契約書管理",
+      "create": "新規作成",
+      "edit": "編集",
+      "new": "新規契約書",
+      "viewAll": "契約書一覧",
+      "fields": {
+        "type": "種類",
+        "language": "言語",
+        "version": "バージョン",
+        "title": "タイトル",
+        "content": "内容",
+        "status": "ステータス",
+        "createdAt": "作成日時",
+        "updatedAt": "更新日時",
+        "publishedAt": "公開日時",
+        "createdBy": "作成者",
+        "publishedBy": "公開者"
+      },
+      "types": {
+        "terms": "利用規約",
+        "privacy": "プライバシーポリシー"
+      },
+      "languages": {
+        "en": "English",
+        "ja": "日本語"
+      },
+      "status": {
+        "draft": "下書き",
+        "published": "公開済み"
+      },
+      "actions": {
+        "edit": "編集",
+        "publish": "公開",
+        "duplicate": "複製",
+        "delete": "削除",
+        "cancel": "キャンセル",
+        "save": "保存",
+        "saveDraft": "下書き保存",
+        "preview": "プレビュー",
+        "viewHistory": "履歴を見る",
+        "back": "契約書一覧に戻る"
+      },
+      "filters": {
+        "all": "すべて",
+        "type": "種類で絞り込む",
+        "language": "言語で絞り込む",
+        "status": "ステータスで絞り込む"
+      },
+      "editor": {
+        "editTab": "編集",
+        "previewTab": "プレビュー",
+        "markdownSupported": "Markdown形式で記述できます"
+      },
+      "messages": {
+        "createSuccess": "契約書を作成しました",
+        "updateSuccess": "契約書を更新しました",
+        "publishSuccess": "契約書を公開しました",
+        "deleteSuccess": "契約書を削除しました",
+        "duplicateSuccess": "契約書を複製しました",
+        "createError": "契約書の作成に失敗しました",
+        "updateError": "契約書の更新に失敗しました",
+        "publishError": "契約書の公開に失敗しました",
+        "deleteError": "契約書の削除に失敗しました",
+        "duplicateError": "契約書の複製に失敗しました",
+        "cannotEditPublished": "公開済みの契約書は編集できません",
+        "cannotDeletePublished": "公開済みの契約書は削除できません"
+      },
+      "confirm": {
+        "publishTitle": "契約書を公開しますか？",
+        "publishDescription": "一度公開すると、編集や削除ができなくなります。本当に公開してもよろしいですか？",
+        "deleteTitle": "契約書を削除しますか？",
+        "deleteDescription": "この操作は取り消せません。本当に削除してもよろしいですか？",
+        "unsavedChanges": "保存されていない変更があります。このまま離れてもよろしいですか？"
+      },
+      "placeholder": {
+        "title": "契約書のタイトルを入力...",
+        "content": "契約書の内容をMarkdown形式で入力...",
+        "version": "1",
+        "selectType": "種類を選択",
+        "selectLanguage": "言語を選択"
+      },
+      "validation": {
+        "titleRequired": "タイトルは必須です",
+        "contentRequired": "内容は必須です",
+        "versionRequired": "バージョン番号は必須です",
+        "versionMin": "バージョン番号は1以上である必要があります",
+        "typeRequired": "種類は必須です",
+        "languageRequired": "言語は必須です"
+      }
+    },
+    "invites": {
+      "title": "招待コード管理",
+      "create": "新規作成",
+      "new": "招待コードを作成",
+      "detail": "招待コード詳細",
+      "edit": "招待コードを編集",
+      "createTitle": "招待コードを作成",
+      "createDescription": "新しい招待コードを作成します。カスタムコードを入力するか、空欄にすると自動生成されます。",
+      "fields": {
+        "code": "コード",
+        "status": "ステータス",
+        "creator": "作成者",
+        "createdAt": "作成日",
+        "lastUsedAt": "最終使用日",
+        "useCount": "使用回数",
+        "maxUses": "最大使用回数",
+        "expiresAt": "有効期限",
+        "note": "メモ",
+        "usageLimit": "使用制限",
+        "expiration": "有効期限"
+      },
+      "status": {
+        "active": "有効",
+        "disabled": "無効",
+        "expired": "期限切れ",
+        "exhausted": "使用済み"
+      },
+      "actions": {
+        "copy": "コピー",
+        "view": "詳細を見る",
+        "edit": "編集",
+        "disable": "無効化",
+        "delete": "削除",
+        "cancel": "キャンセル",
+        "save": "保存",
+        "create": "作成",
+        "creating": "作成中...",
+        "back": "一覧に戻る",
+        "backToList": "一覧に戻る"
+      },
+      "messages": {
+        "created": "招待コードを作成しました",
+        "createSuccess": "招待コードを作成しました",
+        "createdSuccess": "招待コードが作成されました。一覧から確認できます。",
+        "updateSuccess": "招待コードを更新しました",
+        "disableSuccess": "招待コードを無効化しました",
+        "deleteSuccess": "招待コードを削除しました",
+        "copied": "コードをコピーしました",
+        "codeCopied": "コードをコピーしました",
+        "copyFailed": "コピーに失敗しました",
+        "copyError": "コピーに失敗しました",
+        "createFailed": "作成に失敗しました",
+        "createError": "作成に失敗しました",
+        "updateError": "更新に失敗しました",
+        "disableError": "無効化に失敗しました",
+        "deleteError": "削除に失敗しました"
+      },
+      "confirm": {
+        "disableTitle": "招待コードを無効化しますか？",
+        "disableDescription": "無効化すると、このコードは使用できなくなります。",
+        "deleteTitle": "招待コードを削除しますか？",
+        "deleteDescription": "この操作は取り消せません。本当に削除してもよろしいですか？"
+      },
+      "usageHistory": {
+        "title": "使用履歴",
+        "noUsage": "まだ誰も使用していません",
+        "user": "ユーザー",
+        "usedAt": "使用日時"
+      },
+      "form": {
+        "customCode": "カスタムコード（任意）",
+        "customCodePlaceholder": "空欄の場合は自動生成",
+        "customCodeHint": "1〜32文字の英数字、ハイフン、アンダースコア",
+        "codeLabel": "招待コード（任意）",
+        "codePlaceholder": "空欄の場合は自動生成",
+        "codeHelp": "1〜32文字の英数字、ハイフン、アンダースコア",
+        "usageLimit": "使用制限",
+        "unlimited": "無制限",
+        "limited": "制限あり",
+        "maxUses": "最大使用回数",
+        "usageLimitUnlimited": "無制限",
+        "usageLimitLimited": "制限あり",
+        "maxUsesLabel": "最大使用回数",
+        "maxUsesPlaceholder": "10",
+        "expiration": "有効期限",
+        "never": "無期限",
+        "7days": "7日後",
+        "30days": "30日後",
+        "customDate": "カスタム",
+        "selectDate": "日時を選択",
+        "expirationNever": "無期限",
+        "expiration7Days": "7日後",
+        "expiration30Days": "30日後",
+        "expirationCustom": "カスタム",
+        "customDateLabel": "日時を選択",
+        "note": "メモ（任意）",
+        "noteLabel": "メモ（任意）",
+        "notePlaceholder": "例: ベータテスター用"
+      }
+    },
+    "empty": {
+      "posts": {
+        "title": "投稿が見つかりません",
+        "description": "フィルター条件を変更してください",
+        "clearFilters": "フィルターをクリア"
+      },
+      "users": {
+        "title": "ユーザーが見つかりません",
+        "description": "検索条件やフィルターを変更してください",
+        "clearFilters": "フィルターをクリア"
+      },
+      "media": {
+        "title": "メディアが見つかりません",
+        "description": "フィルター条件を変更してください",
+        "clearFilters": "フィルターをクリア"
+      },
+      "contentFilters": {
+        "title": "フィルターが設定されていません",
+        "description": "コンテンツフィルターはコミュニティを安全に保つのに役立ちます"
+      },
+      "ipBans": {
+        "title": "IPバンはありません",
+        "description": "バンされたIPアドレスはここに表示されます"
+      },
+      "agreements": {
+        "title": "契約書がありません",
+        "description": "利用規約やプライバシーポリシーを作成できます"
+      },
+      "invites": {
+        "title": "招待コードがありません",
+        "description": "招待コードを作成してユーザーを招待できます"
+      }
+    },
+    "config": {
+      "title": "サーバー設定",
+      "description": "サーバーの基本情報と動作設定を管理します",
+      "profile": {
+        "title": "サーバープロフィール",
+        "serverIconLabel": "サーバーアイコン",
+        "serverIconDescription": "サーバーのアイコン画像",
+        "serverNameLabel": "サーバー名",
+        "serverNameDescription": "サーバーの表示名",
+        "serverNamePlaceholder": "Ciel",
+        "serverDescriptionLabel": "サーバーの説明",
+        "serverDescriptionDescription": "サーバーの簡単な説明文",
+        "serverDescriptionPlaceholder": "このサーバーについて説明してください",
+        "uploadIcon": "アイコンをアップロード",
+        "changeIcon": "アイコンを変更",
+        "uploading": "アップロード中...",
+        "uploadSuccess": "アイコンをアップロードしました",
+        "uploadError": "アイコンのアップロードに失敗しました",
+        "save": "プロフィールを保存",
+        "saving": "保存中...",
+        "saveSuccess": "サーバープロフィールを更新しました",
+        "saveError": "サーバープロフィールの更新に失敗しました",
+        "nameRequired": "サーバー名は必須です"
+      },
+      "signup": {
+        "title": "アカウント作成設定",
+        "inviteOnlyLabel": "招待コードを使う",
+        "inviteOnlyDescription": "有効にすると、招待コードを持つユーザーのみが登録できます",
+        "currentStatus": "現在の状態",
+        "statusOpen": "誰でも登録可能",
+        "statusInviteOnly": "招待制（招待コード必須）",
+        "save": "設定を保存",
+        "saving": "保存中...",
+        "updateSuccess": "サインアップ設定を更新しました",
+        "updateError": "サインアップ設定の更新に失敗しました",
+        "inviteRequiredTitle": "招待コードの作成が必要です",
+        "inviteRequiredDescription": "招待コード設定を有効にするには、少なくとも1つの招待コードを作成する必要があります。",
+        "createInviteCode": "招待コードを作成"
+      }
+    },
+    "common": {
+      "loading": "読み込み中...",
+      "error": "エラーが発生しました",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "delete": "削除",
+      "confirm": "確認",
+      "search": "検索",
+      "filter": "フィルター"
+    }
+  }
+}

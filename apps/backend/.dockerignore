@@ -1,0 +1,15 @@
+.git
+**/.DS_Store
+**/*.log
+**/tmp
+
+# Go
+**/bin
+**/dist
+**/out
+**/*.exe
+**/*.test
+**/*.prof
+
+# Editor
+**/.vscode

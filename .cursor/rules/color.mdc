@@ -1,0 +1,286 @@
+---
+alwaysApply: false
+---
+
+# Color Rules
+
+## 目的
+- Cielアプリケーションのカラーシステムを定義する
+- 低コントラストフラットデザインを実現する色の使い方を示す
+- ライト/ダークモード対応のカラートークンを管理する
+
+## カラースキーマの基本方針
+低コントラスト寄りにしつつ、本文テキストは最低限の視認性を担保する。
+背景・面・文字は無彩色ベースで統一し、アクセントのみ青系を使用する。
+同一画面内の面の区分は `bg` -> `surface` -> `surface-2` の明度差で表現する。
+
+これらのトークンは `globals.css` の `:root` と `.dark` セクションで定義し、`@theme` セクションでTailwindクラスとして使用できるようにする。
+
+## shadcn/ui 標準カラートークン（globals.cssで定義済み）
+
+shadcn/uiが使用する標準的なカラートークン。既存のコンポーネントとの互換性のために維持：
+
+### Light Mode
+```
+--background:          oklch(0.97 0 0)      // メイン背景
+--background-1:        oklch(1 0 0)         // 第2背景（backgroundより明るい）
+--foreground:          oklch(0.25 0 0)      // メインテキスト
+--card:                oklch(1 0 0)         // カード背景
+--card-foreground:     oklch(0.25 0 0)      // カードテキスト
+--popover:             oklch(1 0 0)         // ポップオーバー背景
+--popover-foreground:  oklch(0.25 0 0)      // ポップオーバーテキスト
+--primary:             oklch(0.97 0 0)      // プライマリ色
+--primary-foreground:  oklch(0.25 0 0)      // プライマリ上のテキスト
+--secondary:           oklch(0.97 0 0)      // セカンダリ色
+--secondary-foreground: oklch(0.205 0 0)    // セカンダリ上のテキスト
+--muted:               oklch(0.97 0 0)      // ミュート色
+--muted-foreground:    oklch(0.556 0 0)     // ミュートテキスト
+--accent:              oklch(0.95 0 0)      // アクセント色
+--accent-foreground:   oklch(0.205 0 0)     // アクセント上のテキスト
+--destructive:         oklch(0.577 0.245 27.325) // 破壊的操作色
+--border:              oklch(0.922 0 0)     // ボーダー色
+--input:               oklch(0.922 0 0)     // 入力フィールド背景
+--ring:                oklch(0.708 0 0)     // フォーカスリング
+
+// テーマカラー（アクセント）
+--c-1:                 oklch(62.3% 0.214 259.815)  // テーマカラー
+--c-2:                 oklch(54.6% 0.245 262.881)  // テーマカラーホバー
+--c-foreground:        oklch(0.97 0 0)     // テーマカラー上のテキスト
+```
+
+### Dark Mode
+```
+--background:          oklch(0.145 0 0)
+--foreground:          oklch(0.985 0 0)
+--card:                oklch(0.205 0 0)
+--card-foreground:     oklch(0.985 0 0)
+--popover:             oklch(0.205 0 0)
+--popover-foreground:  oklch(0.985 0 0)
+--primary:             oklch(0.922 0 0)
+--primary-foreground:  oklch(0.205 0 0)
+--secondary:           oklch(0.269 0 0)
+--secondary-foreground: oklch(0.985 0 0)
+--muted:               oklch(0.269 0 0)
+--muted-foreground:    oklch(0.708 0 0)
+--accent:              oklch(0.269 0 0)
+--accent-foreground:   oklch(0.985 0 0)
+--destructive:         oklch(0.704 0.191 22.216)
+--border:              oklch(1 0 0 / 10%)
+--input:               oklch(1 0 0 / 15%)
+--ring:                oklch(0.556 0 0)
+
+// テーマカラー（Dark Modeでは未定義 - 必要に応じて追加）
+```
+
+## Tailwindクラスでの使用例
+
+### 背景色
+```tsx
+<div className="bg-background">      // メイン背景
+<div className="bg-background-1">    // 第2背景（より明るい）
+<div className="bg-card">            // カード
+<div className="bg-popover">         // ポップオーバー
+<div className="bg-primary">         // プライマリボタン
+<div className="bg-secondary">       // セカンダリボタン
+<div className="bg-muted">           // ミュート背景
+```
+
+### テキスト色・アイコン色
+```tsx
+<p className="text-foreground">           // 通常テキスト
+<p className="text-muted-foreground">     // 薄いテキスト
+<p className="text-primary-foreground">   // プライマリ上のテキスト
+<User className="text-foreground" />      // 通常アイコン
+<Settings className="text-muted-foreground" />  // 薄いアイコン
+```
+
+### ボーダー・リング
+```tsx
+<div className="border-border">      // ボーダー
+<input className="ring-ring">        // フォーカスリング
+```
+
+### テーマカラー（目立つもの・ポジティブなものに推奨）
+```tsx
+<button className="bg-c-1 text-c-foreground hover:bg-c-2">いいね</button>
+<button className="bg-c-1 text-c-foreground hover:bg-c-2">フォロー</button>
+<div className="text-c-1">重要な通知</div>
+<Heart className="text-c-1" />
+```
+
+## 追加推奨カラートークン（カスタム拡張用）
+
+design.mdcの低コントラストフラットデザインを実現するための追加トークン。
+必要に応じて `:root` と `.dark` に追加することを推奨：
+
+### Light Mode 推奨値
+```
+--surface:            #eeeeee または oklch(0.933 0 0)
+--surface-hover:      #e4e4e4 または oklch(0.894 0 0)
+--surface-2:          #dadada または oklch(0.855 0 0)
+--surface-2-hover:    #d0d0d0 または oklch(0.816 0 0)
+--success:            #4caf87 または oklch(0.68 0.12 160)
+--warning:            #d9a441 または oklch(0.72 0.10 80)
+--danger:             #d16c6c または oklch(0.60 0.15 25)
+--danger-hover:       #e08585 または oklch(0.68 0.15 25)
+--disabled:           #e0e0e0 または oklch(0.878 0 0)
+--disabled-hover:     #d8d8d8 または oklch(0.847 0 0)
+--on-disabled:        #8a8a8a または oklch(0.54 0 0)
+```
+
+### Dark Mode 推奨値
+```
+--surface:            #2a2a2a または oklch(0.23 0 0)
+--surface-hover:      #323232 または oklch(0.27 0 0)
+--surface-2:          #373737 または oklch(0.30 0 0)
+--surface-2-hover:    #404040 または oklch(0.33 0 0)
+--success:            #5bbf97 または oklch(0.72 0.12 160)
+--warning:            #e0b25a または oklch(0.75 0.10 80)
+--danger:             #e08a8a または oklch(0.68 0.15 25)
+--danger-hover:       #f0a0a0 または oklch(0.76 0.15 25)
+--disabled:           #2e2e2e または oklch(0.25 0 0)
+--disabled-hover:     #343434 または oklch(0.28 0 0)
+--on-disabled:        #6a6a6a または oklch(0.45 0 0)
+```
+
+## コントラスト指針
+- 本文は `foreground`/`background` で読みやすさを確保（低コントラスト寄りでも視認性優先）
+- 重要な操作要素は `primary` で明確に区別する
+- 状態色は彩度を抑えめにし、面のトーン差で伝える
+- shadcn/uiコンポーネントは標準トークンを使用
+- カスタムコンポーネントは追加トークンを使用可能
+
+## テーマカラー（c-*）の使用指針
+
+### 目的
+アプリのテーマカラーとして、目立たせたい要素やポジティブなアクションに使用する
+
+### 使用すべき場面
+- いいねボタン、お気に入りボタン
+- フォローボタン
+- 重要な通知やバッジ
+- ポジティブなアクション（送信、投稿、共有など）
+- アプリの個性を表現したい箇所
+
+### 使用方法
+```tsx
+// ボタン
+<button className="bg-c-1 text-c-foreground hover:bg-c-2 transition-colors duration-160 ease">
+  いいね
+</button>
+
+// アイコン・テキスト
+<Heart className="text-c-1" />
+<span className="text-c-1 font-semibold">新しい通知</span>
+
+// バッジ
+<div className="bg-c-1 text-c-foreground rounded-full px-2 py-1 text-xs">3</div>
+```
+
+### 注意事項
+- c-1を通常状態、c-2をホバー状態として使用する
+- 使いすぎるとアクセントとしての効果が薄れるため、本当に強調したい箇所のみに限定する
+- ネガティブなアクション（削除、キャンセルなど）には使用しない
+
+## その他のトークン
+- サイドバー用トークン（`--sidebar-*`）も定義されています
+
+## トークン運用
+
+### 新しいトークンの追加
+色の新しい値が必要な場合：
+1. ハードコードせず、`globals.css` の `:root` / `.dark` セクションにCSS変数を追加する
+2. `@theme` セクションで `--color-{name}: var(--{name})` のようにマッピングする
+3. 命名規則に従う：`--{category}-{name}` （例：`--color-surface`, `--text-muted`）
+4. ライト/ダークモード両方の値を定義する
+
+### トークンの命名規則
+```css
+/* globals.css の :root / .dark セクション */
+:root {
+  /* カラートークン */
+  --surface: oklch(...);
+  --surface-hover: oklch(...);
+  --disabled: oklch(...);
+  --on-disabled: oklch(...);
+}
+
+/* globals.css の @theme セクション */
+@theme {
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-disabled: var(--disabled);
+  --color-on-disabled: var(--on-disabled);
+}
+
+/* Tailwindクラスとして使用 */
+<div className="bg-surface hover:bg-surface-hover">
+<button className="disabled:bg-disabled disabled:text-on-disabled">
+```
+
+## 禁止事項
+
+### 厳格に禁止されているTailwindクラス
+以下のクラスは **design.mdc** の禁止事項に従い、使用を厳禁とする：
+
+1. **影系クラス**
+   - `shadow-*` （`shadow-sm`, `shadow-md`, `shadow-lg` など）
+   - `drop-shadow-*`
+   - 理由：フラットデザイン原則に反する
+   - **例外**: `shadow-none` は許可（既存のshadowをリセットする場合のみ）
+
+2. **透明度変更クラス**
+   - `opacity-*` （`opacity-50`, `opacity-70` など）
+   - `hover:opacity-*`, `disabled:opacity-*` も禁止
+   - 理由：状態変化は明示的な色トークンで表現すること
+   - ✅ 正しい方法：`disabled:bg-disabled disabled:text-on-disabled`
+   - **注意**: shadcn/uiコンポーネントは `disabled:opacity-50` を使用していますが、カスタムコンポーネントでは避けてください
+
+3. **拡大縮小クラス**
+   - `scale-*` （`scale-95`, `scale-105` など）
+   - `hover:scale-*` も禁止
+   - 理由：視覚効果は色の変化で表現すること
+
+4. **フィルター系クラス**
+   - `brightness-*`, `blur-*`, `contrast-*`, `saturate-*`, `grayscale-*` など
+   - 理由：視覚効果は明示的な色トークンで表現すること
+
+5. **ボーダー関連**
+   - フラットデザイン原則では明示的な `border` クラスの使用は避ける
+   - 区切りは背景色の明暗で表現すること
+   - 例外：フォーカスリング、入力フィールドの機能的なボーダーは許可
+
+### 状態変化の正しい表現方法
+
+❌ **間違った例**
+```tsx
+// opacity使用 → 禁止
+<button className="disabled:opacity-50">
+
+// scale使用 → 禁止
+<button className="hover:scale-105">
+
+// opacity付き背景色 → 禁止（カスタムコンポーネントの場合）
+<button className="hover:bg-accent/90">
+
+// brightness使用 → 禁止
+<div className="hover:brightness-110">
+
+// shadow使用 → 禁止
+<div className="shadow-lg">
+```
+
+✅ **正しい例**
+```tsx
+// 明示的な色トークンを使用
+<button className="bg-primary hover:bg-primary-hover disabled:bg-disabled disabled:text-on-disabled">
+
+// ホバー時も明示的なトークン
+<div className="bg-card hover:bg-muted">
+
+// disabled時も明示的なトークン
+<input className="bg-background disabled:bg-disabled disabled:text-on-disabled">
+
+// shadcn/ui標準（既存コンポーネント）は許容
+<button className="bg-primary text-primary-foreground hover:bg-primary/90">
+```

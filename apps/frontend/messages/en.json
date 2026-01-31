@@ -1,0 +1,833 @@
+{
+  "hello": "Hello",
+  "welcome": "Welcome",
+  "username": "Username",
+  "password": "Password",
+  "passwordRequirements": "Password must be at least 9 characters long and contain uppercase, lowercase, and numbers.",
+  "post": "Post",
+  "profile": "Profile",
+  "settings": "Settings",
+  "loading": "Loading...",
+  "user": {
+    "anonymous": "Anonymous",
+    "posts": "Posts",
+    "noPosts": "No posts yet",
+    "notFound": "User not found",
+    "noBio": "No bio yet",
+    "unknown": "Unknown User",
+    "unknownUsername": "unknown"
+  },
+  "login": {
+    "title": "Login",
+    "success": "Successfully logged in",
+    "failed": "Login failed",
+    "goToLogin": "Already have an account?",
+    "wizard": {
+      "username": {
+        "title": "Login",
+        "description": "Enter your username",
+        "notFound": "This username does not exist",
+        "checkingAvailability": "Checking username...",
+        "error": "Unable to verify username. Please try again."
+      },
+      "password": {
+        "title": "Enter Password",
+        "description": "Enter your password",
+        "welcomeBack": "Welcome back"
+      }
+    }
+  },
+  "logout": "Logout",
+  "logoutConfirm": {
+    "title": "Log out?",
+    "description": "Are you sure you want to log out?",
+    "cancel": "Cancel",
+    "confirm": "Log out"
+  },
+  "signup": {
+    "title": "Sign Up",
+    "success": "Account created successfully",
+    "failed": "Failed to create account",
+    "createAccount": "Create an account",
+    "wizard": {
+      "terms": {
+        "title": "Terms of Service",
+        "description": "Please review the Terms of Service",
+        "agree": "Agree",
+        "decline": "Decline",
+        "checkbox": "I agree to the Terms of Service"
+      },
+      "privacy": {
+        "title": "Privacy Policy",
+        "description": "Please review the Privacy Policy",
+        "agree": "Agree",
+        "decline": "Decline",
+        "checkbox": "I agree to the Privacy Policy"
+      },
+      "username": {
+        "title": "Create an Account",
+        "description": "Choose your username",
+        "alreadyExists": "This username is already taken",
+        "checkingAvailability": "Checking username...",
+        "error": "Unable to verify username. Please try again."
+      },
+      "password": {
+        "title": "Set Password",
+        "description": "Set your password"
+      },
+      "inviteCode": {
+        "title": "Enter Invite Code",
+        "description": "Enter the invite code you received from the server administrator",
+        "placeholder": "aB3cD4eF",
+        "label": "Invite Code",
+        "required": "Invite code is required",
+        "invalid": "Invalid invite code. Please contact your server administrator."
+      }
+    }
+  },
+  "auth": {
+    "required": "Login Required",
+    "requiredDescription": "You need to log in to use this feature",
+    "logout": "Logout"
+  },
+  "agreements": {
+    "accepted": "Agreements accepted successfully",
+    "declined": "You must accept the agreements to continue using this service"
+  },
+  "validation": {
+    "username": {
+      "requirements": "Username must be 3-32 characters long and contain only letters, numbers, and underscores.",
+      "required": "Username is required",
+      "tooShort": "Username must be at least 3 characters long",
+      "tooLong": "Username must be no more than 32 characters long",
+      "invalidCharacters": "Username can only contain letters, numbers, and underscores"
+    },
+    "password": {
+      "required": "Password is required",
+      "tooShort": "Password must be at least 9 characters long",
+      "tooLong": "Password must be no more than 256 characters long"
+    }
+  },
+  "error": {
+    "title": "An error occurred",
+    "generic": "An error occurred",
+    "authRequired": "Authentication required",
+    "postIdRequired": "Post ID is required",
+    "usernameRequired": "Username is required",
+    "auth": {
+      "sessionInvalid": "Session is invalid.",
+      "loginStartFailed": "Failed to start login.",
+      "loginFailed": "Login failed.",
+      "registrationFailed": "Failed to create account."
+    }
+  },
+  "meta": {
+    "title": "{serverName}",
+    "description": "A micro social network",
+    "pages": {
+      "home": "Home",
+      "login": "Login",
+      "signup": "Sign Up",
+      "settings": "Settings",
+      "settingsGeneral": "General Settings",
+      "settingsProfile": "Profile Settings",
+      "settingsAppearance": "Appearance Settings",
+      "setup": "Setup Profile",
+      "adminSetup": "Server Setup"
+    }
+  },
+  "timeline": {
+    "title": "Timeline",
+    "noPosts": "No posts yet",
+    "loadMore": "Load More"
+  },
+  "createPost": {
+    "title": "Create Post",
+    "placeholder": "What's happening?",
+    "post": "Post",
+    "posting": "Posting...",
+    "uploadImage": "Upload Image",
+    "removeImage": "Remove Image",
+    "maxImages": "Maximum 4 images",
+    "maxLength": "Maximum 300 characters",
+    "contentTooLong": "Post content must be 300 characters or less",
+    "characterCount": "{current}/{max}",
+    "success": "Posted successfully",
+    "error": "Failed to post",
+    "uploadError": "Failed to upload image",
+    "invalidFileType": "Please select an image file (PNG, JPG, JPEG, WebP)",
+    "tooManyFiles": "You can upload up to 4 images at once",
+    "fileTooLarge": "File size is too large (maximum 10MB)",
+    "dropImages": "Drop images here"
+  },
+  "language": {
+    "switcher": {
+      "label": "Language"
+    },
+    "japanese": "日本語",
+    "english": "English"
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Switch to light mode",
+    "dark": "Switch to dark mode"
+  },
+  "settings": {
+    "title": "Settings",
+    "backToSettings": "Back to settings",
+    "categories": {
+      "profile": "Profile",
+      "general": "General",
+      "appearance": "Appearance"
+    },
+    "general": {
+      "title": "General Settings",
+      "language": {
+        "title": "Language",
+        "description": "Choose your display language",
+        "placeholder": "Select language"
+      }
+    },
+    "appearance": {
+      "title": "Appearance Settings",
+      "theme": {
+        "title": "Theme",
+        "description": "Choose your app theme",
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System",
+        "systemDescription": "Follow system settings"
+      }
+    },
+    "language": {
+      "ja": "日本語",
+      "en": "English"
+    },
+    "profile": {
+      "title": "Profile Settings",
+      "avatar": {
+        "title": "Avatar",
+        "description": "Your profile picture",
+        "upload": "Upload Avatar",
+        "change": "Change Avatar",
+        "uploadButton": "Upload",
+        "cancel": "Cancel",
+        "uploading": "Uploading...",
+        "updateSuccess": "Avatar updated successfully",
+        "updateError": "Failed to update avatar",
+        "invalidFileType": "Please select an image file"
+      },
+      "displayName": {
+        "title": "Display Name",
+        "description": "Your name shown on your profile",
+        "placeholder": "Enter your display name"
+      },
+      "bio": {
+        "title": "Bio",
+        "description": "A short description about yourself",
+        "placeholder": "Tell us about yourself..."
+      },
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "updateSuccess": "Profile updated successfully",
+      "updateError": "Failed to update profile",
+      "unsavedChanges": "You have unsaved changes"
+    }
+  },
+  "userMenu": {
+    "viewProfile": "Profile",
+    "theme": "Theme",
+    "language": "Language",
+    "closeMenu": "Close menu"
+  },
+  "common": {
+    "back": "Back",
+    "close": "Close"
+  },
+  "nav": {
+    "home": "Home",
+    "openUserMenu": "User menu"
+  },
+  "reactions": {
+    "label": "{emoji} {count} reactions",
+    "labelWithYourReaction": "{emoji} {count} reactions (You reacted)",
+    "loginRequired": "Please log in to react to posts",
+    "error": "Failed to process reaction"
+  },
+  "setup": {
+    "title": "Setup Profile",
+    "welcomeTitle": "Welcome to Ciel",
+    "welcomeDescription": "Let's set up your profile to get started",
+    "skip": "Skip for now",
+    "next": "Next",
+    "complete": "Complete",
+    "saving": "Saving...",
+    "step": "Step",
+    "of": " of ",
+    "back": "Back",
+    "welcome": {
+      "title": "Welcome to Ciel",
+      "description": "Set up your profile and start using {serverName}",
+      "start": "Get Started",
+      "changeLanguage": "Change Language"
+    },
+    "completed": {
+      "title": "Profile Setup Complete!",
+      "description": "You're all set. Let's check out your timeline",
+      "goToTimeline": "Go to Timeline"
+    },
+    "displayName": {
+      "title": "Set Your Display Name",
+      "description": "Enter your name or nickname",
+      "placeholder": "Enter display name",
+      "label": "Display Name"
+    },
+    "avatar": {
+      "title": "Set Your Avatar",
+      "description": "Upload a profile picture",
+      "upload": "Choose Image",
+      "change": "Change Image",
+      "uploading": "Uploading..."
+    },
+    "bio": {
+      "title": "Tell Us About Yourself",
+      "description": "Write a short bio",
+      "placeholder": "Enter your bio",
+      "label": "Bio"
+    },
+    "success": "Profile saved successfully",
+    "error": "Failed to save profile"
+  },
+  "postCard": {
+    "justNow": "just now",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "daysAgo": "{count}d ago",
+    "addReaction": "Add reaction",
+    "removeReaction": "Remove reaction",
+    "viewProfile": "View {name}'s profile",
+    "reactionCount": "{emoji} {count} reactions",
+    "yourReaction": "You reacted",
+    "searchEmoji": "Search emoji..."
+  },
+  "welcome": {
+    "title": "Welcome to {serverName}!",
+    "description": "{serverDescription}",
+    "descriptionFallback": "Explore our platform and start sharing your thoughts."
+  },
+  "adminSetup": {
+    "title": "Server Initial Setup",
+    "step": "Step",
+    "of": " of ",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip",
+    "complete": "Complete",
+    "saving": "Saving...",
+    "welcome": {
+      "title": "Welcome to Ciel Server",
+      "description": "Let's set up your server. You'll create an admin account and configure basic server settings.",
+      "start": "Start Setup",
+      "changeLanguage": "Change Language"
+    },
+    "verifyPassword": {
+      "title": "Setup Password",
+      "description": "Enter the server administrator setup password.",
+      "label": "Setup Password",
+      "placeholder": "Enter setup password",
+      "verify": "Verify Password",
+      "verifying": "Verifying...",
+      "error": "Incorrect password",
+      "invalidPassword": "The password is incorrect"
+    },
+    "createAdmin": {
+      "title": "Create Admin Account",
+      "description": "Create the server administrator account. This account will have access to all admin features.",
+      "usernameLabel": "Username",
+      "usernamePlaceholder": "Admin username",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Enter password",
+      "create": "Create Account",
+      "creating": "Creating...",
+      "error": "Failed to create account",
+      "usernameRequired": "Username is required",
+      "passwordRequired": "Password is required"
+    },
+    "adminProfile": {
+      "title": "Admin Profile Setup",
+      "description": "Set up your profile (optional)"
+    },
+    "serverInfo": {
+      "title": "Server Information",
+      "description": "Configure basic server information",
+      "serverNameLabel": "Server Name",
+      "serverNameDescription": "The name of your server",
+      "serverNamePlaceholder": "Ciel",
+      "serverDescriptionLabel": "Server Description",
+      "serverDescriptionDescription": "A short description of your server",
+      "serverDescriptionPlaceholder": "Describe your server",
+      "serverIconLabel": "Server Icon",
+      "serverIconDescription": "An icon for your server",
+      "uploadIcon": "Upload Icon",
+      "changeIcon": "Change Icon",
+      "uploading": "Uploading...",
+      "uploadSuccess": "Icon uploaded successfully",
+      "uploadError": "Failed to upload icon",
+      "nameRequired": "Server name is required"
+    },
+    "inviteSettings": {
+      "title": "Invite Settings",
+      "description": "Configure how new users can sign up",
+      "inviteOnlyLabel": "Invite Only",
+      "inviteOnlyDescription": "When enabled, only users with an invite code can register",
+      "inviteCodeLabel": "Invite Code",
+      "inviteCodeDescription": "The code that users will need to register",
+      "inviteCodePlaceholder": "Enter invite code",
+      "generateCode": "Auto-generate",
+      "generating": "Generating...",
+      "inviteOnlyNote": "Please set an invite code if you enable invite-only mode",
+      "createInviteTitle": "Create First Invite Code",
+      "createInviteDescription": "Configure invite code settings in detail",
+      "usageLimitLabel": "Usage Limit",
+      "usageLimitUnlimited": "Unlimited",
+      "usageLimitLimited": "Limited",
+      "maxUsesLabel": "Maximum Uses",
+      "maxUsesPlaceholder": "10",
+      "expirationLabel": "Expiration",
+      "expirationNever": "Never expires",
+      "expiration7Days": "7 days",
+      "expiration30Days": "30 days",
+      "expirationCustom": "Custom",
+      "customDateLabel": "Expiration Date",
+      "noteLabel": "Note (optional)",
+      "notePlaceholder": "e.g., For beta testers",
+      "createButton": "Create Invite Code",
+      "creating": "Creating...",
+      "createError": "Failed to create invite code",
+      "codeCreated": "Invite code created",
+      "copyCode": "Copy",
+      "codeCopied": "Copied",
+      "copyError": "Failed to copy code"
+    },
+    "complete": {
+      "title": "Setup Complete!",
+      "description": "Server setup is complete. Head to the home page and start using Ciel.",
+      "goToHome": "Go to Home",
+      "setupSummary": "Setup Summary",
+      "adminAccount": "Admin Account: {username}",
+      "serverName": "Server Name: {name}",
+      "inviteOnly": "Invite Only: {enabled}",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "error": {
+      "setupFailed": "Setup failed",
+      "verifyPasswordFailed": "Failed to verify password",
+      "createAdminFailed": "Failed to create admin account",
+      "completeFailed": "Failed to complete setup"
+    }
+  },
+  "websocket": {
+    "inactivity": {
+      "title": "Connection Paused",
+      "description": "Your connection was paused due to 5 minutes of inactivity to reduce server load.",
+      "reconnect": "Reconnect",
+      "dismiss": "OK"
+    }
+  },
+  "offline": {
+    "title": "Offline",
+    "description": "Oops, the server appears to be offline. Please wait a moment and try again.",
+    "reload": "Reload"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "dashboard": {
+      "title": "Dashboard",
+      "welcome": "Welcome to Admin Panel",
+      "stats": {
+        "totalUsers": "Total Users",
+        "totalPosts": "Total Posts",
+        "totalMedia": "Total Media"
+      }
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "config": "Server Settings",
+      "users": "Users",
+      "posts": "Posts",
+      "media": "Media",
+      "contentFilters": "Content Filters",
+      "invites": "Invite Codes",
+      "agreements": "Agreements",
+      "ipBans": "IP Bans",
+      "logs": "Audit Logs"
+    },
+    "users": {
+      "title": "User Management",
+      "search": "Search Users",
+      "searchPlaceholder": "Search by username or display name",
+      "sort": "Sort",
+      "sortOptions": {
+        "created_desc": "Created: Newest",
+        "created_asc": "Created: Oldest",
+        "username_asc": "Username: A-Z",
+        "username_desc": "Username: Z-A"
+      },
+      "table": {
+        "username": "Username",
+        "displayName": "Display Name",
+        "roles": "Roles",
+        "createdAt": "Created",
+        "actions": "Actions"
+      },
+      "roles": {
+        "user": "User",
+        "admin": "Admin"
+      },
+      "loadingRoles": "Loading...",
+      "noResults": "No users found",
+      "viewDetails": "View Details"
+    },
+    "posts": {
+      "title": "Post Management",
+      "filterByUser": "Filter by User",
+      "filterByUserPlaceholder": "Enter User ID",
+      "filterByVisibility": "Filter by Visibility",
+      "allVisibility": "All",
+      "visibility": {
+        "public": "Public",
+        "hidden": "Hidden",
+        "deleted": "Deleted"
+      },
+      "table": {
+        "content": "Content",
+        "author": "Author",
+        "visibility": "Visibility",
+        "createdAt": "Created",
+        "actions": "Actions"
+      },
+      "noResults": "No posts found",
+      "viewPost": "View Post",
+      "changeVisibility": "Change Visibility",
+      "deletePost": "Delete Post",
+      "deleteConfirm": "Are you sure you want to delete this post?",
+      "deleteReason": "Deletion Reason (optional)",
+      "deleteReasonPlaceholder": "Enter reason for deletion",
+      "deleteSuccess": "Post deleted successfully",
+      "deleteError": "Failed to delete post",
+      "visibilityUpdateSuccess": "Post visibility updated",
+      "visibilityUpdateError": "Failed to update visibility",
+      "selectVisibility": "Select visibility",
+      "updateVisibility": "Update Visibility"
+    },
+    "media": {
+      "title": "Media Management",
+      "filterByUser": "Filter by User",
+      "filterByUserPlaceholder": "Enter User ID",
+      "table": {
+        "thumbnail": "Thumbnail",
+        "filename": "Filename",
+        "uploader": "Uploader",
+        "mimeType": "MIME Type",
+        "size": "Size",
+        "uploadedAt": "Uploaded",
+        "usedInPosts": "Used in Posts",
+        "actions": "Actions"
+      },
+      "noResults": "No media found",
+      "viewMedia": "View Media",
+      "deleteMedia": "Delete Media",
+      "deleteConfirm": "Are you sure you want to delete this media? This action cannot be undone.",
+      "deleteReason": "Deletion Reason (optional)",
+      "deleteReasonPlaceholder": "Enter reason for deletion",
+      "deleteSuccess": "Media deleted successfully",
+      "deleteError": "Failed to delete media",
+      "bytes": "bytes",
+      "kb": "KB",
+      "mb": "MB"
+    },
+    "contentFilters": {
+      "title": "Content Filters",
+      "bannedWords": "Banned Words",
+      "bannedImages": "Banned Images"
+    },
+    "ipBans": {
+      "title": "IP Bans"
+    },
+    "agreements": {
+      "title": "Agreement Documents",
+      "create": "Create New Agreement",
+      "edit": "Edit Agreement",
+      "new": "New Agreement",
+      "viewAll": "View All Agreements",
+      "fields": {
+        "type": "Type",
+        "language": "Language",
+        "version": "Version",
+        "title": "Title",
+        "content": "Content",
+        "status": "Status",
+        "createdAt": "Created",
+        "updatedAt": "Updated",
+        "publishedAt": "Published",
+        "createdBy": "Created By",
+        "publishedBy": "Published By"
+      },
+      "types": {
+        "terms": "Terms of Service",
+        "privacy": "Privacy Policy"
+      },
+      "languages": {
+        "en": "English",
+        "ja": "Japanese"
+      },
+      "status": {
+        "draft": "Draft",
+        "published": "Published"
+      },
+      "actions": {
+        "edit": "Edit",
+        "publish": "Publish",
+        "duplicate": "Duplicate",
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saveDraft": "Save Draft",
+        "preview": "Preview",
+        "viewHistory": "View History",
+        "back": "Back to Agreements"
+      },
+      "filters": {
+        "all": "All",
+        "type": "Filter by Type",
+        "language": "Filter by Language",
+        "status": "Filter by Status"
+      },
+      "editor": {
+        "editTab": "Edit",
+        "previewTab": "Preview",
+        "markdownSupported": "Markdown is supported"
+      },
+      "messages": {
+        "createSuccess": "Agreement created successfully",
+        "updateSuccess": "Agreement updated successfully",
+        "publishSuccess": "Agreement published successfully",
+        "deleteSuccess": "Agreement deleted successfully",
+        "duplicateSuccess": "Agreement duplicated successfully",
+        "createError": "Failed to create agreement",
+        "updateError": "Failed to update agreement",
+        "publishError": "Failed to publish agreement",
+        "deleteError": "Failed to delete agreement",
+        "duplicateError": "Failed to duplicate agreement",
+        "cannotEditPublished": "Published agreements cannot be edited",
+        "cannotDeletePublished": "Published agreements cannot be deleted"
+      },
+      "confirm": {
+        "publishTitle": "Publish Agreement?",
+        "publishDescription": "Once published, this agreement cannot be edited or deleted. Are you sure you want to continue?",
+        "deleteTitle": "Delete Agreement?",
+        "deleteDescription": "This action cannot be undone. Are you sure you want to delete this draft?",
+        "unsavedChanges": "You have unsaved changes. Are you sure you want to leave?"
+      },
+      "placeholder": {
+        "title": "Enter agreement title...",
+        "content": "Enter agreement content in Markdown format...",
+        "version": "1",
+        "selectType": "Select type",
+        "selectLanguage": "Select language"
+      },
+      "validation": {
+        "titleRequired": "Title is required",
+        "contentRequired": "Content is required",
+        "versionRequired": "Version number is required",
+        "versionMin": "Version must be at least 1",
+        "typeRequired": "Type is required",
+        "languageRequired": "Language is required"
+      }
+    },
+    "invites": {
+      "title": "Invite Code Management",
+      "create": "Create New",
+      "new": "Create Invite Code",
+      "detail": "Invite Code Details",
+      "edit": "Edit Invite Code",
+      "createTitle": "Create Invite Code",
+      "createDescription": "Create a new invite code. Enter a custom code or leave blank to auto-generate.",
+      "fields": {
+        "code": "Code",
+        "status": "Status",
+        "creator": "Creator",
+        "createdAt": "Created",
+        "lastUsedAt": "Last Used",
+        "useCount": "Use Count",
+        "maxUses": "Max Uses",
+        "expiresAt": "Expires",
+        "note": "Note",
+        "usageLimit": "Usage Limit",
+        "expiration": "Expiration"
+      },
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled",
+        "expired": "Expired",
+        "exhausted": "Exhausted"
+      },
+      "actions": {
+        "copy": "Copy",
+        "view": "View Details",
+        "edit": "Edit",
+        "disable": "Disable",
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "save": "Save",
+        "create": "Create",
+        "creating": "Creating...",
+        "back": "Back to List",
+        "backToList": "Back to List"
+      },
+      "messages": {
+        "created": "Invite code created successfully",
+        "createSuccess": "Invite code created successfully",
+        "createdSuccess": "Invite code created. You can view it in the list.",
+        "updateSuccess": "Invite code updated successfully",
+        "disableSuccess": "Invite code disabled successfully",
+        "deleteSuccess": "Invite code deleted successfully",
+        "copied": "Code copied to clipboard",
+        "codeCopied": "Code copied to clipboard",
+        "copyFailed": "Failed to copy code",
+        "copyError": "Failed to copy code",
+        "createFailed": "Failed to create invite code",
+        "createError": "Failed to create invite code",
+        "updateError": "Failed to update invite code",
+        "disableError": "Failed to disable invite code",
+        "deleteError": "Failed to delete invite code"
+      },
+      "confirm": {
+        "disableTitle": "Disable invite code?",
+        "disableDescription": "Once disabled, this code cannot be used for registration.",
+        "deleteTitle": "Delete invite code?",
+        "deleteDescription": "This action cannot be undone. Are you sure you want to delete this invite code?"
+      },
+      "usageHistory": {
+        "title": "Usage History",
+        "noUsage": "This code hasn't been used yet",
+        "user": "User",
+        "usedAt": "Used At"
+      },
+      "form": {
+        "customCode": "Custom Code (optional)",
+        "customCodePlaceholder": "Leave empty to auto-generate",
+        "customCodeHint": "1-32 characters: alphanumeric, hyphen, underscore",
+        "codeLabel": "Invite Code (optional)",
+        "codePlaceholder": "Leave empty to auto-generate",
+        "codeHelp": "1-32 characters: alphanumeric, hyphen, underscore",
+        "usageLimit": "Usage Limit",
+        "unlimited": "Unlimited",
+        "limited": "Limited",
+        "maxUses": "Maximum Uses",
+        "usageLimitUnlimited": "Unlimited",
+        "usageLimitLimited": "Limited",
+        "maxUsesLabel": "Maximum Uses",
+        "maxUsesPlaceholder": "10",
+        "expiration": "Expiration",
+        "never": "Never expires",
+        "7days": "7 days",
+        "30days": "30 days",
+        "customDate": "Custom",
+        "selectDate": "Select date and time",
+        "expirationNever": "Never expires",
+        "expiration7Days": "7 days",
+        "expiration30Days": "30 days",
+        "expirationCustom": "Custom",
+        "customDateLabel": "Select date and time",
+        "note": "Note (optional)",
+        "noteLabel": "Note (optional)",
+        "notePlaceholder": "e.g., For beta testers"
+      }
+    },
+    "empty": {
+      "posts": {
+        "title": "No posts found",
+        "description": "Try adjusting your filters to see more results",
+        "clearFilters": "Clear Filters"
+      },
+      "users": {
+        "title": "No users found",
+        "description": "Try adjusting your search or filters to see more results",
+        "clearFilters": "Clear Filters"
+      },
+      "media": {
+        "title": "No media found",
+        "description": "Try adjusting your filters to see more results",
+        "clearFilters": "Clear Filters"
+      },
+      "contentFilters": {
+        "title": "No filters configured",
+        "description": "Content filters help keep your community safe"
+      },
+      "ipBans": {
+        "title": "No IP bans",
+        "description": "IP addresses will appear here when banned"
+      },
+      "agreements": {
+        "title": "No agreement documents",
+        "description": "Create terms of service or privacy policy documents"
+      },
+      "invites": {
+        "title": "No invite codes",
+        "description": "Create invite codes to control user registration"
+      }
+    },
+    "config": {
+      "title": "Server Settings",
+      "description": "Manage server information and operation settings",
+      "profile": {
+        "title": "Server Profile",
+        "serverIconLabel": "Server Icon",
+        "serverIconDescription": "Server icon image",
+        "serverNameLabel": "Server Name",
+        "serverNameDescription": "Display name of the server",
+        "serverNamePlaceholder": "Ciel",
+        "serverDescriptionLabel": "Server Description",
+        "serverDescriptionDescription": "Brief description of the server",
+        "serverDescriptionPlaceholder": "Describe your server here",
+        "uploadIcon": "Upload Icon",
+        "changeIcon": "Change Icon",
+        "uploading": "Uploading...",
+        "uploadSuccess": "Icon uploaded successfully",
+        "uploadError": "Failed to upload icon",
+        "save": "Save Profile",
+        "saving": "Saving...",
+        "saveSuccess": "Server profile updated",
+        "saveError": "Failed to update server profile",
+        "nameRequired": "Server name is required"
+      },
+      "signup": {
+        "title": "Account Creation Settings",
+        "inviteOnlyLabel": "Use Invite Codes",
+        "inviteOnlyDescription": "When enabled, only users with an invite code can register",
+        "currentStatus": "Current Status",
+        "statusOpen": "Open registration",
+        "statusInviteOnly": "Invite-only (code required)",
+        "save": "Save Settings",
+        "saving": "Saving...",
+        "updateSuccess": "Signup settings updated",
+        "updateError": "Failed to update signup settings",
+        "inviteRequiredTitle": "Invite code required",
+        "inviteRequiredDescription": "To enable invite-only mode, you need to create at least one invite code.",
+        "createInviteCode": "Create Invite Code"
+      }
+    },
+    "common": {
+      "loading": "Loading...",
+      "error": "An error occurred",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "confirm": "Confirm",
+      "search": "Search",
+      "filter": "Filter"
+    }
+  }
+}

@@ -1,0 +1,59 @@
+name: ciel
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ciel-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ciel}
+      POSTGRES_USER: ${POSTGRES_USER:-ciel}
+      # SECURITY CRITICAL: Set strong POSTGRES_PASSWORD in .env file!
+      # Generate with: openssl rand -base64 32
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env file}
+    ports:
+      # SECURITY: Bind to localhost only to prevent external access
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # 初回起動時のみ自動実行（DBが空のとき）
+      - ./apps/backend/db/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ciel} -d ${POSTGRES_DB:-ciel}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: ciel-redis
+    # SECURITY: Add password protection for Redis
+    command: >
+      sh -c "
+      if [ -n \"$$REDIS_PASSWORD\" ]; then
+        redis-server --requirepass \"$$REDIS_PASSWORD\"
+      else
+        echo 'WARNING: Redis running without password (development only)'
+        redis-server
+      fi
+      "
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    ports:
+      # SECURITY: Bind to localhost only to prevent external access
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: >
+        sh -c "
+        if [ -n \"$$REDIS_PASSWORD\" ]; then
+          redis-cli -a \"$$REDIS_PASSWORD\" ping
+        else
+          redis-cli ping
+        fi
+        "
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  db_data:
+

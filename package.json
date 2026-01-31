@@ -1,0 +1,21 @@
+{
+  "name": "ciel",
+  "version": "2026.1.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "gen:openapi": "cd apps/backend && go generate ./internal/api",
+    "gen:openapi:ts": "pnpm -C apps/frontend run gen:openapi",
+    "gen:sqlc": "cd apps/backend && go generate ./internal/db/sqlc",
+    "gen:backend": "cd apps/backend && go generate ./...",
+    "run:backend": "cd apps/backend && go run .",
+    "test:backend": "cd apps/backend && go test ./...",
+    "dev:frontend": "cd apps/frontend && pnpm run dev",
+    "build:frontend": "cd apps/frontend && pnpm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.28.0"
+}

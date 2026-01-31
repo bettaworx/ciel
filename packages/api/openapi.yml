@@ -1,0 +1,5230 @@
+openapi: "3.0.0"
+info:
+  version: 0.1.0
+  title: ciel-api
+  description: |
+    Minimal SNS API (MVP).
+
+    Auth is a simplified SCRAM-SHA-256 style challenge-response scheme.
+    - Registration stores salted+iterated password verifier (storedKey/serverKey).
+    - Login uses one-time challenge (nonce) with expiration to prevent replay.
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:6137/api/v1
+
+tags:
+  - name: System
+  - name: Server
+  - name: Auth
+  - name: Setup
+  - name: Admin
+  - name: Users
+  - name: Posts
+  - name: Timeline
+  - name: Reactions
+  - name: Media
+  - name: Reports
+
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health Check
+      responses:
+        '200':
+          description: OK
+
+  /server/info:
+    get:
+      tags: [Server]
+      summary: Get public server information
+      description: |
+        Public endpoint to retrieve server metadata including name, description, and icon.
+        No authentication required.
+      operationId: getServerInfo
+      responses:
+        '200':
+          description: Server information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerInfo'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Admin - Dashboard ====================
+
+  /admin/dashboard/stats:
+    get:
+      tags: [Admin]
+      summary: Get dashboard statistics
+      description: Retrieve system-wide statistics for the admin dashboard
+      operationId: getAdminDashboardStats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_access permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Admin - User Search ====================
+
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: Search users
+      description: Search and list users with filters, pagination, and stats
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by username or display name
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [created_asc, created_desc, username_asc, username_desc]
+            default: created_desc
+          description: Sort order
+      responses:
+        '200':
+          description: List of users with stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserPage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_access permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users/{userId}/stats:
+    get:
+      tags: [Admin]
+      summary: Get user statistics
+      description: Retrieve detailed statistics for a specific user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStats'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_access permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Admin - Post Management ====================
+
+  /admin/posts:
+    get:
+      tags: [Admin]
+      summary: List posts (admin view)
+      description: List all posts with filtering and admin-only fields
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: userId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by user ID
+        - name: visibility
+          in: query
+          schema:
+            $ref: '#/components/schemas/PostVisibility'
+          description: Filter by visibility status
+      responses:
+        '200':
+          description: List of posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPostPage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_posts_read permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/posts/{postId}:
+    delete:
+      tags: [Admin]
+      summary: Delete post (admin)
+      description: Permanently delete a post with optional reason
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeletePostRequest'
+      responses:
+        '204':
+          description: Post deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_posts_delete permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/posts/{postId}/visibility:
+    patch:
+      tags: [Admin]
+      summary: Update post visibility
+      description: Change post visibility (public/hidden/deleted)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePostVisibilityRequest'
+      responses:
+        '200':
+          description: Visibility updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPost'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_posts_visibility permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Admin - Media Management ====================
+
+  /admin/media:
+    get:
+      tags: [Admin]
+      summary: List media (admin view)
+      description: List all media with filtering and admin-only fields
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: userId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by user ID
+        - name: deleted
+          in: query
+          schema:
+            type: boolean
+          description: Filter by deletion status
+      responses:
+        '200':
+          description: List of media
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminMediaPage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_media_read permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/media/{mediaId}:
+    delete:
+      tags: [Admin]
+      summary: Delete media (admin)
+      description: Permanently delete media with optional reason
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: mediaId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteMediaRequest'
+      responses:
+        '204':
+          description: Media deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_media_delete permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Media not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Admin - Profile Management ====================
+
+  /admin/users/{userId}/avatar:
+    delete:
+      tags: [Admin]
+      summary: Delete user avatar
+      description: Remove user's avatar image
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Avatar deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_profile_delete permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users/{userId}/display-name:
+    delete:
+      tags: [Admin]
+      summary: Delete user display name
+      description: Remove user's display name
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Display name deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_profile_delete permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users/{userId}/bio:
+    delete:
+      tags: [Admin]
+      summary: Delete user bio
+      description: Remove user's bio
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Bio deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_profile_delete permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Admin - Agreement Documents ====================
+
+  /admin/agreements/documents:
+    get:
+      tags: [Admin]
+      summary: List agreement documents
+      description: List all agreement documents (drafts and published) with filters
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/AgreementDocumentStatus'
+          description: Filter by publication status
+        - name: language
+          in: query
+          schema:
+            $ref: '#/components/schemas/AgreementLanguage'
+          description: Filter by language
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/AgreementType'
+          description: Filter by agreement type
+      responses:
+        '200':
+          description: List of agreement documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgreementDocumentPage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_agreements_read permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Admin]
+      summary: Create agreement document draft
+      description: Create a new agreement document draft
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgreementDocumentRequest'
+      responses:
+        '201':
+          description: Agreement document created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgreementDocument'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_agreements_create permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/agreements/documents/{documentId}:
+    get:
+      tags: [Admin]
+      summary: Get agreement document
+      description: Retrieve a specific agreement document
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Agreement document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgreementDocument'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_agreements_read permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags: [Admin]
+      summary: Update agreement document draft
+      description: Update a draft agreement document (published documents cannot be edited)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAgreementDocumentRequest'
+      responses:
+        '200':
+          description: Agreement document updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgreementDocument'
+        '400':
+          description: Bad request (document is published, not a draft)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_agreements_update permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Admin]
+      summary: Delete agreement document draft
+      description: Delete a draft agreement document (published documents cannot be deleted)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Document deleted
+        '400':
+          description: Bad request (document is published, not a draft)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_agreements_delete permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/agreements/documents/{documentId}/publish:
+    post:
+      tags: [Admin]
+      summary: Publish agreement document
+      description: Publish a draft agreement document (makes it immutable and public)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Agreement document published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgreementDocument'
+        '400':
+          description: Bad request (document is already published or invalid)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_agreements_publish permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/agreements/documents/{documentId}/duplicate:
+    post:
+      tags: [Admin]
+      summary: Duplicate agreement document
+      description: Create a new draft by duplicating an existing document
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newVersion]
+              properties:
+                newVersion:
+                  type: integer
+                  description: Version number for the new document
+      responses:
+        '201':
+          description: Document duplicated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgreementDocument'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_agreements_create permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/agreements/documents/history:
+    get:
+      tags: [Admin]
+      summary: Get agreement version history
+      description: Get all published versions of an agreement type and language
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/AgreementType'
+        - name: language
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/AgreementLanguage'
+      responses:
+        '200':
+          description: List of published versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgreementDocument'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_agreements_read permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Public Agreement Content ====================
+
+  /agreements/{type}/{version}:
+    get:
+      tags: [Server]
+      summary: Get agreement content by version
+      description: |
+        Public endpoint to retrieve agreement document content for a specific version.
+        No authentication required.
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/AgreementType'
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: language
+          in: query
+          schema:
+            $ref: '#/components/schemas/AgreementLanguage'
+          description: Language preference (defaults to 'en')
+      responses:
+        '200':
+          description: Agreement content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicAgreementContent'
+        '404':
+          description: Agreement not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /agreements/{type}/latest:
+    get:
+      tags: [Server]
+      summary: Get latest agreement content
+      description: |
+        Public endpoint to retrieve the latest published agreement document content.
+        No authentication required.
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/AgreementType'
+        - name: language
+          in: query
+          schema:
+            $ref: '#/components/schemas/AgreementLanguage'
+          description: Language preference (defaults to 'en')
+      responses:
+        '200':
+          description: Agreement content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicAgreementContent'
+        '404':
+          description: Agreement not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+  /admin/users/{userId}/mutes:
+    get:
+      tags: [Admin]
+      summary: List user mutes
+      description: List all active mutes for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of user mutes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserMute'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_users_mute permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Admin]
+      summary: Create user mute
+      description: Create a new mute for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserMuteRequest'
+      responses:
+        '201':
+          description: Mute created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMute'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_users_mute permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Admin]
+      summary: Remove all user mutes
+      description: Remove all active mutes for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Mutes removed
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_users_mute permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users/{userId}/mutes/{muteType}:
+    delete:
+      tags: [Admin]
+      summary: Remove specific user mute type
+      description: Remove a specific mute type for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: muteType
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/MuteType'
+      responses:
+        '204':
+          description: Mute removed
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_users_mute permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Admin - Banned Words ====================
+
+  /admin/banned-words:
+    get:
+      tags: [Admin]
+      summary: List banned words
+      description: List all banned word patterns
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: appliesTo
+          in: query
+          schema:
+            $ref: '#/components/schemas/BannedWordAppliesTo'
+          description: Filter by where the pattern applies
+      responses:
+        '200':
+          description: List of banned words
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BannedWord'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_banned_words_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Admin]
+      summary: Add banned word pattern
+      description: Create a new banned word pattern
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBannedWordRequest'
+      responses:
+        '201':
+          description: Banned word created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BannedWord'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_banned_words_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/banned-words/{wordId}:
+    get:
+      tags: [Admin]
+      summary: Get banned word
+      description: Retrieve a specific banned word pattern
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: wordId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Banned word details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BannedWord'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_banned_words_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Banned word not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Admin]
+      summary: Delete banned word
+      description: Remove a banned word pattern
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: wordId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Banned word deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_banned_words_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Banned word not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Admin - Banned Image Hashes ====================
+
+  /admin/banned-images:
+    get:
+      tags: [Admin]
+      summary: List banned image hashes
+      description: List all banned image hashes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of banned image hashes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BannedImageHash'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_banned_images_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Admin]
+      summary: Add banned image hash
+      description: Create a new banned image hash
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBannedImageHashRequest'
+      responses:
+        '201':
+          description: Banned image hash created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BannedImageHash'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_banned_images_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/banned-images/{hashId}:
+    get:
+      tags: [Admin]
+      summary: Get banned image hash
+      description: Retrieve a specific banned image hash
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: hashId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Banned image hash details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BannedImageHash'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_banned_images_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Banned image hash not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Admin]
+      summary: Delete banned image hash
+      description: Remove a banned image hash
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: hashId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Banned image hash deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_banned_images_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Banned image hash not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Admin - IP Bans ====================
+
+  /admin/ip-bans:
+    get:
+      tags: [Admin]
+      summary: List IP bans
+      description: List all active IP bans
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of IP bans
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IPBanPage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_ip_bans_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Admin]
+      summary: Create IP ban
+      description: Ban an IP address
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIPBanRequest'
+      responses:
+        '201':
+          description: IP ban created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IPBan'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_ip_bans_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Admin]
+      summary: Delete IP ban by address
+      description: Remove an IP ban by IP address (query parameter)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ipAddress
+          in: query
+          required: true
+          schema:
+            type: string
+          description: IP address to unban
+      responses:
+        '204':
+          description: IP ban deleted
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_ip_bans_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/ip-bans/{banId}:
+    delete:
+      tags: [Admin]
+      summary: Delete IP ban by ID
+      description: Remove an IP ban by its ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: banId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: IP ban deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_ip_bans_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: IP ban not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+
+  # ==================== Admin - Moderation Logs ====================
+
+  /admin/moderation-logs:
+    get:
+      tags: [Admin]
+      summary: List moderation logs
+      description: List all moderation logs with optional filters
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: adminUserId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by admin user ID
+        - name: action
+          in: query
+          schema:
+            $ref: '#/components/schemas/ModerationAction'
+          description: Filter by action type
+        - name: targetType
+          in: query
+          schema:
+            $ref: '#/components/schemas/ModerationTargetType'
+          description: Filter by target type
+        - name: targetId
+          in: query
+          schema:
+            type: string
+          description: Filter by target ID
+      responses:
+        '200':
+          description: List of moderation logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationLogPage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_moderation_logs_read permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users/{userId}/moderation-logs:
+    get:
+      tags: [Admin]
+      summary: Get moderation logs for specific user
+      description: Retrieve moderation logs where the user is the target
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of moderation logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModerationLog'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_moderation_logs_read permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+  # ==================== Admin - User Notes ====================
+
+  /admin/users/{userId}/note:
+    get:
+      tags: [Admin]
+      summary: Get admin note for user
+      description: Retrieve admin notes for a specific user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Admin note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserNote'
+        '404':
+          description: Note not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_users_notes permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags: [Admin]
+      summary: Create or update admin note for user
+      description: Create or update admin notes for a specific user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminUserNoteRequest'
+      responses:
+        '200':
+          description: Note created or updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserNote'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_users_notes permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Admin]
+      summary: Delete admin note for user
+      description: Delete admin notes for a specific user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Note deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_users_notes permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Note not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Reports (User-facing) ====================
+
+  /reports:
+    post:
+      tags: [Reports]
+      summary: Create a report
+      description: Submit a report for a user, post, or media item
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Target not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Admin - Reports ====================
+
+  /admin/reports:
+    get:
+      tags: [Admin]
+      summary: List all reports
+      description: List all reports with optional filters
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ReportStatus'
+          description: Filter by report status
+        - name: targetType
+          in: query
+          schema:
+            $ref: '#/components/schemas/ReportTargetType'
+          description: Filter by target type
+      responses:
+        '200':
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportPage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_reports_read permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/reports/{reportId}:
+    get:
+      tags: [Admin]
+      summary: Get specific report
+      description: Retrieve details of a specific report
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_reports_read permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags: [Admin]
+      summary: Update report status
+      description: Review, resolve, or dismiss a report
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReportRequest'
+      responses:
+        '200':
+          description: Report updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_reports_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: |
+        Minimal registration. In production, require HTTPS.
+
+        The server will generate `salt` and `iterations` and store verifier keys
+        derived from the password (SCRAM-style storedKey/serverKey).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '403':
+          description: Signup disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /setup/status:
+    get:
+      tags: [Setup]
+      summary: Get server setup status
+      description: Check if the initial server setup has been completed
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetupStatusResponse'
+
+  /setup/verify-password:
+    post:
+      tags: [Setup]
+      summary: Verify setup password
+      description: Verify the initial setup password from environment variable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifySetupPasswordRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifySetupPasswordResponse'
+        '403':
+          description: Setup already completed or password already used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /setup/create-admin:
+    post:
+      tags: [Setup]
+      summary: Create admin account
+      description: Create the initial admin account during server setup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateAdminResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Invalid setup password or setup already completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /setup/complete:
+    patch:
+      tags: [Setup]
+      summary: Complete server setup
+      description: Finalize server setup with configuration
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerSetupRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerSetupResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not admin or setup already completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /setup/create-invite:
+    post:
+      tags: [Setup]
+      summary: Create invite code during setup
+      description: Create the initial invite code during admin setup wizard
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteCodeRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCode'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login/start:
+    post:
+      tags: [Auth]
+      summary: Start challenge-response login
+      description: |
+        Starts a SCRAM-like login flow.
+
+        Client generates `clientNonce` and sends it.
+        Server responds with per-user salt/iterations and `serverNonce`.
+        Client then computes `clientProof` and calls /auth/login/finish.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginStartRequest'
+      responses:
+        '200':
+          description: Challenge issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginStartResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login/finish:
+    post:
+      tags: [Auth]
+      summary: Finish challenge-response login
+      description: |
+        Verifies `clientProof` for the one-time challenge.
+        On success returns an access token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginFinishRequest'
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginFinishResponse'
+        '401':
+          description: Invalid proof / expired challenge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/stepup/start:
+    post:
+      tags: [Auth]
+      summary: Start step-up authentication
+      description: |
+        Starts a SCRAM-like step-up flow bound to the authenticated user.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepupStartRequest'
+      responses:
+        '200':
+          description: Step-up challenge issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepupStartResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+
+  /auth/stepup/finish:
+    post:
+      tags: [Auth]
+      summary: Finish step-up authentication
+      description: |
+        Verifies `clientProof` for the step-up challenge and returns a short-lived token.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepupFinishRequest'
+      responses:
+        '200':
+          description: Step-up token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepupFinishResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout
+      description: |
+        Stateless JWT logout is typically handled on the client.
+        If you later add token revocation/blacklist, implement it here.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Logged out
+
+  /auth/password/change:
+    post:
+      tags: [Auth]
+      summary: Change password (step-up required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Stepup-Token
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Short-lived step-up token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+      responses:
+        '204':
+          description: Password updated
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized / step-up required
+
+
+  /admin/roles:
+    get:
+      tags: [Admin]
+      summary: List roles
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleList'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Admin]
+      summary: Create role
+      description: Create a new role
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_user_roles_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Role ID already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/roles/{roleId}:
+    get:
+      tags: [Admin]
+      summary: Get role details
+      description: Retrieve details of a specific role
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/RoleId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Admin]
+      summary: Update role
+      description: Update role name and description
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/RoleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_user_roles_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Admin]
+      summary: Delete role
+      description: Delete a role (cascade deletes user assignments)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/RoleId'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - cannot delete system roles (user, admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/roles/{roleId}/permissions:
+    get:
+      tags: [Admin]
+      summary: Get role permissions
+      description: Get all permissions assigned to a role
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/RoleId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePermissions'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Admin]
+      summary: Update role permissions
+      description: Replace all permissions for a role
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/RoleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RolePermissions'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePermissions'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - requires admin_user_roles_manage permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/roles/{roleId}/users:
+    get:
+      tags: [Admin]
+      summary: Get users with role
+      description: Get all users that have been assigned this role
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/RoleId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleUsersPage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/permissions:
+    get:
+      tags: [Admin]
+      summary: List permissions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionList'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users/{userId}/roles:
+    get:
+      tags: [Admin]
+      summary: Get user roles
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleList'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Admin]
+      summary: Replace user roles
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRolesUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleList'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users/{userId}/permissions:
+    get:
+      tags: [Admin]
+      summary: Get user permission overrides
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPermissionOverrides'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Admin]
+      summary: Replace user permission overrides
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPermissionOverrides'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPermissionOverrides'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users/{userId}/ban:
+    post:
+      tags: [Admin]
+      summary: Ban user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BanUserRequest'
+      responses:
+        '204':
+          description: Banned
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Admin]
+      summary: Unban user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+      responses:
+        '204':
+          description: Unbanned
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/settings:
+    get:
+      tags: [Admin]
+      summary: Get server settings
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerSettings'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/settings/signup:
+    patch:
+      tags: [Admin]
+      summary: Update signup enabled
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSignupEnabledRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerSettings'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/invites:
+    get:
+      tags: [Admin]
+      summary: List invite codes
+      description: Get paginated list of invite codes with usage information
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCodesListResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Admin]
+      summary: Create invite code
+      description: Create a new invite code with optional usage limits and expiration
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteCodeRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCode'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/invites/{inviteId}:
+    get:
+      tags: [Admin]
+      summary: Get invite code details
+      description: Get detailed information about a specific invite code
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCode'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Admin]
+      summary: Update invite code
+      description: Update invite code properties (code, maxUses, expiresAt, note)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInviteCodeRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCode'
+        '400':
+          description: Bad request (validation error or duplicate code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict - invite code already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Admin]
+      summary: Delete invite code
+      description: Permanently delete an invite code
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not admin
+        '404':
+          description: Not found
+
+  /admin/invites/{inviteId}/disable:
+    patch:
+      tags: [Admin]
+      summary: Disable invite code
+      description: Soft-delete an invite code by marking it as disabled
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Disabled
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not admin
+        '404':
+          description: Not found
+
+  /admin/invites/{inviteId}/uses:
+    get:
+      tags: [Admin]
+      summary: Get invite code usage history
+      description: Get list of users who used this invite code
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InviteCodeUse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not admin
+        '404':
+          description: Not found
+
+  /admin/settings/agreements:
+    patch:
+      tags: [Admin]
+      summary: Update agreement versions
+      description: Update Terms of Service and/or Privacy Policy versions (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAgreementVersionsRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgreementVersions'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /agreements/current:
+    get:
+      tags: [Server]
+      summary: Get current agreement versions
+      description: |
+        Public endpoint to retrieve current Terms of Service and Privacy Policy versions.
+        No authentication required.
+      operationId: getAgreementVersions
+      responses:
+        '200':
+          description: Current agreement versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgreementVersions'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /me:
+    get:
+      tags: [Users]
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+    delete:
+      tags: [Users]
+      summary: Delete current user (step-up required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Stepup-Token
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Short-lived step-up token.
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized / step-up required
+
+  /me/profile:
+    patch:
+      tags: [Users]
+      summary: Update current user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+
+  /me/avatar:
+    post:
+      tags: [Users]
+      summary: Update current user avatar
+      description: |
+        Upload an avatar image for the current user.
+
+        **Allowed formats:** PNG, JPG, JPEG, WebP  
+        **File size limit:** 12 MiB  
+        **Input dimension limits:** 16384x16384 pixels, 100 megapixels total  
+        **Output resolution:** Automatically cropped and resized to 400x400px (square)  
+        
+        **Processing:**
+        - Large images are scaled to cover 400x400
+        - Center-cropped to square aspect ratio
+        - Metadata stripped (EXIF/XMP/GPS)
+        - Converted to WebP format
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '413':
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /me/agreements:
+    post:
+      tags: [Users]
+      summary: Accept agreements
+      description: Record user acceptance of Terms of Service and/or Privacy Policy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptAgreementsRequest'
+      responses:
+        '204':
+          description: Agreements accepted
+        '400':
+          description: Bad request (versions don't match current)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+
+  /users/{username}:
+    get:
+      tags: [Users]
+      summary: Get user by username
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Username'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{username}/posts:
+    get:
+      tags: [Users]
+      summary: List posts by user
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Username'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cursor returned by previous call.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPostsPage'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /posts:
+    post:
+      tags: [Posts]
+      summary: Create a post
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+
+  /media:
+    post:
+      tags: [Media]
+      summary: Upload media (image)
+      description: |
+        Upload an image and store it as WebP.
+
+        **Allowed formats:** PNG, JPG, JPEG, WebP  
+        **File size limit:** 12 MiB  
+        **Input dimension limits:** 16384x16384 pixels, 100 megapixels total  
+        **Output resolution:** Automatically resized to max 1920px (longest edge), aspect ratio preserved  
+        
+        **Security features:**
+        - MIME type validation (content sniffing)
+        - Metadata stripping (EXIF/XMP/GPS)
+        - Automatic format conversion to WebP
+        - DoS protection via size and dimension limits
+
+        **Automatic resizing:**
+        Images larger than 1920px on any edge are automatically resized to fit within 1920px
+        while preserving the original aspect ratio. For example:
+        - 6000x4000 → 1920x1280
+        - 4000x6000 → 1280x1920
+        - 4096x4096 → 1920x1920
+
+        This means images that previously returned "image too large" errors (above 4096x4096)
+        will now be accepted and automatically resized.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /posts/{postId}:
+    get:
+      tags: [Posts]
+      summary: Get a post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PostId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Posts]
+      summary: Delete a post
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PostId'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /timeline:
+    get:
+      tags: [Timeline]
+      summary: Get timeline (paginated)
+      description: |
+        Returns a paginated timeline.
+
+        Implementation note: can be backed by Redis (e.g., ZSET of postIds),
+        and should remove deleted posts from cache.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+        - name: cursor
+          in: query
+          required: false
+          description: Cursor returned by previous call.
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelinePage'
+
+  /posts/{postId}/reactions:
+    get:
+      tags: [Reactions]
+      summary: Get reaction counts for a post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PostId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReactionCounts'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Reactions]
+      summary: Add a reaction
+      description: One user can add a specific emoji once per post.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReactRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReactionCounts'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Already reacted with that emoji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Reactions]
+      summary: Remove a reaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PostId'
+        - name: emoji
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Emoji'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReactionCounts'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found / not reacted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Username:
+      type: string
+      minLength: 3
+      maxLength: 32
+      pattern: '^[a-zA-Z0-9_]+$'
+
+    Emoji:
+      type: string
+      minLength: 1
+      maxLength: 16
+      description: Unicode emoji string.
+
+    PostId:
+      type: string
+      format: uuid
+
+    MediaId:
+      type: string
+      format: uuid
+
+    MediaType:
+      type: string
+      enum: [image]
+
+    Media:
+      type: object
+      required: [id, type, url, width, height, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/MediaId'
+        type:
+          $ref: '#/components/schemas/MediaType'
+        url:
+          type: string
+          format: uri
+        width:
+          type: integer
+          minimum: 1
+        height:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+
+    User:
+
+      type: object
+      required: [id, username, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          $ref: '#/components/schemas/Username'
+        createdAt:
+          type: string
+          format: date-time
+        displayName:
+          type: string
+          maxLength: 50
+          nullable: true
+        bio:
+          type: string
+          maxLength: 200
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        isAdmin:
+          type: boolean
+          description: Whether user has admin.all permission
+        termsVersion:
+          type: integer
+          description: Version of Terms of Service accepted by user (0 = not accepted)
+        privacyVersion:
+          type: integer
+          description: Version of Privacy Policy accepted by user (0 = not accepted)
+        termsAcceptedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When user accepted Terms of Service
+        privacyAcceptedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When user accepted Privacy Policy
+
+
+    Post:
+      type: object
+      required: [id, author, content, createdAt, media]
+      properties:
+        id:
+          $ref: '#/components/schemas/PostId'
+        author:
+          $ref: '#/components/schemas/User'
+        content:
+          type: string
+          minLength: 1
+          maxLength: 300
+        media:
+          type: array
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/Media'
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    TimelinePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        nextCursor:
+          type: string
+          nullable: true
+
+    UserPostsPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        nextCursor:
+          type: string
+          nullable: true
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          maxLength: 50
+          nullable: true
+        bio:
+          type: string
+          maxLength: 200
+          nullable: true
+
+    ReactionCount:
+      type: object
+      required: [emoji, count, reactedByCurrentUser]
+      properties:
+        emoji:
+          $ref: '#/components/schemas/Emoji'
+        count:
+          type: integer
+          minimum: 0
+        reactedByCurrentUser:
+          type: boolean
+          description: Whether the authenticated user has reacted with this emoji (false for anonymous users)
+
+    ReactionCounts:
+      type: object
+      required: [postId, reactions]
+      properties:
+        postId:
+          $ref: '#/components/schemas/PostId'
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionCount'
+
+    RegisterRequest:
+      type: object
+      required: [username, password, termsVersion, privacyVersion]
+      properties:
+        username:
+          $ref: '#/components/schemas/Username'
+        password:
+          type: string
+          minLength: 9
+          maxLength: 256
+        inviteCode:
+          type: string
+          description: Required when server is in invite-only mode
+        termsVersion:
+          type: integer
+          minimum: 1
+          description: Version of Terms of Service being accepted
+        privacyVersion:
+          type: integer
+          minimum: 1
+          description: Version of Privacy Policy being accepted
+
+
+    LoginStartRequest:
+      type: object
+      required: [username, clientNonce]
+      properties:
+        username:
+          $ref: '#/components/schemas/Username'
+        clientNonce:
+          type: string
+          minLength: 16
+          maxLength: 256
+          description: Random nonce generated by the client.
+
+    LoginStartResponse:
+      type: object
+      required: [loginSessionId, salt, iterations, serverNonce, expiresInSeconds]
+      properties:
+        loginSessionId:
+          type: string
+        salt:
+          type: string
+          description: Base64-encoded salt.
+        iterations:
+          type: integer
+          minimum: 10000
+          description: PBKDF2 iteration count.
+        serverNonce:
+          type: string
+          description: Server-provided nonce to append to clientNonce.
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+
+    LoginFinishRequest:
+      type: object
+      required: [loginSessionId, clientFinalNonce, clientProof]
+      properties:
+        loginSessionId:
+          type: string
+        clientFinalNonce:
+          type: string
+          description: Typically clientNonce + serverNonce.
+        clientProof:
+          type: string
+          description: Base64-encoded proof computed by the client.
+
+    LoginFinishResponse:
+      type: object
+      required: [accessToken, tokenType, expiresInSeconds, user]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+        user:
+          $ref: '#/components/schemas/User'
+
+    StepupStartRequest:
+      type: object
+      required: [clientNonce]
+      properties:
+        clientNonce:
+          type: string
+          minLength: 16
+          maxLength: 256
+          description: Random nonce generated by the client.
+
+    StepupStartResponse:
+      type: object
+      required: [stepupSessionId, salt, iterations, serverNonce, expiresInSeconds]
+      properties:
+        stepupSessionId:
+          type: string
+        salt:
+          type: string
+          description: Base64-encoded salt.
+        iterations:
+          type: integer
+          minimum: 10000
+          description: PBKDF2 iteration count.
+        serverNonce:
+          type: string
+          description: Server-provided nonce to append to clientNonce.
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+
+    StepupFinishRequest:
+      type: object
+      required: [stepupSessionId, clientFinalNonce, clientProof]
+      properties:
+        stepupSessionId:
+          type: string
+        clientFinalNonce:
+          type: string
+          description: Typically clientNonce + serverNonce.
+        clientProof:
+          type: string
+          description: Base64-encoded proof computed by the client.
+
+    StepupFinishResponse:
+      type: object
+      required: [stepupToken, tokenType, expiresInSeconds]
+      properties:
+        stepupToken:
+          type: string
+        tokenType:
+          type: string
+          enum: [Stepup]
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+
+    PasswordChangeRequest:
+      type: object
+      required: [newPassword]
+      properties:
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 256
+
+    CreatePostRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 300
+        mediaIds:
+          type: array
+          description: Media IDs to attach to the post (in order).
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/MediaId'
+
+    ReactRequest:
+      type: object
+      required: [emoji]
+      properties:
+        emoji:
+          $ref: '#/components/schemas/Emoji'
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    RoleId:
+      type: string
+      pattern: '^[a-z0-9_]+$'
+
+    UserId:
+      type: string
+      format: uuid
+
+    PermissionId:
+      type: string
+      pattern: '^[a-z0-9_]+$'
+
+    PermissionEffect:
+      type: string
+      enum: [allow, deny]
+
+    PermissionScope:
+      type: string
+
+    PermissionOverride:
+      type: object
+      required: [permissionId, scope, effect]
+      properties:
+        permissionId:
+          $ref: '#/components/schemas/PermissionId'
+        scope:
+          $ref: '#/components/schemas/PermissionScope'
+        effect:
+          $ref: '#/components/schemas/PermissionEffect'
+
+    RoleList:
+      type: array
+      items:
+        $ref: '#/components/schemas/RoleId'
+
+    PermissionList:
+      type: array
+      items:
+        $ref: '#/components/schemas/PermissionId'
+
+    UserRolesUpdateRequest:
+      type: object
+      required: [roles]
+      properties:
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleId'
+
+    UserPermissionOverrides:
+      type: object
+      required: [overrides]
+      properties:
+        overrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionOverride'
+
+    Role:
+      type: object
+      required: [id, name, description]
+      properties:
+        id:
+          $ref: '#/components/schemas/RoleId'
+        name:
+          type: string
+          description: Display name of the role
+        description:
+          type: string
+          description: Description of the role
+
+    CreateRoleRequest:
+      type: object
+      required: [id, name, description]
+      properties:
+        id:
+          $ref: '#/components/schemas/RoleId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Display name of the role
+        description:
+          type: string
+          maxLength: 500
+          description: Description of the role
+
+    UpdateRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          nullable: true
+          description: Display name of the role
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Description of the role
+
+    RolePermissions:
+      type: object
+      required: [roleId, permissions]
+      properties:
+        roleId:
+          $ref: '#/components/schemas/RoleId'
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionOverride'
+
+    RoleUser:
+      type: object
+      required: [id, username]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    RoleUsersPage:
+      type: object
+      required: [roleId, users, total]
+      properties:
+        roleId:
+          $ref: '#/components/schemas/RoleId'
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleUser'
+        total:
+          type: integer
+          description: Total number of users with this role
+
+    ServerSettings:
+      type: object
+      required: [signupEnabled]
+      properties:
+        signupEnabled:
+          type: boolean
+        termsVersion:
+          type: integer
+          description: Current version of Terms of Service
+        privacyVersion:
+          type: integer
+          description: Current version of Privacy Policy
+
+
+    UpdateSignupEnabledRequest:
+      type: object
+      required: [signupEnabled]
+      properties:
+        signupEnabled:
+          type: boolean
+
+    BanUserRequest:
+      type: object
+      properties:
+        ttlSeconds:
+          type: integer
+          minimum: 1
+
+    AgreementVersions:
+      type: object
+      required: [termsVersion, privacyVersion]
+      properties:
+        termsVersion:
+          type: integer
+          minimum: 1
+          description: Current version of Terms of Service
+        privacyVersion:
+          type: integer
+          minimum: 1
+          description: Current version of Privacy Policy
+
+    AcceptAgreementsRequest:
+      type: object
+      properties:
+        termsVersion:
+          type: integer
+          minimum: 1
+          description: Version of Terms of Service being accepted
+        privacyVersion:
+          type: integer
+          minimum: 1
+          description: Version of Privacy Policy being accepted
+
+    UpdateAgreementVersionsRequest:
+      type: object
+      properties:
+        termsVersion:
+          type: integer
+          minimum: 1
+          description: New version of Terms of Service (must be >= 1)
+        privacyVersion:
+          type: integer
+          minimum: 1
+          description: New version of Privacy Policy (must be >= 1)
+
+    # Setup schemas
+    SetupStatusResponse:
+      type: object
+      required:
+        - setupCompleted
+        - adminExists
+      properties:
+        setupCompleted:
+          type: boolean
+          description: Whether the server setup has been completed
+        adminExists:
+          type: boolean
+          description: Whether an admin account has been created
+
+    VerifySetupPasswordRequest:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          type: string
+
+    VerifySetupPasswordResponse:
+      type: object
+      required:
+        - valid
+      properties:
+        valid:
+          type: boolean
+          description: Whether the password is valid
+        setupToken:
+          type: string
+          description: Temporary token for admin creation (valid for 10 minutes)
+
+    CreateAdminRequest:
+      type: object
+      required:
+        - setupToken
+        - username
+        - password
+      properties:
+        setupToken:
+          type: string
+          description: Temporary token obtained from verify-password endpoint
+        username:
+          type: string
+        password:
+          type: string
+
+    CreateAdminResponse:
+      type: object
+      required:
+        - user
+        - token
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+
+    ServerSetupRequest:
+      type: object
+      properties:
+        serverName:
+          type: string
+          nullable: true
+        serverDescription:
+          type: string
+          nullable: true
+        serverIconMediaId:
+          type: string
+          format: uuid
+          nullable: true
+        inviteOnly:
+          type: boolean
+        inviteCode:
+          type: string
+          nullable: true
+
+    ServerSetupResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+
+    ServerInfo:
+      type: object
+      required:
+        - signupEnabled
+        - configVersion
+      properties:
+        serverName:
+          type: string
+          nullable: true
+          description: Display name of the server instance
+        serverDescription:
+          type: string
+          nullable: true
+          description: Description/about text of the server
+        serverIconUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Public URL of the server icon/logo
+        signupEnabled:
+          type: boolean
+          description: Whether new user signups are currently allowed
+        configVersion:
+          type: integer
+          format: int64
+          description: Unix timestamp of last config update (for cache busting)
+
+    CreateInviteCodeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          nullable: true
+          pattern: '^[a-zA-Z0-9_-]{1,32}$'
+          minLength: 1
+          maxLength: 32
+          description: |
+            Optional custom invite code (1-32 characters, alphanumeric with underscore/hyphen).
+            If not provided or null, an 8-character code will be auto-generated.
+          example: "welcome-2026"
+        maxUses:
+          type: integer
+          nullable: true
+          description: Maximum number of times this code can be used. null = unlimited
+          minimum: 1
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Expiration date/time in ISO 8601 format. null = never expires
+        note:
+          type: string
+          nullable: true
+          description: Optional note about this invite code (e.g., "For beta testers")
+          maxLength: 500
+
+    UpdateInviteCodeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          nullable: true
+          pattern: '^[a-zA-Z0-9_-]{1,32}$'
+          minLength: 1
+          maxLength: 32
+          description: |
+            Updated invite code (1-32 characters, alphanumeric with underscore/hyphen).
+            Must be unique. Omit this field to keep the existing code.
+          example: "welcome-2026-updated"
+        maxUses:
+          type: integer
+          nullable: true
+          description: |
+            Maximum number of times this code can be used. null = unlimited.
+            Omit this field to keep the existing value.
+          minimum: 1
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Expiration date/time in ISO 8601 format. null = never expires.
+            Omit this field to keep the existing value.
+        note:
+          type: string
+          nullable: true
+          description: |
+            Updated note about this invite code (e.g., "For beta testers").
+            null = clear the note. Omit this field to keep the existing value.
+          maxLength: 500
+
+    InviteCode:
+      type: object
+      required:
+        - id
+        - code
+        - createdBy
+        - createdAt
+        - useCount
+        - disabled
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          pattern: '^[a-zA-Z0-9_-]{1,32}$'
+          description: Invite code (auto-generated 8-char or custom up to 32 chars)
+          example: "aB3cD4eF"
+        createdBy:
+          type: string
+          format: uuid
+          description: User ID of creator
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        useCount:
+          type: integer
+          description: Number of times this code has been used
+        maxUses:
+          type: integer
+          nullable: true
+          description: Maximum allowed uses. null = unlimited
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Expiration date. null = never expires
+        disabled:
+          type: boolean
+          description: Whether this code has been disabled
+        note:
+          type: string
+          nullable: true
+          description: Optional note about this invite code
+
+    InviteCodeWithCreator:
+      allOf:
+        - $ref: '#/components/schemas/InviteCode'
+        - type: object
+          required:
+            - creatorUsername
+          properties:
+            creatorUsername:
+              type: string
+              description: Username of the creator
+            creatorDisplayName:
+              type: string
+              nullable: true
+              description: Display name of the creator
+
+    InviteCodesListResponse:
+      type: object
+      required:
+        - invites
+        - total
+      properties:
+        invites:
+          type: array
+          items:
+            $ref: '#/components/schemas/InviteCodeWithCreator'
+        total:
+          type: integer
+          description: Total number of invite codes
+
+    InviteCodeUse:
+      type: object
+      required:
+        - id
+        - inviteCodeId
+        - userId
+        - usedAt
+        - username
+      properties:
+        id:
+          type: string
+          format: uuid
+        inviteCodeId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        usedAt:
+          type: string
+          format: date-time
+        username:
+          type: string
+          description: Username of user who used the code
+        displayName:
+          type: string
+          nullable: true
+          description: Display name of user who used the code
+        avatarMediaId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Avatar media ID of user who used the code
+
+    # ==================== Moderation - Basic Types ====================
+
+    MuteType:
+      type: string
+      enum: [posts_create, media_upload, reactions_add, all]
+      description: Type of user mute restriction
+
+    ReportStatus:
+      type: string
+      enum: [pending, reviewing, resolved, dismissed]
+      description: Status of a user report
+
+    ReportTargetType:
+      type: string
+      enum: [user, post, media]
+      description: Type of target being reported
+
+    BannedWordAppliesTo:
+      type: string
+      enum: [posts, profiles, all]
+      description: Where the banned word pattern applies
+
+    BannedWordSeverity:
+      type: string
+      enum: [flag, auto_delete]
+      description: Action to take when banned word is detected
+
+    ImageHashType:
+      type: string
+      enum: [phash, md5]
+      description: Type of image hash algorithm used
+
+    PostVisibility:
+      type: string
+      enum: [public, hidden, deleted]
+      description: Visibility state of a post
+
+    ModerationAction:
+      type: string
+      enum: 
+        - ban_user
+        - unban_user
+        - mute_user
+        - unmute_user
+        - delete_post
+        - hide_post
+        - unhide_post
+        - delete_media
+        - delete_user_avatar
+        - delete_user_display_name
+        - delete_user_bio
+        - create_banned_word
+        - delete_banned_word
+        - create_banned_image
+        - delete_banned_image
+        - create_ip_ban
+        - delete_ip_ban
+        - resolve_report
+        - dismiss_report
+        - publish_agreement
+        - other
+      description: Type of moderation action performed
+
+    ModerationTargetType:
+      type: string
+      enum: [user, post, media, report, ip, word, image, agreement, other]
+      description: Type of target for moderation action
+
+    AgreementType:
+      type: string
+      enum: [terms, privacy]
+      description: Type of agreement document
+
+    AgreementLanguage:
+      type: string
+      enum: [en, ja]
+      description: Language of agreement document
+
+    AgreementDocumentStatus:
+      type: string
+      enum: [draft, published]
+      description: Publication status of agreement document
+
+    # ==================== Moderation - Admin User Notes ====================
+
+    AdminUserNote:
+      type: object
+      required: [id, userId, content, createdBy, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        content:
+          type: string
+          description: Admin note content (markdown supported)
+        createdBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this note
+        updatedBy:
+          type: string
+          format: uuid
+          description: Admin user ID who last updated this note
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateAdminUserNoteRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Admin note content
+
+    UpdateAdminUserNoteRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Updated admin note content
+
+    # ==================== Moderation - Moderation Logs ====================
+
+    ModerationLog:
+      type: object
+      required: [id, adminUserId, action, targetType, targetId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        adminUserId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Admin user who performed the action (null for system actions)
+        adminUsername:
+          type: string
+          nullable: true
+          description: Username of admin who performed the action
+        adminDisplayName:
+          type: string
+          nullable: true
+          description: Display name of admin who performed the action
+        action:
+          $ref: '#/components/schemas/ModerationAction'
+        targetType:
+          $ref: '#/components/schemas/ModerationTargetType'
+        targetId:
+          type: string
+          description: ID of the target (format depends on target type)
+        details:
+          type: object
+          nullable: true
+          description: Additional details about the action (JSON object)
+        createdAt:
+          type: string
+          format: date-time
+
+    ModerationLogPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModerationLog'
+        total:
+          type: integer
+          description: Total number of moderation logs matching the filters
+
+    # ==================== Moderation - User Mutes ====================
+
+    UserMute:
+      type: object
+      required: [id, userId, muteType, mutedBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: ID of the muted user
+        muteType:
+          $ref: '#/components/schemas/MuteType'
+        mutedBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this mute
+        reason:
+          type: string
+          nullable: true
+          description: Reason for the mute
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the mute expires (null = permanent)
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateUserMuteRequest:
+      type: object
+      required: [muteType]
+      properties:
+        muteType:
+          $ref: '#/components/schemas/MuteType'
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Reason for the mute
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the mute should expire (null = permanent)
+
+    # ==================== Moderation - Reports ====================
+
+    Report:
+      type: object
+      required: [id, reporterUserId, targetType, targetId, reason, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reporterUserId:
+          type: string
+          format: uuid
+          description: User who submitted the report
+        reporterUsername:
+          type: string
+          nullable: true
+          description: Username of reporter
+        reporterDisplayName:
+          type: string
+          nullable: true
+          description: Display name of reporter
+        targetType:
+          $ref: '#/components/schemas/ReportTargetType'
+        targetId:
+          type: string
+          description: ID of the reported item
+        reason:
+          type: string
+          description: Predefined reason category
+        details:
+          type: string
+          nullable: true
+          description: Additional details provided by reporter
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        reviewedBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: Admin user ID who reviewed this report
+        reviewerUsername:
+          type: string
+          nullable: true
+          description: Username of reviewer
+        reviewerDisplayName:
+          type: string
+          nullable: true
+          description: Display name of reviewer
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the report was reviewed
+        resolution:
+          type: string
+          nullable: true
+          description: Admin's resolution notes
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReportPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Report'
+        total:
+          type: integer
+          description: Total number of reports matching the filters
+
+    CreateReportRequest:
+      type: object
+      required: [targetType, targetId, reason]
+      properties:
+        targetType:
+          $ref: '#/components/schemas/ReportTargetType'
+        targetId:
+          type: string
+          description: ID of the item being reported
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Predefined reason category (e.g., spam, harassment, inappropriate)
+        details:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Additional details about the report
+
+    UpdateReportRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        resolution:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Admin's resolution notes
+
+    # ==================== Moderation - Banned Words ====================
+
+    BannedWord:
+      type: object
+      required: [id, pattern, appliesTo, severity, createdBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Banned word ID
+        pattern:
+          type: string
+          description: Regex or literal pattern to match
+        appliesTo:
+          $ref: '#/components/schemas/BannedWordAppliesTo'
+        severity:
+          $ref: '#/components/schemas/BannedWordSeverity'
+        createdBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this rule
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateBannedWordRequest:
+      type: object
+      required: [pattern, appliesTo, severity]
+      properties:
+        pattern:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Regex or literal pattern to match
+        appliesTo:
+          $ref: '#/components/schemas/BannedWordAppliesTo'
+        severity:
+          $ref: '#/components/schemas/BannedWordSeverity'
+
+    # ==================== Moderation - Banned Image Hashes ====================
+
+    BannedImageHash:
+      type: object
+      required: [id, hash, hashType, createdBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Banned image hash ID
+        hash:
+          type: string
+          description: Image hash value (hex or base64)
+        hashType:
+          $ref: '#/components/schemas/ImageHashType'
+        reason:
+          type: string
+          nullable: true
+          description: Reason why this image is banned
+        createdBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this rule
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateBannedImageHashRequest:
+      type: object
+      required: [hash, hashType]
+      properties:
+        hash:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Image hash value (hex or base64)
+        hashType:
+          $ref: '#/components/schemas/ImageHashType'
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Reason why this image is banned
+
+    # ==================== Moderation - IP Bans ====================
+
+    IPBan:
+      type: object
+      required: [id, ipAddress, bannedBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ipAddress:
+          type: string
+          description: IP address (IPv4 or IPv6)
+        reason:
+          type: string
+          nullable: true
+          description: Reason for the ban
+        bannedBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this ban
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the ban expires (null = permanent)
+        createdAt:
+          type: string
+          format: date-time
+
+    IPBanPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IPBan'
+        total:
+          type: integer
+          description: Total number of IP bans
+
+    CreateIPBanRequest:
+      type: object
+      required: [ipAddress]
+      properties:
+        ipAddress:
+          type: string
+          description: IP address to ban (IPv4 or IPv6)
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Reason for the ban
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the ban should expire (null = permanent)
+
+    # ==================== Moderation - Admin User Management ====================
+
+    UserStats:
+      type: object
+      required: [postsCount, mediaCount, reportsCount]
+      properties:
+        postsCount:
+          type: integer
+          description: Number of posts created by user
+        mediaCount:
+          type: integer
+          description: Number of media items uploaded by user
+        reportsCount:
+          type: integer
+          description: Number of reports submitted by user
+
+    DashboardStats:
+      type: object
+      required: [totalUsers, totalPosts, totalMedia]
+      properties:
+        totalUsers:
+          type: integer
+          description: Total number of users (non-deleted)
+        totalPosts:
+          type: integer
+          description: Total number of posts (non-deleted)
+        totalMedia:
+          type: integer
+          description: Total number of media items (non-deleted)
+
+    AdminUser:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            stats:
+              $ref: '#/components/schemas/UserStats'
+
+    AdminUserPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUser'
+        total:
+          type: integer
+          description: Total number of users matching the filters
+
+    # ==================== Moderation - Admin Post Management ====================
+
+    AdminPost:
+      allOf:
+        - $ref: '#/components/schemas/Post'
+        - type: object
+          required: [visibility]
+          properties:
+            visibility:
+              $ref: '#/components/schemas/PostVisibility'
+            deletedBy:
+              type: string
+              format: uuid
+              nullable: true
+              description: Admin user ID who deleted this post
+            deletionReason:
+              type: string
+              nullable: true
+              description: Reason for deletion
+
+    AdminPostPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminPost'
+        total:
+          type: integer
+          description: Total number of posts matching the filters
+
+    DeletePostRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Reason for deletion
+
+    UpdatePostVisibilityRequest:
+      type: object
+      required: [visibility]
+      properties:
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+
+    # ==================== Moderation - Admin Media Management ====================
+
+    AdminMedia:
+      allOf:
+        - $ref: '#/components/schemas/Media'
+        - type: object
+          properties:
+            userId:
+              type: string
+              format: uuid
+              description: User who uploaded this media
+            uploaderUsername:
+              type: string
+              nullable: true
+              description: Username of uploader
+            deletedAt:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the media was deleted
+            deletedBy:
+              type: string
+              format: uuid
+              nullable: true
+              description: Admin user ID who deleted this media
+            deletionReason:
+              type: string
+              nullable: true
+              description: Reason for deletion
+            phash:
+              type: string
+              nullable: true
+              description: Perceptual hash of the image
+            usedInPostsCount:
+              type: integer
+              description: Number of posts using this media
+
+    AdminMediaPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminMedia'
+        total:
+          type: integer
+          description: Total number of media items matching the filters
+
+    DeleteMediaRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Reason for deletion
+
+    # ==================== Agreement Documents ====================
+
+    AgreementDocument:
+      type: object
+      required: [id, type, language, version, status, title, content, createdBy, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Agreement document ID
+        type:
+          $ref: '#/components/schemas/AgreementType'
+        language:
+          $ref: '#/components/schemas/AgreementLanguage'
+        version:
+          type: integer
+          description: Version number
+        status:
+          $ref: '#/components/schemas/AgreementDocumentStatus'
+        title:
+          type: string
+          description: Document title
+        content:
+          type: string
+          description: Document content (markdown format)
+        createdBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this document
+        publishedBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: Admin user ID who published this document
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the document was published
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AgreementDocumentPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgreementDocument'
+        total:
+          type: integer
+          description: Total number of documents matching the filters
+
+    CreateAgreementDocumentRequest:
+      type: object
+      required: [type, language, version, title, content]
+      properties:
+        type:
+          $ref: '#/components/schemas/AgreementType'
+        language:
+          $ref: '#/components/schemas/AgreementLanguage'
+        version:
+          type: integer
+          minimum: 1
+          description: Version number
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Document title
+        content:
+          type: string
+          minLength: 1
+          maxLength: 100000
+          description: Document content (markdown format)
+
+    UpdateAgreementDocumentRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          nullable: true
+          description: Updated document title
+        content:
+          type: string
+          minLength: 1
+          maxLength: 100000
+          nullable: true
+          description: Updated document content (markdown format)
+
+    PublicAgreementContent:
+      type: object
+      required: [type, language, version, title, content, publishedAt]
+      properties:
+        type:
+          $ref: '#/components/schemas/AgreementType'
+        language:
+          $ref: '#/components/schemas/AgreementLanguage'
+        version:
+          type: integer
+          description: Version number
+        title:
+          type: string
+          description: Document title
+        content:
+          type: string
+          description: Document content (markdown format)
+        publishedAt:
+          type: string
+          format: date-time
+          description: When the document was published
+
+

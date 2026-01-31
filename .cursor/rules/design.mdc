@@ -1,0 +1,234 @@
+---
+alwaysApply: false
+---
+
+# Design Rules
+
+## 基本方針
+- **Tailwind CSS**を使用し、すべてのスタイリングはユーティリティクラスで記述
+- **@themeスキーマー**で色・spacing・radiusなどのデザイントークンを定義
+- フラットデザイン：影・ボーダー・グラデーションは使わず、背景色の明暗で区分する
+- ライト/ダークテーマを前提とし、テーマ差分はトークンで表現する
+- 低コントラスト寄りの優しい色合い。ただし可読性は確保する
+- メインカラーは無彩色（背景・面・文字）で統一する
+- アクセントは青系、角丸は中程度（6〜8px）
+- 日本語可読性重視のサンセリフ、コンパクトな密度
+- レスポンシブ対応：モバイル時は余白・文字サイズ・角丸を縮める可能性あり
+- アイコンは lucide を使用
+
+## 禁止事項
+### CSS/Tailwindクラスで禁止されているもの
+- 影の使用：`shadow-*` クラス、`drop-shadow-*` クラスの使用禁止
+- ボーダー：明示的な `border` クラスの追加禁止（区切りは背景色の明暗で表現）
+- グラデーション：`bg-gradient-*` クラスの使用禁止
+- 透明度変更：`opacity-*` クラスの使用禁止（`hover:opacity-*`, `disabled:opacity-*` も含む）
+- 拡大縮小：`scale-*` クラスの使用禁止
+- フィルター：`brightness-*`, `blur-*`, `contrast-*`, `saturate-*` など全filter系クラスの使用禁止
+- 視覚効果は必ず明示的な色トークンで表現すること（例：`hover:bg-surface-hover`, `disabled:bg-disabled`）
+
+### shadcn/ui コンポーネントバリアントの使用方針
+- `variant="outline"` の使用禁止（ボーダーを使用するため、フラットデザインに反する）
+- `variant="ghost"` は極力避ける（背景色がなく視認性が低い）
+- **推奨**: `variant="default"` を基本とする（明確な背景色で視認性が高い）
+- 強調が必要な場合のみ `variant="primary"` や `variant="destructive"` を使用
+- セカンダリアクションには `variant="secondary"` を使用
+
+## カラースキーマ / トークン
+**詳細は `color.mdc` を参照してください。**
+
+### 基本方針
+- 低コントラスト寄りにしつつ、本文テキストは最低限の視認性を担保する
+- 背景・面・文字は無彩色ベースで統一し、アクセントのみ青系を使用する
+- 同一画面内の面の区分は `bg` -> `surface` -> `surface-2` の明度差で表現する
+- テーマカラー（`c-1`, `c-2`）は目立たせたい要素やポジティブなアクションに使用する
+
+### 主要なカラートークン
+```tsx
+// 背景色
+bg-background, bg-background-1, bg-card, bg-popover, bg-primary, bg-secondary, bg-muted
+
+// テキスト色・アイコン色
+text-foreground, text-muted-foreground, text-primary-foreground
+
+// テーマカラー（目立つもの・ポジティブなもの）
+bg-c-1, bg-c-2, text-c-1, text-c-foreground
+```
+
+詳細なトークン定義、使用例、禁止事項については **`color.mdc`** を参照してください。
+
+## タイポグラフィ
+- フォント: `"Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif`
+- 基本文字サイズ: 15px、行間 1.6
+- 見出しは 1.15〜1.4 倍で段階化（H1/H2/H3）
+- モバイル時は本文 14px に縮小し、見出しは 1段階小さくする
+
+Tailwindクラス使用例：
+```tsx
+<p className="text-base leading-relaxed">   // 15px, 行間1.6
+<h1 className="text-2xl font-bold">         // 見出し1
+<h2 className="text-xl font-bold">          // 見出し2
+```
+
+## スペーシング / 角丸
+- スペーシングスケール: 4 / 8 / 12 / 16 / 24 / 32
+- 画面余白: desktop 24px, tablet 16px, mobile 12px
+- コンポーネント内余白: 12〜16px（モバイルは 8〜12px）
+- 角丸: 基本 8px、small 6px、モバイルでは 4〜6px
+
+Tailwind設定（globals.css の @theme で定義）：
+```
+--spacing-1: 4px;     // p-spacing-1
+--spacing-2: 8px;     // p-spacing-2
+--spacing-3: 12px;    // p-spacing-3
+--spacing-4: 16px;    // p-spacing-4
+--spacing-6: 24px;    // p-spacing-6
+--spacing-8: 32px;    // p-spacing-8
+
+--radius-sm: 6px;     // rounded-sm
+--radius: 8px;        // rounded
+```
+
+## トランジション
+すべてのインタラクティブ要素は滑らかなトランジションを適用：
+- デフォルト時間: 160ms
+- イージング: ease
+
+Tailwindクラス使用例：
+```tsx
+<button className="transition-colors duration-160 ease">
+```
+
+## レスポンシブ
+- ブレークポイント例: mobile <= 640px, tablet <= 960px, desktop >= 961px
+- モバイル時は余白・文字・角丸を縮小し、情報密度を保つ
+- 操作ターゲットは最小 36px 以上（タップしやすさを確保）
+
+Tailwindクラス使用例：
+```tsx
+<div className="p-3 md:p-4 lg:p-6">        // レスポンシブ余白
+<h1 className="text-xl md:text-2xl">       // レスポンシブ文字サイズ
+```
+
+## コンポーネント規約
+### パネル/カード
+- shadcn/ui標準：`bg-card` を使用
+- カスタム：`bg-surface` を使用し、区分は背景の明暗のみで表現
+- ボーダーや影は使用しない
+
+```tsx
+// shadcn/ui標準
+<div className="bg-card text-card-foreground rounded-lg p-4">
+
+// カスタム（低コントラスト）
+<div className="bg-surface rounded-lg p-4">
+  <div className="bg-surface-2 rounded p-3">  // 入れ子の場合
+  </div>
+</div>
+```
+
+### ボタン
+すべてのボタンは `transition-colors duration-160 ease` で滑らかにアニメーション。
+opacity禁止、すべての状態変化は明示的な色トークンで表現。
+
+**バリアント使用方針**:
+- **基本は `variant="default"`**: 明確な背景色で視認性が高く、フラットデザインに適合
+- **強調は `variant="primary"`**: 主要なアクション（送信、保存など）に使用
+- **セカンダリは `variant="secondary"`**: 副次的なアクション（キャンセルなど）に使用
+- **選択肢として2つのボタンを並べる場合**: 推奨アクションを `primary`、代替アクションを `secondary` にして優先度を明確化
+  - 例: 「ログイン（secondary）」と「新規登録（primary）」
+  - 例: 「キャンセル（secondary）」と「保存（primary）」
+- **破壊的操作は `variant="destructive"`**: 削除、無効化などの危険な操作に使用
+- **`variant="ghost"` は極力避ける**: 背景色がなく視認性が低いため、特別な理由がない限り使用しない
+- **`variant="outline"` は使用禁止**: ボーダーを使用するため、フラットデザインに反する
+
+#### Default Button（推奨）
+```tsx
+<Button variant="default">
+  アクション
+</Button>
+```
+
+#### Primary Button（shadcn/ui標準）
+```tsx
+<button className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-160 ease">
+```
+
+**注意**: shadcn/uiのデフォルトは `hover:bg-primary/90` や `disabled:opacity-50` を使用していますが、これらは禁止事項に該当します。
+カスタムボタンを作成する場合は以下のように明示的な色トークンを使用してください：
+
+#### Primary Button（カスタム・推奨）
+```tsx
+<button className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:bg-disabled disabled:text-on-disabled transition-colors duration-160 ease">
+```
+
+#### Secondary Button
+```tsx
+<button className="bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors duration-160 ease">
+```
+
+#### Destructive Button
+```tsx
+<button className="bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors duration-160 ease">
+```
+
+#### Ghost Button（非推奨 - 特別な理由がある場合のみ）
+```tsx
+<button className="hover:bg-accent hover:text-accent-foreground transition-colors duration-160 ease">
+```
+**注意**: Ghost バリアントは背景色がなく視認性が低いため、極力避けてください。基本は `variant="default"` を使用してください。
+
+### 入力フォーム
+- 背景は `bg-input` または `bg-muted`、フォーカスは `ring-ring` の外周リング
+- ホバーで背景を明示的に変更（カスタムトークン使用時）
+- エラー/成功は色だけでなくテキストやアイコンも併用
+
+```tsx
+// shadcn/ui標準
+<input className="bg-background border-input ring-ring focus-visible:ring-2 transition-colors duration-160 ease" />
+
+// カスタム
+<input className="bg-surface-2 hover:bg-surface-2-hover focus:ring-2 focus:ring-ring disabled:bg-disabled disabled:text-on-disabled transition-colors duration-160 ease" />
+```
+
+### リンク
+```tsx
+// shadcn/ui標準
+<a className="text-primary hover:underline transition-colors duration-160 ease">
+
+// カスタム（低コントラスト）
+<a className="text-foreground hover:text-muted-foreground transition-colors duration-160 ease">
+```
+
+### モーダル/ドロワー
+- 背景は `bg-popover` または `bg-card`
+- オーバーレイは background に近い半透明
+
+```tsx
+<div className="fixed inset-0 bg-background/80">        // オーバーレイ
+  <div className="bg-popover rounded-lg p-6">           // モーダル本体
+  </div>
+</div>
+```
+
+### リスト/テーブル
+- 区切り線は使わず、行の背景トーン差で区切る
+
+```tsx
+<div className="space-y-1">
+  <div className="bg-muted p-3 rounded">行1</div>
+  <div className="bg-muted p-3 rounded">行2</div>
+</div>
+```
+
+## アイコン
+- lucide-react パッケージを使用
+- サイズは 16/20/24 を基準、stroke-width は 1.5 を基本
+- アイコンの色はテキスト用のカラートークンを使用する（例：`text-foreground`, `text-muted-foreground`）
+
+## アクセシビリティ
+- 低コントラストでも本文の可読性を優先
+- フォーカス状態は色だけでなくリングや背景差で明示
+- 状態変化は色だけに依存しない（テキストやアイコンも併用）
+
+## アバター
+- ユーザーのアバターは角丸四角形で表示

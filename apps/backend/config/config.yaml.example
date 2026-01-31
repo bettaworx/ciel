@@ -1,0 +1,34 @@
+# Ciel Server Configuration
+# 
+# This file contains server settings that are loaded at startup.
+# Copy this file to 'config.yaml' and customize the values.
+# 
+# IMPORTANT: config.yaml contains sensitive information and should NOT be committed to Git.
+
+# Server metadata configuration
+server:
+  # Display name of the server
+  name: "Ciel"
+  
+  # Server description (shown on landing page)
+  description: ""
+  
+  # UUID of server icon from media table (null if not set)
+  icon_media_id: null
+
+# Authentication and registration settings
+auth:
+  # Require invite code for user registration
+  # Set to true for private servers, false for public registration
+  invite_only: true
+  # Invite codes are managed via admin UI (/admin/invites)
+
+# Setup wizard status
+setup:
+  # Whether the initial admin setup has been completed
+  # Set to true after running /admin/setup
+  completed: false
+  
+  # Whether setup was completed using the setup password
+  # (vs. being the first user to register)
+  password_used: false

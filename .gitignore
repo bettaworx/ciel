@@ -1,0 +1,106 @@
+.env
+!.env.example
+
+# --- binary ---
+bin/backend
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+.idea/
+*.iml
+
+# --- Logs ---
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Node / pnpm (monorepo) ---
+node_modules/
+.pnpm-store/
+.turbo/
+.nx/
+
+# Build outputs (generic)
+dist/
+build/
+out/
+
+# --- SvelteKit / Vite / Storybook / Playwright ---
+.svelte-kit/
+.vite/
+vite.config.*.timestamp-*
+
+.storybook-out/
+storybook-static/
+
+playwright-report/
+test-results/
+
+coverage/
+.nyc_output/
+
+# --- Go (backend) ---
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+
+# Go workspace / module caches (rarely committed)
+go.work
+go.work.sum
+
+# Vendor is usually not committed with Go modules (uncomment if you don't commit it)
+# vendor/
+
+# --- Docker / local runtime ---
+.env.*
+!.env.example
+!.env.sample
+!.env.full.example
+.env.full
+
+# Nginx SSL certificates
+nginx/certbot/conf/
+nginx/certbot/www/
+
+# Local secrets/keys (keep examples tracked)
+*.pem
+*.key
+*.p12
+*.pfx
+!*.example.pem
+!*.example.key
+!*.example.p12
+!*.example.pfx
+
+# --- Backend config ---
+apps/backend/config/config.yaml
+!apps/backend/config/config.yaml.example
+
+# Windows null device files (created by incorrect 2>nul usage)
+nul
+NUL
+
+# --- Generated code (do not commit) ---
+# OpenAPI generated files
+apps/backend/internal/api/*.gen.go
+apps/frontend/lib/api/api.d.ts
+
+# SQLC generated files (keep generate.go as marker file)
+apps/backend/internal/db/sqlc/*.go
+!apps/backend/internal/db/sqlc/generate.go

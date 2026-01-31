@@ -1,0 +1,376 @@
+---
+alwaysApply: false
+---
+# CSS Rules
+
+## 目的
+- **Tailwind CSS + @themeスキーマー**を使用してデザインシステムを構築する
+- **ユーティリティファーストアプローチ**を採用し、再利用性と保守性を高める
+- コンポーネントのバリアント管理は **class-variance-authority (cva)** を使用する
+- デザイントークンは `globals.css` の `:root` / `.dark` および `@theme` セクションで一元管理する
+
+## スタイリング方針
+
+### 基本ルール
+1. **すべてのスタイリングはTailwindユーティリティクラスで記述する**
+   ```tsx
+   <div className="bg-card text-foreground p-4 rounded-lg">
+   ```
+
+2. **コンポーネントのバリアントはcvaで管理する**
+   ```tsx
+   const buttonVariants = cva(
+     "inline-flex items-center rounded-lg transition-colors duration-160 ease",
+     {
+       variants: {
+         variant: {
+           primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+           secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+         }
+       }
+     }
+   )
+   ```
+
+3. **カスタムスタイルが必要な場合のみ `@layer` を使用**
+   ```css
+   @layer components {
+     .custom-scrollbar::-webkit-scrollbar {
+       width: 8px;
+     }
+   }
+   ```
+
+## デザイントークンの使用
+
+### すべてのトークンは globals.css で定義
+`apps/frontend/app/globals.css` の `:root` と `.dark` セクションで定義されたトークンを使用する。
+@themeセクションでTailwindクラスとして利用可能になります。
+
+### shadcn/ui 標準カラートークン
+既存のshadcn/uiコンポーネントとの互換性のため、以下のトークンが定義されています：
+
+```tsx
+// 背景色
+bg-background         // メイン背景
+bg-background-1       // 第2背景（backgroundより明るい）
+bg-card              // カード背景
+bg-popover           // ポップオーバー背景
+bg-primary           // プライマリボタン
+bg-secondary         // セカンダリボタン
+bg-muted             // ミュート背景
+bg-accent            // アクセント背景
+bg-destructive       // 破壊的操作背景
+
+// テーマカラー（目立つもの・ポジティブなものに推奨）
+bg-c-1               // テーマカラー
+bg-c-2               // テーマカラーホバー
+text-c-1             // テーマカラー（テキスト・アイコン）
+text-c-2             // テーマカラーホバー（テキスト・アイコン）
+text-c-foreground    // テーマカラー上のテキスト・アイコン
+
+// テキスト色（アイコンにも使用可能）
+text-foreground            // 通常テキスト・アイコン
+text-card-foreground       // カード上のテキスト・アイコン
+text-popover-foreground    // ポップオーバー上のテキスト・アイコン
+text-primary-foreground    // プライマリ上のテキスト・アイコン
+text-secondary-foreground  // セカンダリ上のテキスト・アイコン
+text-muted-foreground      // ミュートテキスト・アイコン
+text-accent-foreground     // アクセント上のテキスト・アイコン
+text-destructive-foreground // 破壊的操作上のテキスト・アイコン
+
+// ボーダー・リング
+border-border        // ボーダー色
+border-input         // 入力フィールドボーダー
+ring-ring            // フォーカスリング
+
+// Radius（既定義）
+rounded-sm           // --radius-sm
+rounded              // --radius
+rounded-md           // --radius-md
+rounded-lg           // --radius-lg
+rounded-xl           // --radius-xl
+```
+
+### カスタムカラートークン（追加推奨）
+design.mdcの低コントラストフラットデザインを実現するために、以下のカスタムトークンを追加することを推奨：
+
+```tsx
+// 追加推奨トークン
+bg-surface           // サーフェス
+bg-surface-hover     // サーフェスホバー
+bg-surface-2         // 2段目サーフェス
+bg-surface-2-hover   // 2段目サーフェスホバー
+bg-success           // 成功
+bg-warning           // 警告
+bg-danger            // 危険
+bg-danger-hover      // 危険ホバー
+bg-disabled          // 無効化
+bg-disabled-hover    // 無効化ホバー
+text-on-disabled     // 無効化上のテキスト
+```
+
+これらを使用する場合は、`globals.css` の `:root` と `.dark` に定義を追加してください。
+
+## 禁止事項
+
+### 厳格に禁止されているTailwindクラス
+以下のクラスは **design.mdc** の禁止事項に従い、使用を厳禁とする：
+
+1. **影系クラス**
+   - `shadow-*` （`shadow-sm`, `shadow-md`, `shadow-lg` など）
+   - `drop-shadow-*`
+   - 理由：フラットデザイン原則に反する
+   - **例外**: `shadow-none` は許可（既存のshadowをリセットする場合のみ）
+
+2. **透明度変更クラス**
+   - `opacity-*` （`opacity-50`, `opacity-70` など）
+   - `hover:opacity-*`, `disabled:opacity-*` も禁止
+   - 理由：状態変化は明示的な色トークンで表現すること
+   - ✅ 正しい方法：`disabled:bg-disabled disabled:text-on-disabled`
+   - **注意**: shadcn/uiコンポーネントは `disabled:opacity-50` を使用していますが、カスタムコンポーネントでは避けてください
+
+3. **拡大縮小クラス**
+   - `scale-*` （`scale-95`, `scale-105` など）
+   - `hover:scale-*` も禁止
+   - 理由：視覚効果は色の変化で表現すること
+
+4. **フィルター系クラス**
+   - `brightness-*`, `blur-*`, `contrast-*`, `saturate-*`, `grayscale-*` など
+   - 理由：視覚効果は明示的な色トークンで表現すること
+
+5. **ボーダー関連**
+   - フラットデザイン原則では明示的な `border` クラスの使用は避ける
+   - 区切りは背景色の明暗で表現すること
+   - 例外：フォーカスリング、入力フィールドの機能的なボーダーは許可
+
+### 状態変化の正しい表現方法
+
+❌ **間違った例**
+```tsx
+// opacity使用 → 禁止
+<button className="disabled:opacity-50">
+
+// scale使用 → 禁止
+<button className="hover:scale-105">
+
+// opacity付き背景色 → 禁止（カスタムコンポーネントの場合）
+<button className="hover:bg-accent/90">
+
+// brightness使用 → 禁止
+<div className="hover:brightness-110">
+
+// shadow使用 → 禁止
+<div className="shadow-lg">
+```
+
+✅ **正しい例**
+```tsx
+// 明示的な色トークンを使用
+<button className="bg-primary hover:bg-primary-hover disabled:bg-disabled disabled:text-on-disabled">
+
+// ホバー時も明示的なトークン
+<div className="bg-card hover:bg-muted">
+
+// disabled時も明示的なトークン
+<input className="bg-background disabled:bg-disabled disabled:text-on-disabled">
+
+// shadcn/ui標準（既存コンポーネント）は許容
+<button className="bg-primary text-primary-foreground hover:bg-primary/90">
+```
+
+## トークン運用
+
+### 新しいトークンの追加
+色・角丸・余白などの新しい値が必要な場合：
+1. ハードコードせず、`globals.css` の `:root` / `.dark` セクションにCSS変数を追加する
+2. `@theme` セクションで `--color-{name}: var(--{name})` のようにマッピングする
+3. 命名規則に従う：`--{category}-{name}` （例：`--color-surface`, `--spacing-3`）
+4. ライト/ダークモード両方の値を定義する
+
+### トークンの命名規則
+```css
+/* globals.css の :root / .dark セクション */
+:root {
+  /* カラートークン */
+  --surface: oklch(...);
+  --surface-hover: oklch(...);
+  --disabled: oklch(...);
+  --on-disabled: oklch(...);
+}
+
+/* globals.css の @theme セクション */
+@theme {
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-disabled: var(--disabled);
+  --color-on-disabled: var(--on-disabled);
+}
+
+/* Tailwindクラスとして使用 */
+<div className="bg-surface hover:bg-surface-hover">
+<button className="disabled:bg-disabled disabled:text-on-disabled">
+```
+
+## コンポーネント実装パターン
+
+### パターン1: シンプルなコンポーネント
+直接Tailwindクラスを使用：
+```tsx
+export function Card({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="bg-card text-card-foreground rounded-lg p-4">
+      {children}
+    </div>
+  )
+}
+```
+
+### パターン2: バリアントを持つコンポーネント
+cva（class-variance-authority）を使用：
+```tsx
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  // ベースクラス
+  "inline-flex items-center justify-center rounded-lg transition-colors duration-160 ease",
+  {
+    variants: {
+      variant: {
+        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+      },
+      size: {
+        sm: "h-8 px-3 text-sm",
+        md: "h-10 px-4 text-base",
+        lg: "h-12 px-6 text-lg",
+      }
+    },
+    defaultVariants: {
+      variant: "primary",
+      size: "md",
+    }
+  }
+)
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
+
+export function Button({ className, variant, size, ...props }: ButtonProps) {
+  return (
+    <button
+      className={cn(buttonVariants({ variant, size }), className)}
+      {...props}
+    />
+  )
+}
+```
+
+### パターン3: カスタムスタイルが必要な場合
+`@layer components` を使用（最小限に留める）：
+```css
+/* globals.css */
+@layer components {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-muted rounded;
+  }
+}
+```
+
+## ユーティリティクラスの活用
+
+### レイアウト
+```tsx
+// Flexbox
+<div className="flex items-center justify-between gap-4">
+
+// Grid
+<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+// Stack（縦並び）
+<div className="flex flex-col gap-2">
+```
+
+### スペーシング
+```tsx
+// 余白
+<div className="p-4 m-2">           // padding: 16px, margin: 8px
+<div className="px-4 py-2">         // 横16px, 縦8px
+<div className="space-y-4">         // 子要素間に16pxの縦間隔
+```
+
+### タイポグラフィ
+```tsx
+<h1 className="text-2xl font-bold text-foreground">
+<p className="text-base text-muted-foreground leading-relaxed">
+<small className="text-sm text-muted-foreground">
+```
+
+### レスポンシブ
+```tsx
+// モバイルファースト
+<div className="text-sm md:text-base lg:text-lg">
+<div className="p-2 md:p-4 lg:p-6">
+<div className="grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+```
+
+## ベストプラクティス
+
+### ✅ DO
+```tsx
+// 1. shadcn/ui標準トークンを優先的に使用
+<button className="bg-primary text-primary-foreground hover:bg-primary/90">
+
+// 2. テーマカラーを目立たせたい箇所に使用
+<button className="bg-c-1 text-c-foreground hover:bg-c-2">いいね</button>
+<Heart className="text-c-1" />
+
+// 3. cvaでバリアント管理
+const cardVariants = cva("bg-card rounded-lg", {
+  variants: { size: { sm: "p-2", md: "p-4" } }
+})
+
+// 4. cn()でクラスをマージ
+<div className={cn("base-class", conditionalClass && "extra-class")}>
+
+// 5. 状態変化は明示的なトークンで（カスタムコンポーネント）
+<div className="bg-surface hover:bg-surface-hover disabled:bg-disabled">
+
+// 6. トランジションを追加
+<button className="transition-colors duration-160 ease">
+```
+
+### ❌ DON'T
+```tsx
+// 1. インラインスタイル（トークン使用時以外は避ける）
+<div style={{ backgroundColor: '#f5f5f5' }}>
+
+// 2. opacity使用（カスタムコンポーネント）
+<button className="disabled:opacity-50">
+
+// 3. scale使用
+<button className="hover:scale-105">
+
+// 4. shadow使用
+<div className="shadow-lg">
+
+// 5. ハードコードされた値
+<div className="p-[13px]">  // トークンを使うべき
+```
+
+## まとめ
+
+- **Tailwind CSS + globals.css のトークン**でデザインシステムを構築
+- **ユーティリティファースト**でスタイリング
+- **shadcn/ui標準トークンを優先的に使用**し、必要に応じてカスタムトークンを追加
+- **cva**でコンポーネントのバリアント管理
+- **opacity, scale, filter, shadow 原則禁止**（shadcn/ui既存コンポーネントは除く）
+- **状態変化は明示的な色トークンで表現**（カスタムコンポーネント）
+- 新しいトークンが必要なら `globals.css` の `:root` / `.dark` と `@theme` に追加

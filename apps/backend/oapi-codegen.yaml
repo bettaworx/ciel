@@ -1,0 +1,8 @@
+# oapi-codegen configuration
+# Run from apps/backend/internal/api via `go generate`.
+package: api
+generate:
+  chi-server: true
+  models: true
+  embedded-spec: true
+output: api.gen.go

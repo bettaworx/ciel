@@ -1,0 +1,10 @@
+# generated files
+data/
+
+# env files
+.env*
+!.env.example
+
+# config files
+config/config.yaml
+!config/config.yaml.example
