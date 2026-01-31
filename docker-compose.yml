@@ -1,6 +1,57 @@
 name: ciel
 
 services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ciel-backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ENV: ${ENV:-development}
+      DISABLE_DOTENV: ${DISABLE_DOTENV:-1}
+      PORT: ${BACKEND_PORT:-6137}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      STEPUP_TOKEN_TTL_SECONDS: ${STEPUP_TOKEN_TTL_SECONDS:-300}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      MEDIA_DIR: ${MEDIA_DIR:-/var/lib/ciel/media}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:6137}
+      REALTIME_SIGNING_SECRET: ${REALTIME_SIGNING_SECRET:?REALTIME_SIGNING_SECRET must be set}
+      REALTIME_WS_MAX_CONNECTIONS: ${REALTIME_WS_MAX_CONNECTIONS:-1000}
+      REALTIME_WS_MAX_CONNECTIONS_PER_IP: ${REALTIME_WS_MAX_CONNECTIONS_PER_IP:-50}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      INITIAL_SETUP_PASSWORD: ${INITIAL_SETUP_PASSWORD:?INITIAL_SETUP_PASSWORD must be set}
+      CONFIG_PATH: ${CONFIG_PATH:-/app/config/config.yaml}
+      DATABASE_URL: ${DATABASE_URL:-postgres://ciel:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-ciel}?sslmode=disable}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-6137}:${BACKEND_PORT:-6137}"
+    volumes:
+      - media_data:/var/lib/ciel/media
+      - ./apps/backend/config:/app/config
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:6137}
+    container_name: ciel-frontend
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:6137}
+      PORT: ${FRONTEND_PORT:-3000}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
+
   db:
     image: postgres:16-alpine
     container_name: ciel-db
@@ -56,4 +107,5 @@ services:
 
 volumes:
   db_data:
+  media_data:
 

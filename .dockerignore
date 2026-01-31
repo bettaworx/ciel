@@ -1,0 +1,12 @@
+.git
+**/.DS_Store
+**/*.log
+**/tmp
+**/node_modules
+**/.next
+**/dist
+**/out
+**/*.exe
+**/*.test
+**/*.prof
+**/.vscode

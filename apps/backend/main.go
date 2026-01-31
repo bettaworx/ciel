@@ -33,14 +33,21 @@ import (
 )
 
 func main() {
-	loadedEnv := loadDotEnv()
+	loadedEnv := []string{}
+	if os.Getenv("DISABLE_DOTENV") == "" {
+		loadedEnv = loadDotEnv()
+	}
 	logging.Init()
 	if len(loadedEnv) > 0 {
 		for _, p := range loadedEnv {
 			slog.Info("loaded env file", "path", p)
 		}
 	} else {
-		slog.Info("no .env files found", "note", "ok in production")
+		if os.Getenv("DISABLE_DOTENV") != "" {
+			slog.Info("dotenv loading disabled")
+		} else {
+			slog.Info("no .env files found", "note", "ok in production")
+		}
 	}
 
 	env := os.Getenv("ENV")
@@ -389,10 +396,15 @@ func main() {
 		w.Write([]byte("welcome"))
 	})
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "6137"
+	}
+
 	// Configure HTTP server with security timeouts
 	// SECURITY: Prevent slowloris and long-running request attacks
 	server := &http.Server{
-		Addr:    ":6137",
+		Addr:    ":" + port,
 		Handler: r,
 		// ReadTimeout covers the time from connection accept to request body fully read
 		// Set to 30s to allow large file uploads (12MB over slower connections)
@@ -442,21 +454,44 @@ func initMediaDir(path string) error {
 
 func loadDotEnv() []string {
 	// Go does not automatically load .env files.
-	// Look for .env files in the apps/backend directory.
+	// Allow explicit path via DOTENV_PATH, otherwise search upward for .env files.
+	if p := strings.TrimSpace(os.Getenv("DOTENV_PATH")); p != "" {
+		if _, err := os.Stat(p); err == nil {
+			if err := godotenv.Load(p); err == nil {
+				return []string{p}
+			}
+		}
+		return nil
+	}
+
 	candidates := []string{
 		".env.local",
 		".env",
 	}
 
 	var loaded []string
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err != nil {
-			continue
+	wd, err := os.Getwd()
+	if err != nil {
+		wd = "."
+	}
+	for dir := wd; ; {
+		for _, name := range candidates {
+			p := filepath.Join(dir, name)
+			if _, err := os.Stat(p); err != nil {
+				continue
+			}
+			if err := godotenv.Load(p); err == nil {
+				loaded = append(loaded, p)
+			}
 		}
-		// Load() does not override already-set env vars.
-		if err := godotenv.Load(p); err == nil {
-			loaded = append(loaded, p)
+		if len(loaded) > 0 {
+			return loaded
 		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
 	}
 	return loaded
 }
