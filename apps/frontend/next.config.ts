@@ -1,5 +1,17 @@
+import fs from "fs";
+import path from "path";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import dotenv from "dotenv";
+
+const envRoot = path.resolve(process.cwd(), "..", "..");
+const envFiles = [".env", ".env.local"];
+for (const envFile of envFiles) {
+  const envPath = path.join(envRoot, envFile);
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+  }
+}
 
 const withNextIntl = createNextIntlPlugin("./i18n/config.ts");
 
