@@ -20,6 +20,7 @@ import { MAX_CONTENT_LENGTH, MAX_IMAGES } from "./post-composer/constants";
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { UserMenuContent } from "@/components/auth/UserMenuContent";
 import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
+import { ImageLightbox } from "@/components/ImageLightbox";
 
 /**
  * Inline compose card for creating posts
@@ -30,6 +31,8 @@ export function ComposeCard() {
   const tNav = useTranslations("nav");
   const user = useAtomValue(userAtom);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const composeCardRef = useRef<HTMLDivElement>(null);
 
@@ -132,6 +135,10 @@ export function ComposeCard() {
   if (!user) return null;
 
   const initials = (user.displayName?.[0] || user.username[0]).toUpperCase();
+  const lightboxImages = images.map((image) => ({
+    src: image.previewUrl,
+    alt: "",
+  }));
 
   return (
     <>
@@ -251,6 +258,13 @@ export function ComposeCard() {
                       image={image}
                       onRemove={handleRemoveImage}
                       disabled={createPostMutation.isPending || isUploading}
+                      onPreview={() => {
+                        const index = images.findIndex(
+                          (candidate) => candidate.localId === image.localId,
+                        );
+                        setLightboxIndex(index === -1 ? 0 : index);
+                        setLightboxOpen(true);
+                      }}
                     />
                   ))}
                 </div>
@@ -320,6 +334,12 @@ export function ComposeCard() {
         open={isLogoutOpen}
         onOpenChange={setIsLogoutOpen}
         onConfirm={handleLogoutConfirm}
+      />
+      <ImageLightbox
+        images={lightboxImages}
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        initialIndex={lightboxIndex}
       />
     </>
   );

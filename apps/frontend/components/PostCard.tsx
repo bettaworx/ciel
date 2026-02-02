@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
@@ -38,6 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { components } from "@/lib/api/api";
+import { ImageLightbox } from "@/components/ImageLightbox";
 
 type Post = components["schemas"]["Post"];
 type Media = components["schemas"]["Media"];
@@ -59,12 +60,15 @@ export function PostCard({
   const t = useTranslations("postCard");
   const tReactions = useTranslations("reactions");
   const tUser = useTranslations("user");
+  const tLightbox = useTranslations("lightbox");
   const { reactions, toggleReaction, isPending } = useReactions(post.id);
   const auth = useAtomValue(authAtom);
   const deletePost = useDeletePost();
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const isOwner = auth.user?.id === post.author?.id;
 
   const handleToggleReaction = useCallback(
@@ -137,11 +141,10 @@ export function PostCard({
     .toUpperCase()
     .slice(0, 2);
 
-  // Get media URL helper
-  const getMediaUrl = (m: Media) => {
-    // Use the storage URL directly from the media object
-    return m.url;
-  };
+  const lightboxImages = useMemo(
+    () => media.map((item) => ({ src: item.url, alt: "" })),
+    [media],
+  );
 
   // Calculate aspect ratio for single image with constraints (16:9 to 9:16)
   const calculateSingleImageAspect = (m: Media): string => {
@@ -224,12 +227,21 @@ export function PostCard({
                     }}
                   >
                     <Image
-                      src={getMediaUrl(media[0])}
+                      src={media[0].url}
                       alt=""
                       fill
                       unoptimized
-                      className="object-cover"
+                      className="object-cover cursor-zoom-in"
                       sizes="(max-width: 600px) 100vw, 600px"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(0);
+                        setLightboxOpen(true);
+                      }}
+                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      aria-label={tLightbox("open")}
                     />
                   </div>
                 </div>
@@ -240,22 +252,40 @@ export function PostCard({
                 <div className="grid grid-cols-2 gap-1 mb-3">
                   <div className="relative bg-muted aspect-[8/9] overflow-hidden">
                     <Image
-                      src={getMediaUrl(media[0])}
+                      src={media[0].url}
                       alt=""
                       fill
                       unoptimized
-                      className="object-cover rounded-l-xl"
+                      className="object-cover rounded-l-xl cursor-zoom-in"
                       sizes="(max-width: 600px) 50vw, 300px"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(0);
+                        setLightboxOpen(true);
+                      }}
+                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      aria-label={tLightbox("open")}
                     />
                   </div>
                   <div className="relative bg-muted aspect-[8/9] overflow-hidden">
                     <Image
-                      src={getMediaUrl(media[1])}
+                      src={media[1].url}
                       alt=""
                       fill
                       unoptimized
-                      className="object-cover rounded-r-xl"
+                      className="object-cover rounded-r-xl cursor-zoom-in"
                       sizes="(max-width: 600px) 50vw, 300px"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(1);
+                        setLightboxOpen(true);
+                      }}
+                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      aria-label={tLightbox("open")}
                     />
                   </div>
                 </div>
@@ -266,32 +296,59 @@ export function PostCard({
                 <div className="grid grid-cols-2 gap-1 mb-3">
                   <div className="relative bg-muted row-span-2 overflow-hidden">
                     <Image
-                      src={getMediaUrl(media[0])}
+                      src={media[0].url}
                       alt=""
                       fill
                       unoptimized
-                      className="object-cover rounded-l-xl"
+                      className="object-cover rounded-l-xl cursor-zoom-in"
                       sizes="(max-width: 600px) 50vw, 300px"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(0);
+                        setLightboxOpen(true);
+                      }}
+                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      aria-label={tLightbox("open")}
                     />
                   </div>
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={getMediaUrl(media[1])}
+                      src={media[1].url}
                       alt=""
                       fill
                       unoptimized
-                      className="object-cover rounded-tr-xl"
+                      className="object-cover rounded-tr-xl cursor-zoom-in"
                       sizes="(max-width: 600px) 50vw, 300px"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(1);
+                        setLightboxOpen(true);
+                      }}
+                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      aria-label={tLightbox("open")}
                     />
                   </div>
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={getMediaUrl(media[2])}
+                      src={media[2].url}
                       alt=""
                       fill
                       unoptimized
-                      className="object-cover rounded-br-xl"
+                      className="object-cover rounded-br-xl cursor-zoom-in"
                       sizes="(max-width: 600px) 50vw, 300px"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(2);
+                        setLightboxOpen(true);
+                      }}
+                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      aria-label={tLightbox("open")}
                     />
                   </div>
                 </div>
@@ -302,42 +359,78 @@ export function PostCard({
                 <div className="grid grid-cols-2 gap-1 mb-3">
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={getMediaUrl(media[0])}
+                      src={media[0].url}
                       alt=""
                       fill
                       unoptimized
-                      className="object-cover rounded-tl-xl"
+                      className="object-cover rounded-tl-xl cursor-zoom-in"
                       sizes="(max-width: 600px) 50vw, 300px"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(0);
+                        setLightboxOpen(true);
+                      }}
+                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      aria-label={tLightbox("open")}
                     />
                   </div>
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={getMediaUrl(media[1])}
+                      src={media[1].url}
                       alt=""
                       fill
                       unoptimized
-                      className="object-cover rounded-tr-xl"
+                      className="object-cover rounded-tr-xl cursor-zoom-in"
                       sizes="(max-width: 600px) 50vw, 300px"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(1);
+                        setLightboxOpen(true);
+                      }}
+                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      aria-label={tLightbox("open")}
                     />
                   </div>
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={getMediaUrl(media[2])}
+                      src={media[2].url}
                       alt=""
                       fill
                       unoptimized
-                      className="object-cover rounded-bl-xl"
+                      className="object-cover rounded-bl-xl cursor-zoom-in"
                       sizes="(max-width: 600px) 50vw, 300px"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(2);
+                        setLightboxOpen(true);
+                      }}
+                      className="absolute inset-0"
+                      aria-label={tLightbox("open")}
                     />
                   </div>
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={getMediaUrl(media[3])}
+                      src={media[3].url}
                       alt=""
                       fill
                       unoptimized
-                      className="object-cover rounded-br-xl"
+                      className="object-cover rounded-br-xl cursor-zoom-in"
                       sizes="(max-width: 600px) 50vw, 300px"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(3);
+                        setLightboxOpen(true);
+                      }}
+                      className="absolute inset-0"
+                      aria-label={tLightbox("open")}
                     />
                   </div>
                 </div>
@@ -438,6 +531,12 @@ export function PostCard({
           </div>
         </div>
       </div>
+      <ImageLightbox
+        images={lightboxImages}
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        initialIndex={lightboxIndex}
+      />
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
