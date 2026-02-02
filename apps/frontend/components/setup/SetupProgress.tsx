@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useRef, useEffect, useState } from "react";
-import { animate } from "framer-motion";
+import gsap from "gsap";
 import { Progress } from "@/components/ui/progress";
 
 interface SetupProgressProps {
@@ -37,19 +37,15 @@ export function SetupProgress({ currentStep, totalSteps }: SetupProgressProps) {
     const targetProgress = (currentStep / totalSteps) * 100;
 
     if (isDesktop) {
-      // Desktop: Animate progress (0.4s)
-      const animation = animate(progressRef.current.value, targetProgress, {
+      // Desktop: Animate with GSAP (0.4s)
+      gsap.to(progressRef.current, {
+        value: targetProgress,
         duration: 0.4,
-        ease: (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2),
-        onUpdate: (value) => {
-          progressRef.current.value = value;
-          setAnimatedProgress(value);
+        ease: "power2.inOut",
+        onUpdate: () => {
+          setAnimatedProgress(progressRef.current.value);
         },
       });
-
-      return () => {
-        animation.stop();
-      };
     } else {
       // Mobile: Instant update
       progressRef.current.value = targetProgress;

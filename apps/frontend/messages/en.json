@@ -308,21 +308,7 @@
     "viewProfile": "View {name}'s profile",
     "reactionCount": "{emoji} {count} reactions",
     "yourReaction": "You reacted",
-    "searchEmoji": "Search emoji...",
-    "actions": {
-      "more": "More actions",
-      "delete": "Delete post",
-      "copyUserId": "Copy user ID"
-    },
-    "deleteConfirmTitle": "Delete this post?",
-    "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
-    "deleteCancel": "Cancel",
-    "deleteConfirm": "Delete",
-    "deleteDeleting": "Deleting...",
-    "deleteSuccess": "Post deleted",
-    "deleteError": "Failed to delete post",
-    "copySuccess": "User ID copied",
-    "copyError": "Failed to copy user ID"
+    "searchEmoji": "Search emoji..."
   },
   "welcome": {
     "title": "Welcome to {serverName}!",

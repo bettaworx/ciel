@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
@@ -11,32 +11,6 @@ import { useReactions } from "@/lib/hooks/use-reactions";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useAtomValue } from "jotai";
-import { MoreHorizontal, Trash2, Clipboard } from "lucide-react";
-import { useDeletePost } from "@/lib/hooks/use-queries";
-import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import { authAtom } from "@/atoms/auth";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import type { components } from "@/lib/api/api";
 
 type Post = components["schemas"]["Post"];
@@ -60,12 +34,6 @@ export function PostCard({
   const tReactions = useTranslations("reactions");
   const tUser = useTranslations("user");
   const { reactions, toggleReaction, isPending } = useReactions(post.id);
-  const auth = useAtomValue(authAtom);
-  const deletePost = useDeletePost();
-  const isDesktop = useMediaQuery("(min-width: 640px)");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const isOwner = auth.user?.id === post.author?.id;
 
   const handleToggleReaction = useCallback(
     (emoji: string) => {
@@ -82,37 +50,6 @@ export function PostCard({
     [toggleReaction, tReactions]
   );
 
-  const handleCopyUserId = useCallback(async () => {
-    if (!post.author?.id) {
-      toast.error(t("copyError"));
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(post.author.id);
-      toast.success(t("copySuccess"));
-    } catch {
-      toast.error(t("copyError"));
-    }
-    setMenuOpen(false);
-  }, [post.author?.id, t]);
-
-  const handleOpenDelete = useCallback(() => {
-    setMenuOpen(false);
-    setConfirmOpen(true);
-  }, []);
-
-  const handleConfirmDelete = useCallback(() => {
-    deletePost.mutate(post.id, {
-      onSuccess: () => {
-        toast.success(t("deleteSuccess"));
-        setConfirmOpen(false);
-      },
-      onError: () => {
-        toast.error(t("deleteError"));
-      },
-    });
-  }, [deletePost, post.id, t]);
-
   const handleUserClick = () => {
     if (onUserClick && post.author?.username) {
       onUserClick(post.author.username);
@@ -127,7 +64,6 @@ export function PostCard({
   const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
   const timeAgo = formatTimeAgo(createdAt, locale);
   const media = post.media || [];
-  const hasAuthorId = Boolean(post.author?.id);
 
   // Generate initials for avatar fallback
   const initials = displayName
@@ -362,104 +298,14 @@ export function PostCard({
           )}
 
           {/* Reaction Picker */}
-          <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="mt-3">
             <ReactionPicker
               onEmojiSelect={handleToggleReaction}
               disabled={isPending}
             />
-            {isDesktop ? (
-              <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
-                    aria-label={t("actions.more")}
-                  >
-                    <MoreHorizontal className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onSelect={handleCopyUserId}
-                    disabled={!hasAuthorId}
-                  >
-                    <Clipboard className="h-4 w-4" />
-                    {t("actions.copyUserId")}
-                  </DropdownMenuItem>
-                  {isOwner && (
-                    <DropdownMenuItem
-                      onSelect={handleOpenDelete}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {t("actions.delete")}
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
-                <DrawerTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
-                    aria-label={t("actions.more")}
-                  >
-                    <MoreHorizontal className="h-5 w-5" />
-                  </Button>
-                </DrawerTrigger>
-                <DrawerContent>
-                  <div className="flex flex-col gap-2 p-4">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start gap-2"
-                      onClick={handleCopyUserId}
-                      disabled={!hasAuthorId}
-                    >
-                      <Clipboard className="h-4 w-4" />
-                      {t("actions.copyUserId")}
-                    </Button>
-                    {isOwner && (
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-2 text-destructive"
-                        onClick={handleOpenDelete}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        {t("actions.delete")}
-                      </Button>
-                    )}
-                  </div>
-                </DrawerContent>
-              </Drawer>
-            )}
           </div>
         </div>
       </div>
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("deleteConfirmDescription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePost.isPending}>
-              {t("deleteCancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={deletePost.isPending}
-              variant="destructive"
-            >
-              {deletePost.isPending ? t("deleteDeleting") : t("deleteConfirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </article>
   );
 }
