@@ -62,6 +62,7 @@ export function ComposeCard() {
     textareaRef,
     handleContentChange,
     handleKeyDown,
+    handlePaste,
     handleImageSelect,
     handleRemoveImage,
     handlePost,
@@ -231,6 +232,7 @@ export function ComposeCard() {
                 value={content}
                 onChange={handleContentChange}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 onBlur={handleBlur}
                 placeholder={t("createPost.placeholder")}
                 className="flex-1 min-h-[100px] max-h-[400px] mt-2 md:mt-3 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none"
