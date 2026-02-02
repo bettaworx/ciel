@@ -160,6 +160,15 @@
     "fileTooLarge": "File size is too large (maximum 10MB)",
     "dropImages": "Drop images here"
   },
+  "lightbox": {
+    "open": "Open image",
+    "close": "Close",
+    "previous": "Previous image",
+    "next": "Next image",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "imageAlt": "Image preview"
+  },
   "language": {
     "switcher": {
       "label": "Language"

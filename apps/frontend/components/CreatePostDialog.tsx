@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { X, Image as ImageIcon, User as UserIcon } from "lucide-react";
 import { useAtomValue } from "jotai";
@@ -12,6 +13,7 @@ import { useComposePost } from "./post-composer/useComposePost";
 import { CharacterCounter } from "./post-composer/CharacterCounter";
 import { ImagePreview } from "./post-composer/ImagePreview";
 import { MAX_CONTENT_LENGTH } from "./post-composer/constants";
+import { ImageLightbox } from "@/components/ImageLightbox";
 
 // Types
 interface CreatePostDialogProps {
@@ -35,6 +37,8 @@ export function CreatePostDialog({
 }: CreatePostDialogProps) {
   const t = useTranslations();
   const user = useAtomValue(userAtom);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Use shared composition logic
   const {
@@ -187,6 +191,13 @@ export function CreatePostDialog({
                     image={image}
                     onRemove={handleRemoveImage}
                     disabled={createPostMutation.isPending || isUploading}
+                    onPreview={() => {
+                      const index = images.findIndex(
+                        (candidate) => candidate.localId === image.localId,
+                      );
+                      setLightboxIndex(index === -1 ? 0 : index);
+                      setLightboxOpen(true);
+                    }}
                   />
                 ))}
               </div>
@@ -225,6 +236,12 @@ export function CreatePostDialog({
           </div>
         </div>
       </DialogContent>
+      <ImageLightbox
+        images={images.map((image) => ({ src: image.previewUrl, alt: "" }))}
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        initialIndex={lightboxIndex}
+      />
     </Dialog>
   );
 }
