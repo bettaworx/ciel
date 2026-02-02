@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, ChangeEvent, KeyboardEvent } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  ChangeEvent,
+  KeyboardEvent,
+  ClipboardEvent,
+} from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreatePost, useUploadMedia } from "@/lib/hooks/use-queries";
@@ -147,6 +154,24 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     }
   };
 
+  const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items || items.length === 0) return;
+
+    const pastedFiles: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.kind !== "file") continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      pastedFiles.push(file);
+    }
+
+    if (pastedFiles.length === 0) return;
+
+    e.preventDefault();
+    await processFiles(pastedFiles);
+  };
+
   const handleRemoveImage = (localId: string) => {
     setImages((prev) => {
       const image = prev.find((img) => img.localId === localId);
@@ -288,6 +313,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     handleContentChange,
     handleKeyDown,
     handleImageSelect,
+    handlePaste,
     handleRemoveImage,
     handlePost,
     handleDragOver,
