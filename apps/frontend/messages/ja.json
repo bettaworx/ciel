@@ -308,7 +308,21 @@
     "viewProfile": "{name}のプロフィールを表示",
     "reactionCount": "{emoji} {count}件のリアクション",
     "yourReaction": "あなたもリアクション済み",
-    "searchEmoji": "絵文字を検索..."
+    "searchEmoji": "絵文字を検索...",
+    "actions": {
+      "more": "その他の操作",
+      "delete": "投稿を削除",
+      "copyUserId": "ユーザーIDをコピー"
+    },
+    "deleteConfirmTitle": "投稿を削除しますか？",
+    "deleteConfirmDescription": "この操作は取り消せません。投稿はタイムラインから削除されます。",
+    "deleteCancel": "キャンセル",
+    "deleteConfirm": "削除する",
+    "deleteDeleting": "削除中...",
+    "deleteSuccess": "投稿を削除しました",
+    "deleteError": "投稿の削除に失敗しました",
+    "copySuccess": "ユーザーIDをコピーしました",
+    "copyError": "ユーザーIDのコピーに失敗しました"
   },
   "welcome": {
     "title": "{serverName}へようこそ！",
