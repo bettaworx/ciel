@@ -156,6 +156,10 @@
 }
 
 @layer components {
+    .toaster {
+        --offset-top: 1rem;
+        --offset-bottom: 1rem;
+    }
     /* Frimousse emoji picker full width override for mobile drawer */
     [data-slot="emoji-picker"] [frimousse-list] {
         width: 100% !important;
