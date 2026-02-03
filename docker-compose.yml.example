@@ -82,10 +82,10 @@ services:
     command: >
       sh -c "
       if [ -n \"$$REDIS_PASSWORD\" ]; then
-        redis-server --requirepass \"$$REDIS_PASSWORD\"
+        redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes
       else
         echo 'WARNING: Redis running without password (development only)'
-        redis-server
+        redis-server --appendonly yes
       fi
       "
     environment:
@@ -93,6 +93,8 @@ services:
     ports:
       # SECURITY: Bind to localhost only to prevent external access
       - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: >
         sh -c "
@@ -109,3 +111,4 @@ services:
 volumes:
   db_data:
   media_data:
+  redis_data:
