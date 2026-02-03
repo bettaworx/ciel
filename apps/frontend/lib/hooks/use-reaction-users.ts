@@ -45,7 +45,7 @@ export function useReactionUsers({
   enabled = true,
 }: UseReactionUsersArgs) {
   const api = useApi();
-  return useInfiniteQuery<ReactionUsersPage>({
+  return useInfiniteQuery<ReactionUsersPage, Error, ReactionUsersPage, [string, PostId, string, string], string | null>({
     queryKey: ["reaction-users", postId, emoji, "full"],
     enabled: enabled && Boolean(emoji),
     initialPageParam: null as string | null,
