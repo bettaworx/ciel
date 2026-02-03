@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { type InfiniteData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useApi } from "@/lib/api/use-api";
 import type { components } from "@/lib/api/api";
 
@@ -45,7 +45,13 @@ export function useReactionUsers({
   enabled = true,
 }: UseReactionUsersArgs) {
   const api = useApi();
-  return useInfiniteQuery<ReactionUsersPage, Error, ReactionUsersPage, [string, PostId, string, string], string | null>({
+  return useInfiniteQuery<
+    ReactionUsersPage,
+    Error,
+    InfiniteData<ReactionUsersPage>,
+    [string, PostId, string, string],
+    string | null
+  >({
     queryKey: ["reaction-users", postId, emoji, "full"],
     enabled: enabled && Boolean(emoji),
     initialPageParam: null as string | null,
