@@ -30,8 +30,9 @@ services:
       INITIAL_SETUP_PASSWORD: ${INITIAL_SETUP_PASSWORD:?INITIAL_SETUP_PASSWORD must be set}
       CONFIG_PATH: ${CONFIG_PATH:-/app/config/config.yaml}
       DATABASE_URL: ${DATABASE_URL:-postgres://ciel:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-ciel}?sslmode=disable}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     ports:
-      - "127.0.0.1:${BACKEND_PORT:-6137}:${BACKEND_PORT:-6137}"
+      - "${BIND_ADDR:-127.0.0.1}:${BACKEND_PORT:-6137}:${BACKEND_PORT:-6137}"
     volumes:
       - media_data:/var/lib/ciel/media
       - ./apps/backend/config:/app/config
@@ -50,7 +51,7 @@ services:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:6137}
       PORT: ${FRONTEND_PORT:-3000}
     ports:
-      - "127.0.0.1:${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
+      - "${BIND_ADDR:-127.0.0.1}:${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
 
   db:
     image: postgres:16-alpine

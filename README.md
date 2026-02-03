@@ -104,6 +104,7 @@ pnpm run gen:sqlc
 ```bash
 # PostgreSQL と Redis を起動
 cp docker-compose.yml.example docker-compose.yml
+# VPN/LAN からアクセスする場合は .env の BIND_ADDR=0.0.0.0 に変更
 docker compose up -d
 
 # データベースマイグレーション (自動実行されます)
