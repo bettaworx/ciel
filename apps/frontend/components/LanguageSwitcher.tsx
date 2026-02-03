@@ -2,9 +2,9 @@
 
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
-import { LOCALE_COOKIE_NAME, locales, type Locale } from "@/i18n/constants";
+import { type Locale } from "@/i18n/constants";
 import { Button } from "@/components/ui/button";
-import { setSecureCookie } from "@/lib/utils/cookie";
+import { setClientLocale } from "@/i18n/client-locale";
 
 export function LanguageSwitcher() {
   const t = useTranslations();
@@ -12,8 +12,7 @@ export function LanguageSwitcher() {
 
 	const handleLanguageChange = (newLocale: Locale) => {
 		startTransition(() => {
-			// Set cookie with Secure flag in production
-			setSecureCookie(LOCALE_COOKIE_NAME, newLocale);
+			setClientLocale(newLocale);
 			window.dispatchEvent(new Event('ciel:locale-change'));
 		});
 	};

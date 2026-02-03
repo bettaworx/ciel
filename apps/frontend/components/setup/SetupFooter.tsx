@@ -10,9 +10,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LOCALE_COOKIE_NAME, type Locale } from "@/i18n/constants";
+import { type Locale } from "@/i18n/constants";
 import type { SetupStep } from "@/lib/config/setup-steps";
-import { setSecureCookie } from "@/lib/utils/cookie";
+import { setClientLocale } from "@/i18n/client-locale";
 
 interface SetupFooterProps {
   currentStep: SetupStep;
@@ -47,7 +47,7 @@ export function SetupFooter({
 		}
 
 		startTransition(() => {
-			setSecureCookie(LOCALE_COOKIE_NAME, locale);
+			setClientLocale(locale);
 			window.dispatchEvent(new Event('ciel:locale-change'));
 		});
 	};

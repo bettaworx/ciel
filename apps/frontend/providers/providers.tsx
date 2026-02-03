@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Provider as JotaiProvider } from 'jotai';
 import { NextIntlClientProvider } from 'next-intl';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { RealtimeProvider } from '@/providers/realtime-provider';
 import { AuthInitProvider } from '@/providers/auth-init-provider';
@@ -29,15 +29,16 @@ export function Providers({ children }: ProvidersProps) {
 	);
 	const [locale, setLocale] = useState<Locale | null>(null);
 	const [messages, setMessages] = useState<Record<string, string> | null>(null);
-	const [messageKey, setMessageKey] = useState(0);
+	const localeRequestRef = useRef(0);
 
 	const refreshLocale = () => {
 		const resolvedLocale = getClientLocale();
-		setLocale(resolvedLocale);
-		setMessages(null);
+		const requestId = localeRequestRef.current + 1;
+		localeRequestRef.current = requestId;
 		loadMessages(resolvedLocale).then((loadedMessages) => {
+			if (localeRequestRef.current !== requestId) return;
+			setLocale(resolvedLocale);
 			setMessages(loadedMessages);
-			setMessageKey((current) => current + 1);
 		});
 	};
 
@@ -59,7 +60,7 @@ export function Providers({ children }: ProvidersProps) {
 	return (
 		<JotaiProvider>
 			<QueryClientProvider client={queryClient}>
-			<NextIntlClientProvider key={messageKey} locale={locale} messages={messages}>
+				<NextIntlClientProvider locale={locale} messages={messages}>
 					<ThemeProvider>
 						<AuthInitProvider>
 							<RealtimeProvider>{children}</RealtimeProvider>

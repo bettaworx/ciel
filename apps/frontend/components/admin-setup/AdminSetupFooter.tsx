@@ -10,8 +10,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LOCALE_COOKIE_NAME, type Locale } from "@/i18n/constants";
-import { setSecureCookie } from "@/lib/utils/cookie";
+import { type Locale } from "@/i18n/constants";
+import { setClientLocale } from "@/i18n/client-locale";
 import type { AdminSetupStep } from "@/lib/config/admin-setup-steps";
 
 interface AdminSetupFooterProps {
@@ -51,8 +51,7 @@ export function AdminSetupFooter({
 		}
 
 		startTransition(() => {
-			// Set cookie with Secure flag in production
-			setSecureCookie(LOCALE_COOKIE_NAME, locale);
+			setClientLocale(locale);
 			window.dispatchEvent(new Event('ciel:locale-change'));
 		});
 	};

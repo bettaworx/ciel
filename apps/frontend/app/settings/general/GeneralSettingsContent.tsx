@@ -11,17 +11,17 @@ import {
 } from "@/components/ui/select";
 import { SettingItem } from "@/components/settings/SettingItem";
 import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
-import { LOCALE_COOKIE_NAME, locales, type Locale } from "@/i18n/constants";
-import { getCookie, setSecureCookie } from "@/lib/utils/cookie";
+import { LOCALE_STORAGE_KEY, locales, defaultLocale, type Locale } from "@/i18n/constants";
+import { setClientLocale } from "@/i18n/client-locale";
 
-// Get current locale from cookie
+// Get current locale from local storage
 function getCurrentLocale(): Locale {
-  if (typeof document === "undefined") return "ja";
-  const locale = getCookie(LOCALE_COOKIE_NAME);
+  if (typeof window === "undefined") return defaultLocale;
+  const locale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
   if (locale && locales.includes(locale as Locale)) {
     return locale as Locale;
   }
-  return "ja";
+  return defaultLocale;
 }
 
 export function GeneralSettingsContent() {
@@ -32,8 +32,7 @@ export function GeneralSettingsContent() {
 	const handleLanguageChange = (newLocale: Locale) => {
 		setLocale(newLocale);
 		startTransition(() => {
-			// Set cookie with Secure flag in production
-			setSecureCookie(LOCALE_COOKIE_NAME, newLocale);
+			setClientLocale(newLocale);
 			window.dispatchEvent(new Event('ciel:locale-change'));
 		});
 	};

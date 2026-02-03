@@ -11,23 +11,22 @@ import { themeAtom, type Theme } from "@/atoms/theme";
 import { useAuth } from "@/lib/hooks/use-auth";
 
 // i18n
-import { LOCALE_COOKIE_NAME, locales, type Locale } from "@/i18n/constants";
+import { LOCALE_STORAGE_KEY, locales, defaultLocale, type Locale } from "@/i18n/constants";
 
 // Utils
-import { getCookie } from "@/lib/utils/cookie";
-import { setSecureCookie } from "@/lib/utils/cookie";
+import { setClientLocale } from "@/i18n/client-locale";
 
 // Types
 export type MenuView = 'main' | 'theme' | 'language';
 
-// Get current locale from cookie
+// Get current locale from local storage
 function getCurrentLocale(): Locale {
-  if (typeof document === "undefined") return "ja";
-  const locale = getCookie(LOCALE_COOKIE_NAME);
+  if (typeof window === "undefined") return defaultLocale;
+  const locale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
   if (locale && locales.includes(locale as Locale)) {
     return locale as Locale;
   }
-  return "ja";
+  return defaultLocale;
 }
 
 /**
@@ -66,8 +65,7 @@ export function useUserMenu() {
 
 	const handleLanguageChange = (newLocale: Locale) => {
 		setLocale(newLocale);
-		// Set cookie with Secure flag in production
-		setSecureCookie(LOCALE_COOKIE_NAME, newLocale);
+		setClientLocale(newLocale);
 		window.dispatchEvent(new Event('ciel:locale-change'));
 	};
 

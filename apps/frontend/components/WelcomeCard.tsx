@@ -11,9 +11,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Globe } from "lucide-react";
-import { LOCALE_COOKIE_NAME, type Locale } from "@/i18n/constants";
+import { type Locale } from "@/i18n/constants";
 import { useServerInfo } from "@/lib/hooks/use-queries";
-import { setSecureCookie } from "@/lib/utils/cookie";
+import { setClientLocale } from "@/i18n/client-locale";
 
 /**
  * WelcomeCard - 未ログインユーザー向けのウェルカムメッセージカード
@@ -25,8 +25,7 @@ export function WelcomeCard() {
   const { data: serverInfo } = useServerInfo();
 
 	const handleLanguageChange = (newLocale: Locale) => {
-		// Set cookie with Secure flag in production
-		setSecureCookie(LOCALE_COOKIE_NAME, newLocale);
+		setClientLocale(newLocale);
 		window.dispatchEvent(new Event('ciel:locale-change'));
 	};
 

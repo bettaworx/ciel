@@ -4,5 +4,5 @@ export type Locale = (typeof locales)[number];
 
 export const defaultLocale: Locale = 'ja';
 
-// Cookie name constant
-export const LOCALE_COOKIE_NAME = 'NEXT_LOCALE';
+// Local storage key for persisted locale
+export const LOCALE_STORAGE_KEY = 'ciel:locale';

@@ -1,9 +1,9 @@
-import { cookies, headers } from 'next/headers';
+import { headers } from 'next/headers';
 import { getRequestConfig } from 'next-intl/server';
-import { locales, defaultLocale, LOCALE_COOKIE_NAME, type Locale } from '@/i18n/constants';
+import { locales, defaultLocale, type Locale } from '@/i18n/constants';
 
 // Re-export for backward compatibility
-export { locales, defaultLocale, LOCALE_COOKIE_NAME, type Locale };
+export { locales, defaultLocale, type Locale };
 
 // Detect locale from browser's Accept-Language header
 function detectLocaleFromHeader(acceptLanguage: string | null): Locale {
@@ -33,15 +33,7 @@ function detectLocaleFromHeader(acceptLanguage: string | null): Locale {
 
 // Server-side locale detection
 export async function getLocale(): Promise<Locale> {
-	const cookieStore = await cookies();
-
-	// 1. Check cookie
-	const localeCookie = cookieStore.get(LOCALE_COOKIE_NAME);
-	if (localeCookie && locales.includes(localeCookie.value as Locale)) {
-		return localeCookie.value as Locale;
-	}
-
-	// 2. Check Accept-Language header
+	// Check Accept-Language header
 	const headersList = await headers();
 	const acceptLanguage = headersList.get('accept-language');
 	if (acceptLanguage) {
