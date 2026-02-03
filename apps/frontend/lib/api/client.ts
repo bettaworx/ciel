@@ -252,6 +252,19 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		reactionCounts: (postId: components['schemas']['PostId']) =>
 			request<components['schemas']['ReactionCounts']>('GET', `/posts/${postId}/reactions`),
 
+		reactionUsers: (
+			postId: components['schemas']['PostId'],
+			params: { emoji: string; limit?: number; cursor?: string | null }
+		) => {
+			const qs = new URLSearchParams({ emoji: params.emoji });
+			if (params.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params.cursor) qs.set('cursor', params.cursor);
+			return request<components['schemas']['ReactionUsersPage']>(
+				'GET',
+				`/posts/${postId}/reactions/users?${qs.toString()}`
+			);
+		},
+
 		addReaction: (postId: components['schemas']['PostId'], body: components['schemas']['ReactRequest']) =>
 			request<components['schemas']['ReactionCounts']>('POST', `/posts/${postId}/reactions`, { body }),
 

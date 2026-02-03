@@ -261,7 +261,12 @@
     "label": "{emoji} {count} reactions",
     "labelWithYourReaction": "{emoji} {count} reactions (You reacted)",
     "loginRequired": "Please log in to react to posts",
-    "error": "Failed to process reaction"
+    "error": "Failed to process reaction",
+    "loadingUsers": "Loading",
+    "noUsers": "No reactions yet",
+    "viewAll": "View all",
+    "loadMore": "Load more",
+    "loadingMore": "Loading"
   },
   "setup": {
     "title": "Setup Profile",

@@ -1,8 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { ReactionUserButton } from "@/components/ReactionUserButton";
+import type { components } from "@/lib/api/api";
+import { useReactionUsers, useReactionUsersPreview } from "@/lib/hooks/use-reaction-users";
+import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
 interface ReactionBadgeProps {
@@ -11,6 +16,7 @@ interface ReactionBadgeProps {
   isReacted: boolean; // 現在のユーザーがリアクション済みか
   onToggle: () => void;
   disabled?: boolean;
+  postId: components["schemas"]["PostId"];
 }
 
 /**
@@ -23,10 +29,28 @@ export function ReactionBadge({
   isReacted,
   onToggle,
   disabled = false,
+  postId,
 }: ReactionBadgeProps) {
   const t = useTranslations("reactions");
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [hoverOpen, setHoverOpen] = React.useState(false);
 
-  return (
+  const preview = useReactionUsersPreview({
+    postId,
+    emoji,
+    enabled: hoverOpen,
+  });
+  const fullList = useReactionUsers({
+    postId,
+    emoji,
+    enabled: dialogOpen,
+  });
+
+  const previewUsers = preview.data?.users ?? [];
+  const fullUsers = fullList.data?.pages.flatMap((page) => page.users) ?? [];
+  const hasMore = Boolean(fullList.data?.pages.at(-1)?.nextCursor);
+
+  const button = (
     <Button
       variant="ghost"
       size="sm"
@@ -62,5 +86,77 @@ export function ReactionBadge({
       </span>
       <span className="text-sm font-medium tabular-nums">{count}</span>
     </Button>
+  );
+
+  return (
+    <Dialog
+      open={dialogOpen}
+      onOpenChange={(next) => {
+        setDialogOpen(next);
+        if (next) {
+          setHoverOpen(false);
+        }
+      }}
+    >
+      <HoverCard open={hoverOpen} onOpenChange={setHoverOpen}>
+        <HoverCardTrigger asChild>{button}</HoverCardTrigger>
+        <HoverCardContent className="w-64 p-2">
+          <div className="flex flex-col gap-1">
+            {preview.isLoading && (
+              <span className="px-2 py-1 text-xs text-muted-foreground">
+                {t("loadingUsers")}
+              </span>
+            )}
+            {!preview.isLoading && previewUsers.length === 0 && (
+              <span className="px-2 py-1 text-xs text-muted-foreground">
+                {t("noUsers")}
+              </span>
+            )}
+            {previewUsers.map((user) => (
+              <ReactionUserButton key={user.id} user={user} />
+            ))}
+            {previewUsers.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start px-2"
+                onClick={() => setDialogOpen(true)}
+              >
+                {t("viewAll")}
+              </Button>
+            )}
+          </div>
+        </HoverCardContent>
+      </HoverCard>
+
+      <DialogContent className="max-w-md p-4">
+        <div className="flex flex-col gap-2">
+          {fullList.isLoading && (
+            <span className="px-2 py-1 text-sm text-muted-foreground">
+              {t("loadingUsers")}
+            </span>
+          )}
+          {!fullList.isLoading && fullUsers.length === 0 && (
+            <span className="px-2 py-1 text-sm text-muted-foreground">
+              {t("noUsers")}
+            </span>
+          )}
+          {fullUsers.map((user) => (
+            <ReactionUserButton key={user.id} user={user} />
+          ))}
+          {hasMore && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="justify-start"
+              onClick={() => fullList.fetchNextPage()}
+              disabled={fullList.isFetchingNextPage}
+            >
+              {fullList.isFetchingNextPage ? t("loadingMore") : t("loadMore")}
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

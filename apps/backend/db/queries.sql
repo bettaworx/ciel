@@ -386,6 +386,29 @@ RETURNING count;
 DELETE FROM post_reaction_counts
 WHERE post_id = $1 AND emoji = $2 AND count <= 0;
 
+-- name: ListReactionUsers :many
+SELECT
+	pre.user_id,
+	u.username,
+	u.display_name,
+	u.bio,
+	u.avatar_media_id,
+	u.created_at AS user_created_at,
+	m.ext AS avatar_ext,
+	pre.created_at AS reacted_at
+FROM post_reaction_events pre
+JOIN users u ON u.id = pre.user_id
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE pre.post_id = $1
+	AND pre.emoji = $2
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR pre.created_at < sqlc.narg('cursor_time')
+		OR (pre.created_at = sqlc.narg('cursor_time') AND pre.user_id < sqlc.narg('cursor_id'))
+	)
+ORDER BY pre.created_at DESC, pre.user_id DESC
+LIMIT sqlc.arg('limit');
+
 -- name: ListRoles :many
 SELECT id
 FROM roles

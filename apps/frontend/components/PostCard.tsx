@@ -449,6 +449,7 @@ export function PostCard({
                   isReacted={reaction.isReacted}
                   onToggle={() => handleToggleReaction(reaction.emoji)}
                   disabled={isPending}
+                  postId={post.id}
                 />
               ))}
             </div>
