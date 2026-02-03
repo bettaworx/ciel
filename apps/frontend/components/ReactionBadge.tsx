@@ -1,8 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { ReactionUserButton } from "@/components/ReactionUserButton";
+import type { components } from "@/lib/api/api";
+import { useReactionUsersPreview } from "@/lib/hooks/use-reaction-users";
+import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
 interface ReactionBadgeProps {
@@ -11,6 +15,8 @@ interface ReactionBadgeProps {
   isReacted: boolean; // 現在のユーザーがリアクション済みか
   onToggle: () => void;
   disabled?: boolean;
+  postId: components["schemas"]["PostId"];
+  onOpenDialog?: (emoji: string) => void;
 }
 
 /**
@@ -23,10 +29,21 @@ export function ReactionBadge({
   isReacted,
   onToggle,
   disabled = false,
+  postId,
+  onOpenDialog,
 }: ReactionBadgeProps) {
   const t = useTranslations("reactions");
+  const [hoverOpen, setHoverOpen] = React.useState(false);
 
-  return (
+  const preview = useReactionUsersPreview({
+    postId,
+    emoji,
+    enabled: hoverOpen,
+  });
+  const previewUsers = preview.data?.users ?? [];
+  const remainingCount = Math.max(0, count - previewUsers.length);
+
+  const button = (
     <Button
       variant="ghost"
       size="sm"
@@ -62,5 +79,41 @@ export function ReactionBadge({
       </span>
       <span className="text-sm font-medium tabular-nums">{count}</span>
     </Button>
+  );
+
+  return (
+    <HoverCard open={hoverOpen} onOpenChange={setHoverOpen}>
+      <HoverCardTrigger asChild>{button}</HoverCardTrigger>
+      <HoverCardContent className="w-64 p-2">
+        <div className="flex flex-col gap-1">
+          {preview.isLoading && (
+            <span className="px-2 py-1 text-xs text-muted-foreground">
+              {t("loadingUsers")}
+            </span>
+          )}
+          {!preview.isLoading && previewUsers.length === 0 && (
+            <span className="px-2 py-1 text-xs text-muted-foreground">
+              {t("noUsers")}
+            </span>
+          )}
+          {previewUsers.map((user) => (
+            <ReactionUserButton key={user.id} user={user} />
+          ))}
+          {!preview.isLoading && remainingCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="justify-start px-2"
+              onClick={() => {
+                setHoverOpen(false);
+                onOpenDialog?.(emoji);
+              }}
+            >
+              {t("viewRemaining", { count: remainingCount })}
+            </Button>
+          )}
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }

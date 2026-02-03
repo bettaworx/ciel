@@ -542,6 +542,23 @@ func (h API) DeletePostsPostIdReactions(w http.ResponseWriter, r *http.Request, 
 	writeJSON(w, http.StatusOK, counts)
 }
 
+func (h API) GetPostsPostIdReactionsUsers(w http.ResponseWriter, r *http.Request, postId api.PostId, params api.GetPostsPostIdReactionsUsersParams) {
+	if h.Reactions == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "reactions not configured"})
+		return
+	}
+	limit := 24
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	page, err := h.Reactions.ListUsers(r.Context(), postId, params.Emoji, limit, params.Cursor)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}
+
 func (h API) GetAdminRoles(w http.ResponseWriter, r *http.Request) {
 	if h.Admin == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "admin not configured"})

@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
+import { ReactionUsersDialog } from "@/components/ReactionUsersDialog";
 import { ReactionPicker } from "@/components/ReactionPicker";
 import { formatTimeAgo } from "@/lib/utils/format-time";
 import { useReactions } from "@/lib/hooks/use-reactions";
@@ -12,7 +13,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
-import { MoreHorizontal, Trash2, Clipboard } from "lucide-react";
+import { Eye, MoreHorizontal, Trash2, Clipboard } from "lucide-react";
 import { useDeletePost } from "@/lib/hooks/use-queries";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { authAtom } from "@/atoms/auth";
@@ -69,7 +70,10 @@ export function PostCard({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [reactionDialogOpen, setReactionDialogOpen] = useState(false);
+  const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(null);
   const isOwner = auth.user?.id === post.author?.id;
+  const hasReactions = reactions.length > 0;
 
   const handleToggleReaction = useCallback(
     (emoji: string) => {
@@ -449,9 +453,24 @@ export function PostCard({
                   isReacted={reaction.isReacted}
                   onToggle={() => handleToggleReaction(reaction.emoji)}
                   disabled={isPending}
+                  postId={post.id}
+                  onOpenDialog={(emoji) => {
+                    setReactionDialogEmoji(emoji);
+                    setReactionDialogOpen(true);
+                  }}
                 />
               ))}
             </div>
+          )}
+
+          {hasReactions && (
+            <ReactionUsersDialog
+              postId={post.id}
+              reactions={reactions}
+              open={reactionDialogOpen}
+              onOpenChange={setReactionDialogOpen}
+              initialEmoji={reactionDialogEmoji}
+            />
           )}
 
           {/* Reaction Picker */}
@@ -473,6 +492,17 @@ export function PostCard({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {hasReactions && (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setReactionDialogEmoji(reactions[0]?.emoji ?? null);
+                        setReactionDialogOpen(true);
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                      {t("actions.viewReactions")}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onSelect={handleCopyUserId}
                     disabled={!hasAuthorId}
@@ -505,6 +535,20 @@ export function PostCard({
                 </DrawerTrigger>
                 <DrawerContent>
                   <div className="flex flex-col gap-2 p-4">
+                    {hasReactions && (
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-2"
+                        onClick={() => {
+                          setReactionDialogEmoji(reactions[0]?.emoji ?? null);
+                          setReactionDialogOpen(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                        {t("actions.viewReactions")}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       className="w-full justify-start gap-2"

@@ -3610,6 +3610,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /posts/{postId}/reactions/users:
+    get:
+      tags: [Reactions]
+      summary: Get users who reacted with an emoji
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PostId'
+        - name: emoji
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Emoji'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 24
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReactionUsersPage'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3793,6 +3842,22 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReactionCount'
+
+    ReactionUsersPage:
+      type: object
+      required: [postId, emoji, users]
+      properties:
+        postId:
+          $ref: '#/components/schemas/PostId'
+        emoji:
+          $ref: '#/components/schemas/Emoji'
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        nextCursor:
+          type: string
+          nullable: true
 
     RegisterRequest:
       type: object

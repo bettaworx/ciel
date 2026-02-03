@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -14,6 +16,8 @@ import (
 	"backend/internal/db/sqlc"
 	"backend/internal/realtime"
 	"backend/internal/repository"
+
+	"github.com/google/uuid"
 )
 
 type ReactionsService struct {
@@ -46,6 +50,84 @@ func (s *ReactionsService) List(ctx context.Context, postID api.PostId, userID *
 		s.setReactionCache(ctx, counts)
 	}
 	return counts, nil
+}
+
+type ReactionUsersCursor struct {
+	Score int64  `json:"s"`
+	ID    string `json:"i"`
+}
+
+func (s *ReactionsService) ListUsers(ctx context.Context, postID api.PostId, emoji api.Emoji, limit int, cursor *string) (api.ReactionUsersPage, error) {
+	if s.store == nil {
+		return api.ReactionUsersPage{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	if limit < 1 || limit > 100 {
+		return api.ReactionUsersPage{}, NewError(http.StatusBadRequest, "invalid_request", "limit must be 1..100")
+	}
+	em := strings.TrimSpace(string(emoji))
+	if em == "" {
+		return api.ReactionUsersPage{}, NewError(http.StatusBadRequest, "invalid_request", "emoji required")
+	}
+	if err := s.ensurePostVisible(ctx, postID); err != nil {
+		return api.ReactionUsersPage{}, err
+	}
+
+	decoded, err := decodeReactionUsersCursor(cursor)
+	if err != nil {
+		return api.ReactionUsersPage{}, NewError(http.StatusBadRequest, "invalid_request", "invalid cursor")
+	}
+	var cursorTime sql.NullTime
+	var cursorID uuid.NullUUID
+	if decoded != nil {
+		ct := time.UnixMilli(decoded.Score).UTC()
+		cursorTime = sql.NullTime{Time: ct, Valid: true}
+		uid, err := uuid.Parse(decoded.ID)
+		if err == nil {
+			cursorID = uuid.NullUUID{UUID: uid, Valid: true}
+		}
+	}
+
+	rows, err := s.store.Q.ListReactionUsers(ctx, sqlc.ListReactionUsersParams{
+		PostID:     postID,
+		Emoji:      em,
+		CursorTime: cursorTime,
+		CursorID:   cursorID,
+		Limit:      int32(limit),
+	})
+	if err != nil {
+		return api.ReactionUsersPage{}, err
+	}
+
+	users := make([]api.User, 0, len(rows))
+	for _, row := range rows {
+		users = append(users, mapUserWithProfile(
+			row.UserID,
+			row.Username,
+			row.UserCreatedAt,
+			row.DisplayName,
+			row.Bio,
+			row.AvatarMediaID,
+			row.AvatarExt,
+			0,
+			0,
+			sql.NullTime{},
+			sql.NullTime{},
+		))
+	}
+
+	var nextCursor *string
+	if len(rows) == limit {
+		last := rows[len(rows)-1]
+		n := encodeReactionUsersCursor(ReactionUsersCursor{Score: last.ReactedAt.UnixMilli(), ID: last.UserID.String()})
+		nextCursor = &n
+	}
+
+	return api.ReactionUsersPage{
+		PostId:     postID,
+		Emoji:      api.Emoji(em),
+		Users:      users,
+		NextCursor: nextCursor,
+	}, nil
 }
 
 func (s *ReactionsService) ensurePostVisible(ctx context.Context, postID api.PostId) error {
@@ -198,6 +280,38 @@ func (s *ReactionsService) publish(ctx context.Context, counts api.ReactionCount
 		return
 	}
 	_ = s.publisher.Publish(ctx, realtime.Event{Type: realtime.EventReactionUpdated, ReactionCounts: &counts})
+}
+
+func encodeReactionUsersCursor(c ReactionUsersCursor) string {
+	b, _ := json.Marshal(c)
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func decodeReactionUsersCursor(cursor *string) (*ReactionUsersCursor, error) {
+	if cursor == nil || *cursor == "" {
+		return nil, nil
+	}
+	b, err := base64.RawURLEncoding.DecodeString(*cursor)
+	if err != nil {
+		return nil, err
+	}
+	var c ReactionUsersCursor
+	if err := json.Unmarshal(b, &c); err != nil {
+		return nil, err
+	}
+	if c.Score < 0 || c.ID == "" {
+		return nil, errors.New("invalid cursor")
+	}
+	if _, err := uuid.Parse(c.ID); err != nil {
+		return nil, errors.New("invalid cursor")
+	}
+	return &c, nil
+}
+
+func EncodeReactionUsersCursor(c ReactionUsersCursor) string { return encodeReactionUsersCursor(c) }
+
+func DecodeReactionUsersCursor(cursor *string) (*ReactionUsersCursor, error) {
+	return decodeReactionUsersCursor(cursor)
 }
 
 const reactionCacheTTL = 6 * time.Hour
