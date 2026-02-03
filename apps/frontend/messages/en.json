@@ -265,6 +265,7 @@
     "loadingUsers": "Loading",
     "noUsers": "No reactions yet",
     "viewAll": "View all",
+    "viewRemaining": "View remaining {count}",
     "loadMore": "Load more",
     "loadingMore": "Loading"
   },
@@ -325,6 +326,7 @@
     "searchEmoji": "Search emoji...",
     "actions": {
       "more": "More actions",
+      "viewReactions": "View reactions",
       "delete": "Delete post",
       "copyUserId": "Copy user ID"
     },

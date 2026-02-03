@@ -2,11 +2,10 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ReactionUserButton } from "@/components/ReactionUserButton";
 import type { components } from "@/lib/api/api";
-import { useReactionUsers, useReactionUsersPreview } from "@/lib/hooks/use-reaction-users";
+import { useReactionUsersPreview } from "@/lib/hooks/use-reaction-users";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
@@ -17,6 +16,7 @@ interface ReactionBadgeProps {
   onToggle: () => void;
   disabled?: boolean;
   postId: components["schemas"]["PostId"];
+  onOpenDialog?: (emoji: string) => void;
 }
 
 /**
@@ -30,9 +30,9 @@ export function ReactionBadge({
   onToggle,
   disabled = false,
   postId,
+  onOpenDialog,
 }: ReactionBadgeProps) {
   const t = useTranslations("reactions");
-  const [dialogOpen, setDialogOpen] = React.useState(false);
   const [hoverOpen, setHoverOpen] = React.useState(false);
 
   const preview = useReactionUsersPreview({
@@ -40,15 +40,8 @@ export function ReactionBadge({
     emoji,
     enabled: hoverOpen,
   });
-  const fullList = useReactionUsers({
-    postId,
-    emoji,
-    enabled: dialogOpen,
-  });
-
   const previewUsers = preview.data?.users ?? [];
-  const fullUsers = fullList.data?.pages.flatMap((page) => page.users) ?? [];
-  const hasMore = Boolean(fullList.data?.pages.at(-1)?.nextCursor);
+  const remainingCount = Math.max(0, count - previewUsers.length);
 
   const button = (
     <Button
@@ -89,74 +82,38 @@ export function ReactionBadge({
   );
 
   return (
-    <Dialog
-      open={dialogOpen}
-      onOpenChange={(next) => {
-        setDialogOpen(next);
-        if (next) {
-          setHoverOpen(false);
-        }
-      }}
-    >
-      <HoverCard open={hoverOpen} onOpenChange={setHoverOpen}>
-        <HoverCardTrigger asChild>{button}</HoverCardTrigger>
-        <HoverCardContent className="w-64 p-2">
-          <div className="flex flex-col gap-1">
-            {preview.isLoading && (
-              <span className="px-2 py-1 text-xs text-muted-foreground">
-                {t("loadingUsers")}
-              </span>
-            )}
-            {!preview.isLoading && previewUsers.length === 0 && (
-              <span className="px-2 py-1 text-xs text-muted-foreground">
-                {t("noUsers")}
-              </span>
-            )}
-            {previewUsers.map((user) => (
-              <ReactionUserButton key={user.id} user={user} />
-            ))}
-            {previewUsers.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="justify-start px-2"
-                onClick={() => setDialogOpen(true)}
-              >
-                {t("viewAll")}
-              </Button>
-            )}
-          </div>
-        </HoverCardContent>
-      </HoverCard>
-
-      <DialogContent className="max-w-md p-4">
-        <div className="flex flex-col gap-2">
-          {fullList.isLoading && (
-            <span className="px-2 py-1 text-sm text-muted-foreground">
+    <HoverCard open={hoverOpen} onOpenChange={setHoverOpen}>
+      <HoverCardTrigger asChild>{button}</HoverCardTrigger>
+      <HoverCardContent className="w-64 p-2">
+        <div className="flex flex-col gap-1">
+          {preview.isLoading && (
+            <span className="px-2 py-1 text-xs text-muted-foreground">
               {t("loadingUsers")}
             </span>
           )}
-          {!fullList.isLoading && fullUsers.length === 0 && (
-            <span className="px-2 py-1 text-sm text-muted-foreground">
+          {!preview.isLoading && previewUsers.length === 0 && (
+            <span className="px-2 py-1 text-xs text-muted-foreground">
               {t("noUsers")}
             </span>
           )}
-          {fullUsers.map((user) => (
+          {previewUsers.map((user) => (
             <ReactionUserButton key={user.id} user={user} />
           ))}
-          {hasMore && (
+          {!preview.isLoading && remainingCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="justify-start"
-              onClick={() => fullList.fetchNextPage()}
-              disabled={fullList.isFetchingNextPage}
+              className="justify-start px-2"
+              onClick={() => {
+                setHoverOpen(false);
+                onOpenDialog?.(emoji);
+              }}
             >
-              {fullList.isFetchingNextPage ? t("loadingMore") : t("loadMore")}
+              {t("viewRemaining", { count: remainingCount })}
             </Button>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </HoverCardContent>
+    </HoverCard>
   );
 }

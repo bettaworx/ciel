@@ -32,7 +32,7 @@ export function ReactionUserButton({
       variant="ghost"
       size="sm"
       className={cn(
-        "w-full justify-start gap-2 rounded-lg px-0 hover:bg-transparent",
+        "w-full justify-start gap-2 rounded-lg px-0 py-1.5 hover:bg-transparent",
         "text-foreground",
         className,
       )}
