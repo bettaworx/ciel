@@ -103,6 +103,7 @@ pnpm run gen:sqlc
 
 ```bash
 # PostgreSQL と Redis を起動
+cp docker-compose.yml.example docker-compose.yml
 docker compose up -d
 
 # データベースマイグレーション (自動実行されます)

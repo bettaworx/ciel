@@ -68,6 +68,7 @@ go.work.sum
 # vendor/
 
 # --- Docker / local runtime ---
+docker-compose.yml
 .env.*
 !.env.example
 !.env.sample
