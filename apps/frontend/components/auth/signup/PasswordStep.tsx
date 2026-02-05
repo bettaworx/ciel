@@ -53,12 +53,6 @@ export function PasswordStep({
             </p>
           </div>
 
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
           <div className="space-y-2">
             <Input
               id="password"
@@ -71,6 +65,11 @@ export function PasswordStep({
               disabled={loading}
               className="transition-colors duration-160 ease"
             />
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             <p className="text-muted-foreground text-sm">
               {t("passwordRequirements")}
             </p>

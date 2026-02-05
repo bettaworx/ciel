@@ -105,7 +105,8 @@
     "password": {
       "required": "Password is required",
       "tooShort": "Password must be at least 9 characters long",
-      "tooLong": "Password must be no more than 256 characters long"
+      "tooLong": "Password must be no more than 256 characters long",
+      "missingRequirements": "Password must include uppercase, lowercase, and numbers"
     }
   },
   "error": {
