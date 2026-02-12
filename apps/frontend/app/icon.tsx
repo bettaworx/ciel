@@ -51,7 +51,22 @@ async function fetchServerIcon(): Promise<ArrayBuffer | null> {
 			return null;
 		}
 
-		// Fetch the actual icon image
+		// For animated server icons (GIFs converted to WebP), try to fetch the static version first
+		// The static version (first frame only) is better for favicons
+		const staticIconUrl = iconUrl.replace('/image.webp', '/image_static.webp').replace('/image.png', '/image_static.png');
+		
+		// Try static version first
+		if (staticIconUrl !== iconUrl) {
+			const staticIconResponse = await fetch(staticIconUrl, {
+				next: { revalidate: 30 },
+			});
+
+			if (staticIconResponse.ok) {
+				return await staticIconResponse.arrayBuffer();
+			}
+		}
+
+		// Fetch the actual icon image (fallback to animated version if static doesn't exist)
 		const iconResponse = await fetch(iconUrl, {
 			next: { revalidate: 30 },
 		});

@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -25,40 +26,21 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	// Upload size limit - hard cap to prevent DoS attacks via large file uploads
-	maxUploadBytes = int64(12 << 20) // 12 MiB
-
-	// Input validation limits - relaxed to accept larger images for automatic resizing
-	// These limits prevent memory exhaustion and processing timeout attacks
-	maxImageWidth  = 16384       // Maximum input width (16K resolution)
-	maxImageHeight = 16384       // Maximum input height (16K resolution)
-	maxImagePixels = 100_000_000 // Maximum total pixels (~100 megapixels, e.g., 10000x10000)
-
-	// Output size limits - images automatically resized to these constraints
-	maxOutputEdgePx    = 1920 // Maximum output edge for regular images (posts)
-	avatarOutputPx     = 400  // Avatar output size (square crop)
-	defaultWebPQuality = 80
-)
-
-var allowedExt = map[string]struct{}{
-	".png":  {},
-	".jpg":  {},
-	".jpeg": {},
-	".webp": {},
-}
-
+// expectedMimeByExt maps file extensions to their expected MIME types
 var expectedMimeByExt = map[string]string{
 	".png":  "image/png",
 	".jpg":  "image/jpeg",
 	".jpeg": "image/jpeg",
 	".webp": "image/webp",
+	".gif":  "image/gif",
 }
 
+// allowedMIMESniff contains MIME types allowed after content sniffing
 var allowedMIMESniff = map[string]struct{}{
 	"image/png":  {},
 	"image/jpeg": {},
 	"image/webp": {},
+	"image/gif":  {},
 }
 
 type MediaService struct {
@@ -66,7 +48,8 @@ type MediaService struct {
 	mediaDir    string
 	ffmpegPath  string
 	ffprobePath string
-	initErr     error // Initialization error (directory creation/permission issue)
+	cfg         config.MediaConfig // Media configuration
+	initErr     error              // Initialization error (directory creation/permission issue)
 }
 
 const storedImageExt = "webp"
@@ -74,7 +57,7 @@ const storedImageExt = "webp"
 type imageConvertFunc func(ctx context.Context, inPath, outPath string) error
 type imageUploadFunc func(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error)
 
-func NewMediaService(store *repository.Store, mediaDir string, initErr error) *MediaService {
+func NewMediaService(store *repository.Store, mediaDir string, cfg config.MediaConfig, initErr error) *MediaService {
 	ffmpegPath, _ := exec.LookPath("ffmpeg")
 	ffprobePath, _ := exec.LookPath("ffprobe")
 	return &MediaService{
@@ -82,6 +65,7 @@ func NewMediaService(store *repository.Store, mediaDir string, initErr error) *M
 		mediaDir:    mediaDir,
 		ffmpegPath:  ffmpegPath,
 		ffprobePath: ffprobePath,
+		cfg:         cfg,
 		initErr:     initErr,
 	}
 }
@@ -92,6 +76,10 @@ func (s *MediaService) UploadImageFromRequest(w http.ResponseWriter, r *http.Req
 
 func (s *MediaService) UploadAvatarFromRequest(w http.ResponseWriter, r *http.Request, user auth.User) (api.Media, error) {
 	return s.uploadFromRequest(w, r, user, s.uploadAvatar)
+}
+
+func (s *MediaService) UploadServerIconFromRequest(w http.ResponseWriter, r *http.Request, user auth.User) (api.Media, error) {
+	return s.uploadFromRequest(w, r, user, s.uploadServerIcon)
 }
 
 func (s *MediaService) uploadFromRequest(w http.ResponseWriter, r *http.Request, user auth.User, upload imageUploadFunc) (api.Media, error) {
@@ -109,7 +97,7 @@ func (s *MediaService) uploadFromRequest(w http.ResponseWriter, r *http.Request,
 	}
 
 	// Hard cap request size.
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.MaxUploadBytes())
 
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		var mbe *http.MaxBytesError
@@ -188,12 +176,30 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 		ext = storedImageExt
 	}
 
+	// Determine which file to serve based on the request path
+	// For server icons with GIF uploads, we have both image.webp (animated) and image_static.webp (first frame)
+	requestPath := r.URL.Path
+	filename := "image." + ext
+	if strings.HasSuffix(requestPath, "image_static.png") || strings.HasSuffix(requestPath, "image_static.webp") {
+		filename = "image_static." + ext
+	}
+
 	// Serve the file
-	p := filepath.Join(s.mediaDir, id.String(), "image."+ext)
+	p := filepath.Join(s.mediaDir, id.String(), filename)
 	f, err := os.Open(p)
 	if err != nil {
-		http.NotFound(w, r)
-		return
+		// If static version doesn't exist, fall back to regular version
+		if strings.Contains(filename, "static") {
+			p = filepath.Join(s.mediaDir, id.String(), "image."+ext)
+			f, err = os.Open(p)
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+		} else {
+			http.NotFound(w, r)
+			return
+		}
 	}
 	defer f.Close()
 
@@ -229,11 +235,44 @@ func (s *MediaService) DeleteMedia(ctx context.Context, userID uuid.UUID, mediaI
 }
 
 func (s *MediaService) uploadImage(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
+	// Check if the file is a GIF - use animated WebP conversion
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if ext == ".gif" {
+		return s.uploadImageWithOptions(ctx, user, src, header, "image", s.convertToAnimatedWebP, 0)
+	}
+
+	// For static images (PNG/JPG/WebP), use static WebP conversion
 	return s.uploadImageWithOptions(ctx, user, src, header, "image", s.convertToWebP, 0)
 }
 
 func (s *MediaService) uploadAvatar(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
-	return s.uploadImageWithOptions(ctx, user, src, header, "avatar", s.convertToWebPAvatar, avatarOutputPx)
+	// Check if the file is a GIF - use animated WebP conversion with square crop
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if ext == ".gif" {
+		return s.uploadImageWithOptions(ctx, user, src, header, "avatar", s.convertToWebPAvatarAnimated, s.cfg.Avatar.Static.Size)
+	}
+
+	// For static images (PNG/JPG/WebP), use static WebP conversion with square crop
+	return s.uploadImageWithOptions(ctx, user, src, header, "avatar", s.convertToWebPAvatar, s.cfg.Avatar.Static.Size)
+}
+
+func (s *MediaService) uploadServerIcon(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
+	// Validate file metadata
+	_, declaredCT, ext, err := s.validateUploadMetadata(header)
+	if err != nil {
+		return api.Media{}, err
+	}
+
+	// Check if file is a GIF
+	isGif := ext == ".gif"
+
+	if isGif {
+		// For GIF: create both animated and static versions
+		return s.uploadServerIconWithBothVersions(ctx, user, src, header, declaredCT, ext)
+	} else {
+		// For static images: use standard conversion
+		return s.uploadImageWithOptions(ctx, user, src, header, "server_icon", s.convertToServerIconStatic, s.cfg.ServerIcon.Static.Size)
+	}
 }
 
 func (s *MediaService) uploadImageWithOptions(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader, mediaType string, convert imageConvertFunc, expectedSize int) (api.Media, error) {
@@ -251,7 +290,7 @@ func (s *MediaService) uploadImageWithOptions(ctx context.Context, user auth.Use
 	defer os.Remove(inPath)
 
 	// Verify file size
-	if totalSize > maxUploadBytes {
+	if totalSize > s.cfg.MaxUploadBytes() {
 		return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
 	}
 
@@ -278,7 +317,7 @@ func (s *MediaService) validateUploadMetadata(header *multipart.FileHeader) (fil
 	}
 
 	ext = strings.ToLower(filepath.Ext(filename))
-	if _, ok := allowedExt[ext]; !ok {
+	if !s.cfg.IsExtensionAllowed(ext) {
 		return "", "", "", NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "unsupported file extension")
 	}
 
@@ -360,7 +399,129 @@ func validateMIMEType(buf []byte, ext, declaredCT string) error {
 			return NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "file extension and declared content-type mismatch")
 		}
 	}
+	return nil
+}
 
+// convertToServerIconStatic converts and center-crops an image to a square server icon (static images only)
+func (s *MediaService) convertToServerIconStatic(ctx context.Context, inPath, outPath string) error {
+	// Server icons are always square (512x512) and center-cropped
+	size := s.cfg.ServerIcon.Static.Size
+	quality := s.cfg.ServerIcon.Static.Quality
+
+	// Filter: scale to fit within square, then crop to exact square from center
+	// crop=w=out_w:h=out_h:x=(in_w-out_w)/2:y=(in_h-out_h)/2
+	vf := fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=increase,crop=w=%d:h=%d:x=(in_w-%d)/2:y=(in_h-%d)/2",
+		size, size, size, size, size, size)
+
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", inPath,
+		"-frames:v", "1",
+		"-map_metadata", "-1",
+		"-map_chapters", "-1",
+		"-vf", vf,
+		"-f", "webp",
+		"-c:v", "libwebp",
+		"-q:v", strconv.Itoa(quality),
+		"-an",
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		msg = strings.ReplaceAll(msg, inPath, "<input>")
+		msg = strings.ReplaceAll(msg, outPath, "<output>")
+
+		slog.Error("ffmpeg server icon conversion failed", "error", err, "stderr", msg)
+		return fmt.Errorf("server icon conversion failed")
+	}
+	return nil
+}
+
+// convertToServerIconAnimated converts an animated GIF to animated WebP for server icon
+// - Resizes to configured max edge while maintaining aspect ratio
+// - Preserves frame timing, loop settings, and all animation frames
+// - Strips metadata (EXIF/XMP/GPS)
+func (s *MediaService) convertToServerIconAnimated(ctx context.Context, inPath, outPath string) error {
+	maxSize := s.cfg.ServerIcon.Gif.MaxSize
+	quality := s.cfg.ServerIcon.Gif.Quality
+
+	vf := fmt.Sprintf("scale=w=min(%d\\,iw):h=min(%d\\,ih):force_original_aspect_ratio=decrease", maxSize, maxSize)
+
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", inPath,
+		"-vf", vf,
+		"-f", "webp",
+		"-c:v", "libwebp",
+		"-pix_fmt", "yuva420p",
+		"-lossless", "0",
+		"-q:v", strconv.Itoa(quality),
+		"-loop", "0", // Preserve loop setting (0 = infinite)
+		"-preset", "default", // Use default preset for better compatibility
+		"-vsync", "0", // Preserve frame timing for animation
+		"-an",                 // No audio
+		"-map_metadata", "-1", // Strip metadata (EXIF/GPS)
+		"-map_chapters", "-1", // Strip chapters
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		// Log full command for debugging
+		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
+		slog.Error("ffmpeg server icon animated conversion failed", "error", err, "stderr", msg, "command", cmdStr)
+		return fmt.Errorf("server icon animated conversion failed")
+	}
+	return nil
+}
+
+// extractFirstFrameStatic extracts the first frame of an animated GIF and converts it to a static square server icon
+func (s *MediaService) extractFirstFrameStatic(ctx context.Context, inPath, outPath string) error {
+	size := s.cfg.ServerIcon.Static.Size
+	quality := s.cfg.ServerIcon.Static.Quality
+
+	// Extract first frame and crop to square
+	vf := fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=increase,crop=w=%d:h=%d:x=(in_w-%d)/2:y=(in_h-%d)/2",
+		size, size, size, size, size, size)
+
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", inPath,
+		"-frames:v", "1", // Extract only first frame
+		"-map_metadata", "-1",
+		"-map_chapters", "-1",
+		"-vf", vf,
+		"-f", "webp",
+		"-c:v", "libwebp",
+		"-q:v", strconv.Itoa(quality),
+		"-an",
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		msg = strings.ReplaceAll(msg, inPath, "<input>")
+		msg = strings.ReplaceAll(msg, outPath, "<output>")
+
+		slog.Error("ffmpeg first frame extraction failed", "error", err, "stderr", msg)
+		return fmt.Errorf("failed to extract first frame")
+	}
 	return nil
 }
 
@@ -371,8 +532,10 @@ func validateMIMEType(buf []byte, ext, declaredCT string) error {
 // - Processing timeout/DoS attacks (computationally expensive operations on huge images)
 // - ffmpeg exploitation via malformed image dimensions
 //
-// Valid images exceeding old limits (4096x4096, 12MP) will be automatically resized
-// to maxOutputEdgePx (1920px) by convertToWebP, preserving aspect ratio.
+// Valid images exceeding old limits (4096x4096, 12MP) will be automatically resized:
+// - Static images (PNG/JPG/WebP): maxOutputEdgePx (2048px)
+// - Animated GIFs: maxGifOutputEdgePx (1024px)
+// Aspect ratio is always preserved.
 func (s *MediaService) validateImageDimensions(ctx context.Context, imagePath string) error {
 	w, h, err := s.probeDimensions(ctx, imagePath)
 	if err != nil {
@@ -382,7 +545,7 @@ func (s *MediaService) validateImageDimensions(ctx context.Context, imagePath st
 		return NewError(http.StatusBadRequest, "invalid_request", "invalid image")
 	}
 	// Reject only extremely large images to prevent resource exhaustion
-	if w > maxImageWidth || h > maxImageHeight || (w*h) > maxImagePixels {
+	if w > s.cfg.MaxInputWidth || h > s.cfg.MaxInputHeight || (w*h) > s.cfg.MaxInputPixels {
 		return NewError(http.StatusBadRequest, "invalid_request", "image too large")
 	}
 	return nil
@@ -422,7 +585,14 @@ func (s *MediaService) convertAndSaveImage(ctx context.Context, user auth.User, 
 	wOut, hOut, err := s.probeDimensions(ctx, outPath)
 	if err != nil {
 		cleanupOut()
+		slog.Error("failed to probe dimensions", "error", err, "path", outPath)
 		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "failed to read converted image")
+	}
+	// Validate output dimensions
+	if wOut < 1 || hOut < 1 {
+		cleanupOut()
+		slog.Error("converted image has invalid dimensions", "width", wOut, "height", hOut, "path", outPath)
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "converted image has invalid dimensions")
 	}
 	if expectedSize > 0 && (wOut != expectedSize || hOut != expectedSize) {
 		cleanupOut()
@@ -453,7 +623,103 @@ func (s *MediaService) convertAndSaveImage(ctx context.Context, user auth.User, 
 	}, nil
 }
 
+// uploadServerIconWithBothVersions handles GIF uploads by creating both animated and static versions
+func (s *MediaService) uploadServerIconWithBothVersions(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader, declaredCT, ext string) (api.Media, error) {
+	// Write upload to temporary file with content validation
+	inPath, totalSize, err := s.writeUploadToTemp(src, ext, declaredCT)
+	if err != nil {
+		return api.Media{}, err
+	}
+	defer os.Remove(inPath)
+
+	// Verify file size
+	if totalSize > s.cfg.MaxUploadBytes() {
+		return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
+	}
+
+	// Validate image dimensions
+	if err := s.validateImageDimensions(ctx, inPath); err != nil {
+		return api.Media{}, err
+	}
+
+	// Generate UUID and create output directory
+	id := uuid.New()
+	outDir := filepath.Join(s.mediaDir, id.String())
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return api.Media{}, err
+	}
+
+	cleanupOut := func() { _ = os.RemoveAll(outDir) }
+
+	// Path for animated version
+	animatedTmpPath := filepath.Join(outDir, "image.tmp."+storedImageExt)
+	animatedPath := filepath.Join(outDir, "image."+storedImageExt)
+
+	// Path for static version (first frame only)
+	staticTmpPath := filepath.Join(outDir, "image_static.tmp."+storedImageExt)
+	staticPath := filepath.Join(outDir, "image_static."+storedImageExt)
+
+	// Convert to animated WebP
+	if err := s.convertToServerIconAnimated(ctx, inPath, animatedTmpPath); err != nil {
+		cleanupOut()
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "failed to convert animated image")
+	}
+
+	// Extract first frame as static version
+	if err := s.extractFirstFrameStatic(ctx, inPath, staticTmpPath); err != nil {
+		cleanupOut()
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "failed to create static version")
+	}
+
+	// Rename temp files to final names
+	if err := os.Rename(animatedTmpPath, animatedPath); err != nil {
+		cleanupOut()
+		return api.Media{}, err
+	}
+
+	if err := os.Rename(staticTmpPath, staticPath); err != nil {
+		cleanupOut()
+		return api.Media{}, err
+	}
+
+	// Verify converted dimensions (check animated version)
+	wOut, hOut, err := s.probeDimensions(ctx, animatedPath)
+	if err != nil {
+		cleanupOut()
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "failed to read converted image")
+	}
+
+	// Create database record
+	row, err := s.store.Q.CreateMedia(ctx, sqlc.CreateMediaParams{
+		ID:     id,
+		UserID: user.ID,
+		Type:   "server_icon",
+		Ext:    storedImageExt,
+		Width:  int32(wOut),
+		Height: int32(hOut),
+	})
+	if err != nil {
+		cleanupOut()
+		return api.Media{}, err
+	}
+
+	return api.Media{
+		Id:        row.ID,
+		Type:      api.MediaType("image"),
+		Url:       mediaImageURL(row.ID, row.Ext),
+		Width:     int(row.Width),
+		Height:    int(row.Height),
+		CreatedAt: row.CreatedAt,
+	}, nil
+}
+
 func (s *MediaService) probeDimensions(ctx context.Context, path string) (int, int, error) {
+	if strings.EqualFold(filepath.Ext(path), ".webp") {
+		w, h, err := probeWebPDimensions(path)
+		if err == nil && w > 0 && h > 0 {
+			return w, h, nil
+		}
+	}
 	cmd := exec.CommandContext(ctx, s.ffprobePath,
 		"-v", "error",
 		"-select_streams", "v:0",
@@ -463,27 +729,132 @@ func (s *MediaService) probeDimensions(ctx context.Context, path string) (int, i
 	)
 	out, err := cmd.Output()
 	if err != nil {
+		slog.Error("ffprobe failed", "error", err, "path", path)
 		return 0, 0, err
 	}
 	line := strings.TrimSpace(string(out))
+	if line == "" {
+		slog.Error("ffprobe returned empty output", "path", path)
+		return 0, 0, fmt.Errorf("ffprobe returned empty output")
+	}
 	parts := strings.Split(line, "x")
 	if len(parts) != 2 {
+		slog.Error("unexpected ffprobe output format", "output", line, "path", path)
 		return 0, 0, fmt.Errorf("unexpected ffprobe output: %q", line)
 	}
 	w, err := strconv.Atoi(strings.TrimSpace(parts[0]))
 	if err != nil {
+		slog.Error("failed to parse width", "width", parts[0], "error", err, "path", path)
 		return 0, 0, err
 	}
 	h, err := strconv.Atoi(strings.TrimSpace(parts[1]))
 	if err != nil {
+		slog.Error("failed to parse height", "height", parts[1], "error", err, "path", path)
 		return 0, 0, err
 	}
 	return w, h, nil
 }
 
+func probeWebPDimensions(path string) (int, int, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer f.Close()
+
+	header := make([]byte, 12)
+	if _, err := io.ReadFull(f, header); err != nil {
+		return 0, 0, err
+	}
+	if string(header[0:4]) != "RIFF" || string(header[8:12]) != "WEBP" {
+		return 0, 0, fmt.Errorf("not a webp file")
+	}
+
+	for {
+		var chunkHeader [8]byte
+		if _, err := io.ReadFull(f, chunkHeader[:]); err != nil {
+			return 0, 0, err
+		}
+		chunkType := string(chunkHeader[0:4])
+		chunkSize := binary.LittleEndian.Uint32(chunkHeader[4:8])
+
+		switch chunkType {
+		case "VP8X":
+			if chunkSize < 10 {
+				return 0, 0, fmt.Errorf("invalid VP8X chunk size")
+			}
+			data := make([]byte, 10)
+			if _, err := io.ReadFull(f, data); err != nil {
+				return 0, 0, err
+			}
+			w := 1 + int(uint32(data[4])|uint32(data[5])<<8|uint32(data[6])<<16)
+			h := 1 + int(uint32(data[7])|uint32(data[8])<<8|uint32(data[9])<<16)
+			if err := skipWebPChunk(f, chunkSize, 10); err != nil {
+				return 0, 0, err
+			}
+			return w, h, nil
+		case "VP8 ":
+			if chunkSize < 10 {
+				return 0, 0, fmt.Errorf("invalid VP8 chunk size")
+			}
+			data := make([]byte, 10)
+			if _, err := io.ReadFull(f, data); err != nil {
+				return 0, 0, err
+			}
+			w := int(binary.LittleEndian.Uint16(data[6:8]) & 0x3FFF)
+			h := int(binary.LittleEndian.Uint16(data[8:10]) & 0x3FFF)
+			if err := skipWebPChunk(f, chunkSize, 10); err != nil {
+				return 0, 0, err
+			}
+			return w, h, nil
+		case "VP8L":
+			if chunkSize < 5 {
+				return 0, 0, fmt.Errorf("invalid VP8L chunk size")
+			}
+			data := make([]byte, 5)
+			if _, err := io.ReadFull(f, data); err != nil {
+				return 0, 0, err
+			}
+			if data[0] != 0x2f {
+				return 0, 0, fmt.Errorf("invalid VP8L signature")
+			}
+			v := binary.LittleEndian.Uint32(data[1:5])
+			w := int((v & 0x3FFF) + 1)
+			h := int(((v >> 14) & 0x3FFF) + 1)
+			if err := skipWebPChunk(f, chunkSize, 5); err != nil {
+				return 0, 0, err
+			}
+			return w, h, nil
+		default:
+			if err := skipWebPChunk(f, chunkSize, 0); err != nil {
+				return 0, 0, err
+			}
+		}
+	}
+}
+
+func skipWebPChunk(f *os.File, chunkSize uint32, alreadyRead uint32) error {
+	if chunkSize < alreadyRead {
+		return fmt.Errorf("invalid chunk size")
+	}
+	remaining := int64(chunkSize - alreadyRead)
+	if remaining > 0 {
+		if _, err := f.Seek(remaining, io.SeekCurrent); err != nil {
+			return err
+		}
+	}
+	if chunkSize%2 == 1 {
+		if _, err := f.Seek(1, io.SeekCurrent); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *MediaService) convertToWebPAvatar(ctx context.Context, inPath, outPath string) error {
 	// Scale to cover and center-crop to a square avatar.
-	vf := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", avatarOutputPx, avatarOutputPx, avatarOutputPx, avatarOutputPx)
+	avatarSize := s.cfg.Avatar.Static.Size
+	vf := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", avatarSize, avatarSize, avatarSize, avatarSize)
 	args := []string{
 		"-hide_banner",
 		"-loglevel", "error",
@@ -495,7 +866,7 @@ func (s *MediaService) convertToWebPAvatar(ctx context.Context, inPath, outPath 
 		"-vf", vf,
 		"-f", "webp",
 		"-c:v", "libwebp",
-		"-q:v", strconv.Itoa(defaultWebPQuality),
+		"-q:v", strconv.Itoa(s.cfg.Avatar.Static.Quality),
 		"-an",
 		outPath,
 	}
@@ -515,8 +886,52 @@ func (s *MediaService) convertToWebPAvatar(ctx context.Context, inPath, outPath 
 	return nil
 }
 
+// convertToWebPAvatarAnimated converts an animated GIF to animated WebP avatar with square crop
+// - Scales to cover the target square size
+// - Center-crops to exact square dimensions
+// - Preserves all animation frames
+func (s *MediaService) convertToWebPAvatarAnimated(ctx context.Context, inPath, outPath string) error {
+	avatarSize := s.cfg.Avatar.Static.Size
+	quality := s.cfg.Avatar.Static.Quality
+
+	// Scale to cover square, then crop to exact square
+	// This ensures the avatar fills the entire square even if the source aspect ratio is different
+	vf := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", avatarSize, avatarSize, avatarSize, avatarSize)
+
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", inPath,
+		"-vf", vf,
+		"-f", "webp",
+		"-c:v", "libwebp",
+		"-pix_fmt", "yuva420p",
+		"-lossless", "0",
+		"-q:v", strconv.Itoa(quality),
+		"-loop", "0", // Preserve loop setting (0 = infinite)
+		"-preset", "default", // Use default preset for better compatibility
+		"-vsync", "0", // Preserve frame timing for animation
+		"-an",                 // No audio
+		"-map_metadata", "-1", // Strip metadata (EXIF/GPS)
+		"-map_chapters", "-1", // Strip chapters
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
+		slog.Error("ffmpeg animated avatar conversion failed", "error", err, "stderr", msg, "command", cmdStr)
+		return fmt.Errorf("animated avatar conversion failed")
+	}
+	return nil
+}
+
 func (s *MediaService) convertToWebP(ctx context.Context, inPath, outPath string) error {
-	// SECURITY: Automatically resize images to maxOutputEdgePx (1920px) to:
+	// SECURITY: Automatically resize images to configured max edge to:
 	// - Limit output resolution and prevent storage exhaustion
 	// - Strip metadata (EXIF/XMP/GPS) that may contain sensitive location/device info
 	// - Preserve aspect ratio while fitting within maximum edge constraint
@@ -524,7 +939,8 @@ func (s *MediaService) convertToWebP(ctx context.Context, inPath, outPath string
 	//
 	// NOTE: Avoid quoting expressions here; Go exec passes quotes literally and ffmpeg filter parsing becomes brittle.
 	// Also escape commas inside min() for ffmpeg expression parser.
-	vf := fmt.Sprintf("scale=w=min(%d\\,iw):h=min(%d\\,ih):force_original_aspect_ratio=decrease", maxOutputEdgePx, maxOutputEdgePx)
+	maxSize := s.cfg.Post.Static.MaxSize
+	vf := fmt.Sprintf("scale=w=min(%d\\,iw):h=min(%d\\,ih):force_original_aspect_ratio=decrease", maxSize, maxSize)
 	args := []string{
 		"-hide_banner",
 		"-loglevel", "error",
@@ -536,7 +952,7 @@ func (s *MediaService) convertToWebP(ctx context.Context, inPath, outPath string
 		"-vf", vf,
 		"-f", "webp",
 		"-c:v", "libwebp",
-		"-q:v", strconv.Itoa(defaultWebPQuality),
+		"-q:v", strconv.Itoa(s.cfg.Post.Static.Quality),
 		"-an",
 		outPath,
 	}
@@ -554,6 +970,49 @@ func (s *MediaService) convertToWebP(ctx context.Context, inPath, outPath string
 		// SECURITY: Log detailed error server-side, return generic error to client
 		slog.Error("ffmpeg conversion failed", "error", err, "stderr", msg)
 		return fmt.Errorf("media conversion failed")
+	}
+	return nil
+}
+
+// convertToAnimatedWebP converts an animated GIF to animated WebP while preserving all frames.
+// - Resizes to configured max edge while maintaining aspect ratio
+// - Preserves frame timing, loop settings, and all animation frames
+// - Strips metadata (EXIF/XMP/GPS)
+// - Uses configured quality for optimized file size
+func (s *MediaService) convertToAnimatedWebP(ctx context.Context, inPath, outPath string) error {
+	// Scale to configured GIF max edge to keep animated WebP file size manageable
+	maxSize := s.cfg.Post.Gif.MaxSize
+	vf := fmt.Sprintf("scale=w=min(%d\\,iw):h=min(%d\\,ih):force_original_aspect_ratio=decrease", maxSize, maxSize)
+
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", inPath,
+		"-vf", vf,
+		"-f", "webp",
+		"-c:v", "libwebp",
+		"-pix_fmt", "yuva420p",
+		"-lossless", "0",
+		"-q:v", strconv.Itoa(s.cfg.Post.Gif.Quality),
+		"-loop", "0", // Preserve loop setting (0 = infinite)
+		"-preset", "default", // Use default preset for better compatibility
+		"-vsync", "0", // Preserve frame timing for animation
+		"-an",                 // No audio
+		"-map_metadata", "-1", // Strip metadata (EXIF/GPS)
+		"-map_chapters", "-1", // Strip chapters
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		// Log full command for debugging
+		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
+		slog.Error("ffmpeg animated GIF conversion failed", "error", err, "stderr", msg, "command", cmdStr)
+		return fmt.Errorf("animated media conversion failed")
 	}
 	return nil
 }

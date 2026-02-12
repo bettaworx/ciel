@@ -10,13 +10,12 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { useCreatePost, useUploadMedia } from "@/lib/hooks/use-queries";
+import { useCreatePost, useUploadMedia, useMediaLimits } from "@/lib/hooks/use-queries";
 import type { components } from "@/lib/api/api";
 import type { LocalImage } from "./types";
 import {
   MAX_CONTENT_LENGTH,
   MAX_IMAGES,
-  MAX_FILE_SIZE,
   MAX_TEXTAREA_HEIGHT,
   CHARACTER_COUNT_THRESHOLD,
   ACCEPTED_IMAGE_TYPES,
@@ -34,6 +33,7 @@ interface UseComposePostOptions {
 export function useComposePost(options: UseComposePostOptions = {}) {
   const { onSuccess, autoResize = true } = options;
   const t = useTranslations();
+  const mediaLimits = useMediaLimits();
 
   // State
   const [content, setContent] = useState("");
@@ -98,7 +98,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       }
 
       // Validate file size
-      if (file.size > MAX_FILE_SIZE) {
+      if (file.size > mediaLimits.maxUploadSizeBytes) {
         toast.error(t("createPost.fileTooLarge"));
         continue;
       }

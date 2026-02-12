@@ -76,6 +76,22 @@ export function useServerInfo() {
 	});
 }
 
+// Media limits from server info
+export function useMediaLimits() {
+	const { data: serverInfo } = useServerInfo();
+	
+	return {
+		maxUploadSizeMB: serverInfo?.mediaLimits?.maxUploadSizeMB ?? 15,
+		maxUploadSizeBytes: (serverInfo?.mediaLimits?.maxUploadSizeMB ?? 15) * 1024 * 1024,
+		allowedExtensions: serverInfo?.mediaLimits?.allowedExtensions ?? ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+		postStaticMaxSize: serverInfo?.mediaLimits?.post?.static?.maxSize ?? 2048,
+		postGifMaxSize: serverInfo?.mediaLimits?.post?.gif?.maxSize ?? 1024,
+		avatarSize: serverInfo?.mediaLimits?.avatar?.size ?? 400,
+		serverIconStaticSize: serverInfo?.mediaLimits?.serverIcon?.static?.size ?? 512,
+		serverIconGifMaxSize: serverInfo?.mediaLimits?.serverIcon?.gif?.maxSize ?? 512,
+	};
+}
+
 // Timeline with infinite scroll
 export function useTimeline(params?: { limit?: number }) {
 	const api = useApi();
