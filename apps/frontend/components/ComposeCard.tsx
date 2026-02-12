@@ -278,7 +278,7 @@ export function ComposeCard() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  accept="file"
                   multiple
                   onChange={handleImageSelect}
                   className="hidden"

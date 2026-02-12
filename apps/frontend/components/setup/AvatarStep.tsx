@@ -79,7 +79,7 @@ export function AvatarStep({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="file"
               onChange={handleFileSelect}
               className="hidden"
             />

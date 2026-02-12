@@ -93,7 +93,7 @@ export function ServerProfileSection({ serverInfo }: ServerProfileSectionProps) 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="file"
                 onChange={handleIconUpload}
                 className="hidden"
               />
