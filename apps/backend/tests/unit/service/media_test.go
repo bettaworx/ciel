@@ -33,7 +33,7 @@ func TestDeleteMedia_Success(t *testing.T) {
 		WithArgs(mediaID).
 		WillReturnRows(
 			sqlmock.NewRows([]string{"id", "user_id", "type", "ext", "width", "height", "created_at"}).
-				AddRow(mediaID, userID, "image", "webp", sql.NullInt32{Valid: true, Int32: 1920}, sql.NullInt32{Valid: true, Int32: 1080}, time.Now()),
+				AddRow(mediaID, userID, "image", "webp", sql.NullInt32{Valid: true, Int32: 2048}, sql.NullInt32{Valid: true, Int32: 1365}, time.Now()),
 		)
 
 	// Mock DeleteMediaByID

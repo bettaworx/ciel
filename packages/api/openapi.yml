@@ -3194,16 +3194,25 @@ paths:
       description: |
         Upload an avatar image for the current user.
 
-        **Allowed formats:** PNG, JPG, JPEG, WebP  
-        **File size limit:** 12 MiB  
+        **Allowed formats:** PNG, JPG, JPEG, WebP, GIF  
+        **File size limit:** 15 MiB (increased from 12 MiB)
         **Input dimension limits:** 16384x16384 pixels, 100 megapixels total  
-        **Output resolution:** Automatically cropped and resized to 400x400px (square)  
+        **Output resolution:** 400x400px (square, center-cropped)  
+        **Quality:** 50 (optimized for file size)
         
         **Processing:**
-        - Large images are scaled to cover 400x400
+        - Images scaled to cover 400x400
         - Center-cropped to square aspect ratio
         - Metadata stripped (EXIF/XMP/GPS)
-        - Converted to WebP format
+        - Converted to static WebP format
+        
+        **GIF handling:**
+        - Animated GIFs accepted as input
+        - Only the first frame is used (static output)
+        - Final result is a 400x400px static WebP image
+        
+        **Auto-cleanup:**
+        - Previous avatar automatically deleted after successful upload
       security:
         - bearerAuth: []
       requestBody:
@@ -3217,6 +3226,7 @@ paths:
                 file:
                   type: string
                   format: binary
+                  description: Image file (PNG/JPG/WebP/GIF)
       responses:
         '200':
           description: OK
@@ -3233,7 +3243,7 @@ paths:
         '401':
           description: Unauthorized
         '413':
-          description: Payload too large
+          description: Payload too large (>15 MiB)
           content:
             application/json:
               schema:
@@ -3362,30 +3372,38 @@ paths:
   /media:
     post:
       tags: [Media]
-      summary: Upload media (image)
+      summary: Upload media (image or animated GIF)
       description: |
-        Upload an image and store it as WebP.
+        Upload an image or animated GIF and store it as WebP (static or animated).
 
-        **Allowed formats:** PNG, JPG, JPEG, WebP  
-        **File size limit:** 12 MiB  
+        **Allowed formats:** PNG, JPG, JPEG, WebP, GIF  
+        **File size limit:** 15 MiB (unified for all formats)
+        
         **Input dimension limits:** 16384x16384 pixels, 100 megapixels total  
-        **Output resolution:** Automatically resized to max 1920px (longest edge), aspect ratio preserved  
+        
+        **Output specifications:**
+        - **Animated GIF → Animated WebP:** Max 1024px (longest edge), all frames preserved
+        - **Static images (PNG/JPG/WebP) → Static WebP:** Max 2048px (longest edge)
+        - **Aspect ratio:** Always preserved (no upscaling)
+        - **Quality:** 50 (optimized for file size)
+        
+        **GIF handling:**
+        - All animation frames are preserved
+        - Frame timing and loop settings maintained
+        - Suitable for posts with animated content
         
         **Security features:**
-        - MIME type validation (content sniffing)
+        - MIME type validation (content sniffing + ffprobe format verification)
         - Metadata stripping (EXIF/XMP/GPS)
         - Automatic format conversion to WebP
         - DoS protection via size and dimension limits
 
-        **Automatic resizing:**
-        Images larger than 1920px on any edge are automatically resized to fit within 1920px
-        while preserving the original aspect ratio. For example:
-        - 6000x4000 → 1920x1280
-        - 4000x6000 → 1280x1920
-        - 4096x4096 → 1920x1920
-
-        This means images that previously returned "image too large" errors (above 4096x4096)
-        will now be accepted and automatically resized.
+        **Conversion examples:**
+        - 6000x4000px PNG → 2048x1365px WebP
+        - 800x600px JPEG → 800x600px WebP (no upscaling)
+        - 2000x1500px GIF (50 frames) → 1024x768px Animated WebP (50 frames)
+        - 500x500px GIF (20 frames) → 500x500px Animated WebP (20 frames)
+        
       security:
         - bearerAuth: []
       requestBody:
@@ -3399,15 +3417,16 @@ paths:
                 file:
                   type: string
                   format: binary
+                  description: Image file (PNG/JPG/WebP) or animated GIF
       responses:
         '201':
-          description: Created
+          description: Media created successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Media'
         '400':
-          description: Bad request
+          description: Bad request (invalid file format, corrupted GIF, etc.)
           content:
             application/json:
               schema:
@@ -3419,7 +3438,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '413':
-          description: Payload too large
+          description: Payload too large (>15 MiB)
           content:
             application/json:
               schema:

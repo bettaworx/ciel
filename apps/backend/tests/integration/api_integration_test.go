@@ -1377,7 +1377,7 @@ func TestIntegration_Media_ServeImage_NotFound(t *testing.T) {
 }
 
 // TestIntegration_Media_Upload_LargeImage_AutoResize tests that images larger than
-// the old limits (4096x4096, 12MP) are now accepted and automatically resized to 1920px.
+// the old limits (4096x4096, 12MP) are now accepted and automatically resized to 2048px.
 // This verifies the automatic resizing feature while preventing resource exhaustion attacks.
 func TestIntegration_Media_Upload_LargeImage_AutoResize(t *testing.T) {
 	app := newTestApp(t)
@@ -1403,11 +1403,11 @@ func TestIntegration_Media_Upload_LargeImage_AutoResize(t *testing.T) {
 	}
 	media := decodeJSON[api.Media](t, resp)
 
-	// Verify the image was resized to maxOutputEdgePx (1920px)
+	// Verify the image was resized to maxOutputEdgePx (2048px)
 	// Original: 6000x4000 (aspect ratio 1.5)
-	// Expected: 1920x1280 (maintains aspect ratio, longest edge = 1920)
-	if media.Width > 1920 || media.Height > 1920 {
-		t.Fatalf("expected image resized to max 1920px edge, got %dx%d", media.Width, media.Height)
+	// Expected: 2048x1365 (maintains aspect ratio, longest edge = 2048)
+	if media.Width > 2048 || media.Height > 2048 {
+		t.Fatalf("expected image resized to max 2048px edge, got %dx%d", media.Width, media.Height)
 	}
 
 	// Verify aspect ratio is preserved (within floating point tolerance)

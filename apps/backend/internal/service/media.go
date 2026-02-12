@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	// Upload size limit - hard cap to prevent DoS attacks via large file uploads
-	maxUploadBytes = int64(12 << 20) // 12 MiB
+	// Upload size limit - unified for all formats (increased from 12 MiB to 15 MiB)
+	maxUploadBytes = int64(15 << 20) // 15 MiB
 
 	// Input validation limits - relaxed to accept larger images for automatic resizing
 	// These limits prevent memory exhaustion and processing timeout attacks
@@ -36,9 +36,10 @@ const (
 	maxImagePixels = 100_000_000 // Maximum total pixels (~100 megapixels, e.g., 10000x10000)
 
 	// Output size limits - images automatically resized to these constraints
-	maxOutputEdgePx    = 1920 // Maximum output edge for regular images (posts)
+	maxOutputEdgePx    = 2048 // Maximum output edge for static images (increased from 1920)
+	maxGifOutputEdgePx = 1024 // Maximum output edge for animated GIFs (new)
 	avatarOutputPx     = 400  // Avatar output size (square crop)
-	defaultWebPQuality = 80
+	defaultWebPQuality = 50   // WebP quality (decreased from 80 to 50 for smaller file sizes)
 )
 
 var allowedExt = map[string]struct{}{
@@ -46,6 +47,7 @@ var allowedExt = map[string]struct{}{
 	".jpg":  {},
 	".jpeg": {},
 	".webp": {},
+	".gif":  {}, // Added GIF support
 }
 
 var expectedMimeByExt = map[string]string{
@@ -53,12 +55,14 @@ var expectedMimeByExt = map[string]string{
 	".jpg":  "image/jpeg",
 	".jpeg": "image/jpeg",
 	".webp": "image/webp",
+	".gif":  "image/gif", // Added GIF MIME type
 }
 
 var allowedMIMESniff = map[string]struct{}{
 	"image/png":  {},
 	"image/jpeg": {},
 	"image/webp": {},
+	"image/gif":  {}, // Added GIF content sniffing
 }
 
 type MediaService struct {
@@ -229,6 +233,13 @@ func (s *MediaService) DeleteMedia(ctx context.Context, userID uuid.UUID, mediaI
 }
 
 func (s *MediaService) uploadImage(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
+	// Check if the file is a GIF - use animated WebP conversion
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if ext == ".gif" {
+		return s.uploadImageWithOptions(ctx, user, src, header, "image", s.convertToAnimatedWebP, 0)
+	}
+
+	// For static images (PNG/JPG/WebP), use static WebP conversion
 	return s.uploadImageWithOptions(ctx, user, src, header, "image", s.convertToWebP, 0)
 }
 
@@ -371,8 +382,10 @@ func validateMIMEType(buf []byte, ext, declaredCT string) error {
 // - Processing timeout/DoS attacks (computationally expensive operations on huge images)
 // - ffmpeg exploitation via malformed image dimensions
 //
-// Valid images exceeding old limits (4096x4096, 12MP) will be automatically resized
-// to maxOutputEdgePx (1920px) by convertToWebP, preserving aspect ratio.
+// Valid images exceeding old limits (4096x4096, 12MP) will be automatically resized:
+// - Static images (PNG/JPG/WebP): maxOutputEdgePx (2048px)
+// - Animated GIFs: maxGifOutputEdgePx (1024px)
+// Aspect ratio is always preserved.
 func (s *MediaService) validateImageDimensions(ctx context.Context, imagePath string) error {
 	w, h, err := s.probeDimensions(ctx, imagePath)
 	if err != nil {
@@ -516,7 +529,7 @@ func (s *MediaService) convertToWebPAvatar(ctx context.Context, inPath, outPath 
 }
 
 func (s *MediaService) convertToWebP(ctx context.Context, inPath, outPath string) error {
-	// SECURITY: Automatically resize images to maxOutputEdgePx (1920px) to:
+	// SECURITY: Automatically resize images to maxOutputEdgePx (2048px) to:
 	// - Limit output resolution and prevent storage exhaustion
 	// - Strip metadata (EXIF/XMP/GPS) that may contain sensitive location/device info
 	// - Preserve aspect ratio while fitting within maximum edge constraint
@@ -554,6 +567,48 @@ func (s *MediaService) convertToWebP(ctx context.Context, inPath, outPath string
 		// SECURITY: Log detailed error server-side, return generic error to client
 		slog.Error("ffmpeg conversion failed", "error", err, "stderr", msg)
 		return fmt.Errorf("media conversion failed")
+	}
+	return nil
+}
+
+// convertToAnimatedWebP converts an animated GIF to animated WebP while preserving all frames.
+// - Resizes to max 1024px (longest edge) while maintaining aspect ratio
+// - Preserves frame timing, loop settings, and all animation frames
+// - Strips metadata (EXIF/XMP/GPS)
+// - Uses quality 50 for optimized file size
+func (s *MediaService) convertToAnimatedWebP(ctx context.Context, inPath, outPath string) error {
+	// Scale to maxGifOutputEdgePx (1024px) to keep animated WebP file size manageable
+	vf := fmt.Sprintf("scale=w=min(%d\\,iw):h=min(%d\\,ih):force_original_aspect_ratio=decrease", maxGifOutputEdgePx, maxGifOutputEdgePx)
+
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", inPath,
+		"-vf", vf, // Apply scaling filter
+		"-c:v", "libwebp", // WebP codec
+		"-lossless", "0", // Lossy compression (quality-based)
+		"-q:v", strconv.Itoa(defaultWebPQuality), // Quality 50
+		"-loop", "0", // Preserve loop setting (0 = infinite)
+		"-preset", "picture", // Optimize for picture content
+		"-an",         // No audio
+		"-vsync", "0", // Preserve original frame timing
+		"-map_metadata", "-1", // Strip metadata (EXIF/GPS)
+		"-map_chapters", "-1", // Strip chapters
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		msg = strings.ReplaceAll(msg, inPath, "<input>")
+		msg = strings.ReplaceAll(msg, outPath, "<output>")
+
+		// SECURITY: Log detailed error server-side, return generic error to client
+		slog.Error("ffmpeg animated GIF conversion failed", "error", err, "stderr", msg)
+		return fmt.Errorf("animated media conversion failed")
 	}
 	return nil
 }
