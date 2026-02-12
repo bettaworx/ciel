@@ -27,6 +27,7 @@ import (
 
 	"backend/internal/api"
 	"backend/internal/auth"
+	"backend/internal/config"
 	"backend/internal/db"
 	"backend/internal/db/sqlc"
 	"backend/internal/handlers"
@@ -108,10 +109,13 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 		mediaDir = t.TempDir()
 	}
 
-	mediaSvc := service.NewMediaService(store, mediaDir, nil)
+	mediaCfg := config.DefaultConfig().Media
+	mediaSvc := service.NewMediaService(store, mediaDir, mediaCfg, nil)
 
 	r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image.webp", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
 
 	apiServer := handlers.API{
 		Items:     service.NewItemsService(repository.NewItemsRepository(sqlDB)),

@@ -107,6 +107,23 @@ func (m *Manager) load() error {
 		return fmt.Errorf("failed to parse config file: %w", err)
 	}
 
+	// If media config is missing, use defaults
+	if cfg.Media.MaxUploadSize == 0 {
+		slog.Info("media config not found in config file, using defaults")
+		defaultCfg := DefaultConfig()
+		cfg.Media = defaultCfg.Media
+	} else {
+		// Clamp quality values to 0-100 range and log warnings
+		original := cfg.Media
+		cfg.Media.ClampQuality()
+		cfg.Media.LogClampedQuality(&original)
+
+		// Validate media configuration
+		if err := cfg.Media.Validate(); err != nil {
+			return fmt.Errorf("invalid media configuration: %w", err)
+		}
+	}
+
 	m.config = &cfg
 	return nil
 }

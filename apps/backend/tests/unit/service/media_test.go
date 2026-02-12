@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"backend/internal/config"
 	"backend/internal/repository"
 	"backend/internal/service"
 
@@ -13,6 +14,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
+
+// getDefaultMediaConfig returns default media configuration for tests
+func getDefaultMediaConfig() config.MediaConfig {
+	return config.DefaultConfig().Media
+}
 
 // TestDeleteMedia_Success tests successful media deletion
 func TestDeleteMedia_Success(t *testing.T) {
@@ -23,7 +29,7 @@ func TestDeleteMedia_Success(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewMediaService(store, "/tmp/media", nil)
+	svc := service.NewMediaService(store, "/tmp/media", getDefaultMediaConfig(), nil)
 
 	userID := uuid.New()
 	mediaID := uuid.New()
@@ -58,7 +64,7 @@ func TestDeleteMedia_NotFound(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewMediaService(store, "/tmp/media", nil)
+	svc := service.NewMediaService(store, "/tmp/media", getDefaultMediaConfig(), nil)
 
 	userID := uuid.New()
 	mediaID := uuid.New()
@@ -90,7 +96,7 @@ func TestDeleteMedia_Forbidden(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewMediaService(store, "/tmp/media", nil)
+	svc := service.NewMediaService(store, "/tmp/media", getDefaultMediaConfig(), nil)
 
 	ownerID := uuid.New()
 	userID := uuid.New() // Different user
@@ -120,7 +126,7 @@ func TestDeleteMedia_Forbidden(t *testing.T) {
 
 // TestDeleteMedia_ServiceUnavailable tests when database is not configured
 func TestDeleteMedia_ServiceUnavailable(t *testing.T) {
-	svc := service.NewMediaService(nil, "/tmp/media", nil)
+	svc := service.NewMediaService(nil, "/tmp/media", getDefaultMediaConfig(), nil)
 
 	userID := uuid.New()
 	mediaID := uuid.New()
@@ -143,7 +149,7 @@ func TestNewMediaService(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewMediaService(store, "/tmp/media", nil)
+	svc := service.NewMediaService(store, "/tmp/media", getDefaultMediaConfig(), nil)
 
 	assert.NotNil(t, svc)
 }
@@ -158,7 +164,7 @@ func TestMediaService_InitError(t *testing.T) {
 
 	store := repository.NewStore(db)
 	initErr := assert.AnError // Simulate initialization error
-	svc := service.NewMediaService(store, "/tmp/media", initErr)
+	svc := service.NewMediaService(store, "/tmp/media", getDefaultMediaConfig(), initErr)
 
 	assert.NotNil(t, svc)
 

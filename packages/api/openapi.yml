@@ -4357,6 +4357,7 @@ components:
       required:
         - signupEnabled
         - configVersion
+        - mediaLimits
       properties:
         serverName:
           type: string
@@ -4378,6 +4379,94 @@ components:
           type: integer
           format: int64
           description: Unix timestamp of last config update (for cache busting)
+        mediaLimits:
+          $ref: '#/components/schemas/MediaLimits'
+
+    MediaLimits:
+      type: object
+      required:
+        - maxUploadSizeMB
+        - allowedExtensions
+        - post
+        - avatar
+        - serverIcon
+      properties:
+        maxUploadSizeMB:
+          type: integer
+          description: Maximum file upload size in megabytes
+          example: 15
+        allowedExtensions:
+          type: array
+          items:
+            type: string
+          description: List of allowed file extensions
+          example: ["png", "jpg", "jpeg", "webp", "gif"]
+        post:
+          $ref: '#/components/schemas/MediaPostLimits'
+        avatar:
+          $ref: '#/components/schemas/MediaAvatarLimits'
+        serverIcon:
+          $ref: '#/components/schemas/MediaServerIconLimits'
+
+    MediaPostLimits:
+      type: object
+      required:
+        - static
+        - gif
+      properties:
+        static:
+          type: object
+          required:
+            - maxSize
+          properties:
+            maxSize:
+              type: integer
+              description: Maximum longest edge size in pixels for static images (aspect ratio preserved)
+              example: 2048
+        gif:
+          type: object
+          required:
+            - maxSize
+          properties:
+            maxSize:
+              type: integer
+              description: Maximum longest edge size in pixels for animated GIFs (aspect ratio preserved)
+              example: 1024
+
+    MediaAvatarLimits:
+      type: object
+      required:
+        - size
+      properties:
+        size:
+          type: integer
+          description: Avatar output size in pixels (square, center-cropped)
+          example: 400
+
+    MediaServerIconLimits:
+      type: object
+      required:
+        - static
+        - gif
+      properties:
+        static:
+          type: object
+          required:
+            - size
+          properties:
+            size:
+              type: integer
+              description: Server icon output size in pixels (square, center-cropped)
+              example: 512
+        gif:
+          type: object
+          required:
+            - maxSize
+          properties:
+            maxSize:
+              type: integer
+              description: Maximum longest edge size in pixels for animated GIF server icons (aspect ratio preserved). Both animated and static (first frame) versions are created.
+              example: 512
 
     CreateInviteCodeRequest:
       type: object

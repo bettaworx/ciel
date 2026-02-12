@@ -152,6 +152,11 @@ export function PostCard({
 
   // Calculate aspect ratio for single image with constraints (16:9 to 9:16)
   const calculateSingleImageAspect = (m: Media): string => {
+    // Safeguard: If dimensions are invalid, use fallback
+    if (!m.width || !m.height || m.width <= 0 || m.height <= 0) {
+      return "16 / 9"; // Default fallback
+    }
+    
     const ratio = m.width / m.height;
     const maxRatio = 16 / 9; // 1.778
     const minRatio = 9 / 16; // 0.5625

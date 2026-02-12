@@ -28,6 +28,37 @@ func (h API) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 		ServerIconUrl:     nil, // Will be set below if icon exists
 		SignupEnabled:     !cfg.Auth.InviteOnly,
 		ConfigVersion:     cfg.Server.LastUpdatedAt,
+		MediaLimits: api.MediaLimits{
+			MaxUploadSizeMB:   cfg.Media.MaxUploadSize,
+			AllowedExtensions: cfg.Media.AllowedExtensions,
+			Post: api.MediaPostLimits{
+				Static: struct {
+					MaxSize int `json:"maxSize"`
+				}{
+					MaxSize: cfg.Media.Post.Static.MaxSize,
+				},
+				Gif: struct {
+					MaxSize int `json:"maxSize"`
+				}{
+					MaxSize: cfg.Media.Post.Gif.MaxSize,
+				},
+			},
+			Avatar: api.MediaAvatarLimits{
+				Size: cfg.Media.Avatar.Static.Size,
+			},
+			ServerIcon: api.MediaServerIconLimits{
+				Static: struct {
+					Size int `json:"size"`
+				}{
+					Size: cfg.Media.ServerIcon.Static.Size,
+				},
+				Gif: struct {
+					MaxSize int `json:"maxSize"`
+				}{
+					MaxSize: cfg.Media.ServerIcon.Gif.MaxSize,
+				},
+			},
+		},
 	}
 
 	// If server has an icon, resolve the URL

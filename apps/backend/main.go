@@ -348,11 +348,13 @@ func main() {
 		slog.Info("media directory initialized", "path", absMediaDir)
 	}
 
-	mediaSvc := service.NewMediaService(store, absMediaDir, mediaInitErr)
+	mediaSvc := service.NewMediaService(store, absMediaDir, configMgr.Get().Media, mediaInitErr)
 
 	// Public media routes (authentication bypassed in OptionalAuth middleware)
 	r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image.webp", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
 
 	apiServer := handlers.API{
 		Auth:       authSvc,

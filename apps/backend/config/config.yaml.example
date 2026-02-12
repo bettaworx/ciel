@@ -32,3 +32,69 @@ setup:
   # Whether setup was completed using the setup password
   # (vs. being the first user to register)
   password_used: false
+
+# Media upload and processing configuration
+media:
+  # Maximum file upload size in MiB (1-100)
+  # This limit applies to all media uploads (posts and avatars)
+  max_upload_size: 15
+  
+  # Allowed file extensions (without leading dot)
+  # Only known image formats (png, jpg, jpeg, webp, gif) are supported
+  # Removing an extension will reject uploads of that type
+  allowed_extensions:
+    - png
+    - jpg
+    - jpeg
+    - webp
+    - gif
+  
+  # Input validation limits (DoS prevention)
+  # These limits prevent memory exhaustion from extremely large images
+  # Images exceeding these limits are rejected before processing
+  max_input_width: 16384       # Maximum input width (16K resolution)
+  max_input_height: 16384      # Maximum input height (16K resolution)
+  max_input_pixels: 100000000  # Maximum total pixels (~100 megapixels)
+  
+  # Post media settings (images attached to posts)
+  post:
+    # Static images (PNG, JPG, WebP)
+    static:
+      max_size: 2048  # Maximum output size in pixels (longest edge, aspect ratio preserved)
+      quality: 50     # WebP quality (0-100, lower = smaller file size)
+    
+    # Animated GIFs (converted to animated WebP)
+    gif:
+      max_size: 1024  # Maximum output size in pixels (longest edge, smaller to keep file size manageable)
+      quality: 50     # WebP quality (0-100, lower = smaller file size)
+  
+  # Avatar settings
+  avatar:
+    # Static images (PNG, JPG, WebP)
+    static:
+      size: 400       # Square output size in pixels (center-cropped)
+      quality: 50     # WebP quality (0-100)
+    
+    # Animated GIFs (first frame only - output is static)
+    # Note: Avatar GIFs are converted to static images using only the first frame
+    gif:
+      size: 400       # Square output size in pixels (first frame extracted)
+      quality: 50     # WebP quality (0-100)
+  
+  # Server icon settings
+  # Server icons can be uploaded via admin setup or admin config page
+  # Icons are used as favicon and site branding
+  server_icon:
+    # Static images (PNG, JPG, WebP)
+    static:
+      size: 512       # Square output size in pixels (center-cropped)
+      quality: 50     # WebP quality (0-100)
+    
+    # Animated GIFs (converted to animated WebP)
+    # Both animated and static (first frame) versions are stored
+    # Animated version: used for site branding
+    # Static version: used for favicon (browser compatibility)
+    gif:
+      max_size: 512   # Maximum output size in pixels (longest edge, aspect ratio preserved)
+      quality: 50     # WebP quality (0-100)
+
