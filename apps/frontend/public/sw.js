@@ -1,7 +1,7 @@
 // Service Worker for Ciel PWA
 // Implements hybrid caching strategy for optimal offline experience
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `ciel-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ciel-dynamic-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
@@ -70,6 +70,17 @@ self.addEventListener('fetch', (event) => {
 
   // Navigation requests (HTML pages)
   if (request.mode === 'navigate') {
+    // Special handling for offline page - always fetch from network
+    if (url.pathname === OFFLINE_URL) {
+      event.respondWith(
+        fetch(request).catch(() => {
+          // If network fails for /offline, return cached version
+          return caches.match(OFFLINE_URL);
+        })
+      );
+      return;
+    }
+
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -129,6 +140,93 @@ self.addEventListener('fetch', (event) => {
             // Return a minimal error response instead of throwing
             return new Response('', { status: 503, statusText: 'Service Unavailable' });
           });
+      })
+    );
+    return;
+  }
+
+  // PWA icons - Cache first with long-term fallback
+  // Use cached version even if stale when server is offline
+  if (url.pathname === '/api/pwa-icon-192' || url.pathname === '/api/pwa-icon-512') {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        const fetchPromise = fetch(request)
+          .then((response) => {
+            // Update cache if server returns OK
+            if (response.ok) {
+              const responseClone = response.clone();
+              caches.open(STATIC_CACHE).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
+            // If server error (5xx) but we have cache, use cache instead
+            if (response.status >= 500 && cachedResponse) {
+              return cachedResponse;
+            }
+            return response;
+          })
+          .catch(() => {
+            // Network failed - use cache even if stale
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // No cache available, return error
+            return new Response('', { status: 503, statusText: 'Service Unavailable' });
+          });
+        
+        // Return cached version immediately (if exists), then update in background
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  // Manifest.json - Cache first with stale-while-revalidate
+  // Use cached version even if stale when server is offline
+  if (url.pathname === '/api/manifest.json') {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        const fetchPromise = fetch(request)
+          .then((response) => {
+            // Update cache if server returns OK
+            if (response.ok) {
+              const responseClone = response.clone();
+              caches.open(DYNAMIC_CACHE).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
+            // If server error (5xx) but we have cache, use cache instead
+            if (response.status >= 500 && cachedResponse) {
+              return cachedResponse;
+            }
+            return response;
+          })
+          .catch(() => {
+            // Network failed - use cache even if stale
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // No cache available, return minimal fallback
+            return new Response(
+              JSON.stringify({
+                name: 'Ciel',
+                short_name: 'Ciel',
+                description: 'A minimal SNS application',
+                start_url: '/',
+                display: 'standalone',
+                background_color: '#f7f7f7',
+                theme_color: '#f7f7f7',
+                icons: []
+              }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/manifest+json' },
+              }
+            );
+          });
+        
+        // Return cached version immediately (if exists), then update in background
+        return cachedResponse || fetchPromise;
       })
     );
     return;
