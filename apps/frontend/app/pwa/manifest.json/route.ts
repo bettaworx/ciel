@@ -39,19 +39,19 @@ export async function GET() {
 			orientation: 'portrait-primary',
 			icons: [
 				{
-					src: '/api/pwa-icon-192',
+					src: '/pwa/icon-192',
 					sizes: '192x192',
 					type: 'image/png',
 					purpose: 'any'
 				},
 				{
-					src: '/api/pwa-icon-512',
+					src: '/pwa/icon-512',
 					sizes: '512x512',
 					type: 'image/png',
 					purpose: 'any'
 				},
 				{
-					src: '/api/pwa-icon-512',
+					src: '/pwa/icon-512',
 					sizes: '512x512',
 					type: 'image/png',
 					purpose: 'maskable'
@@ -81,8 +81,8 @@ export async function GET() {
 			background_color: '#f7f7f7',
 			theme_color: '#f7f7f7',
 			icons: [
-				{ src: '/api/pwa-icon-192', sizes: '192x192', type: 'image/png', purpose: 'any' },
-				{ src: '/api/pwa-icon-512', sizes: '512x512', type: 'image/png', purpose: 'any' }
+				{ src: '/pwa/icon-192', sizes: '192x192', type: 'image/png', purpose: 'any' },
+				{ src: '/pwa/icon-512', sizes: '512x512', type: 'image/png', purpose: 'any' }
 			]
 		}, {
 			headers: {

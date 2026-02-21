@@ -26,12 +26,12 @@ export default function RootLayout({
   return (
     <html lang="ja" suppressHydrationWarning>
       <head>
-        <link rel="manifest" href="/api/manifest.json" />
+        <link rel="manifest" href="/pwa/manifest.json" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Ciel" />
-        <link rel="apple-touch-icon" href="/api/pwa-icon-192" />
+        <link rel="apple-touch-icon" href="/pwa/icon-192" />
       </head>
       <body className={`${ibmPlexSansJP.className} antialiased`} suppressHydrationWarning>
         <Providers>
