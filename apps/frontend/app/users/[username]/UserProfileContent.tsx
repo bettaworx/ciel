@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
+import { Spinner } from "@/components/Spinner";
 
 type UserProfileContentProps = {
   username: string;
@@ -34,7 +35,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   if (userLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-muted-foreground">{t("loading")}</p>
+        <Spinner variant="theme" label={t("loading")} />
       </div>
     );
   }
@@ -98,7 +99,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
 
         {postsLoading && posts.length === 0 && (
           <div className="flex items-center justify-center py-12">
-            <p className="text-muted-foreground">{t("loading")}</p>
+            <Spinner variant="theme" label={t("loading")} />
           </div>
         )}
 

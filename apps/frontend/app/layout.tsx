@@ -7,6 +7,8 @@ import { AgreementCheckProvider } from "@/components/providers/AgreementCheckPro
 import { ConfigWatcher } from "@/components/providers/ConfigWatcher";
 import { SetupRedirect } from "./SetupRedirect";
 import { DynamicTitle } from "@/components/DynamicTitle";
+import { ThemeColorMeta } from "@/components/ThemeColorMeta";
+import { RegisterServiceWorker } from "@/app/register-sw";
 import "./globals.css";
 
 const ibmPlexSansJP = IBM_Plex_Sans_JP({
@@ -23,9 +25,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/api/manifest.json" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Ciel" />
+        <link rel="apple-touch-icon" href="/api/pwa-icon-192" />
+      </head>
       <body className={`${ibmPlexSansJP.className} antialiased`} suppressHydrationWarning>
         <Providers>
           <DynamicTitle titleKey="meta.title" />
+          <ThemeColorMeta />
+          <RegisterServiceWorker />
           <AgreementCheckProvider>
             <ConfigWatcher />
             <SetupRedirect />

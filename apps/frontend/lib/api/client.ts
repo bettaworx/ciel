@@ -83,6 +83,13 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			if (!res.ok) {
 				const { errorText, errorJson } = await readBody(res);
 				
+				// Check for server errors (5xx) - redirect to offline page
+				if (res.status >= 500) {
+					console.error('[API Client] Server error detected:', res.status);
+					options.onServerOffline?.();
+					return { ok: false, status: res.status, errorText, errorJson, headers: res.headers };
+				}
+				
 				// Check for agreement_required error (403)
 				if (res.status === 403 && errorJson && typeof errorJson === 'object') {
 					const error = errorJson as ApiError;
@@ -135,6 +142,13 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 			if (!res.ok) {
 				const { errorText, errorJson } = await readBody(res);
+				
+				// Check for server errors (5xx) - redirect to offline page
+				if (res.status >= 500) {
+					console.error('[API Client] Server error detected:', res.status);
+					options.onServerOffline?.();
+					return { ok: false, status: res.status, errorText, errorJson, headers: res.headers };
+				}
 				
 				// Check for agreement_required error (403)
 				if (res.status === 403 && errorJson && typeof errorJson === 'object') {

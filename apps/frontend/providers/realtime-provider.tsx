@@ -139,32 +139,6 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		[handlePostCreated, handlePostDeleted, handleReactionUpdated]
 	);
 
-	// Handle user inactivity - disconnect WebSocket and show alert
-	const handleInactivity = useCallback(() => {
-		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-			return;
-		}
-
-		console.log('⏱️ User inactive for 5 minutes, disconnecting WebSocket...');
-		
-		// Set flag to prevent automatic reconnection
-		inactivityDisconnectRef.current = true;
-
-		// Close WebSocket connection
-		wsRef.current.close();
-
-		// Show inactivity alert
-		setShowInactivityAlert(true);
-	}, []);
-
-	// Set up activity tracking
-	useActivityTracker(handleInactivity);
-
-	// Handle reconnect button click - reload page
-	const handleReconnect = useCallback(() => {
-		window.location.reload();
-	}, []);
-
 	const connect = useCallback(() => {
 		if (typeof window === 'undefined') return;
 
@@ -218,6 +192,37 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 			console.error('Failed to create WebSocket:', err);
 		}
 	}, [handleMessage]);
+
+	// Handle user inactivity - disconnect WebSocket and show alert
+	const handleInactivity = useCallback(() => {
+		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+			return;
+		}
+
+		console.log('⏱️ User inactive for 5 minutes, disconnecting WebSocket...');
+		
+		// Set flag to prevent automatic reconnection
+		inactivityDisconnectRef.current = true;
+
+		// Close WebSocket connection
+		wsRef.current.close();
+
+		// Show inactivity alert
+		setShowInactivityAlert(true);
+	}, []);
+
+	// Set up activity tracking
+	useActivityTracker(handleInactivity);
+
+	// Handle reconnect button click - reconnect WebSocket without reloading
+	const handleReconnect = useCallback(() => {
+		// Reset inactivity flag and hide alert
+		inactivityDisconnectRef.current = false;
+		setShowInactivityAlert(false);
+		
+		// Reconnect WebSocket
+		connect();
+	}, [connect]);
 
 	useEffect(() => {
 		// Reset inactivity flag when reconnecting
