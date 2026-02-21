@@ -15,17 +15,24 @@ export function useAuth() {
 	const initAuth = async () => {
 		setAuth({ status: 'loading', user: null, error: null });
 
-		// Call /me to check if user is authenticated via cookie
-		const res = await api.me();
+		try {
+			// Call /me to check if user is authenticated via cookie
+			const res = await api.me();
 
-		if (!res.ok) {
-			// Not authenticated or session expired
+			if (!res.ok) {
+				// Not authenticated or session expired
+				setAuth({ status: 'ready', user: null, error: null });
+				return;
+			}
+
+			// User is authenticated
+			setAuth({ status: 'ready', user: res.data, error: null });
+		} catch (error) {
+			// Network error or backend is offline
+			// Set auth to ready state (unauthenticated) so the app can load
+			console.error('[Auth] Failed to initialize auth:', error);
 			setAuth({ status: 'ready', user: null, error: null });
-			return;
 		}
-
-		// User is authenticated
-		setAuth({ status: 'ready', user: res.data, error: null });
 	};
 
 	const login = async (username: string, password: string) => {
