@@ -6,9 +6,15 @@ import { useEffect } from 'react';
  * Service Worker Registration Component
  * 
  * Registers the service worker for PWA functionality.
- * - Only runs in production environment
+ * 
+ * IMPORTANT: Service Worker only works in production mode!
+ * - Development mode (pnpm dev): Service Worker is disabled
+ * - Production mode (pnpm build && pnpm start): Service Worker is enabled
+ * 
+ * Features:
  * - Automatically checks for updates every hour
  * - Handles updates silently without user notification
+ * - Shows offline page when server is unavailable (5xx errors or network failure)
  */
 export function RegisterServiceWorker() {
 	useEffect(() => {

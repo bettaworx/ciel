@@ -2,6 +2,15 @@
 
 このガイドでは、localhost環境でCielのPWA機能をテストする方法を説明します。
 
+## ⚠️ 重要な注意事項
+
+**Service Workerは開発モード（`pnpm dev`）では動作しません！**
+
+- ❌ 開発モード: `pnpm dev` - Service Worker無効
+- ✅ プロダクションモード: `pnpm build && pnpm start` - Service Worker有効
+
+PWA機能をテストする場合は、必ずプロダクションビルドで実行してください。
+
 ## 前提条件
 
 - PostgreSQLとRedisが起動していること

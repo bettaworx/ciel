@@ -73,13 +73,23 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Clone and cache successful responses
+          // If response is OK, cache and return it
           if (response.ok) {
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE).then((cache) => {
               cache.put(request, responseClone);
             });
+            return response;
           }
+          
+          // If server error (5xx) or service unavailable, show offline page
+          if (response.status >= 500) {
+            return caches.match(request).then((cachedResponse) => {
+              return cachedResponse || caches.match(OFFLINE_URL);
+            });
+          }
+          
+          // For other errors (4xx, etc.), return the error response
           return response;
         })
         .catch(() => {
