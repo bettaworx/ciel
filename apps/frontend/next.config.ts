@@ -37,6 +37,28 @@ const nextConfig: NextConfig = {
         : false,
   },
 
+  // Remove absolute paths from chunk names for security
+  webpack: (config, { isServer }) => {
+    // Override chunk naming to use relative paths only
+    if (config.optimization?.chunkIds !== 'named') {
+      config.optimization = config.optimization || {};
+      // Use deterministic IDs in production, natural in development
+      config.optimization.chunkIds = 
+        process.env.NODE_ENV === 'production' ? 'deterministic' : 'named';
+    }
+
+    // Override module naming for better security
+    if (config.output) {
+      config.output.devtoolModuleFilenameTemplate = (info: any) => {
+        // Use relative paths from project root instead of absolute paths
+        const relativePath = path.relative(process.cwd(), info.absoluteResourcePath);
+        return `webpack://${relativePath}`;
+      };
+    }
+
+    return config;
+  },
+
   images: {
     remotePatterns: [
       {
