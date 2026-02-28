@@ -152,47 +152,25 @@ export function PostCard({
     [media],
   );
 
-  // Calculate dimensions for single image (PC: height 512px, Mobile: full width with aspect ratio)
-  // Images are clipped to fit within 3:4 (portrait) to 21:9 (landscape) range
-  const calculateSingleImageStyle = (m: Media): React.CSSProperties => {
-    // Safeguard: If dimensions are invalid, use fallback
-    if (!m.width || !m.height || m.width <= 0 || m.height <= 0) {
-      if (isDesktop) {
-        return { height: '512px', width: '910px' }; // Default 16:9
-      }
-      return { aspectRatio: '16 / 9', width: '100%' };
-    }
-    
-    const originalRatio = m.width / m.height;
-    const minRatio = 3 / 4; // 0.75 (portrait limit)
-    const maxRatio = 21 / 9; // 2.333 (landscape limit)
-    
-    // Clip to 3:4 - 21:9 range
-    let targetRatio = originalRatio;
-    if (originalRatio < minRatio) {
-      targetRatio = minRatio;
-    } else if (originalRatio > maxRatio) {
-      targetRatio = maxRatio;
-    }
-    
-    if (isDesktop) {
-      // PC: Fixed height 512px, width calculated from aspect ratio
-      const height = 512;
-      const width = height * targetRatio;
-      
-      return {
-        height: `${height}px`,
-        width: `${width}px`,
-        maxWidth: '100%',
-      };
-    } else {
-      // Mobile: Full width, height auto from aspect ratio
-      return {
-        aspectRatio: `${targetRatio}`,
-        width: '100%',
-      };
-    }
-  };
+  // Single image display constraints:
+  //   Aspect ratio: 3:4 (portrait) to 21:9 (landscape), clipped via object-cover
+  //   Max height: 512px on desktop (enforced via maxWidth + aspectRatio)
+  const singleImageStyle = useMemo((): React.CSSProperties | undefined => {
+    if (media.length !== 1) return undefined;
+    const m = media[0];
+    if (!m.width || !m.height || m.width <= 0 || m.height <= 0) return undefined;
+
+    const MIN_RATIO = 3 / 4;   // portrait limit
+    const MAX_RATIO = 21 / 9;  // landscape limit
+    const MAX_HEIGHT = 512;
+
+    const ratio = Math.max(MIN_RATIO, Math.min(MAX_RATIO, m.width / m.height));
+
+    return {
+      aspectRatio: `${ratio}`,
+      ...(isDesktop && { maxWidth: `${MAX_HEIGHT * ratio}px` }),
+    };
+  }, [media, isDesktop]);
 
   return (
     <article
@@ -252,12 +230,12 @@ export function PostCard({
           {/* Media Images */}
           {media.length > 0 && (
             <>
-              {/* 1 image: PC - 512px height, Mobile - full width */}
+              {/* 1 image */}
               {media.length === 1 && (
                 <div className="mb-3">
                   <div
-                    className="relative bg-muted overflow-hidden rounded-xl"
-                    style={calculateSingleImageStyle(media[0])}
+                    className="relative w-full bg-muted overflow-hidden rounded-xl"
+                    style={singleImageStyle}
                   >
                     <Image
                       src={media[0].url}
