@@ -54,11 +54,13 @@ function ToggleRow({
         <p className="text-sm font-medium">{title}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <Switch
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        disabled={disabled}
-      />
+      <div onClick={(e) => e.stopPropagation()}>
+        <Switch
+          checked={checked}
+          onCheckedChange={onCheckedChange}
+          disabled={disabled}
+        />
+      </div>
     </div>
   );
 }
@@ -110,11 +112,13 @@ function CollapsibleGroup({
             <p className="text-xs text-muted-foreground">{description}</p>
           </div>
         </div>
-        <Switch
-          checked={checked}
-          onCheckedChange={onCheckedChange}
-          disabled={disabled}
-        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <Switch
+            checked={checked}
+            onCheckedChange={onCheckedChange}
+            disabled={disabled}
+          />
+        </div>
       </div>
       <CollapsibleContent>
         <div className="ml-6 pl-4">{children}</div>
