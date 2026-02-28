@@ -1,16 +1,15 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useAtom } from "jotai";
 import { useTranslations } from "next-intl";
 import { mfmSettingsAtom, type MfmSettings } from "@/atoms/mfm-settings";
 import { Card, CardContent } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import {
   Collapsible,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+import { ToggleRow, NestedToggle } from "@/components/settings/NestedToggle";
 
 // ---------------------------------------------------------------------------
 // Helper: update a top-level boolean key
@@ -19,103 +18,6 @@ import { cn } from "@/lib/utils";
 type BooleanKeys<T> = {
   [K in keyof T]: T[K] extends boolean ? K : never;
 }[keyof T];
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-/**
- * A single toggle row: title + description on the left, Switch on the right.
- * Matches the SettingItem layout proportions but without the Card wrapper.
- */
-function ToggleRow({
-  title,
-  description,
-  checked,
-  onCheckedChange,
-  disabled = false,
-}: {
-  title: string;
-  description: string;
-  checked: boolean;
-  onCheckedChange: (v: boolean) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-4 py-3",
-        disabled && "opacity-50",
-      )}
-    >
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
-      <div onClick={(e) => e.stopPropagation()}>
-        <Switch
-          checked={checked}
-          onCheckedChange={onCheckedChange}
-          disabled={disabled}
-        />
-      </div>
-    </div>
-  );
-}
-
-/**
- * A collapsible parent: toggle header that expands/collapses children.
- * The open/closed state is independent — toggling the parent switch does NOT
- * collapse the group; only clicking the text area toggles visibility.
- */
-function CollapsibleGroup({
-  title,
-  description,
-  checked,
-  onCheckedChange,
-  disabled = false,
-  children,
-}: {
-  title: string;
-  description: string;
-  checked: boolean;
-  onCheckedChange: (v: boolean) => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Collapsible open={open}>
-      <div
-        className={cn(
-          "flex items-center justify-between gap-4 py-3",
-          disabled && "opacity-50",
-        )}
-      >
-        <button
-          type="button"
-          className="flex-1 min-w-0 text-left"
-          onClick={() => setOpen((v) => !v)}
-          disabled={disabled}
-        >
-          <p className="text-sm font-medium">{title}</p>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </button>
-        <div onClick={(e) => e.stopPropagation()}>
-          <Switch
-            checked={checked}
-            onCheckedChange={onCheckedChange}
-            disabled={disabled}
-          />
-        </div>
-      </div>
-      <CollapsibleContent>
-        <div className="ml-6 pl-4">{children}</div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -127,7 +29,6 @@ export function MfmSettingsSection() {
 
   // ---- Updaters ----
 
-  /** Update a top-level boolean setting. */
   const toggle = useCallback(
     (key: BooleanKeys<MfmSettings>, value: boolean) => {
       setSettings((prev) => ({ ...prev, [key]: value }));
@@ -135,7 +36,6 @@ export function MfmSettingsSection() {
     [setSettings],
   );
 
-  /** Update a code sub-setting. */
   const toggleCode = useCallback(
     (key: keyof MfmSettings["code"], value: boolean) => {
       setSettings((prev) => ({
@@ -146,7 +46,6 @@ export function MfmSettingsSection() {
     [setSettings],
   );
 
-  /** Update a font sub-setting. */
   const toggleFont = useCallback(
     (key: keyof MfmSettings["font"], value: boolean) => {
       setSettings((prev) => ({
@@ -157,7 +56,6 @@ export function MfmSettingsSection() {
     [setSettings],
   );
 
-  /** Update an animation sub-setting. */
   const toggleAnimation = useCallback(
     (key: keyof MfmSettings["animation"], value: boolean) => {
       setSettings((prev) => ({
@@ -168,7 +66,6 @@ export function MfmSettingsSection() {
     [setSettings],
   );
 
-  /** Update expand sub-setting. */
   const toggleExpand = useCallback(
     (key: keyof MfmSettings["expand"], value: boolean) => {
       setSettings((prev) => ({
@@ -179,15 +76,13 @@ export function MfmSettingsSection() {
     [setSettings],
   );
 
-  // Computed: are all code sub-settings on?
+  // Computed: are all sub-settings on?
   const codeAllOn = settings.code.inline && settings.code.block;
-  // Computed: are all font sub-settings on?
   const fontAllOn =
     settings.font.serif &&
     settings.font.monospace &&
     settings.font.cursive &&
     settings.font.fantasy;
-  // Computed: are all animation sub-settings on?
   const animAllOn =
     settings.animation.jelly &&
     settings.animation.tada &&
@@ -215,8 +110,7 @@ export function MfmSettingsSection() {
           />
 
           <CollapsibleContent>
-            <div className="ml-6 pl-4 divide-y divide-border">
-              {/* ---- Simple toggles ---- */}
+            <div className="md:ml-6 md:pl-4 divide-y divide-border">
               <ToggleRow
                 title={t("mention.title")}
                 description={t("mention.description")}
@@ -290,8 +184,8 @@ export function MfmSettingsSection() {
                 onCheckedChange={(v) => toggle("ruby", v)}
               />
 
-              {/* ---- Code (collapsible) ---- */}
-              <CollapsibleGroup
+              {/* ---- Code (nested) ---- */}
+              <NestedToggle
                 title={t("code.title")}
                 description={t("code.description")}
                 checked={codeAllOn}
@@ -312,9 +206,8 @@ export function MfmSettingsSection() {
                   checked={settings.code.block}
                   onCheckedChange={(v) => toggleCode("block", v)}
                 />
-              </CollapsibleGroup>
+              </NestedToggle>
 
-              {/* ---- Simple toggles continued ---- */}
               <ToggleRow
                 title={t("flip.title")}
                 description={t("flip.description")}
@@ -322,8 +215,8 @@ export function MfmSettingsSection() {
                 onCheckedChange={(v) => toggle("flip", v)}
               />
 
-              {/* ---- Font (collapsible) ---- */}
-              <CollapsibleGroup
+              {/* ---- Font (nested) ---- */}
+              <NestedToggle
                 title={t("font.title")}
                 description={t("font.description")}
                 checked={fontAllOn}
@@ -358,7 +251,7 @@ export function MfmSettingsSection() {
                   checked={settings.font.fantasy}
                   onCheckedChange={(v) => toggleFont("fantasy", v)}
                 />
-              </CollapsibleGroup>
+              </NestedToggle>
 
               <ToggleRow
                 title={t("blur.title")}
@@ -409,8 +302,8 @@ export function MfmSettingsSection() {
                 onCheckedChange={(v) => toggle("scale", v)}
               />
 
-              {/* ---- Expand (collapsible) ---- */}
-              <CollapsibleGroup
+              {/* ---- Expand (nested) ---- */}
+              <NestedToggle
                 title={t("expand.title")}
                 description={t("expand.description")}
                 checked={settings.expand.allowLargerThanX2}
@@ -422,10 +315,10 @@ export function MfmSettingsSection() {
                   checked={settings.expand.allowLargerThanX2}
                   onCheckedChange={(v) => toggleExpand("allowLargerThanX2", v)}
                 />
-              </CollapsibleGroup>
+              </NestedToggle>
 
-              {/* ---- Animation (collapsible) ---- */}
-              <CollapsibleGroup
+              {/* ---- Animation (nested) ---- */}
+              <NestedToggle
                 title={t("animation.title")}
                 description={t("animation.description")}
                 checked={animAllOn}
@@ -481,7 +374,7 @@ export function MfmSettingsSection() {
                   checked={settings.animation.twitch}
                   onCheckedChange={(v) => toggleAnimation("twitch", v)}
                 />
-              </CollapsibleGroup>
+              </NestedToggle>
 
               <ToggleRow
                 title={t("rainbow.title")}
