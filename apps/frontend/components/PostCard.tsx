@@ -153,7 +153,7 @@ export function PostCard({
   );
 
   // Calculate dimensions for single image (PC: height 512px, Mobile: full width with aspect ratio)
-  // Images with aspect ratio narrower than 3:4 are clipped to 3:4
+  // Images are clipped to fit within 3:4 (portrait) to 21:9 (landscape) range
   const calculateSingleImageStyle = (m: Media): React.CSSProperties => {
     // Safeguard: If dimensions are invalid, use fallback
     if (!m.width || !m.height || m.width <= 0 || m.height <= 0) {
@@ -164,10 +164,16 @@ export function PostCard({
     }
     
     const originalRatio = m.width / m.height;
-    const minRatio = 3 / 4; // 0.75
+    const minRatio = 3 / 4; // 0.75 (portrait limit)
+    const maxRatio = 21 / 9; // 2.333 (landscape limit)
     
-    // If image is narrower than 3:4, clip to 3:4
-    const targetRatio = originalRatio < minRatio ? minRatio : originalRatio;
+    // Clip to 3:4 - 21:9 range
+    let targetRatio = originalRatio;
+    if (originalRatio < minRatio) {
+      targetRatio = minRatio;
+    } else if (originalRatio > maxRatio) {
+      targetRatio = maxRatio;
+    }
     
     if (isDesktop) {
       // PC: Fixed height 512px, width calculated from aspect ratio
