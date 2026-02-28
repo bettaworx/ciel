@@ -20,3 +20,90 @@ export function parseMfm(text: string): MfmNode[] {
 export function parseMfmSimple(text: string): MfmNode[] {
   return mfm.parseSimple(text);
 }
+
+/**
+ * Whitelist filter configuration.
+ * - `nodeTypes`: allowed top-level node types (e.g. "text", "bold", "emojiCode")
+ * - `fnNames`: allowed function names for `fn` nodes (e.g. "flip", "font")
+ */
+export interface MfmAllowList {
+  nodeTypes: ReadonlySet<string>;
+  fnNames: ReadonlySet<string>;
+}
+
+/**
+ * Preset allow-list for user display names.
+ * Permits: plain text, unicode emoji, custom emoji codes (stub),
+ * bold, flip, and font function decorations.
+ */
+export const DISPLAY_NAME_ALLOW_LIST: MfmAllowList = {
+  nodeTypes: new Set(["text", "plain", "unicodeEmoji", "emojiCode", "bold", "fn"]),
+  fnNames: new Set(["flip", "font"]),
+};
+
+/**
+ * Recursively extracts plain text from MFM AST nodes.
+ * Used as fallback content when filtering disallowed nodes.
+ */
+function extractPlainText(nodes: MfmNode[]): string {
+  return nodes
+    .map((node) => {
+      if (node.type === "text") return node.props.text;
+      if (node.type === "unicodeEmoji") return node.props.emoji;
+      if (node.type === "emojiCode") return `:${node.props.name}:`;
+      if ("children" in node && node.children) {
+        return extractPlainText(node.children as MfmNode[]);
+      }
+      return "";
+    })
+    .join("");
+}
+
+/**
+ * Filters an MFM AST to only include allowed node types and fn names.
+ * Disallowed nodes are replaced with plain text nodes preserving their text content.
+ * Children of allowed nodes are recursively filtered as well.
+ */
+export function filterMfmNodes(
+  nodes: MfmNode[],
+  allowList: MfmAllowList,
+): MfmNode[] {
+  const result: MfmNode[] = [];
+
+  for (const node of nodes) {
+    // Check if this node type is allowed
+    if (!allowList.nodeTypes.has(node.type)) {
+      // Not allowed — convert to plain text
+      const text = extractPlainText([node]);
+      if (text) {
+        result.push({ type: "text", props: { text }, children: [] } as unknown as MfmNode);
+      }
+      continue;
+    }
+
+    // For fn nodes, additionally check if the function name is allowed
+    if (node.type === "fn") {
+      const fnNode = node as { type: "fn"; props: { name: string; args: Record<string, string | true> }; children: MfmNode[] };
+      if (!allowList.fnNames.has(fnNode.props.name)) {
+        const text = extractPlainText([node]);
+        if (text) {
+          result.push({ type: "text", props: { text }, children: [] } as unknown as MfmNode);
+        }
+        continue;
+      }
+    }
+
+    // Node is allowed — recursively filter children if present
+    if ("children" in node && node.children && node.children.length > 0) {
+      const filtered = {
+        ...node,
+        children: filterMfmNodes(node.children as MfmNode[], allowList),
+      };
+      result.push(filtered as MfmNode);
+    } else {
+      result.push(node);
+    }
+  }
+
+  return result;
+}

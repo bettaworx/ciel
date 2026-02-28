@@ -14,11 +14,20 @@
   0% {
     transform: scaleX(1) scaleY(1);
   }
-  33% {
-    transform: scaleX(1.2) scaleY(0.8);
+  30% {
+    transform: scaleX(1.25) scaleY(0.75);
   }
-  66% {
-    transform: scaleX(0.9) scaleY(1.1);
+  40% {
+    transform: scaleX(0.75) scaleY(1.25);
+  }
+  50% {
+    transform: scaleX(1.15) scaleY(0.85);
+  }
+  65% {
+    transform: scaleX(0.95) scaleY(1.05);
+  }
+  75% {
+    transform: scaleX(1.05) scaleY(0.95);
   }
   100% {
     transform: scaleX(1) scaleY(1);
@@ -76,24 +85,20 @@
 }
 
 @keyframes mfm-bounce {
-  0%,
-  100% {
-    transform: translateY(0) scaleX(1) scaleY(1);
+  0% {
+    transform: translateY(0) scale(1, 1);
   }
   25% {
-    transform: translateY(-16px) scaleX(1) scaleY(1);
+    transform: translateY(-16px) scale(1, 1);
   }
   50% {
-    transform: translateY(0) scaleX(1) scaleY(1);
-  }
-  65% {
-    transform: translateY(-4px) scaleX(1) scaleY(1);
+    transform: translateY(0) scale(1, 1);
   }
   75% {
-    transform: translateY(0) scaleX(1.1) scaleY(0.9);
+    transform: translateY(0) scale(1.5, 0.75);
   }
-  82% {
-    transform: translateY(0) scaleX(1) scaleY(1);
+  100% {
+    transform: translateY(0) scale(1, 1);
   }
 }
 
@@ -293,12 +298,17 @@
 }
 
 @keyframes mfm-sparkle {
-  0%,
-  100% {
-    opacity: 1;
+  0% {
+    opacity: 0;
+    transform: rotate(0deg) scale(0);
   }
   50% {
+    opacity: 1;
+    transform: rotate(180deg) scale(1);
+  }
+  100% {
     opacity: 0;
+    transform: rotate(360deg) scale(0);
   }
 }
 
@@ -308,7 +318,7 @@
 
 .mfm-jelly {
   display: inline-block;
-  animation: mfm-jelly var(--mfm-speed, 1s) linear infinite;
+  animation: mfm-jelly var(--mfm-speed, 1s) ease infinite;
 }
 
 .mfm-tada {
@@ -393,7 +403,7 @@
 
 /* ============================================================
  * Sparkle effect
- * Uses pseudo-elements to create particle-like sparkle dots.
+ * Uses pseudo-elements to create star-shaped sparkle particles.
  * ============================================================ */
 
 .mfm-sparkle {
@@ -403,23 +413,21 @@
 
 .mfm-sparkle::before,
 .mfm-sparkle::after {
-  content: "";
+  content: "\2605";
   position: absolute;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: currentColor;
+  color: gold;
+  font-size: 0.75em;
   pointer-events: none;
 }
 
 .mfm-sparkle::before {
-  top: -2px;
+  top: -0.5em;
   left: 25%;
   animation: mfm-sparkle var(--mfm-speed, 1s) linear infinite;
 }
 
 .mfm-sparkle::after {
-  bottom: -2px;
+  bottom: -0.5em;
   right: 25%;
   animation: mfm-sparkle var(--mfm-speed, 1s) linear infinite;
   animation-delay: calc(var(--mfm-speed, 1s) * -0.5);
@@ -524,6 +532,13 @@
   text-decoration: underline;
 }
 
+.mfm-external-link-icon {
+  display: inline;
+  vertical-align: middle;
+  margin-left: 0.15em;
+  opacity: 0.6;
+}
+
 /* Stubs - styled as recognizable but non-interactive text */
 .mfm-mention {
   color: var(--c-1);
@@ -538,13 +553,37 @@
 }
 
 .mfm-search {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
   margin: 0.5em 0;
   padding: 0.5em 0.75em;
   background: var(--muted);
   border-radius: var(--radius);
   color: var(--muted-foreground);
   font-size: 0.9em;
+}
+
+.mfm-search-query {
+  flex: 1;
+  min-width: 0;
+}
+
+.mfm-search-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2em;
+  height: 2em;
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.mfm-search-button:hover {
+  opacity: 1;
 }
 
 /* ============================================================

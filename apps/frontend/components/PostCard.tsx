@@ -9,6 +9,7 @@ import { ReactionUsersDialog } from "@/components/ReactionUsersDialog";
 import { ReactionPicker } from "@/components/ReactionPicker";
 import { formatTimeAgo } from "@/lib/utils/format-time";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
+import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import { useReactions } from "@/lib/hooks/use-reactions";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -199,7 +200,7 @@ export function PostCard({
                 onClick={handleUserClick}
                 className="font-semibold text-sm sm:text-base text-foreground hover:underline focus:underline focus:outline-none truncate"
               >
-                {displayName}
+                <MfmRenderer text={displayName} allowList={DISPLAY_NAME_ALLOW_LIST} />
               </button>
               {hasDisplayName && (
                 <span className="text-muted-foreground text-xs sm:text-sm truncate">

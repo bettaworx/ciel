@@ -1,4 +1,4 @@
-import type { MfmFn as MfmFnType } from "mfm-js";
+import type { MfmFn as MfmFnType, MfmNode as MfmNodeType } from "mfm-js";
 import type { ReactNode } from "react";
 
 /** Style type that supports both CSS properties and custom properties (--*). */
@@ -274,10 +274,10 @@ export function MfmFn({ node, children }: MfmFnProps) {
 
     // --- Ruby (yomigana) ---
     case "ruby": {
-      // Ruby expects children to be [base text, space, reading]
-      // The children are MfmInline nodes. We split the text content
-      // to extract the ruby reading (last space-separated segment).
-      return <MfmRuby>{children}</MfmRuby>;
+      // Ruby expects the AST children to contain "base reading" text.
+      // We extract text directly from the MFM AST (not React children)
+      // to reliably split into base and reading parts.
+      return <MfmRuby node={node} />;
     }
 
     // --- Unrecognized function: render children as-is ---
@@ -299,15 +299,13 @@ export function MfmFn({ node, children }: MfmFnProps) {
  * The parser gives us fn children where the text content is "base reading".
  * We need to split on the last space to get [base, reading].
  */
-function MfmRuby({ children }: { children: ReactNode }) {
-  // We need to extract the raw text from children to split into base/reading.
-  // Since children are React nodes, we attempt to extract text from them.
-  const text = extractText(children);
+function MfmRuby({ node }: { node: MfmFnType }) {
+  const text = extractTextFromAst(node.children);
   const lastSpaceIndex = text.lastIndexOf(" ");
 
   if (lastSpaceIndex === -1) {
     // No space found, just render as-is
-    return <span>{children}</span>;
+    return <span>{text}</span>;
   }
 
   const base = text.substring(0, lastSpaceIndex);
@@ -324,24 +322,16 @@ function MfmRuby({ children }: { children: ReactNode }) {
 }
 
 /**
- * Recursively extracts plain text from React children.
+ * Recursively extracts plain text from MFM AST nodes.
  */
-function extractText(node: ReactNode): string {
-  if (typeof node === "string") return node;
-  if (typeof node === "number") return String(node);
-  if (node == null || typeof node === "boolean") return "";
-
-  if (Array.isArray(node)) {
-    return node.map(extractText).join("");
-  }
-
-  // For React elements, try to extract text from their children
-  if (typeof node === "object" && "props" in node) {
-    const props = node.props as { children?: ReactNode };
-    if (props.children) {
-      return extractText(props.children);
-    }
-  }
-
-  return "";
+function extractTextFromAst(nodes: MfmNodeType[]): string {
+  return nodes
+    .map((node) => {
+      if (node.type === "text") return node.props.text;
+      if ("children" in node && node.children) {
+        return extractTextFromAst(node.children as MfmNodeType[]);
+      }
+      return "";
+    })
+    .join("");
 }

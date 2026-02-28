@@ -1,5 +1,6 @@
 import type { MfmNode as MfmNodeType } from "mfm-js";
 import type { ReactNode } from "react";
+import { ExternalLink, Search } from "lucide-react";
 import { MfmFn } from "@/components/mfm/MfmFn";
 
 interface MfmNodeProps {
@@ -101,6 +102,7 @@ export function MfmNode({ node }: MfmNodeProps) {
           rel="noopener noreferrer"
         >
           {node.props.url}
+          <ExternalLink size={12} className="mfm-external-link-icon" />
         </a>
       );
     }
@@ -119,6 +121,7 @@ export function MfmNode({ node }: MfmNodeProps) {
           rel="noopener noreferrer"
         >
           {renderChildren(node.children)}
+          <ExternalLink size={12} className="mfm-external-link-icon" />
         </a>
       );
     }
@@ -148,9 +151,22 @@ export function MfmNode({ node }: MfmNodeProps) {
       return <span className="mfm-hashtag">#{node.props.hashtag}</span>;
     }
 
-    // --- Search (stub) ---
+    // --- Search (with Google search link) ---
     case "search": {
-      return <div className="mfm-search">{node.props.content}</div>;
+      const query = node.props.query;
+      return (
+        <div className="mfm-search">
+          <span className="mfm-search-query">{query}</span>
+          <a
+            href={`https://www.google.com/search?q=${encodeURIComponent(query)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mfm-search-button"
+          >
+            <Search size={16} />
+          </a>
+        </div>
+      );
     }
 
     // --- Fallback for unknown node types ---

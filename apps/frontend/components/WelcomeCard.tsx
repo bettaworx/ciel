@@ -14,6 +14,7 @@ import { Globe } from "lucide-react";
 import { type Locale } from "@/i18n/constants";
 import { useServerInfo } from "@/lib/hooks/use-queries";
 import { setClientLocale } from "@/i18n/client-locale";
+import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 
 /**
  * WelcomeCard - 未ログインユーザー向けのウェルカムメッセージカード
@@ -50,12 +51,11 @@ export function WelcomeCard() {
             serverName: serverInfo?.serverName || "Ciel",
           })}
         </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground">
-          {t("welcome.description", {
-            serverDescription:
-              serverInfo?.serverDescription || t("welcome.descriptionFallback"),
-          })}
-        </p>
+        <div className="text-xs sm:text-sm text-muted-foreground">
+          <MfmRenderer
+            text={serverInfo?.serverDescription || t("welcome.descriptionFallback")}
+          />
+        </div>
       </div>
       <div className="flex flex-row justify-between gap-3">
         <div className="flex flex-row gap-3">

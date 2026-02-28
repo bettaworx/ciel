@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
+import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
 import { Spinner } from "@/components/Spinner";
 
@@ -76,7 +77,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             {/* User Info */}
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-foreground mb-1">
-                {user.displayName || user.username}
+                <MfmRenderer text={user.displayName || user.username} allowList={DISPLAY_NAME_ALLOW_LIST} />
               </h1>
               <p className="text-muted-foreground mb-3">@{user.username}</p>
               {user.bio && (
