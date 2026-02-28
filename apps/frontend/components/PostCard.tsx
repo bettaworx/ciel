@@ -152,20 +152,40 @@ export function PostCard({
     [media],
   );
 
-  // Calculate aspect ratio for single image with constraints (16:9 to 9:16)
-  const calculateSingleImageAspect = (m: Media): string => {
+  // Calculate dimensions for single image (PC: height 512px, Mobile: full width with aspect ratio)
+  // Images with aspect ratio narrower than 3:4 are clipped to 3:4
+  const calculateSingleImageStyle = (m: Media): React.CSSProperties => {
     // Safeguard: If dimensions are invalid, use fallback
     if (!m.width || !m.height || m.width <= 0 || m.height <= 0) {
-      return "16 / 9"; // Default fallback
+      if (isDesktop) {
+        return { height: '512px', width: '910px' }; // Default 16:9
+      }
+      return { aspectRatio: '16 / 9', width: '100%' };
     }
     
-    const ratio = m.width / m.height;
-    const maxRatio = 16 / 9; // 1.778
-    const minRatio = 9 / 16; // 0.5625
-
-    if (ratio >= maxRatio) return "16 / 9";
-    if (ratio <= minRatio) return "9 / 16";
-    return `${m.width} / ${m.height}`;
+    const originalRatio = m.width / m.height;
+    const minRatio = 3 / 4; // 0.75
+    
+    // If image is narrower than 3:4, clip to 3:4
+    const targetRatio = originalRatio < minRatio ? minRatio : originalRatio;
+    
+    if (isDesktop) {
+      // PC: Fixed height 512px, width calculated from aspect ratio
+      const height = 512;
+      const width = height * targetRatio;
+      
+      return {
+        height: `${height}px`,
+        width: `${width}px`,
+        maxWidth: '100%',
+      };
+    } else {
+      // Mobile: Full width, height auto from aspect ratio
+      return {
+        aspectRatio: `${targetRatio}`,
+        width: '100%',
+      };
+    }
   };
 
   return (
@@ -226,16 +246,12 @@ export function PostCard({
           {/* Media Images */}
           {media.length > 0 && (
             <>
-              {/* 1 image: Dynamic aspect ratio with constraints */}
+              {/* 1 image: PC - 512px height, Mobile - full width */}
               {media.length === 1 && (
                 <div className="mb-3">
                   <div
                     className="relative bg-muted overflow-hidden rounded-xl"
-                    style={{
-                      // Use CSS variable for dynamic aspect ratio - CSP compliant
-                      ['--aspect-ratio' as string]: calculateSingleImageAspect(media[0]),
-                      aspectRatio: 'var(--aspect-ratio)',
-                    }}
+                    style={calculateSingleImageStyle(media[0])}
                   >
                     <Image
                       src={media[0].url}
