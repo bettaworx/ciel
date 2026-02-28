@@ -42,6 +42,30 @@ export const DISPLAY_NAME_ALLOW_LIST: MfmAllowList = {
 };
 
 /**
+ * Preset allow-list for user bio.
+ * Permits all MFM features EXCEPT: search blocks, fn:border.
+ */
+export const BIO_ALLOW_LIST: MfmAllowList = {
+  nodeTypes: new Set([
+    "text", "plain", "bold", "italic", "strike", "small",
+    "center", "quote", "blockCode", "inlineCode",
+    "mathBlock", "mathInline",
+    "url", "link", "fn",
+    "unicodeEmoji", "emojiCode",
+    "mention", "hashtag",
+    // "search" is intentionally excluded
+  ]),
+  fnNames: new Set([
+    "jelly", "tada", "jump", "bounce", "spin",
+    "shake", "twitch", "rainbow", "sparkle",
+    "flip", "font", "blur",
+    "fg", "bg", "rotate", "position", "scale",
+    "x2", "x3", "x4", "ruby",
+    // "border" is intentionally excluded
+  ]),
+};
+
+/**
  * Recursively extracts plain text from MFM AST nodes.
  * Used as fallback content when filtering disallowed nodes.
  */

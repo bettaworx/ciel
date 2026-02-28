@@ -28,6 +28,8 @@ import { formatDistanceToNow } from "date-fns";
 import { ja, enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
 import { Progress } from "@/components/ui/progress";
+import { MfmRenderer } from "@/components/mfm/MfmRenderer";
+import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 
 type InviteStatus = "active" | "disabled" | "expired" | "exhausted";
 
@@ -353,8 +355,7 @@ export default function InviteDetailPage({
                               </Avatar>
                               <div>
                                 <p className="text-sm font-medium">
-                                  {usage.displayName ||
-                                    usage.username}
+                                  <MfmRenderer text={usage.displayName || usage.username} allowList={DISPLAY_NAME_ALLOW_LIST} />
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   @{usage.username}

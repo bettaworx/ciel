@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
 import { Spinner } from "@/components/Spinner";
 
@@ -82,7 +82,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               <p className="text-muted-foreground mb-3">@{user.username}</p>
               {user.bio && (
                 <div className="text-foreground leading-relaxed">
-                  <MfmRenderer text={user.bio} />
+                  <MfmRenderer text={user.bio} allowList={BIO_ALLOW_LIST} />
                 </div>
               )}
               {!user.bio && (
