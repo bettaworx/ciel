@@ -1,5 +1,6 @@
 import type { MfmFn as MfmFnType, MfmNode as MfmNodeType } from "mfm-js";
 import type { ReactNode } from "react";
+import { useMfmSettings } from "@/atoms/mfm-settings";
 
 /** Style type that supports both CSS properties and custom properties (--*). */
 type MfmStyle = Record<string, string | number | undefined>;
@@ -51,8 +52,10 @@ interface MfmFnProps {
 /**
  * Renders an MFM function node ($[fn.args content]).
  * Handles animations, text decorations, layout transforms, and styling.
+ * Respects user MFM sub-settings for font families and expand sizes.
  */
 export function MfmFn({ node, children }: MfmFnProps) {
+  const settings = useMfmSettings();
   const { name, args } = node.props;
   const style: MfmStyle = {};
   let className = "";
@@ -150,12 +153,14 @@ export function MfmFn({ node, children }: MfmFnProps) {
     // --- Font ---
     case "font": {
       style.display = "inline-block";
-      if (args.serif === true) style.fontFamily = "serif";
-      else if (args.monospace === true)
+      // Respect per-font sub-settings
+      if (args.serif === true && settings.font.serif) style.fontFamily = "serif";
+      else if (args.monospace === true && settings.font.monospace)
         style.fontFamily =
           "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
-      else if (args.cursive === true) style.fontFamily = "cursive";
-      else if (args.fantasy === true) style.fontFamily = "fantasy";
+      else if (args.cursive === true && settings.font.cursive) style.fontFamily = "cursive";
+      else if (args.fantasy === true && settings.font.fantasy) style.fontFamily = "fantasy";
+      // If the specific sub-font is disabled, renders in default font (no fontFamily set)
       break;
     }
 
@@ -263,12 +268,14 @@ export function MfmFn({ node, children }: MfmFnProps) {
     }
     case "x3": {
       style.display = "inline-block";
-      style.fontSize = "300%";
+      // Cap to x2 when allowLargerThanX2 is disabled
+      style.fontSize = settings.expand.allowLargerThanX2 ? "300%" : "200%";
       break;
     }
     case "x4": {
       style.display = "inline-block";
-      style.fontSize = "400%";
+      // Cap to x2 when allowLargerThanX2 is disabled
+      style.fontSize = settings.expand.allowLargerThanX2 ? "400%" : "200%";
       break;
     }
 

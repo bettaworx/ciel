@@ -474,7 +474,15 @@
   background: var(--muted);
   border-radius: var(--radius);
   overflow-x: auto;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-family: var(
+    --font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace
+  );
   font-size: 0.875em;
   line-height: 1.5;
   white-space: pre;
@@ -484,7 +492,15 @@
   padding: 0.15em 0.4em;
   background: var(--muted);
   border-radius: var(--radius-sm);
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-family: var(
+    --font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace
+  );
   font-size: 0.875em;
 }
 
@@ -496,7 +512,15 @@
   background: var(--muted);
   border-radius: var(--radius);
   overflow-x: auto;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-family: var(
+    --font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace
+  );
   font-size: 0.875em;
   line-height: 1.5;
   white-space: pre;
@@ -506,7 +530,15 @@
   padding: 0.15em 0.4em;
   background: var(--muted);
   border-radius: var(--radius-sm);
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-family: var(
+    --font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace
+  );
   font-size: 0.875em;
 }
 
@@ -565,7 +597,6 @@
   margin: 0.5em 0;
   padding: 0.5em 0.75em;
   background: var(--muted);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   font-size: 0.9em;
 }

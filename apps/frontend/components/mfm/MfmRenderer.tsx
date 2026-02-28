@@ -1,10 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
+import { useAtomValue } from "jotai";
+import { mfmSettingsAtom } from "@/atoms/mfm-settings";
 import {
   parseMfm,
   parseMfmSimple,
   filterMfmNodes,
+  buildAllowListFromSettings,
+  intersectAllowLists,
   type MfmAllowList,
 } from "@/lib/mfm/parse";
 import { MfmNode } from "@/components/mfm/MfmNode";
@@ -32,6 +36,8 @@ interface MfmRendererProps {
 
 /**
  * Parses MFM text and renders it as React components.
+ * Respects user MFM settings — when MFM is globally disabled,
+ * falls back to parseSimple (emoji only).
  *
  * Usage:
  * ```tsx
@@ -52,17 +58,34 @@ export function MfmRenderer({
   allowList,
   className,
 }: MfmRendererProps) {
+  const settings = useAtomValue(mfmSettingsAtom);
+
   const nodes = useMemo(() => {
     if (!text) return [];
 
-    // allowList mode: full parse then filter
-    if (allowList) {
-      const parsed = parseMfm(text);
-      return filterMfmNodes(parsed, allowList);
+    // Global MFM disabled → emoji only (parseSimple)
+    if (!settings.enabled) {
+      return parseMfmSimple(text);
     }
 
-    return simple ? parseMfmSimple(text) : parseMfm(text);
-  }, [text, simple, allowList]);
+    // Build an allow-list from user settings
+    const settingsAllowList = buildAllowListFromSettings(settings);
+
+    if (allowList) {
+      // Context-level + user-level: intersect both
+      const merged = intersectAllowLists(allowList, settingsAllowList);
+      const parsed = parseMfm(text);
+      return filterMfmNodes(parsed, merged);
+    }
+
+    if (simple) {
+      return parseMfmSimple(text);
+    }
+
+    // Full parse, filtered by user settings
+    const parsed = parseMfm(text);
+    return filterMfmNodes(parsed, settingsAllowList);
+  }, [text, simple, allowList, settings]);
 
   if (nodes.length === 0) {
     return null;

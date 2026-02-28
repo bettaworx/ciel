@@ -207,6 +207,178 @@
         "dark": "ダーク",
         "system": "システム",
         "systemDescription": "OSの設定に従うようになります"
+      },
+      "mfm": {
+        "title": "MFM (テキスト装飾)",
+        "description": "投稿やプロフィールのテキスト装飾・アニメーション表示を制御する",
+        "enabled": {
+          "title": "MFM有効",
+          "description": "無効にすると絵文字のみ表示されます"
+        },
+        "mention": {
+          "title": "メンション",
+          "description": "@ユーザー形式のメンション表示"
+        },
+        "hashtag": {
+          "title": "ハッシュタグ",
+          "description": "#タグ形式のハッシュタグ表示"
+        },
+        "url": {
+          "title": "URL",
+          "description": "URLの自動リンク表示"
+        },
+        "link": {
+          "title": "リンク",
+          "description": "テキストリンクの表示"
+        },
+        "emojiCode": {
+          "title": "カスタム絵文字",
+          "description": ":name: 形式のカスタム絵文字表示"
+        },
+        "bold": {
+          "title": "太字",
+          "description": "太字テキストの表示"
+        },
+        "italic": {
+          "title": "斜体",
+          "description": "斜体テキストの表示"
+        },
+        "strike": {
+          "title": "取り消し線",
+          "description": "取り消し線テキストの表示"
+        },
+        "small": {
+          "title": "小さい文字",
+          "description": "縮小テキストの表示"
+        },
+        "quote": {
+          "title": "引用",
+          "description": "引用ブロックの表示"
+        },
+        "center": {
+          "title": "中央揃え",
+          "description": "テキストの中央揃え表示"
+        },
+        "ruby": {
+          "title": "ルビ（読み仮名）",
+          "description": "テキスト上の読み仮名表示"
+        },
+        "code": {
+          "title": "コード",
+          "description": "コードの表示",
+          "inline": {
+            "title": "インライン",
+            "description": "インラインコードの表示"
+          },
+          "block": {
+            "title": "ブロック",
+            "description": "コードブロックの表示"
+          }
+        },
+        "flip": {
+          "title": "反転",
+          "description": "テキストの水平・垂直反転"
+        },
+        "font": {
+          "title": "フォント",
+          "description": "フォントファミリーの変更",
+          "serif": {
+            "title": "セリフ体",
+            "description": "セリフ体フォントの表示"
+          },
+          "monospace": {
+            "title": "等幅",
+            "description": "等幅フォントの表示"
+          },
+          "cursive": {
+            "title": "筆記体",
+            "description": "筆記体フォントの表示"
+          },
+          "fantasy": {
+            "title": "ファンタジー",
+            "description": "ファンタジーフォントの表示"
+          }
+        },
+        "blur": {
+          "title": "ぼかし",
+          "description": "テキストのぼかし効果"
+        },
+        "search": {
+          "title": "検索ボックス",
+          "description": "検索ブロックの表示"
+        },
+        "bg": {
+          "title": "背景色",
+          "description": "テキスト背景色の表示"
+        },
+        "fg": {
+          "title": "文字色",
+          "description": "テキスト色の変更表示"
+        },
+        "border": {
+          "title": "枠線",
+          "description": "テキスト周囲の枠線表示"
+        },
+        "rotate": {
+          "title": "回転",
+          "description": "テキストの回転表示"
+        },
+        "position": {
+          "title": "位置変更",
+          "description": "テキストの位置移動"
+        },
+        "scale": {
+          "title": "拡大縮小",
+          "description": "テキストの拡大・縮小表示"
+        },
+        "expand": {
+          "title": "サイズ拡大",
+          "description": "テキストサイズの拡大表示",
+          "allowLargerThanX2": {
+            "title": "x3/x4を許可",
+            "description": "無効時はx2に制限されます"
+          }
+        },
+        "animation": {
+          "title": "アニメーション",
+          "description": "テキストアニメーション効果",
+          "jelly": {
+            "title": "ゼリー",
+            "description": "弾むようなゼリーアニメーション"
+          },
+          "tada": {
+            "title": "TaDa",
+            "description": "注目を集めるTaDaアニメーション"
+          },
+          "jump": {
+            "title": "ジャンプ",
+            "description": "跳ねるジャンプアニメーション"
+          },
+          "bounce": {
+            "title": "バウンス",
+            "description": "落下して跳ね返るアニメーション"
+          },
+          "spin": {
+            "title": "回転",
+            "description": "回転するスピンアニメーション"
+          },
+          "shake": {
+            "title": "振動",
+            "description": "テキストを振動させるアニメーション"
+          },
+          "twitch": {
+            "title": "痙攣",
+            "description": "テキストを痙攣させるアニメーション"
+          }
+        },
+        "rainbow": {
+          "title": "レインボー",
+          "description": "虹色に変化するアニメーション"
+        },
+        "sparkle": {
+          "title": "キラキラ",
+          "description": "キラキラ輝くアニメーション"
+        }
       }
     },
     "language": {

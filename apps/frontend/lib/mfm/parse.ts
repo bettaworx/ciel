@@ -1,5 +1,6 @@
 import * as mfm from "mfm-js";
 import type { MfmNode } from "mfm-js";
+import type { MfmSettings } from "@/atoms/mfm-settings";
 
 export type { MfmNode } from "mfm-js";
 
@@ -64,6 +65,99 @@ export const BIO_ALLOW_LIST: MfmAllowList = {
     // "border" is intentionally excluded
   ]),
 };
+
+/**
+ * Builds an MfmAllowList from user MFM settings.
+ * Each setting key maps to one or more node types / fn names.
+ */
+export function buildAllowListFromSettings(s: MfmSettings): MfmAllowList {
+  // text, plain, unicodeEmoji are always allowed (intentionally unconditional)
+  const nodeTypes = new Set<string>(["text", "plain", "unicodeEmoji"]);
+  const fnNames = new Set<string>();
+
+  if (s.mention) nodeTypes.add("mention");
+  if (s.hashtag) nodeTypes.add("hashtag");
+  if (s.url) nodeTypes.add("url");
+  if (s.link) nodeTypes.add("link");
+  if (s.emojiCode) nodeTypes.add("emojiCode");
+  if (s.bold) nodeTypes.add("bold");
+  if (s.italic) nodeTypes.add("italic");
+  if (s.strike) nodeTypes.add("strike");
+  if (s.small) nodeTypes.add("small");
+  if (s.quote) nodeTypes.add("quote");
+  if (s.center) nodeTypes.add("center");
+  if (s.search) nodeTypes.add("search");
+  if (s.code.inline) nodeTypes.add("inlineCode");
+  if (s.code.block) nodeTypes.add("blockCode");
+
+  // fn node is needed if any fn-based feature is enabled
+  const hasFn =
+    s.ruby || s.flip || s.blur || s.bg || s.fg || s.border ||
+    s.rotate || s.position || s.scale ||
+    s.font.serif || s.font.monospace || s.font.cursive || s.font.fantasy ||
+    s.animation.jelly || s.animation.tada || s.animation.jump ||
+    s.animation.bounce || s.animation.spin || s.animation.shake ||
+    s.animation.twitch || s.rainbow || s.sparkle ||
+    true; // x2 is always allowed
+
+  if (hasFn) nodeTypes.add("fn");
+
+  // fn names for animations
+  if (s.animation.jelly) fnNames.add("jelly");
+  if (s.animation.tada) fnNames.add("tada");
+  if (s.animation.jump) fnNames.add("jump");
+  if (s.animation.bounce) fnNames.add("bounce");
+  if (s.animation.spin) fnNames.add("spin");
+  if (s.animation.shake) fnNames.add("shake");
+  if (s.animation.twitch) fnNames.add("twitch");
+  if (s.rainbow) fnNames.add("rainbow");
+  if (s.sparkle) fnNames.add("sparkle");
+
+  // fn names for decorations / transforms
+  if (s.flip) fnNames.add("flip");
+  if (s.blur) fnNames.add("blur");
+  if (s.fg) fnNames.add("fg");
+  if (s.bg) fnNames.add("bg");
+  if (s.border) fnNames.add("border");
+  if (s.rotate) fnNames.add("rotate");
+  if (s.position) fnNames.add("position");
+  if (s.scale) fnNames.add("scale");
+  if (s.ruby) fnNames.add("ruby");
+
+  // font sub-settings
+  if (s.font.serif || s.font.monospace || s.font.cursive || s.font.fantasy) {
+    fnNames.add("font");
+  }
+
+  // x2 is always allowed; x3/x4 depend on expand.allowLargerThanX2
+  fnNames.add("x2");
+  if (s.expand.allowLargerThanX2) {
+    fnNames.add("x3");
+    fnNames.add("x4");
+  }
+
+  return { nodeTypes, fnNames };
+}
+
+/**
+ * Intersects two allow-lists: only items allowed by BOTH pass through.
+ * This is used to combine context-level restrictions (e.g. display name whitelist)
+ * with user-level MFM settings.
+ */
+export function intersectAllowLists(
+  a: MfmAllowList,
+  b: MfmAllowList,
+): MfmAllowList {
+  const nodeTypes = new Set<string>();
+  for (const t of a.nodeTypes) {
+    if (b.nodeTypes.has(t)) nodeTypes.add(t);
+  }
+  const fnNames = new Set<string>();
+  for (const n of a.fnNames) {
+    if (b.fnNames.has(n)) fnNames.add(n);
+  }
+  return { nodeTypes, fnNames };
+}
 
 /**
  * Recursively extracts plain text from MFM AST nodes.
