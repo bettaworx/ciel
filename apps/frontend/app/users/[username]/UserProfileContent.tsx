@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
+import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { PostCard } from "@/components/PostCard";
 import { Spinner } from "@/components/Spinner";
 
@@ -79,7 +80,9 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               </h1>
               <p className="text-muted-foreground mb-3">@{user.username}</p>
               {user.bio && (
-                <p className="text-foreground leading-relaxed">{user.bio}</p>
+                <div className="text-foreground leading-relaxed">
+                  <MfmRenderer text={user.bio} />
+                </div>
               )}
               {!user.bio && (
                 <p className="text-muted-foreground italic">

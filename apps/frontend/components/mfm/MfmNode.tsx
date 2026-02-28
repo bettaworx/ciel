@@ -1,0 +1,185 @@
+import type { MfmNode as MfmNodeType } from "mfm-js";
+import type { ReactNode } from "react";
+import { MfmFn } from "@/components/mfm/MfmFn";
+
+interface MfmNodeProps {
+  node: MfmNodeType;
+  key?: string | number;
+}
+
+/**
+ * Renders a single MFM AST node into React elements.
+ * Recursively processes children for nodes that contain nested content.
+ */
+export function MfmNode({ node }: MfmNodeProps) {
+  switch (node.type) {
+    // --- Plain text ---
+    case "text": {
+      return <>{node.props.text}</>;
+    }
+
+    // --- Plain (escape formatting) ---
+    case "plain": {
+      return (
+        <>
+          {node.children?.map((child, i) => (
+            <MfmNode key={i} node={child} />
+          ))}
+        </>
+      );
+    }
+
+    // --- Bold ---
+    case "bold": {
+      return <strong>{renderChildren(node.children)}</strong>;
+    }
+
+    // --- Italic ---
+    case "italic": {
+      return <em>{renderChildren(node.children)}</em>;
+    }
+
+    // --- Strikethrough ---
+    case "strike": {
+      return <del>{renderChildren(node.children)}</del>;
+    }
+
+    // --- Small text ---
+    case "small": {
+      return <small className="mfm-small">{renderChildren(node.children)}</small>;
+    }
+
+    // --- Center align (block) ---
+    case "center": {
+      return <div className="mfm-center">{renderChildren(node.children)}</div>;
+    }
+
+    // --- Quote (block) ---
+    case "quote": {
+      return (
+        <blockquote className="mfm-quote">
+          {renderChildren(node.children)}
+        </blockquote>
+      );
+    }
+
+    // --- Code block ---
+    case "blockCode": {
+      return (
+        <pre className="mfm-code-block">
+          <code>{node.props.code}</code>
+        </pre>
+      );
+    }
+
+    // --- Inline code ---
+    case "inlineCode": {
+      return <code className="mfm-inline-code">{node.props.code}</code>;
+    }
+
+    // --- Math block (stub: rendered as code) ---
+    case "mathBlock": {
+      return <div className="mfm-math-block">{node.props.formula}</div>;
+    }
+
+    // --- Math inline (stub: rendered as inline code) ---
+    case "mathInline": {
+      return <code className="mfm-math-inline">{node.props.formula}</code>;
+    }
+
+    // --- URL ---
+    case "url": {
+      const url = sanitizeUrl(node.props.url);
+      if (!url) {
+        return <span>{node.props.url}</span>;
+      }
+      return (
+        <a
+          href={url}
+          className="mfm-url"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {node.props.url}
+        </a>
+      );
+    }
+
+    // --- Link ---
+    case "link": {
+      const url = sanitizeUrl(node.props.url);
+      if (!url) {
+        return <span>{renderChildren(node.children)}</span>;
+      }
+      return (
+        <a
+          href={url}
+          className="mfm-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {renderChildren(node.children)}
+        </a>
+      );
+    }
+
+    // --- Function (decorations & animations) ---
+    case "fn": {
+      return <MfmFn node={node}>{renderChildren(node.children)}</MfmFn>;
+    }
+
+    // --- Unicode emoji ---
+    case "unicodeEmoji": {
+      return <span>{node.props.emoji}</span>;
+    }
+
+    // --- Custom emoji code (stub) ---
+    case "emojiCode": {
+      return <span className="mfm-emoji-code">:{node.props.name}:</span>;
+    }
+
+    // --- Mention (stub) ---
+    case "mention": {
+      return <span className="mfm-mention">{node.props.acct}</span>;
+    }
+
+    // --- Hashtag (stub) ---
+    case "hashtag": {
+      return <span className="mfm-hashtag">#{node.props.hashtag}</span>;
+    }
+
+    // --- Search (stub) ---
+    case "search": {
+      return <div className="mfm-search">{node.props.content}</div>;
+    }
+
+    // --- Fallback for unknown node types ---
+    default: {
+      return null;
+    }
+  }
+}
+
+/**
+ * Renders an array of MFM child nodes.
+ */
+function renderChildren(children?: MfmNodeType[]): ReactNode {
+  if (!children || children.length === 0) return null;
+  return children.map((child, i) => <MfmNode key={i} node={child} />);
+}
+
+/**
+ * Validates and sanitizes a URL to prevent XSS via javascript: protocol etc.
+ * Only allows http:// and https:// URLs.
+ */
+function sanitizeUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return url;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
