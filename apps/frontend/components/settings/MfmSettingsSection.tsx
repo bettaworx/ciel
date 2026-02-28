@@ -3,14 +3,12 @@
 import { useCallback } from "react";
 import { useAtom } from "jotai";
 import { useTranslations } from "next-intl";
-import { ChevronDown } from "lucide-react";
 import { mfmSettingsAtom, type MfmSettings } from "@/atoms/mfm-settings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
@@ -92,25 +90,9 @@ function CollapsibleGroup({
           disabled && "opacity-50",
         )}
       >
-        <div className="flex flex-1 items-center gap-2 min-w-0">
-          <CollapsibleTrigger asChild disabled={disabled || !checked}>
-            <button
-              type="button"
-              className="shrink-0"
-              disabled={disabled}
-            >
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                  (!checked || disabled) && "-rotate-90",
-                )}
-              />
-            </button>
-          </CollapsibleTrigger>
-          <div className="min-w-0">
-            <p className="text-sm font-medium">{title}</p>
-            <p className="text-xs text-muted-foreground">{description}</p>
-          </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">{title}</p>
+          <p className="text-xs text-muted-foreground">{description}</p>
         </div>
         <div onClick={(e) => e.stopPropagation()}>
           <Switch
