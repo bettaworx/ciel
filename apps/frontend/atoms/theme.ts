@@ -1,45 +1,50 @@
 'use client';
 
 import { atomWithStorage } from 'jotai/utils';
-import { getCookie, setSecureCookie, deleteSecureCookie } from '@/lib/utils/cookie';
 
 export type Theme = 'light' | 'dark' | 'system';
 
 // Get initial theme from system preference
-const getSystemTheme = (): Theme => {
+export const getSystemTheme = (): 'light' | 'dark' => {
 	if (typeof window === 'undefined') return 'dark';
 	return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
-// SSR-safe Cookie storage adapter
-const createCookieStorage = (): {
-	getItem: (key: string, initialValue: Theme) => Theme;
-	setItem: (key: string, value: Theme) => void;
-	removeItem: (key: string) => void;
-} => {
+// SSR-safe localStorage storage adapter
+const createLocalStorageAdapter = () => {
 	if (typeof window === 'undefined') {
 		return {
-			getItem: (key: string, initialValue: Theme) => initialValue,
-			setItem: (key: string, value: Theme) => {},
-			removeItem: (key: string) => {},
+			getItem: (_key: string, initialValue: Theme) => initialValue,
+			setItem: (_key: string, _value: Theme) => {},
+			removeItem: (_key: string) => {},
 		};
 	}
 
 	return {
 		getItem: (key: string, initialValue: Theme): Theme => {
-			const cookieValue = getCookie(key);
-			if (cookieValue === 'light' || cookieValue === 'dark' || cookieValue === 'system') {
-				return cookieValue as Theme;
+			try {
+				const value = localStorage.getItem(key);
+				if (value === 'light' || value === 'dark' || value === 'system') {
+					return value;
+				}
+				return initialValue;
+			} catch {
+				return initialValue;
 			}
-			// If no cookie exists, default to system
-			setSecureCookie(key, 'system');
-			return 'system';
 		},
 		setItem: (key: string, value: Theme) => {
-			setSecureCookie(key, value);
+			try {
+				localStorage.setItem(key, value);
+			} catch {
+				// Storage full or unavailable — silently ignore
+			}
 		},
 		removeItem: (key: string) => {
-			deleteSecureCookie(key);
+			try {
+				localStorage.removeItem(key);
+			} catch {
+				// Silently ignore
+			}
 		},
 	};
 };
@@ -47,4 +52,4 @@ const createCookieStorage = (): {
 // Default to system
 const defaultTheme: Theme = 'system';
 
-export const themeAtom = atomWithStorage<Theme>('ciel-theme', defaultTheme, createCookieStorage());
+export const themeAtom = atomWithStorage<Theme>('ciel-theme', defaultTheme, createLocalStorageAdapter());

@@ -24,6 +24,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useSlideAnimation } from "@/lib/hooks/use-slide-animation";
+import { MfmRenderer } from "@/components/mfm/MfmRenderer";
+import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import { cn } from "@/lib/utils";
 
 type MenuView = "main" | "theme" | "language";
@@ -116,7 +118,7 @@ export function UserMenuContent({
           </Avatar>
           <div className="text-center">
             <div className="font-semibold">
-              {user.displayName || user.username}
+              <MfmRenderer text={user.displayName || user.username} allowList={DISPLAY_NAME_ALLOW_LIST} />
             </div>
             <div className="text-sm text-muted-foreground">
               @{user.username}

@@ -3,6 +3,8 @@
 import { useAtomValue } from "jotai";
 import { userAtom } from "@/atoms/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MfmRenderer } from "@/components/mfm/MfmRenderer";
+import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import { useRouter } from "next/navigation";
 
 export function AccountCard() {
@@ -32,7 +34,7 @@ export function AccountCard() {
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="font-semibold truncate">
-            {user.displayName || user.username}
+            <MfmRenderer text={user.displayName || user.username} allowList={DISPLAY_NAME_ALLOW_LIST} />
           </div>
           <div className="text-sm text-muted-foreground truncate">
             @{user.username}

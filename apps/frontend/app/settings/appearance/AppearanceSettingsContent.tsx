@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SettingItem } from "@/components/settings/SettingItem";
 import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
+import { MfmSettingsSection } from "@/components/settings/MfmSettingsSection";
 import { themeAtom, type Theme } from "@/atoms/theme";
 
 export function AppearanceSettingsContent() {
@@ -55,6 +56,8 @@ export function AppearanceSettingsContent() {
           </div>
         </RadioGroup>
       </SettingItem>
+
+      <MfmSettingsSection />
     </div>
   );
 }

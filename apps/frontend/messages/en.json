@@ -207,6 +207,178 @@
         "dark": "Dark",
         "system": "System",
         "systemDescription": "Follow system settings"
+      },
+      "mfm": {
+        "title": "MFM (Text Decoration)",
+        "description": "Control text decoration and animation display in posts and profiles",
+        "enabled": {
+          "title": "Enable MFM",
+          "description": "When disabled, only emoji will be displayed"
+        },
+        "mention": {
+          "title": "Mentions",
+          "description": "Display @user mentions"
+        },
+        "hashtag": {
+          "title": "Hashtags",
+          "description": "Display #tag hashtags"
+        },
+        "url": {
+          "title": "URLs",
+          "description": "Auto-link URL display"
+        },
+        "link": {
+          "title": "Links",
+          "description": "Display text links"
+        },
+        "emojiCode": {
+          "title": "Custom Emoji",
+          "description": "Display :name: custom emoji"
+        },
+        "bold": {
+          "title": "Bold",
+          "description": "Display bold text"
+        },
+        "italic": {
+          "title": "Italic",
+          "description": "Display italic text"
+        },
+        "strike": {
+          "title": "Strikethrough",
+          "description": "Display strikethrough text"
+        },
+        "small": {
+          "title": "Small Text",
+          "description": "Display shrunk text"
+        },
+        "quote": {
+          "title": "Quote",
+          "description": "Display quote blocks"
+        },
+        "center": {
+          "title": "Center Align",
+          "description": "Display centered text"
+        },
+        "ruby": {
+          "title": "Ruby (Reading Aid)",
+          "description": "Display reading annotations above text"
+        },
+        "code": {
+          "title": "Code",
+          "description": "Display code elements",
+          "inline": {
+            "title": "Inline",
+            "description": "Display inline code"
+          },
+          "block": {
+            "title": "Block",
+            "description": "Display code blocks"
+          }
+        },
+        "flip": {
+          "title": "Flip",
+          "description": "Horizontal/vertical text flipping"
+        },
+        "font": {
+          "title": "Font",
+          "description": "Font family changes",
+          "serif": {
+            "title": "Serif",
+            "description": "Display serif font"
+          },
+          "monospace": {
+            "title": "Monospace",
+            "description": "Display monospace font"
+          },
+          "cursive": {
+            "title": "Cursive",
+            "description": "Display cursive font"
+          },
+          "fantasy": {
+            "title": "Fantasy",
+            "description": "Display fantasy font"
+          }
+        },
+        "blur": {
+          "title": "Blur",
+          "description": "Text blur effect"
+        },
+        "search": {
+          "title": "Search Box",
+          "description": "Display search blocks"
+        },
+        "bg": {
+          "title": "Background Color",
+          "description": "Display text background color"
+        },
+        "fg": {
+          "title": "Text Color",
+          "description": "Display text color changes"
+        },
+        "border": {
+          "title": "Border",
+          "description": "Display borders around text"
+        },
+        "rotate": {
+          "title": "Rotate",
+          "description": "Display rotated text"
+        },
+        "position": {
+          "title": "Position Shift",
+          "description": "Display shifted text position"
+        },
+        "scale": {
+          "title": "Scale",
+          "description": "Display scaled text"
+        },
+        "expand": {
+          "title": "Size Expansion",
+          "description": "Display enlarged text sizes",
+          "allowLargerThanX2": {
+            "title": "Allow x3/x4",
+            "description": "When disabled, capped at x2"
+          }
+        },
+        "animation": {
+          "title": "Animations",
+          "description": "Text animation effects",
+          "jelly": {
+            "title": "Jelly",
+            "description": "Bouncy jelly animation"
+          },
+          "tada": {
+            "title": "TaDa",
+            "description": "Attention-grabbing TaDa animation"
+          },
+          "jump": {
+            "title": "Jump",
+            "description": "Jumping animation"
+          },
+          "bounce": {
+            "title": "Bounce",
+            "description": "Drop and bounce animation"
+          },
+          "spin": {
+            "title": "Spin",
+            "description": "Spinning animation"
+          },
+          "shake": {
+            "title": "Shake",
+            "description": "Shaking animation"
+          },
+          "twitch": {
+            "title": "Twitch",
+            "description": "Twitching animation"
+          }
+        },
+        "rainbow": {
+          "title": "Rainbow",
+          "description": "Rainbow color animation"
+        },
+        "sparkle": {
+          "title": "Sparkle",
+          "description": "Sparkling animation"
+        }
       }
     },
     "language": {
