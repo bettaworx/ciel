@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import type { LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// ToggleRow — a single toggle: title + description on the left, Switch right.
+// ToggleRow — a single toggle: icon + title + description, Switch on right.
 // ---------------------------------------------------------------------------
 
 interface ToggleRowProps {
@@ -14,6 +15,8 @@ interface ToggleRowProps {
   checked: boolean;
   onCheckedChange: (value: boolean) => void;
   disabled?: boolean;
+  /** Optional icon displayed to the left of the title. */
+  icon?: LucideIcon;
 }
 
 export function ToggleRow({
@@ -22,6 +25,7 @@ export function ToggleRow({
   checked,
   onCheckedChange,
   disabled = false,
+  icon: Icon,
 }: ToggleRowProps) {
   return (
     <div
@@ -30,11 +34,16 @@ export function ToggleRow({
         disabled && "opacity-50",
       )}
     >
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">{title}</p>
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {Icon && (
+          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{title}</p>
+          {description && (
+            <p className="text-xs text-muted-foreground">{description}</p>
+          )}
+        </div>
       </div>
       <div onClick={(e) => e.stopPropagation()}>
         <Switch
@@ -48,15 +57,14 @@ export function ToggleRow({
 }
 
 // ---------------------------------------------------------------------------
-// NestedToggle — a toggle row whose children are shown in a collapsible area.
+// NestedToggle — a toggle row with collapsible children.
 //
-// - Clicking the text area toggles collapse open/closed.
-// - Clicking the switch toggles the checked state (independent of collapse).
+// - Children are shown when the parent switch is ON.
+// - A caret arrow rotates to indicate open/closed state.
 // - On mobile, children have no left indent to avoid cramping text.
 // - On md+ screens, children are indented for visual hierarchy.
 //
-// Uses a plain div with grid animation instead of Radix Collapsible to avoid
-// nesting issues when placed inside another Radix Collapsible.
+// Uses CSS grid animation instead of Radix Collapsible to avoid nesting issues.
 // ---------------------------------------------------------------------------
 
 interface NestedToggleProps {
@@ -65,6 +73,8 @@ interface NestedToggleProps {
   checked: boolean;
   onCheckedChange: (value: boolean) => void;
   disabled?: boolean;
+  /** Icon displayed to the left of the title. */
+  icon?: LucideIcon;
   children: React.ReactNode;
 }
 
@@ -74,10 +84,9 @@ export function NestedToggle({
   checked,
   onCheckedChange,
   disabled = false,
+  icon: Icon,
   children,
 }: NestedToggleProps) {
-  const [open, setOpen] = useState(false);
-
   return (
     <div>
       <div
@@ -86,17 +95,23 @@ export function NestedToggle({
           disabled && "opacity-50",
         )}
       >
-        <button
-          type="button"
-          className="flex-1 min-w-0 text-left"
-          onClick={() => setOpen((v) => !v)}
-          disabled={disabled}
-        >
-          <p className="text-sm font-medium">{title}</p>
-          {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {Icon && (
+            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
-        </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{title}</p>
+            {description && (
+              <p className="text-xs text-muted-foreground">{description}</p>
+            )}
+          </div>
+          <ChevronRight
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+              checked && "rotate-90",
+            )}
+          />
+        </div>
         <div onClick={(e) => e.stopPropagation()}>
           <Switch
             checked={checked}
@@ -108,7 +123,7 @@ export function NestedToggle({
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-200",
-          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          checked ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
         )}
       >
         <div className="overflow-hidden">
