@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useAtom } from "jotai";
 import { useTranslations } from "next-intl";
 import { mfmSettingsAtom, type MfmSettings } from "@/atoms/mfm-settings";
@@ -64,8 +64,9 @@ function ToggleRow({
 }
 
 /**
- * A collapsible parent: toggle + chevron header that expands/collapses children.
- * When the parent switch is OFF, children are collapsed and disabled.
+ * A collapsible parent: toggle header that expands/collapses children.
+ * The open/closed state is independent — toggling the parent switch does NOT
+ * collapse the group; only clicking the text area toggles visibility.
  */
 function CollapsibleGroup({
   title,
@@ -82,18 +83,25 @@ function CollapsibleGroup({
   disabled?: boolean;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Collapsible open={checked && !disabled}>
+    <Collapsible open={open}>
       <div
         className={cn(
           "flex items-center justify-between gap-4 py-3",
           disabled && "opacity-50",
         )}
       >
-        <div className="flex-1 min-w-0">
+        <button
+          type="button"
+          className="flex-1 min-w-0 text-left"
+          onClick={() => setOpen((v) => !v)}
+          disabled={disabled}
+        >
           <p className="text-sm font-medium">{title}</p>
           <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
+        </button>
         <div onClick={(e) => e.stopPropagation()}>
           <Switch
             checked={checked}

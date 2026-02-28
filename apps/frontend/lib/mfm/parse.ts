@@ -160,6 +160,49 @@ export function intersectAllowLists(
 }
 
 /**
+ * Recursively extracts plain text and emoji nodes from MFM AST.
+ * Used when MFM is globally disabled — parses the MFM syntax to strip
+ * all decoration markup, but preserves the visible text content and emoji.
+ */
+function extractPlainAndEmoji(nodes: MfmNode[]): MfmNode[] {
+  const result: MfmNode[] = [];
+
+  for (const node of nodes) {
+    if (node.type === "text") {
+      result.push(node);
+    } else if (node.type === "unicodeEmoji" || node.type === "emojiCode") {
+      result.push(node);
+    } else if ("children" in node && node.children && node.children.length > 0) {
+      result.push(...extractPlainAndEmoji(node.children as MfmNode[]));
+    }
+    // Other leaf nodes without children (e.g. blockCode, inlineCode, search)
+    // are converted to text so their visible content is preserved.
+    else {
+      const text = extractPlainText([node]);
+      if (text) {
+        result.push({
+          type: "text",
+          props: { text },
+          children: [],
+        } as unknown as MfmNode);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Parse MFM text and strip all decorations, returning only plain text and
+ * emoji nodes. This is used when MFM is globally disabled — the MFM syntax
+ * markers (**, $[...], etc.) are removed and only readable text remains.
+ */
+export function parseMfmToPlaintext(text: string): MfmNode[] {
+  const parsed = mfm.parse(text);
+  return extractPlainAndEmoji(parsed);
+}
+
+/**
  * Recursively extracts plain text from MFM AST nodes.
  * Used as fallback content when filtering disallowed nodes.
  */

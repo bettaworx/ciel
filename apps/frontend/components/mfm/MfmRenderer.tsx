@@ -6,6 +6,7 @@ import { mfmSettingsAtom } from "@/atoms/mfm-settings";
 import {
   parseMfm,
   parseMfmSimple,
+  parseMfmToPlaintext,
   filterMfmNodes,
   buildAllowListFromSettings,
   intersectAllowLists,
@@ -63,9 +64,10 @@ export function MfmRenderer({
   const nodes = useMemo(() => {
     if (!text) return [];
 
-    // Global MFM disabled → emoji only (parseSimple)
+    // Global MFM disabled → parse full MFM but strip all decorations,
+    // keeping only plain text and emoji.
     if (!settings.enabled) {
-      return parseMfmSimple(text);
+      return parseMfmToPlaintext(text);
     }
 
     // Build an allow-list from user settings
