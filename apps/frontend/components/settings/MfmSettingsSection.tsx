@@ -72,30 +72,47 @@ export function MfmSettingsSection() {
 
   const toggleCode = useCallback(
     (key: keyof MfmSettings["code"], value: boolean) => {
-      setSettings((prev) => ({
-        ...prev,
-        code: { ...prev.code, [key]: value },
-      }));
+      setSettings((prev) => {
+        const next = { ...prev.code, [key]: value };
+        // Auto-enable parent when a child is turned ON
+        if (value) next.enabled = true;
+        // Auto-disable parent when ALL children are OFF
+        if (!next.inline && !next.block) next.enabled = false;
+        return { ...prev, code: next };
+      });
     },
     [setSettings],
   );
 
   const toggleFont = useCallback(
     (key: keyof MfmSettings["font"], value: boolean) => {
-      setSettings((prev) => ({
-        ...prev,
-        font: { ...prev.font, [key]: value },
-      }));
+      setSettings((prev) => {
+        const next = { ...prev.font, [key]: value };
+        // Auto-enable parent when a child is turned ON
+        if (value) next.enabled = true;
+        // Auto-disable parent when ALL children are OFF
+        if (!next.serif && !next.monospace && !next.cursive && !next.fantasy)
+          next.enabled = false;
+        return { ...prev, font: next };
+      });
     },
     [setSettings],
   );
 
   const toggleAnimation = useCallback(
     (key: keyof MfmSettings["animation"], value: boolean) => {
-      setSettings((prev) => ({
-        ...prev,
-        animation: { ...prev.animation, [key]: value },
-      }));
+      setSettings((prev) => {
+        const next = { ...prev.animation, [key]: value };
+        // Auto-enable parent when a child is turned ON
+        if (value) next.enabled = true;
+        // Auto-disable parent when ALL children are OFF
+        if (
+          !next.jelly && !next.tada && !next.jump && !next.bounce &&
+          !next.spin && !next.shake && !next.twitch
+        )
+          next.enabled = false;
+        return { ...prev, animation: next };
+      });
     },
     [setSettings],
   );
@@ -111,20 +128,7 @@ export function MfmSettingsSection() {
   );
 
   // Computed: are all sub-settings on?
-  const codeAllOn = settings.code.inline && settings.code.block;
-  const fontAllOn =
-    settings.font.serif &&
-    settings.font.monospace &&
-    settings.font.cursive &&
-    settings.font.fantasy;
-  const animAllOn =
-    settings.animation.jelly &&
-    settings.animation.tada &&
-    settings.animation.jump &&
-    settings.animation.bounce &&
-    settings.animation.spin &&
-    settings.animation.shake &&
-    settings.animation.twitch;
+  // (Not used for parent checked anymore — kept for potential UI hints)
 
   return (
     <Card>
@@ -231,12 +235,15 @@ export function MfmSettingsSection() {
             <NestedToggle
               title={t("code.title")}
               description={t("code.description")}
-              checked={codeAllOn}
+              checked={settings.code.enabled}
               onCheckedChange={(v) => {
-                toggleCode("inline", v);
-                toggleCode("block", v);
+                setSettings((prev) => ({
+                  ...prev,
+                  code: { ...prev.code, enabled: v },
+                }));
               }}
               icon={Code}
+              indent
             >
               <ToggleRow
                 title={t("code.inline.title")}
@@ -266,14 +273,15 @@ export function MfmSettingsSection() {
             <NestedToggle
               title={t("font.title")}
               description={t("font.description")}
-              checked={fontAllOn}
+              checked={settings.font.enabled}
               onCheckedChange={(v) => {
-                toggleFont("serif", v);
-                toggleFont("monospace", v);
-                toggleFont("cursive", v);
-                toggleFont("fantasy", v);
+                setSettings((prev) => ({
+                  ...prev,
+                  font: { ...prev.font, enabled: v },
+                }));
               }}
               icon={Type}
+              indent
             >
               <ToggleRow
                 title={t("font.serif.title")}
@@ -365,6 +373,7 @@ export function MfmSettingsSection() {
               checked={settings.expand.allowLargerThanX2}
               onCheckedChange={(v) => toggleExpand("allowLargerThanX2", v)}
               icon={Expand}
+              indent
             >
               <ToggleRow
                 title={t("expand.allowLargerThanX2.title")}
@@ -379,17 +388,15 @@ export function MfmSettingsSection() {
             <NestedToggle
               title={t("animation.title")}
               description={t("animation.description")}
-              checked={animAllOn}
+              checked={settings.animation.enabled}
               onCheckedChange={(v) => {
-                toggleAnimation("jelly", v);
-                toggleAnimation("tada", v);
-                toggleAnimation("jump", v);
-                toggleAnimation("bounce", v);
-                toggleAnimation("spin", v);
-                toggleAnimation("shake", v);
-                toggleAnimation("twitch", v);
+                setSettings((prev) => ({
+                  ...prev,
+                  animation: { ...prev.animation, enabled: v },
+                }));
               }}
               icon={Sparkles}
+              indent
             >
               <ToggleRow
                 title={t("animation.jelly.title")}

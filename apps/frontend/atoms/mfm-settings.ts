@@ -26,11 +26,13 @@ export interface MfmSettings {
 	/** Yomigana reading aid */
 	ruby: boolean;
 	code: {
+		enabled: boolean;
 		inline: boolean;
 		block: boolean;
 	};
 	flip: boolean;
 	font: {
+		enabled: boolean;
 		serif: boolean;
 		monospace: boolean;
 		cursive: boolean;
@@ -52,6 +54,7 @@ export interface MfmSettings {
 		allowLargerThanX2: boolean;
 	};
 	animation: {
+		enabled: boolean;
 		jelly: boolean;
 		tada: boolean;
 		jump: boolean;
@@ -82,9 +85,9 @@ export const DEFAULT_MFM_SETTINGS: MfmSettings = {
 	quote: true,
 	center: true,
 	ruby: true,
-	code: { inline: true, block: true },
+	code: { enabled: true, inline: true, block: true },
 	flip: true,
-	font: { serif: true, monospace: true, cursive: true, fantasy: true },
+	font: { enabled: true, serif: true, monospace: true, cursive: true, fantasy: true },
 	blur: true,
 	search: true,
 	bg: true,
@@ -93,8 +96,9 @@ export const DEFAULT_MFM_SETTINGS: MfmSettings = {
 	rotate: true,
 	position: true,
 	scale: true,
-	expand: { allowLargerThanX2: true },
+	expand: { allowLargerThanX2: false },
 	animation: {
+		enabled: true,
 		jelly: true,
 		tada: true,
 		jump: true,

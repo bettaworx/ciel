@@ -87,29 +87,31 @@ export function buildAllowListFromSettings(s: MfmSettings): MfmAllowList {
   if (s.quote) nodeTypes.add("quote");
   if (s.center) nodeTypes.add("center");
   if (s.search) nodeTypes.add("search");
-  if (s.code.inline) nodeTypes.add("inlineCode");
-  if (s.code.block) nodeTypes.add("blockCode");
+  if (s.code.enabled && s.code.inline) nodeTypes.add("inlineCode");
+  if (s.code.enabled && s.code.block) nodeTypes.add("blockCode");
 
   // fn node is needed if any fn-based feature is enabled
   const hasFn =
     s.ruby || s.flip || s.blur || s.bg || s.fg || s.border ||
     s.rotate || s.position || s.scale ||
-    s.font.serif || s.font.monospace || s.font.cursive || s.font.fantasy ||
-    s.animation.jelly || s.animation.tada || s.animation.jump ||
+    (s.font.enabled && (s.font.serif || s.font.monospace || s.font.cursive || s.font.fantasy)) ||
+    (s.animation.enabled && (s.animation.jelly || s.animation.tada || s.animation.jump ||
     s.animation.bounce || s.animation.spin || s.animation.shake ||
-    s.animation.twitch || s.rainbow || s.sparkle ||
+    s.animation.twitch)) || s.rainbow || s.sparkle ||
     true; // x2 is always allowed
 
   if (hasFn) nodeTypes.add("fn");
 
   // fn names for animations
-  if (s.animation.jelly) fnNames.add("jelly");
-  if (s.animation.tada) fnNames.add("tada");
-  if (s.animation.jump) fnNames.add("jump");
-  if (s.animation.bounce) fnNames.add("bounce");
-  if (s.animation.spin) fnNames.add("spin");
-  if (s.animation.shake) fnNames.add("shake");
-  if (s.animation.twitch) fnNames.add("twitch");
+  if (s.animation.enabled) {
+    if (s.animation.jelly) fnNames.add("jelly");
+    if (s.animation.tada) fnNames.add("tada");
+    if (s.animation.jump) fnNames.add("jump");
+    if (s.animation.bounce) fnNames.add("bounce");
+    if (s.animation.spin) fnNames.add("spin");
+    if (s.animation.shake) fnNames.add("shake");
+    if (s.animation.twitch) fnNames.add("twitch");
+  }
   if (s.rainbow) fnNames.add("rainbow");
   if (s.sparkle) fnNames.add("sparkle");
 
@@ -125,7 +127,7 @@ export function buildAllowListFromSettings(s: MfmSettings): MfmAllowList {
   if (s.ruby) fnNames.add("ruby");
 
   // font sub-settings
-  if (s.font.serif || s.font.monospace || s.font.cursive || s.font.fantasy) {
+  if (s.font.enabled && (s.font.serif || s.font.monospace || s.font.cursive || s.font.fantasy)) {
     fnNames.add("font");
   }
 
@@ -172,7 +174,20 @@ function extractPlainAndEmoji(nodes: MfmNode[]): MfmNode[] {
       result.push(node);
     } else if (node.type === "unicodeEmoji" || node.type === "emojiCode") {
       result.push(node);
-    } else if ("children" in node && node.children && node.children.length > 0) {
+    } else if (node.type === "fn") {
+      // Ruby: only keep base text (before last space), strip reading
+      const fnNode = node as { type: "fn"; props: { name: string }; children: MfmNode[] };
+      if (fnNode.props.name === "ruby") {
+        const raw = extractPlainText(fnNode.children);
+        const lastSpace = raw.lastIndexOf(" ");
+        const baseText = lastSpace >= 0 ? raw.slice(0, lastSpace) : raw;
+        if (baseText) {
+          result.push({ type: "text", props: { text: baseText }, children: [] } as unknown as MfmNode);
+        }
+      } else if ("children" in node && node.children && (node.children as MfmNode[]).length > 0) {
+        result.push(...extractPlainAndEmoji(node.children as MfmNode[]));
+      }
+    } else if ("children" in node && node.children && (node.children as MfmNode[]).length > 0) {
       result.push(...extractPlainAndEmoji(node.children as MfmNode[]));
     }
     // Other leaf nodes without children (e.g. blockCode, inlineCode, search)
@@ -212,6 +227,16 @@ function extractPlainText(nodes: MfmNode[]): string {
       if (node.type === "text") return node.props.text;
       if (node.type === "unicodeEmoji") return node.props.emoji;
       if (node.type === "emojiCode") return `:${node.props.name}:`;
+      if (node.type === "blockCode" || node.type === "inlineCode")
+        return (node.props as { code: string }).code;
+      if (node.type === "search")
+        return (node.props as { query: string }).query;
+      if (node.type === "mention")
+        return (node.props as { acct: string }).acct;
+      if (node.type === "url")
+        return (node.props as { url: string }).url;
+      if (node.type === "hashtag")
+        return `#${(node.props as { hashtag: string }).hashtag}`;
       if ("children" in node && node.children) {
         return extractPlainText(node.children as MfmNode[]);
       }
@@ -246,9 +271,20 @@ export function filterMfmNodes(
     if (node.type === "fn") {
       const fnNode = node as { type: "fn"; props: { name: string; args: Record<string, string | true> }; children: MfmNode[] };
       if (!allowList.fnNames.has(fnNode.props.name)) {
-        const text = extractPlainText([node]);
-        if (text) {
-          result.push({ type: "text", props: { text }, children: [] } as unknown as MfmNode);
+        // Ruby: children text is "base ruby" separated by space.
+        // When disabled, show only the base text (everything before the last space).
+        if (fnNode.props.name === "ruby") {
+          const raw = extractPlainText(fnNode.children);
+          const lastSpace = raw.lastIndexOf(" ");
+          const baseText = lastSpace >= 0 ? raw.slice(0, lastSpace) : raw;
+          if (baseText) {
+            result.push({ type: "text", props: { text: baseText }, children: [] } as unknown as MfmNode);
+          }
+        } else {
+          const text = extractPlainText([node]);
+          if (text) {
+            result.push({ type: "text", props: { text }, children: [] } as unknown as MfmNode);
+          }
         }
         continue;
       }

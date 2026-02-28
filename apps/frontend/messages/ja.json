@@ -212,8 +212,8 @@
         "title": "MFM (テキスト装飾)",
         "description": "投稿やプロフィールのテキスト装飾・アニメーション表示を制御する",
         "enabled": {
-          "title": "MFM有効",
-          "description": "無効にすると絵文字のみ表示されます"
+          "title": "MFMを有効",
+          "description": "有効にするとMFMを使用した装飾が表示されます"
         },
         "mention": {
           "title": "メンション",
@@ -335,8 +335,8 @@
           "title": "サイズ拡大",
           "description": "テキストサイズの拡大表示",
           "allowLargerThanX2": {
-            "title": "x3/x4を許可",
-            "description": "無効時はx2に制限されます"
+            "title": "3倍/4倍を許可",
+            "description": "無効時は2倍に制限されます"
           }
         },
         "animation": {
@@ -344,31 +344,31 @@
           "description": "テキストアニメーション効果",
           "jelly": {
             "title": "ゼリー",
-            "description": "弾むようなゼリーアニメーション"
+            "description": "ゼリーアニメーション"
           },
           "tada": {
-            "title": "TaDa",
-            "description": "注目を集めるTaDaアニメーション"
+            "title": "じゃじゃーん",
+            "description": "じゃじゃーんアニメーション"
           },
           "jump": {
             "title": "ジャンプ",
-            "description": "跳ねるジャンプアニメーション"
+            "description": "ジャンプアニメーション"
           },
           "bounce": {
             "title": "バウンス",
-            "description": "落下して跳ね返るアニメーション"
+            "description": "跳ね返るアニメーション"
           },
           "spin": {
             "title": "回転",
-            "description": "回転するスピンアニメーション"
+            "description": "スピンアニメーション"
           },
           "shake": {
             "title": "振動",
-            "description": "テキストを振動させるアニメーション"
+            "description": "振動させるアニメーション"
           },
           "twitch": {
             "title": "痙攣",
-            "description": "テキストを痙攣させるアニメーション"
+            "description": "痙攣させるアニメーション"
           }
         },
         "rainbow": {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ChevronRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -75,7 +76,9 @@ interface NestedToggleProps {
   disabled?: boolean;
   /** Icon displayed to the left of the title. */
   icon?: LucideIcon;
-  children: React.ReactNode;
+  /** Indent children (use for 3rd-level nesting and deeper). */
+  indent?: boolean;
+  children: ReactNode;
 }
 
 export function NestedToggle({
@@ -85,8 +88,21 @@ export function NestedToggle({
   onCheckedChange,
   disabled = false,
   icon: Icon,
+  indent = false,
   children,
 }: NestedToggleProps) {
+  const [open, setOpen] = useState(checked);
+  const prevChecked = useRef(checked);
+
+  // Sync open state with checked: ON → open, OFF → close.
+  // Only reacts to actual transitions to avoid overriding manual caret toggles.
+  useEffect(() => {
+    if (checked !== prevChecked.current) {
+      setOpen(checked);
+      prevChecked.current = checked;
+    }
+  }, [checked]);
+
   return (
     <div>
       <div
@@ -107,9 +123,10 @@ export function NestedToggle({
           </div>
           <ChevronRight
             className={cn(
-              "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
-              checked && "rotate-90",
+              "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 cursor-pointer",
+              open && "rotate-90",
             )}
+            onClick={() => setOpen((prev) => !prev)}
           />
         </div>
         <div onClick={(e) => e.stopPropagation()}>
@@ -123,11 +140,13 @@ export function NestedToggle({
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-200",
-          checked ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
         )}
       >
         <div className="overflow-hidden">
-          <div className="md:ml-6 md:pl-4">{children}</div>
+          <div className={cn(indent && "ml-6 pl-4 border-l border-border", !checked && "opacity-50")}>
+            {children}
+          </div>
         </div>
       </div>
     </div>
