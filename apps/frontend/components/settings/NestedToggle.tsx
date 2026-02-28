@@ -2,10 +2,6 @@
 
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -58,6 +54,9 @@ export function ToggleRow({
 // - Clicking the switch toggles the checked state (independent of collapse).
 // - On mobile, children have no left indent to avoid cramping text.
 // - On md+ screens, children are indented for visual hierarchy.
+//
+// Uses a plain div with grid animation instead of Radix Collapsible to avoid
+// nesting issues when placed inside another Radix Collapsible.
 // ---------------------------------------------------------------------------
 
 interface NestedToggleProps {
@@ -80,7 +79,7 @@ export function NestedToggle({
   const [open, setOpen] = useState(false);
 
   return (
-    <Collapsible open={open}>
+    <div>
       <div
         className={cn(
           "flex items-center justify-between gap-4 py-3",
@@ -106,9 +105,16 @@ export function NestedToggle({
           />
         </div>
       </div>
-      <CollapsibleContent>
-        <div className="md:ml-6 md:pl-4">{children}</div>
-      </CollapsibleContent>
-    </Collapsible>
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-200",
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="md:ml-6 md:pl-4">{children}</div>
+        </div>
+      </div>
+    </div>
   );
 }
