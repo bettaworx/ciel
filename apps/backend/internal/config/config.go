@@ -56,6 +56,17 @@ type SetupConfig struct {
 	PasswordUsed bool `yaml:"password_used"`
 }
 
+// MediaEncodingConfig controls which media types use FFmpeg encoding.
+// When encoding is disabled for a type, images are validated and saved
+// in their original format with metadata stripped (no FFmpeg required).
+// Avatar and ServerIcon require encoding for crop/resize; disabling them
+// will cause those uploads to return 503 Service Unavailable.
+type MediaEncodingConfig struct {
+	Post       bool `yaml:"post"`        // Encode post images to WebP (default: true)
+	Avatar     bool `yaml:"avatar"`      // Encode avatars with crop+resize (default: true)
+	ServerIcon bool `yaml:"server_icon"` // Encode server icons with crop+resize (default: true)
+}
+
 // MediaConfig holds media upload and processing settings
 type MediaConfig struct {
 	MaxUploadSize     int                   `yaml:"max_upload_size"`    // in MiB
@@ -63,6 +74,7 @@ type MediaConfig struct {
 	MaxInputWidth     int                   `yaml:"max_input_width"`    // maximum input image width
 	MaxInputHeight    int                   `yaml:"max_input_height"`   // maximum input image height
 	MaxInputPixels    int                   `yaml:"max_input_pixels"`   // maximum total pixels
+	Encoding          MediaEncodingConfig   `yaml:"encoding"`           // per-type encoding toggles
 	Post              MediaPostConfig       `yaml:"post"`
 	Avatar            MediaAvatarConfig     `yaml:"avatar"`
 	ServerIcon        MediaServerIconConfig `yaml:"server_icon"`
@@ -286,6 +298,11 @@ func DefaultConfig() *Config {
 			MaxInputWidth:     16384,
 			MaxInputHeight:    16384,
 			MaxInputPixels:    100_000_000,
+			Encoding: MediaEncodingConfig{
+				Post:       true,
+				Avatar:     true,
+				ServerIcon: true,
+			},
 			Post: MediaPostConfig{
 				Static: MediaStaticConfig{
 					MaxSize: 2048,
