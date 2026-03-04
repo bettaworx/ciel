@@ -1,7 +1,18 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
+
+const VideoPlayer = dynamic(
+  () => import("@/components/VideoPlayer").then((mod) => mod.VideoPlayer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full bg-muted animate-pulse rounded-xl" />
+    ),
+  },
+);
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
@@ -136,8 +147,10 @@ export function PostCard({
   const avatarUrl = post.author?.avatarUrl;
   const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
   const timeAgo = formatTimeAgo(createdAt, locale);
-  const media = post.media || [];
+  const media = useMemo(() => post.media || [], [post.media]);
   const hasAuthorId = Boolean(post.author?.id);
+  const videoMedia = useMemo(() => media.find((m) => m.type === "video"), [media]);
+  const imageMedia = useMemo(() => media.filter((m) => m.type !== "video"), [media]);
 
   // Generate initials for avatar fallback
   const initials = displayName
@@ -148,29 +161,51 @@ export function PostCard({
     .slice(0, 2);
 
   const lightboxImages = useMemo(
-    () => media.map((item) => ({ src: item.url, alt: "" })),
-    [media],
+    () => imageMedia.map((item) => ({ src: item.url, alt: "" })),
+    [imageMedia],
   );
 
-  // Single image display constraints:
-  //   Aspect ratio: 3:4 (portrait) to 21:9 (landscape), clipped via object-cover
-  //   Max height: 512px on desktop (enforced via maxWidth + aspectRatio)
-  const singleImageStyle = useMemo((): React.CSSProperties | undefined => {
-    if (media.length !== 1) return undefined;
-    const m = media[0];
-    if (!m.width || !m.height || m.width <= 0 || m.height <= 0) return undefined;
-
-    const MIN_RATIO = 3 / 4;   // portrait limit
-    const MAX_RATIO = 21 / 9;  // landscape limit
-    const MAX_HEIGHT = 512;
-
-    const ratio = Math.max(MIN_RATIO, Math.min(MAX_RATIO, m.width / m.height));
-
-    return {
-      aspectRatio: `${ratio}`,
-      ...(isDesktop && { maxWidth: `${MAX_HEIGHT * ratio}px` }),
-    };
-  }, [media, isDesktop]);
+  // Calculate dimensions for single image (PC: height 512px, Mobile: full width with aspect ratio)
+  // Images are clipped to fit within 3:4 (portrait) to 21:9 (landscape) range
+  const calculateSingleImageStyle = (m: Media): React.CSSProperties => {
+    // Safeguard: If dimensions are invalid, use fallback
+    if (!m.width || !m.height || m.width <= 0 || m.height <= 0) {
+      if (isDesktop) {
+        return { height: '512px', width: '910px' }; // Default 16:9
+      }
+      return { aspectRatio: '16 / 9', width: '100%' };
+    }
+    
+    const originalRatio = m.width / m.height;
+    const minRatio = 3 / 4; // 0.75 (portrait limit)
+    const maxRatio = 21 / 9; // 2.333 (landscape limit)
+    
+    // Clip to 3:4 - 21:9 range
+    let targetRatio = originalRatio;
+    if (originalRatio < minRatio) {
+      targetRatio = minRatio;
+    } else if (originalRatio > maxRatio) {
+      targetRatio = maxRatio;
+    }
+    
+    if (isDesktop) {
+      // PC: Fixed height 512px, width calculated from aspect ratio
+      const height = 512;
+      const width = height * targetRatio;
+      
+      return {
+        height: `${height}px`,
+        width: `${width}px`,
+        maxWidth: '100%',
+      };
+    } else {
+      // Mobile: Full width, height auto from aspect ratio
+      return {
+        aspectRatio: `${targetRatio}`,
+        width: '100%',
+      };
+    }
+  };
 
   return (
     <article
@@ -227,18 +262,35 @@ export function PostCard({
             </div>
           )}
 
-          {/* Media Images */}
-          {media.length > 0 && (
+          {/* Media: Video */}
+          {videoMedia && (
+            <div className="mb-3">
+              <div
+                className="relative bg-muted overflow-hidden rounded-xl"
+                style={calculateSingleImageStyle(videoMedia)}
+              >
+                <VideoPlayer
+                  src={videoMedia.url}
+                  width={videoMedia.width}
+                  height={videoMedia.height}
+                  poster={videoMedia.thumbnailUrl}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Media: Images */}
+          {!videoMedia && imageMedia.length > 0 && (
             <>
-              {/* 1 image */}
-              {media.length === 1 && (
+              {/* 1 image: PC - 512px height, Mobile - full width */}
+              {imageMedia.length === 1 && (
                 <div className="mb-3">
                   <div
-                    className="relative w-full bg-muted overflow-hidden rounded-xl"
-                    style={singleImageStyle}
+                    className="relative bg-muted overflow-hidden rounded-xl"
+                    style={calculateSingleImageStyle(imageMedia[0])}
                   >
                     <Image
-                      src={media[0].url}
+                      src={imageMedia[0].url}
                       alt=""
                       fill
                       unoptimized
@@ -259,11 +311,11 @@ export function PostCard({
               )}
 
               {/* 2 images: 8:9 aspect ratio, side by side */}
-              {media.length === 2 && (
+              {imageMedia.length === 2 && (
                 <div className="grid grid-cols-2 gap-1 mb-3">
                   <div className="relative bg-muted aspect-[8/9] overflow-hidden">
                     <Image
-                      src={media[0].url}
+                      src={imageMedia[0].url}
                       alt=""
                       fill
                       unoptimized
@@ -282,7 +334,7 @@ export function PostCard({
                   </div>
                   <div className="relative bg-muted aspect-[8/9] overflow-hidden">
                     <Image
-                      src={media[1].url}
+                      src={imageMedia[1].url}
                       alt=""
                       fill
                       unoptimized
@@ -303,11 +355,11 @@ export function PostCard({
               )}
 
               {/* 3 images: Left auto-height, Right top/bottom 16:9 */}
-              {media.length === 3 && (
+              {imageMedia.length === 3 && (
                 <div className="grid grid-cols-2 gap-1 mb-3">
                   <div className="relative bg-muted row-span-2 overflow-hidden">
                     <Image
-                      src={media[0].url}
+                      src={imageMedia[0].url}
                       alt=""
                       fill
                       unoptimized
@@ -326,7 +378,7 @@ export function PostCard({
                   </div>
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={media[1].url}
+                      src={imageMedia[1].url}
                       alt=""
                       fill
                       unoptimized
@@ -345,7 +397,7 @@ export function PostCard({
                   </div>
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={media[2].url}
+                      src={imageMedia[2].url}
                       alt=""
                       fill
                       unoptimized
@@ -366,11 +418,11 @@ export function PostCard({
               )}
 
               {/* 4 images: 2x2 grid, all 16:9 */}
-              {media.length === 4 && (
+              {imageMedia.length === 4 && (
                 <div className="grid grid-cols-2 gap-1 mb-3">
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={media[0].url}
+                      src={imageMedia[0].url}
                       alt=""
                       fill
                       unoptimized
@@ -389,7 +441,7 @@ export function PostCard({
                   </div>
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={media[1].url}
+                      src={imageMedia[1].url}
                       alt=""
                       fill
                       unoptimized
@@ -408,7 +460,7 @@ export function PostCard({
                   </div>
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={media[2].url}
+                      src={imageMedia[2].url}
                       alt=""
                       fill
                       unoptimized
@@ -427,7 +479,7 @@ export function PostCard({
                   </div>
                   <div className="relative bg-muted aspect-video overflow-hidden">
                     <Image
-                      src={media[3].url}
+                      src={imageMedia[3].url}
                       alt=""
                       fill
                       unoptimized

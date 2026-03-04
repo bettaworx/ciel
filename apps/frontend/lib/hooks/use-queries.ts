@@ -89,6 +89,11 @@ export function useMediaLimits() {
 		avatarSize: serverInfo?.mediaLimits?.avatar?.size ?? 400,
 		serverIconStaticSize: serverInfo?.mediaLimits?.serverIcon?.static?.size ?? 512,
 		serverIconGifMaxSize: serverInfo?.mediaLimits?.serverIcon?.gif?.maxSize ?? 512,
+		// Video limits
+		videoMaxUploadSizeMB: serverInfo?.mediaLimits?.video?.maxUploadSizeMB ?? 100,
+		videoMaxUploadSizeBytes: (serverInfo?.mediaLimits?.video?.maxUploadSizeMB ?? 100) * 1024 * 1024,
+		videoMaxDurationSeconds: serverInfo?.mediaLimits?.video?.maxDurationSeconds ?? 300,
+		videoMaxSize: serverInfo?.mediaLimits?.video?.maxSize ?? 1920,
 	};
 }
 

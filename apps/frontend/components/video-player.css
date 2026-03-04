@@ -1,0 +1,312 @@
+/* ==========================================================================
+   VideoPlayer – Custom Video.js Overrides
+   Matches the Ciel app theme (oklch color system, dark/light modes).
+   ========================================================================== */
+
+/* ---- Container ---- */
+.video-js {
+  border-radius: var(--radius-xl, 14px);
+  overflow: hidden;
+  background-color: black;
+  font-family: inherit;
+}
+
+/* ---- Big Play Button (centre) ---- */
+.video-js .vjs-big-play-button {
+  /* Centred circle */
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  line-height: 64px;
+  font-size: 28px;
+  background-color: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+  top: 50%;
+  left: 50%;
+  margin-top: -32px;
+  margin-left: -32px;
+}
+
+.video-js .vjs-big-play-button:hover,
+.video-js .vjs-big-play-button:focus {
+  background-color: rgba(0, 0, 0, 0.7);
+  transform: scale(1.08);
+}
+
+/* Hide big-play when playing */
+.video-js.vjs-playing .vjs-big-play-button,
+.video-js.vjs-has-started .vjs-big-play-button {
+  display: none;
+}
+
+/* ---- Gradient overlay behind controls ---- */
+.video-js .vjs-control-bar {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.75) 0%,
+    rgba(0, 0, 0, 0.35) 60%,
+    transparent 100%
+  );
+  height: 44px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+/* ---- Controls fade behaviour ---- */
+/* Always show controls when paused */
+.video-js.vjs-paused .vjs-control-bar {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Show controls on hover when playing */
+.video-js.vjs-playing.vjs-user-inactive .vjs-control-bar {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.video-js.vjs-playing.vjs-user-active .vjs-control-bar {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Hide cursor when controls are hidden */
+.video-js.vjs-playing.vjs-user-inactive {
+  cursor: none;
+}
+
+/* ---- Shared button styles ---- */
+.video-js .vjs-control {
+  color: #fff;
+  width: 36px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-js .vjs-button > .vjs-icon-placeholder::before {
+  font-size: 18px;
+  line-height: 44px;
+}
+
+/* ---- Play / Pause ---- */
+.video-js .vjs-play-control {
+  width: 40px;
+}
+
+/* ---- Time Display ---- */
+.video-js .vjs-current-time,
+.video-js .vjs-duration,
+.video-js .vjs-time-divider {
+  display: flex !important;
+  align-items: center;
+  padding: 0;
+  min-width: auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 44px;
+}
+
+.video-js .vjs-current-time {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.video-js .vjs-time-divider {
+  width: auto;
+  min-width: 0;
+  padding: 0 1px;
+}
+
+.video-js .vjs-time-divider > div > span {
+  padding: 0;
+}
+
+.video-js .vjs-duration {
+  padding-left: 0;
+}
+
+/* ---- Progress Bar (seek) ---- */
+.video-js .vjs-progress-control {
+  flex: 1 1 0%;
+  min-width: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.video-js .vjs-progress-holder {
+  height: 4px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.25);
+  margin: 0 8px;
+  flex: 1;
+  transition: height 0.12s ease;
+}
+
+/* Expand on hover for easier seeking */
+.video-js .vjs-progress-control:hover .vjs-progress-holder {
+  height: 6px;
+  border-radius: 3px;
+}
+
+/* Played portion */
+.video-js .vjs-play-progress {
+  background-color: #fff;
+  border-radius: 2px;
+}
+
+.video-js .vjs-play-progress::before {
+  /* Seek handle */
+  content: "";
+  display: block;
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%) scale(0);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.12s ease;
+}
+
+.video-js .vjs-progress-control:hover .vjs-play-progress::before {
+  transform: translateY(-50%) scale(1);
+}
+
+/* Loaded (buffered) portion */
+.video-js .vjs-load-progress {
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.video-js .vjs-load-progress > div {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Seek hover tooltip */
+.video-js .vjs-mouse-display {
+  z-index: 1;
+}
+
+.video-js .vjs-mouse-display .vjs-time-tooltip {
+  font-size: 11px;
+  padding: 2px 6px;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+  color: #fff;
+}
+
+.video-js .vjs-play-progress .vjs-time-tooltip {
+  display: none;
+}
+
+/* ---- Volume Panel ---- */
+.video-js .vjs-volume-panel {
+  display: flex;
+  align-items: center;
+  width: 36px;
+  transition: width 0.2s ease;
+}
+
+.video-js .vjs-volume-panel.vjs-hover,
+.video-js .vjs-volume-panel:active,
+.video-js .vjs-volume-panel.vjs-slider-active {
+  width: 110px;
+}
+
+.video-js .vjs-mute-control {
+  width: 36px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-js .vjs-volume-control {
+  display: flex;
+  align-items: center;
+  width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: width 0.2s ease, opacity 0.15s ease;
+}
+
+.video-js .vjs-volume-panel.vjs-hover .vjs-volume-control,
+.video-js .vjs-volume-panel:active .vjs-volume-control,
+.video-js .vjs-volume-panel.vjs-slider-active .vjs-volume-control {
+  width: 64px;
+  opacity: 1;
+}
+
+.video-js .vjs-volume-bar {
+  height: 4px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.25);
+  margin: 0 4px;
+}
+
+.video-js .vjs-volume-level {
+  background-color: #fff;
+  border-radius: 2px;
+}
+
+.video-js .vjs-volume-level::before {
+  /* Volume handle */
+  content: "";
+  display: block;
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ---- Fullscreen ---- */
+.video-js .vjs-fullscreen-control {
+  width: 36px;
+}
+
+/* ---- Fullscreen mode adjustments ---- */
+.video-js.vjs-fullscreen {
+  border-radius: 0;
+}
+
+/* ---- Loading Spinner ---- */
+.video-js .vjs-loading-spinner {
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  border-top-color: #fff;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+}
+
+/* ---- Poster Image ---- */
+.video-js .vjs-poster {
+  background-size: cover;
+}
+
+/* ---- Error display ---- */
+.video-js .vjs-error-display .vjs-modal-dialog-content {
+  font-size: 13px;
+  padding: 16px;
+}
+
+/* ---- Remove text shadows (flatter look) ---- */
+.video-js .vjs-control-bar,
+.video-js .vjs-big-play-button,
+.video-js .vjs-menu-button-inline .vjs-menu {
+  text-shadow: none;
+}
