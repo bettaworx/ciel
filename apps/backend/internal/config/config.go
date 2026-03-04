@@ -56,16 +56,31 @@ type SetupConfig struct {
 	PasswordUsed bool `yaml:"password_used"`
 }
 
+// MediaEncodingConfig controls which media types use FFmpeg encoding.
+// When encoding is disabled for a type, images are validated and saved
+// in their original format with metadata stripped (no FFmpeg required).
+// Avatar and ServerIcon require encoding for crop/resize; disabling them
+// will cause those uploads to return 503 Service Unavailable.
+// Video encoding is always required and cannot be disabled.
+type MediaEncodingConfig struct {
+	Post       bool `yaml:"post"`        // Encode post images to WebP (default: true)
+	Avatar     bool `yaml:"avatar"`      // Encode avatars with crop+resize (default: true)
+	ServerIcon bool `yaml:"server_icon"` // Encode server icons with crop+resize (default: true)
+	Video      bool `yaml:"video"`       // Encode videos to MP4 (default: true, required)
+}
+
 // MediaConfig holds media upload and processing settings
 type MediaConfig struct {
-	MaxUploadSize     int                   `yaml:"max_upload_size"`    // in MiB
+	MaxUploadSize     int                   `yaml:"max_upload_size"`    // in MiB (for images)
 	AllowedExtensions []string              `yaml:"allowed_extensions"` // without leading dot
 	MaxInputWidth     int                   `yaml:"max_input_width"`    // maximum input image width
 	MaxInputHeight    int                   `yaml:"max_input_height"`   // maximum input image height
 	MaxInputPixels    int                   `yaml:"max_input_pixels"`   // maximum total pixels
+	Encoding          MediaEncodingConfig   `yaml:"encoding"`           // per-type encoding toggles
 	Post              MediaPostConfig       `yaml:"post"`
 	Avatar            MediaAvatarConfig     `yaml:"avatar"`
 	ServerIcon        MediaServerIconConfig `yaml:"server_icon"`
+	Video             MediaVideoConfig      `yaml:"video"`
 }
 
 // MediaPostConfig holds settings for post media uploads
@@ -122,25 +137,52 @@ type MediaServerIconGifConfig struct {
 	Quality int `yaml:"quality"`  // WebP quality (0-100)
 }
 
+// MediaVideoConfig holds settings for video uploads
+type MediaVideoConfig struct {
+	MaxUploadSize int `yaml:"max_upload_size"` // maximum video file size in MiB
+	MaxDuration   int `yaml:"max_duration"`    // maximum video duration in seconds
+	MaxSize       int `yaml:"max_size"`        // maximum output size in pixels (longest edge)
+	CRF           int `yaml:"crf"`             // H.264 CRF value (0-51, lower = better quality)
+}
+
 // MaxUploadBytes returns max upload size in bytes
 func (m *MediaConfig) MaxUploadBytes() int64 {
 	return int64(m.MaxUploadSize) << 20 // MiB to bytes
 }
 
+// MaxUploadBytesForType returns max upload size in bytes for the given media type
+func (m *MediaConfig) MaxUploadBytesForType(mediaType string) int64 {
+	if mediaType == "video" {
+		return int64(m.Video.MaxUploadSize) << 20 // MiB to bytes
+	}
+	return int64(m.MaxUploadSize) << 20 // MiB to bytes (for images)
+}
+
 // IsExtensionAllowed checks if file extension is allowed
-// Only known image formats (png, jpg, jpeg, webp, gif) are supported
+// Known image formats: png, jpg, jpeg, webp, gif
+// Known video formats: mp4, webm, mov, avi, mkv, m4v, 3gp, ogv
 func (m *MediaConfig) IsExtensionAllowed(ext string) bool {
 	// Remove leading dot if present
 	ext = strings.TrimPrefix(ext, ".")
 	ext = strings.ToLower(ext)
 
-	// Only allow known image formats for security
+	// Only allow known formats for security
 	knownFormats := map[string]bool{
+		// Images
 		"png":  true,
 		"jpg":  true,
 		"jpeg": true,
 		"webp": true,
 		"gif":  true,
+		// Videos
+		"mp4":  true,
+		"webm": true,
+		"mov":  true,
+		"avi":  true,
+		"mkv":  true,
+		"m4v":  true,
+		"3gp":  true,
+		"ogv":  true,
 	}
 
 	// Check if extension is in allowed list AND is a known format
@@ -151,6 +193,25 @@ func (m *MediaConfig) IsExtensionAllowed(ext string) bool {
 		}
 	}
 	return false
+}
+
+// IsVideoExtension checks if the extension is a video format
+func (m *MediaConfig) IsVideoExtension(ext string) bool {
+	ext = strings.TrimPrefix(ext, ".")
+	ext = strings.ToLower(ext)
+
+	videoExts := map[string]bool{
+		"mp4":  true,
+		"webm": true,
+		"mov":  true,
+		"avi":  true,
+		"mkv":  true,
+		"m4v":  true,
+		"3gp":  true,
+		"ogv":  true,
+	}
+
+	return videoExts[ext]
 }
 
 // ClampQuality ensures all quality values are in 0-100 range
@@ -206,6 +267,26 @@ func (m *MediaConfig) Validate() error {
 	}
 	if m.ServerIcon.Gif.MaxSize <= 0 {
 		return fmt.Errorf("media.server_icon.gif.max_size must be positive, got %d", m.ServerIcon.Gif.MaxSize)
+	}
+
+	// Validate video settings
+	if m.Video.MaxUploadSize <= 0 {
+		return fmt.Errorf("media.video.max_upload_size must be positive, got %d", m.Video.MaxUploadSize)
+	}
+	if m.Video.MaxUploadSize > 500 {
+		return fmt.Errorf("media.video.max_upload_size must be <= 500 MiB, got %d", m.Video.MaxUploadSize)
+	}
+	if m.Video.MaxDuration <= 0 {
+		return fmt.Errorf("media.video.max_duration must be positive, got %d", m.Video.MaxDuration)
+	}
+	if m.Video.MaxDuration > 3600 {
+		return fmt.Errorf("media.video.max_duration must be <= 3600 seconds (1 hour), got %d", m.Video.MaxDuration)
+	}
+	if m.Video.MaxSize <= 0 {
+		return fmt.Errorf("media.video.max_size must be positive, got %d", m.Video.MaxSize)
+	}
+	if m.Video.CRF < 0 || m.Video.CRF > 51 {
+		return fmt.Errorf("media.video.crf must be in range 0-51, got %d", m.Video.CRF)
 	}
 
 	// Quality values are auto-clamped, no validation needed
@@ -282,10 +363,16 @@ func DefaultConfig() *Config {
 		},
 		Media: MediaConfig{
 			MaxUploadSize:     15,
-			AllowedExtensions: []string{"png", "jpg", "jpeg", "webp", "gif"},
+			AllowedExtensions: []string{"png", "jpg", "jpeg", "webp", "gif", "mp4", "webm", "mov", "avi", "mkv", "m4v", "3gp", "ogv"},
 			MaxInputWidth:     16384,
 			MaxInputHeight:    16384,
 			MaxInputPixels:    100_000_000,
+			Encoding: MediaEncodingConfig{
+				Post:       true,
+				Avatar:     true,
+				ServerIcon: true,
+				Video:      true,
+			},
 			Post: MediaPostConfig{
 				Static: MediaStaticConfig{
 					MaxSize: 2048,
@@ -315,6 +402,12 @@ func DefaultConfig() *Config {
 					MaxSize: 512,
 					Quality: 50,
 				},
+			},
+			Video: MediaVideoConfig{
+				MaxUploadSize: 100,  // 100 MiB
+				MaxDuration:   300,  // 5 minutes
+				MaxSize:       1920, // 1920px longest edge
+				CRF:           23,   // H.264 CRF (18-28 is good range, 23 is default)
 			},
 		},
 	}
