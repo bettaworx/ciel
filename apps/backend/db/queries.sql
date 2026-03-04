@@ -193,19 +193,19 @@ WHERE id = $1
 RETURNING id, deleted_at;
 
 -- name: CreateMedia :one
-INSERT INTO media (id, user_id, type, ext, width, height)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, type, ext, width, height, created_at;
+INSERT INTO media (id, user_id, type, ext, width, height, duration)
+VALUES ($1, $2, $3, $4, $5, $6, sqlc.narg('duration'))
+RETURNING id, user_id, type, ext, width, height, duration, created_at;
 
 -- name: CountOwnedMediaByIDs :one
 SELECT COUNT(*)::int
 FROM media
 WHERE user_id = $1
 	AND id = ANY($2::uuid[])
-	AND type = 'image';
+	AND type IN ('image', 'video');
 
 -- name: GetMediaByID :one
-SELECT id, user_id, type, ext, width, height, created_at
+SELECT id, user_id, type, ext, width, height, duration, created_at
 FROM media
 WHERE id = $1;
 
@@ -240,12 +240,13 @@ SELECT
 	m.ext,
 	m.width,
 	m.height,
+	m.duration,
 	m.created_at,
 	pm.sort_order
 FROM post_media pm
 JOIN media m ON m.id = pm.media_id
 WHERE pm.post_id = $1
-	AND m.type = 'image'
+	AND m.type IN ('image', 'video')
 ORDER BY pm.sort_order ASC, m.created_at ASC, m.id ASC
 LIMIT 4;
 
@@ -258,12 +259,13 @@ SELECT
 	m.ext,
 	m.width,
 	m.height,
+	m.duration,
 	m.created_at,
 	pm.sort_order
 FROM post_media pm
 JOIN media m ON m.id = pm.media_id
 WHERE pm.post_id = ANY($1::uuid[])
-	AND m.type = 'image'
+	AND m.type IN ('image', 'video')
 ORDER BY pm.post_id ASC, pm.sort_order ASC, m.created_at ASC, m.id ASC;
 
 -- name: ListTimelinePosts :many
@@ -978,7 +980,7 @@ WHERE id = $1;
 -- ==================== Admin Media Management ====================
 
 -- name: AdminListMedia :many
-SELECT m.id, m.user_id, m.type, m.ext, m.width, m.height, m.created_at,
+SELECT m.id, m.user_id, m.type, m.ext, m.width, m.height, m.duration, m.created_at,
        m.deleted_at, m.deleted_by, m.deletion_reason, m.phash,
        u.id as uploader_id, u.username as uploader_username,
        (SELECT COUNT(*) FROM post_media WHERE media_id = m.id) as used_in_posts_count
