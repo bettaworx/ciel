@@ -113,6 +113,22 @@ func (m *Manager) load() error {
 		defaultCfg := DefaultConfig()
 		cfg.Media = defaultCfg.Media
 	} else {
+		// Apply encoding defaults if the encoding section is absent from YAML.
+		// Because bool zero value is false, we need a presence check to distinguish
+		// "not set" (should default to true) from "explicitly set to false".
+		var presence struct {
+			Media struct {
+				Encoding *MediaEncodingConfig `yaml:"encoding"`
+			} `yaml:"media"`
+		}
+		if err := yaml.Unmarshal(data, &presence); err == nil {
+			if presence.Media.Encoding == nil {
+				slog.Info("media encoding config not found, using defaults (all enabled)")
+				defaultCfg := DefaultConfig()
+				cfg.Media.Encoding = defaultCfg.Media.Encoding
+			}
+		}
+
 		// Clamp quality values to 0-100 range and log warnings
 		original := cfg.Media
 		cfg.Media.ClampQuality()

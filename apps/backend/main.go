@@ -353,6 +353,9 @@ func main() {
 	// Public media routes (authentication bypassed in OptionalAuth middleware)
 	r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image.webp", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image.jpg", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image.jpeg", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image.gif", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
 

@@ -89,9 +89,6 @@ func (s *MediaService) uploadFromRequest(w http.ResponseWriter, r *http.Request,
 	if s.store == nil {
 		return api.Media{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
-	if s.ffmpegPath == "" || s.ffprobePath == "" {
-		return api.Media{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "ffmpeg/ffprobe not available")
-	}
 	if strings.TrimSpace(s.mediaDir) == "" {
 		return api.Media{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "media storage not configured")
 	}
@@ -203,8 +200,8 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	// Currently we store WebP only.
-	w.Header().Set("Content-Type", "image/webp")
+	// Set Content-Type based on stored extension.
+	w.Header().Set("Content-Type", mimeForExt(ext))
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	_, _ = io.Copy(w, f)
 }
@@ -234,18 +231,132 @@ func (s *MediaService) DeleteMedia(ctx context.Context, userID uuid.UUID, mediaI
 	return nil
 }
 
+// requireEncoding verifies that FFmpeg/FFprobe are available.
+// Call this before any code path that needs encoding (convert/crop/resize).
+func (s *MediaService) requireEncoding() error {
+	if s.ffmpegPath == "" || s.ffprobePath == "" {
+		return NewError(http.StatusServiceUnavailable, "service_unavailable", "ffmpeg/ffprobe not available")
+	}
+	return nil
+}
+
+// mimeForExt returns the Content-Type for a stored image extension.
+func mimeForExt(ext string) string {
+	ext = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(ext)), ".")
+	switch ext {
+	case "jpeg", "jpg":
+		return "image/jpeg"
+	case "png":
+		return "image/png"
+	case "gif":
+		return "image/gif"
+	case "webp":
+		return "image/webp"
+	default:
+		return "application/octet-stream"
+	}
+}
+
 func (s *MediaService) uploadImage(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
-	// Check if the file is a GIF - use animated WebP conversion
-	ext := strings.ToLower(filepath.Ext(header.Filename))
-	if ext == ".gif" {
-		return s.uploadImageWithOptions(ctx, user, src, header, "image", s.convertToAnimatedWebP, 0)
+	if s.cfg.Encoding.Post {
+		// Encoding enabled — FFmpeg path (convert to WebP).
+		if err := s.requireEncoding(); err != nil {
+			return api.Media{}, err
+		}
+		ext := strings.ToLower(filepath.Ext(header.Filename))
+		if ext == ".gif" {
+			return s.uploadImageWithOptions(ctx, user, src, header, "image", s.convertToAnimatedWebP, 0)
+		}
+		return s.uploadImageWithOptions(ctx, user, src, header, "image", s.convertToWebP, 0)
 	}
 
-	// For static images (PNG/JPG/WebP), use static WebP conversion
-	return s.uploadImageWithOptions(ctx, user, src, header, "image", s.convertToWebP, 0)
+	// Encoding disabled — passthrough path (validate, strip metadata, save original format).
+	return s.uploadImagePassthrough(ctx, user, src, header)
+}
+
+// uploadImagePassthrough validates an image with pure Go decoders, strips metadata
+// at the byte level, and saves the file in its original format (no FFmpeg needed).
+//
+// SECURITY: The image is fully decoded (all pixel data validated) before saving.
+// Metadata (EXIF/GPS/XMP/IPTC/ICC) is stripped at the byte level without
+// re-encoding, preserving original quality exactly.
+func (s *MediaService) uploadImagePassthrough(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
+	// Validate file metadata (filename, extension, MIME).
+	_, declaredCT, ext, err := s.validateUploadMetadata(header)
+	if err != nil {
+		return api.Media{}, err
+	}
+
+	// Write upload to temporary file with content validation (MIME sniffing).
+	inPath, totalSize, err := s.writeUploadToTemp(src, ext, declaredCT)
+	if err != nil {
+		return api.Media{}, err
+	}
+	defer os.Remove(inPath)
+
+	// Verify file size.
+	if totalSize > s.cfg.MaxUploadBytes() {
+		return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
+	}
+
+	// Full image validation using Go decoders (replaces ffprobe).
+	info, err := validateImageFile(inPath, s.cfg)
+	if err != nil {
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "invalid image")
+	}
+
+	// Determine storage extension from the decoded format.
+	storeExt := formatToExt(info.Format)
+
+	// Create output directory.
+	id := uuid.New()
+	outDir := filepath.Join(s.mediaDir, id.String())
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return api.Media{}, err
+	}
+	cleanupOut := func() { _ = os.RemoveAll(outDir) }
+
+	// Sanitize (strip metadata) and save in original format.
+	outPath := filepath.Join(outDir, "image."+storeExt)
+	if err := sanitizeImage(inPath, outPath, info.Format); err != nil {
+		cleanupOut()
+		slog.Error("image sanitization failed", "error", err, "format", info.Format)
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "failed to process image")
+	}
+
+	// Create database record with original dimensions and format.
+	row, err := s.store.Q.CreateMedia(ctx, sqlc.CreateMediaParams{
+		ID:     id,
+		UserID: user.ID,
+		Type:   "image",
+		Ext:    storeExt,
+		Width:  int32(info.Width),
+		Height: int32(info.Height),
+	})
+	if err != nil {
+		cleanupOut()
+		return api.Media{}, err
+	}
+
+	return api.Media{
+		Id:        row.ID,
+		Type:      api.MediaType("image"),
+		Url:       mediaImageURL(row.ID, row.Ext),
+		Width:     int(row.Width),
+		Height:    int(row.Height),
+		CreatedAt: row.CreatedAt,
+	}, nil
 }
 
 func (s *MediaService) uploadAvatar(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
+	// Avatars require encoding (crop + resize) — reject if disabled.
+	if !s.cfg.Encoding.Avatar {
+		return api.Media{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "avatar encoding is disabled")
+	}
+	if err := s.requireEncoding(); err != nil {
+		return api.Media{}, err
+	}
+
 	// Check if the file is a GIF - use animated WebP conversion with square crop
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	if ext == ".gif" {
@@ -257,6 +368,14 @@ func (s *MediaService) uploadAvatar(ctx context.Context, user auth.User, src mul
 }
 
 func (s *MediaService) uploadServerIcon(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
+	// Server icons require encoding (crop + resize) — reject if disabled.
+	if !s.cfg.Encoding.ServerIcon {
+		return api.Media{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "server icon encoding is disabled")
+	}
+	if err := s.requireEncoding(); err != nil {
+		return api.Media{}, err
+	}
+
 	// Validate file metadata
 	_, declaredCT, ext, err := s.validateUploadMetadata(header)
 	if err != nil {
@@ -294,9 +413,9 @@ func (s *MediaService) uploadImageWithOptions(ctx context.Context, user auth.Use
 		return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
 	}
 
-	// Validate image dimensions
-	if err := s.validateImageDimensions(ctx, inPath); err != nil {
-		return api.Media{}, err
+	// Validate image using pure Go decoders (replaces ffprobe-based validation).
+	if _, err := validateImageFile(inPath, s.cfg); err != nil {
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "invalid image")
 	}
 
 	// Convert, save, and create database record
@@ -525,32 +644,6 @@ func (s *MediaService) extractFirstFrameStatic(ctx context.Context, inPath, outP
 	return nil
 }
 
-// validateImageDimensions validates image dimensions using ffprobe
-//
-// SECURITY: These limits prevent:
-// - Memory exhaustion attacks (extremely large pixel counts)
-// - Processing timeout/DoS attacks (computationally expensive operations on huge images)
-// - ffmpeg exploitation via malformed image dimensions
-//
-// Valid images exceeding old limits (4096x4096, 12MP) will be automatically resized:
-// - Static images (PNG/JPG/WebP): maxOutputEdgePx (2048px)
-// - Animated GIFs: maxGifOutputEdgePx (1024px)
-// Aspect ratio is always preserved.
-func (s *MediaService) validateImageDimensions(ctx context.Context, imagePath string) error {
-	w, h, err := s.probeDimensions(ctx, imagePath)
-	if err != nil {
-		return NewError(http.StatusBadRequest, "invalid_request", "invalid image")
-	}
-	if w < 1 || h < 1 {
-		return NewError(http.StatusBadRequest, "invalid_request", "invalid image")
-	}
-	// Reject only extremely large images to prevent resource exhaustion
-	if w > s.cfg.MaxInputWidth || h > s.cfg.MaxInputHeight || (w*h) > s.cfg.MaxInputPixels {
-		return NewError(http.StatusBadRequest, "invalid_request", "image too large")
-	}
-	return nil
-}
-
 // convertAndSaveImage converts the image, saves it, and creates a database record
 func (s *MediaService) convertAndSaveImage(ctx context.Context, user auth.User, inPath, mediaType string, convert imageConvertFunc, expectedSize int) (api.Media, error) {
 	id := uuid.New()
@@ -637,9 +730,9 @@ func (s *MediaService) uploadServerIconWithBothVersions(ctx context.Context, use
 		return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
 	}
 
-	// Validate image dimensions
-	if err := s.validateImageDimensions(ctx, inPath); err != nil {
-		return api.Media{}, err
+	// Validate image using pure Go decoders (replaces ffprobe-based validation).
+	if _, err := validateImageFile(inPath, s.cfg); err != nil {
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "invalid image")
 	}
 
 	// Generate UUID and create output directory
