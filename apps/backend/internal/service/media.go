@@ -124,6 +124,7 @@ func (s *MediaService) uploadFromRequest(w http.ResponseWriter, r *http.Request,
 		if errors.As(err, &mbe) {
 			return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
 		}
+		slog.Warn("multipart form parse failed", "error", err, "content_type", r.Header.Get("Content-Type"), "content_length", r.ContentLength)
 		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "invalid multipart form")
 	}
 
