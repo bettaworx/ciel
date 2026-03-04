@@ -575,7 +575,7 @@ export function VideoPlayer({
           </button>
 
           {/* Time */}
-          <div className="text-white text-xs font-mono tabular-nums px-2 select-none">
+          <div className="text-white text-xs tabular-nums px-2 select-none">
             {formatTime(currentTime)} / {formatTime(duration)}
           </div>
 
