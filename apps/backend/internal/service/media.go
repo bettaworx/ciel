@@ -3,7 +3,9 @@ package service
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -28,19 +30,39 @@ import (
 
 // expectedMimeByExt maps file extensions to their expected MIME types
 var expectedMimeByExt = map[string]string{
+	// Images
 	".png":  "image/png",
 	".jpg":  "image/jpeg",
 	".jpeg": "image/jpeg",
 	".webp": "image/webp",
 	".gif":  "image/gif",
+	// Videos
+	".mp4":  "video/mp4",
+	".webm": "video/webm",
+	".mov":  "video/quicktime",
+	".avi":  "video/x-msvideo",
+	".mkv":  "video/x-matroska",
+	".m4v":  "video/x-m4v",
+	".3gp":  "video/3gpp",
+	".ogv":  "video/ogg",
 }
 
 // allowedMIMESniff contains MIME types allowed after content sniffing
 var allowedMIMESniff = map[string]struct{}{
+	// Images
 	"image/png":  {},
 	"image/jpeg": {},
 	"image/webp": {},
 	"image/gif":  {},
+	// Videos
+	"video/mp4":        {},
+	"video/webm":       {},
+	"video/quicktime":  {},
+	"video/x-msvideo":  {},
+	"video/x-matroska": {},
+	"video/x-m4v":      {},
+	"video/3gpp":       {},
+	"video/ogg":        {},
 }
 
 type MediaService struct {
@@ -244,6 +266,7 @@ func (s *MediaService) requireEncoding() error {
 func mimeForExt(ext string) string {
 	ext = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(ext)), ".")
 	switch ext {
+	// Images
 	case "jpeg", "jpg":
 		return "image/jpeg"
 	case "png":
@@ -252,18 +275,41 @@ func mimeForExt(ext string) string {
 		return "image/gif"
 	case "webp":
 		return "image/webp"
+	// Videos
+	case "mp4":
+		return "video/mp4"
+	case "webm":
+		return "video/webm"
+	case "mov":
+		return "video/quicktime"
+	case "avi":
+		return "video/x-msvideo"
+	case "mkv":
+		return "video/x-matroska"
+	case "m4v":
+		return "video/x-m4v"
+	case "3gp":
+		return "video/3gpp"
+	case "ogv":
+		return "video/ogg"
 	default:
 		return "application/octet-stream"
 	}
 }
 
 func (s *MediaService) uploadImage(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+
+	// Route video uploads to video handler
+	if s.cfg.IsVideoExtension(ext) {
+		return s.uploadVideo(ctx, user, src, header)
+	}
+
 	if s.cfg.Encoding.Post {
 		// Encoding enabled — FFmpeg path (convert to WebP).
 		if err := s.requireEncoding(); err != nil {
 			return api.Media{}, err
 		}
-		ext := strings.ToLower(filepath.Ext(header.Filename))
 		if ext == ".gif" {
 			return s.uploadImageWithOptions(ctx, user, src, header, "image", s.convertToAnimatedWebP, 0)
 		}
@@ -345,6 +391,106 @@ func (s *MediaService) uploadImagePassthrough(ctx context.Context, user auth.Use
 		Width:     int(row.Width),
 		Height:    int(row.Height),
 		CreatedAt: row.CreatedAt,
+	}, nil
+}
+
+// uploadVideo validates and processes video uploads, converting to MP4 (H.264+AAC)
+// and generating a WebP thumbnail from the first frame.
+func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
+	// Video encoding is always required
+	if !s.cfg.Encoding.Video {
+		return api.Media{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "video encoding is disabled")
+	}
+	if err := s.requireEncoding(); err != nil {
+		return api.Media{}, err
+	}
+
+	// Validate file metadata (filename, extension, MIME).
+	_, declaredCT, ext, err := s.validateUploadMetadata(header)
+	if err != nil {
+		return api.Media{}, err
+	}
+
+	// Write upload to temporary file with content validation (MIME sniffing).
+	inPath, totalSize, err := s.writeUploadToTemp(src, ext, declaredCT)
+	if err != nil {
+		return api.Media{}, err
+	}
+	defer os.Remove(inPath)
+
+	// Verify file size (use video-specific limit)
+	if totalSize > s.cfg.MaxUploadBytesForType("video") {
+		return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "video file too large")
+	}
+
+	// Validate video file (streams, duration, dimensions)
+	videoInfo, err := s.validateVideoFile(ctx, inPath)
+	if err != nil {
+		return api.Media{}, err
+	}
+
+	// Check duration limit
+	if videoInfo.Duration > float64(s.cfg.Video.MaxDuration) {
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request",
+			fmt.Sprintf("video duration exceeds maximum of %d seconds", s.cfg.Video.MaxDuration))
+	}
+
+	// Create output directory
+	id := uuid.New()
+	outDir := filepath.Join(s.mediaDir, id.String())
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return api.Media{}, err
+	}
+	cleanupOut := func() { _ = os.RemoveAll(outDir) }
+
+	// Convert to MP4 (H.264 + AAC)
+	videoPath := filepath.Join(outDir, "video.mp4")
+	outputWidth, outputHeight, err := s.convertToMP4(ctx, inPath, videoPath, videoInfo)
+	if err != nil {
+		cleanupOut()
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "video conversion failed")
+	}
+
+	// Generate thumbnail from first frame
+	thumbnailPath := filepath.Join(outDir, "thumbnail.webp")
+	if err := s.generateThumbnail(ctx, videoPath, thumbnailPath); err != nil {
+		cleanupOut()
+		return api.Media{}, NewError(http.StatusInternalServerError, "internal_error", "thumbnail generation failed")
+	}
+
+	// Save to database
+	duration := sql.NullFloat64{Float64: videoInfo.Duration, Valid: true}
+	row, err := s.store.Q.CreateMedia(ctx, sqlc.CreateMediaParams{
+		ID:       id,
+		UserID:   user.ID,
+		Type:     "video",
+		Ext:      "mp4",
+		Width:    int32(outputWidth),
+		Height:   int32(outputHeight),
+		Duration: duration,
+	})
+	if err != nil {
+		cleanupOut()
+		return api.Media{}, err
+	}
+
+	durationPtr := (*float32)(nil)
+	if row.Duration.Valid {
+		f32 := float32(row.Duration.Float64)
+		durationPtr = &f32
+	}
+
+	thumbnailURL := mediaThumbnailURL(row.ID)
+
+	return api.Media{
+		Id:           row.ID,
+		Type:         api.MediaType("video"),
+		Url:          mediaVideoURL(row.ID, row.Ext),
+		Width:        int(row.Width),
+		Height:       int(row.Height),
+		Duration:     durationPtr,
+		ThumbnailUrl: &thumbnailURL,
+		CreatedAt:    row.CreatedAt,
 	}, nil
 }
 
@@ -1107,5 +1253,188 @@ func (s *MediaService) convertToAnimatedWebP(ctx context.Context, inPath, outPat
 		slog.Error("ffmpeg animated GIF conversion failed", "error", err, "stderr", msg, "command", cmdStr)
 		return fmt.Errorf("animated media conversion failed")
 	}
+	return nil
+}
+
+// videoInfo holds metadata about a video file
+type videoInfo struct {
+	Duration float64 // duration in seconds
+	Width    int
+	Height   int
+	HasVideo bool
+	HasAudio bool
+}
+
+// validateVideoFile validates a video file using ffprobe, checking streams, duration, and dimensions
+func (s *MediaService) validateVideoFile(ctx context.Context, inPath string) (*videoInfo, error) {
+	// Use ffprobe to get video metadata in JSON format
+	args := []string{
+		"-v", "error",
+		"-select_streams", "v:0",
+		"-show_entries", "stream=width,height,duration,codec_type",
+		"-show_entries", "format=duration",
+		"-of", "json",
+		inPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffprobePath, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		slog.Error("ffprobe validation failed", "error", err, "stderr", msg)
+		return nil, fmt.Errorf("video validation failed")
+	}
+
+	// Parse ffprobe JSON output
+	var probeResult struct {
+		Streams []struct {
+			CodecType string `json:"codec_type"`
+			Width     int    `json:"width"`
+			Height    int    `json:"height"`
+			Duration  string `json:"duration"`
+		} `json:"streams"`
+		Format struct {
+			Duration string `json:"duration"`
+		} `json:"format"`
+	}
+
+	if err := json.Unmarshal(stdout.Bytes(), &probeResult); err != nil {
+		return nil, fmt.Errorf("failed to parse ffprobe output")
+	}
+
+	// Extract video info
+	info := &videoInfo{}
+
+	for _, stream := range probeResult.Streams {
+		if stream.CodecType == "video" {
+			info.HasVideo = true
+			info.Width = stream.Width
+			info.Height = stream.Height
+		} else if stream.CodecType == "audio" {
+			info.HasAudio = true
+		}
+	}
+
+	if !info.HasVideo {
+		return nil, fmt.Errorf("no video stream found")
+	}
+
+	// Parse duration (try stream duration first, fall back to format duration)
+	durationStr := ""
+	if len(probeResult.Streams) > 0 && probeResult.Streams[0].Duration != "" {
+		durationStr = probeResult.Streams[0].Duration
+	} else if probeResult.Format.Duration != "" {
+		durationStr = probeResult.Format.Duration
+	}
+
+	if durationStr != "" {
+		duration, err := strconv.ParseFloat(durationStr, 64)
+		if err == nil {
+			info.Duration = duration
+		}
+	}
+
+	// Validate dimensions
+	if info.Width <= 0 || info.Height <= 0 {
+		return nil, fmt.Errorf("invalid video dimensions: %dx%d", info.Width, info.Height)
+	}
+	if info.Width > s.cfg.MaxInputWidth || info.Height > s.cfg.MaxInputHeight {
+		return nil, fmt.Errorf("video dimensions exceed maximum: %dx%d", info.Width, info.Height)
+	}
+
+	totalPixels := info.Width * info.Height
+	if totalPixels > s.cfg.MaxInputPixels {
+		return nil, fmt.Errorf("video pixel count exceeds maximum: %d", totalPixels)
+	}
+
+	return info, nil
+}
+
+// convertToMP4 converts a video to MP4 (H.264 + AAC) with resizing if needed
+// Returns the output width and height after conversion
+func (s *MediaService) convertToMP4(ctx context.Context, inPath, outPath string, info *videoInfo) (int, int, error) {
+	// Calculate output dimensions (preserve aspect ratio, constrain to maxSize)
+	maxSize := s.cfg.Video.MaxSize
+	outputWidth := info.Width
+	outputHeight := info.Height
+
+	if outputWidth > maxSize || outputHeight > maxSize {
+		if outputWidth > outputHeight {
+			outputHeight = (outputHeight * maxSize) / outputWidth
+			outputWidth = maxSize
+		} else {
+			outputWidth = (outputWidth * maxSize) / outputHeight
+			outputHeight = maxSize
+		}
+		// Ensure dimensions are even (required for H.264)
+		outputWidth = (outputWidth / 2) * 2
+		outputHeight = (outputHeight / 2) * 2
+	}
+
+	// Build ffmpeg command
+	args := []string{
+		"-i", inPath,
+		"-c:v", "libx264", // H.264 video codec
+		"-preset", "medium", // Encoding preset (balance speed/quality)
+		"-crf", strconv.Itoa(s.cfg.Video.CRF), // Constant Rate Factor (quality)
+		"-pix_fmt", "yuv420p", // Pixel format (widest compatibility)
+		"-movflags", "+faststart", // Enable fast start for progressive playback
+		"-vf", fmt.Sprintf("scale=%d:%d", outputWidth, outputHeight), // Resize
+		"-map_metadata", "-1", // Strip metadata
+		"-map_chapters", "-1", // Strip chapters
+	}
+
+	// Handle audio: convert to AAC if present, otherwise no audio
+	if info.HasAudio {
+		args = append(args,
+			"-c:a", "aac", // AAC audio codec
+			"-b:a", "128k", // Audio bitrate
+		)
+	} else {
+		args = append(args, "-an") // No audio
+	}
+
+	args = append(args, outPath)
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
+		slog.Error("ffmpeg video conversion failed", "error", err, "stderr", msg, "command", cmdStr)
+		return 0, 0, fmt.Errorf("video conversion failed")
+	}
+
+	return outputWidth, outputHeight, nil
+}
+
+// generateThumbnail generates a WebP thumbnail from the first frame of a video
+func (s *MediaService) generateThumbnail(ctx context.Context, videoPath, thumbnailPath string) error {
+	// Extract first frame and convert to WebP
+	args := []string{
+		"-i", videoPath,
+		"-vframes", "1", // Extract only first frame
+		"-vf", "scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease", // Resize to max 640px
+		"-q:v", "75", // WebP quality
+		"-map_metadata", "-1", // Strip metadata
+		thumbnailPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
+		slog.Error("ffmpeg thumbnail generation failed", "error", err, "stderr", msg, "command", cmdStr)
+		return fmt.Errorf("thumbnail generation failed")
+	}
+
 	return nil
 }
