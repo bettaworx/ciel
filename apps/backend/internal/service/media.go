@@ -222,10 +222,183 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	// Set Content-Type based on stored extension.
+	// Get file info for http.ServeContent (enables Range Request support)
+	stat, err := f.Stat()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Set Content-Type and caching headers
 	w.Header().Set("Content-Type", mimeForExt(ext))
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-	_, _ = io.Copy(w, f)
+
+	// Use http.ServeContent for Range Request support (efficient seeking)
+	http.ServeContent(w, r, filename, stat.ModTime(), f)
+}
+
+// ServeVideo serves a video file with Range Request support for progressive playback
+func (s *MediaService) ServeVideo(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "mediaId")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Check if media exists and get its metadata
+	if s.store == nil {
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	row, err := s.store.Q.GetMediaByID(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Verify it's a video
+	if row.Type != "video" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Access control (same logic as ServeImage)
+	cfg := config.GetGlobalConfig()
+	var serverIconMediaID uuid.NullUUID
+	if cfg != nil && cfg.Server.IconMediaID != nil {
+		serverIconMediaID = uuid.NullUUID{
+			UUID:  *cfg.Server.IconMediaID,
+			Valid: true,
+		}
+	}
+
+	isPublic, err := s.store.Q.IsMediaPublic(r.Context(), sqlc.IsMediaPublicParams{
+		MediaID:           id,
+		ServerIconMediaID: serverIconMediaID,
+	})
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if !isPublic.Valid || !isPublic.Bool {
+		user, ok := auth.UserFromContext(r.Context())
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if user.ID != row.UserID {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+	}
+
+	// Serve video file
+	filename := "video." + row.Ext
+	p := filepath.Join(s.mediaDir, id.String(), filename)
+	f, err := os.Open(p)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Set Content-Type and caching headers
+	w.Header().Set("Content-Type", mimeForExt(row.Ext))
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+
+	// Use http.ServeContent for Range Request support (essential for video seeking)
+	http.ServeContent(w, r, filename, stat.ModTime(), f)
+}
+
+// ServeThumbnail serves a video thumbnail (WebP image)
+func (s *MediaService) ServeThumbnail(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "mediaId")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Check if media exists and get its metadata
+	if s.store == nil {
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	row, err := s.store.Q.GetMediaByID(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Verify it's a video
+	if row.Type != "video" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Access control (same logic as ServeImage)
+	cfg := config.GetGlobalConfig()
+	var serverIconMediaID uuid.NullUUID
+	if cfg != nil && cfg.Server.IconMediaID != nil {
+		serverIconMediaID = uuid.NullUUID{
+			UUID:  *cfg.Server.IconMediaID,
+			Valid: true,
+		}
+	}
+
+	isPublic, err := s.store.Q.IsMediaPublic(r.Context(), sqlc.IsMediaPublicParams{
+		MediaID:           id,
+		ServerIconMediaID: serverIconMediaID,
+	})
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if !isPublic.Valid || !isPublic.Bool {
+		user, ok := auth.UserFromContext(r.Context())
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if user.ID != row.UserID {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+	}
+
+	// Serve thumbnail file
+	filename := "thumbnail.webp"
+	p := filepath.Join(s.mediaDir, id.String(), filename)
+	f, err := os.Open(p)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Set Content-Type and caching headers
+	w.Header().Set("Content-Type", "image/webp")
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+
+	// Use http.ServeContent for consistency
+	http.ServeContent(w, r, filename, stat.ModTime(), f)
 }
 
 func (s *MediaService) DeleteMedia(ctx context.Context, userID uuid.UUID, mediaID uuid.UUID) error {

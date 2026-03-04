@@ -359,6 +359,10 @@ func main() {
 	r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
 
+	// Video and thumbnail routes
+	r.Get("/media/{mediaId}/video.mp4", mediaSvc.ServeVideo)
+	r.Get("/media/{mediaId}/thumbnail.webp", mediaSvc.ServeThumbnail)
+
 	apiServer := handlers.API{
 		Auth:       authSvc,
 		Admin:      adminSvc,

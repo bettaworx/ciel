@@ -236,14 +236,30 @@ func (s *TimelineService) attachMediaToPosts(ctx context.Context, posts []api.Po
 		if counts[row.PostID] >= 4 {
 			continue
 		}
-		posts[pi].Media = append(posts[pi].Media, api.Media{
+
+		media := api.Media{
 			Id:        row.MediaID,
-			Type:      api.MediaType("image"),
-			Url:       mediaImageURL(row.MediaID, row.Ext),
+			Type:      api.MediaType(row.Type),
 			Width:     int(row.Width),
 			Height:    int(row.Height),
 			CreatedAt: row.CreatedAt,
-		})
+		}
+
+		// Set URL based on media type
+		if row.Type == "video" {
+			media.Url = mediaVideoURL(row.MediaID, row.Ext)
+			// Add duration and thumbnail for videos
+			if row.Duration.Valid {
+				f32 := float32(row.Duration.Float64)
+				media.Duration = &f32
+			}
+			thumbnailURL := mediaThumbnailURL(row.MediaID)
+			media.ThumbnailUrl = &thumbnailURL
+		} else {
+			media.Url = mediaImageURL(row.MediaID, row.Ext)
+		}
+
+		posts[pi].Media = append(posts[pi].Media, media)
 		counts[row.PostID]++
 	}
 	return nil
