@@ -222,7 +222,7 @@ export function VideoPlayer({
 
     const clientX =
       "touches" in e
-        ? (e.touches[0] ?? e.changedTouches[0])?.clientX ?? 0
+        ? ((e.touches[0] ?? e.changedTouches[0])?.clientX ?? 0)
         : e.clientX;
     const rect = progressBarRef.current.getBoundingClientRect();
     const pos = (clientX - rect.left) / rect.width;
@@ -246,9 +246,7 @@ export function VideoPlayer({
     setIsDraggingProgress(false);
   };
 
-  const handleProgressBarTouchStart = (
-    e: React.TouchEvent<HTMLDivElement>,
-  ) => {
+  const handleProgressBarTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDraggingProgress(true);
     handleProgressBarSeek(e);
@@ -281,7 +279,7 @@ export function VideoPlayer({
 
     const clientX =
       "touches" in e
-        ? (e.touches[0] ?? e.changedTouches[0])?.clientX ?? 0
+        ? ((e.touches[0] ?? e.changedTouches[0])?.clientX ?? 0)
         : e.clientX;
     const rect = volumeBarRef.current.getBoundingClientRect();
     const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
@@ -498,10 +496,7 @@ export function VideoPlayer({
         document.removeEventListener("mouseup", handleProgressBarMouseUp);
         document.removeEventListener("touchmove", handleProgressBarTouchMove);
         document.removeEventListener("touchend", handleProgressBarTouchEnd);
-        document.removeEventListener(
-          "touchcancel",
-          handleProgressBarTouchEnd,
-        );
+        document.removeEventListener("touchcancel", handleProgressBarTouchEnd);
       };
     }
   }, [isDraggingProgress]);
@@ -604,7 +599,7 @@ export function VideoPlayer({
         {/* Background gradient */}
         <div
           className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none"
-          style={{ height: "160px" }}
+          style={{ height: "80px" }}
         />
 
         {/* Progress bar — transparent padding expands touch target while
