@@ -3708,7 +3708,7 @@ components:
 
     MediaType:
       type: string
-      enum: [image]
+      enum: [image, video]
 
     Media:
       type: object
