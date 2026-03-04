@@ -166,7 +166,10 @@
     "fileTooLarge": "Image file is too large",
     "videoTooLarge": "Video file is too large (maximum {maxSize}MB)",
     "dropImages": "Drop images here",
-    "dropMedia": "Drop files here"
+    "dropMedia": "Drop files here",
+    "rateLimited": "Upload rate limit reached. Please wait and try again",
+    "rateLimitedWithRetry": "Upload rate limit reached. Please try again in {seconds} seconds",
+    "uploadNetworkError": "Upload failed. The file may be too large or the connection was interrupted"
   },
   "lightbox": {
     "open": "Open image",

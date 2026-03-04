@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { useApi } from '@/lib/api/use-api';
 import type { components } from '@/lib/api/api';
+import { ApiHttpError } from '@/lib/api/client';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { authAtom } from '@/atoms/auth';
 import { ERROR_CODES } from '@/lib/errors';
@@ -214,7 +215,9 @@ export function useUploadMedia() {
 	return useMutation({
 		mutationFn: async (file: File) => {
 			const result = await api.uploadMedia(file); // Cookie-based auth
-			if (!result.ok) throw new Error(result.errorText);
+			if (!result.ok) {
+				throw new ApiHttpError(result.errorText, result.status, result.headers);
+			}
 			return result.data;
 		},
 	});

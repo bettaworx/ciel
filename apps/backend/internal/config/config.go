@@ -61,12 +61,14 @@ type SetupConfig struct {
 // in their original format with metadata stripped (no FFmpeg required).
 // Avatar and ServerIcon require encoding for crop/resize; disabling them
 // will cause those uploads to return 503 Service Unavailable.
-// Video encoding is always required and cannot be disabled.
+// When video encoding is disabled, videos are remuxed (stream-copy) into
+// MP4 with metadata stripped — near-zero CPU cost but no re-encoding,
+// resize, or codec conversion. ffprobe/ffmpeg are still required.
 type MediaEncodingConfig struct {
 	Post       bool `yaml:"post"`        // Encode post images to WebP (default: true)
 	Avatar     bool `yaml:"avatar"`      // Encode avatars with crop+resize (default: true)
 	ServerIcon bool `yaml:"server_icon"` // Encode server icons with crop+resize (default: true)
-	Video      bool `yaml:"video"`       // Encode videos to MP4 (default: true, required)
+	Video      bool `yaml:"video"`       // Encode videos to MP4 H.264+AAC (default: true)
 }
 
 // MediaConfig holds media upload and processing settings
@@ -148,6 +150,18 @@ type MediaVideoConfig struct {
 // MaxUploadBytes returns max upload size in bytes
 func (m *MediaConfig) MaxUploadBytes() int64 {
 	return int64(m.MaxUploadSize) << 20 // MiB to bytes
+}
+
+// MaxRequestBytes returns the largest upload limit across all media types.
+// This is intended for http.MaxBytesReader, which must allow the largest
+// possible upload through; per-type validation happens later in the pipeline.
+func (m *MediaConfig) MaxRequestBytes() int64 {
+	imageMax := int64(m.MaxUploadSize) << 20
+	videoMax := int64(m.Video.MaxUploadSize) << 20
+	if videoMax > imageMax {
+		return videoMax
+	}
+	return imageMax
 }
 
 // MaxUploadBytesForType returns max upload size in bytes for the given media type

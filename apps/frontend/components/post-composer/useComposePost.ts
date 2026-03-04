@@ -11,6 +11,7 @@ import {
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreatePost, useUploadMedia, useMediaLimits } from "@/lib/hooks/use-queries";
+import { ApiHttpError } from "@/lib/api/client";
 import type { components } from "@/lib/api/api";
 import type { LocalImage, LocalVideo } from "./types";
 import {
@@ -318,6 +319,43 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     await processFiles(files);
   };
 
+  /**
+   * Classify an upload error and show the appropriate toast message.
+   * Returns true so callers can `return showUploadError(error, "image")`.
+   */
+  const showUploadError = (error: unknown, kind: "image" | "video") => {
+    if (error instanceof ApiHttpError) {
+      if (error.status === 429) {
+        const retryAfter = error.retryAfterSeconds;
+        if (retryAfter !== null) {
+          toast.error(t("createPost.rateLimitedWithRetry", { seconds: retryAfter }));
+        } else {
+          toast.error(t("createPost.rateLimited"));
+        }
+        return;
+      }
+      if (error.status === 413) {
+        toast.error(
+          kind === "video"
+            ? t("createPost.videoTooLarge", { maxSize: mediaLimits.videoMaxUploadSizeMB })
+            : t("createPost.fileTooLarge"),
+        );
+        return;
+      }
+    }
+    // TypeError from a connection reset (e.g. nginx rejecting an oversized upload)
+    // manifests as "Failed to fetch" — surface it as a file-too-large hint.
+    if (error instanceof TypeError) {
+      toast.error(t("createPost.uploadNetworkError"));
+      return;
+    }
+    toast.error(
+      kind === "video"
+        ? t("createPost.videoUploadError")
+        : t("createPost.uploadError"),
+    );
+  };
+
   const handlePost = async () => {
     if (!canPost) return;
 
@@ -334,7 +372,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
             const result = await uploadMediaMutation.mutateAsync(image.file);
             mediaIds.push(result.id);
           } catch (error) {
-            toast.error(t("createPost.uploadError"));
+            showUploadError(error, "image");
             console.error("Image upload failed:", error);
             setIsUploading(false);
             return;
@@ -348,7 +386,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
           const result = await uploadMediaMutation.mutateAsync(video.file);
           mediaIds.push(result.id);
         } catch (error) {
-          toast.error(t("createPost.videoUploadError"));
+          showUploadError(error, "video");
           console.error("Video upload failed:", error);
           setIsUploading(false);
           return;

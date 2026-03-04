@@ -244,14 +244,15 @@ export function PostCard({
           {videoMedia && (
             <div className="mb-3">
               <div
-                className="relative bg-muted overflow-hidden rounded-xl"
-                style={calculateSingleImageStyle(videoMedia)}
+                className="relative w-full bg-muted overflow-hidden rounded-xl"
+                style={singleImageStyle}
               >
                 <VideoPlayer
                   src={videoMedia.url}
                   width={videoMedia.width}
                   height={videoMedia.height}
                   poster={videoMedia.thumbnailUrl}
+                  className="w-full h-full"
                 />
               </div>
             </div>

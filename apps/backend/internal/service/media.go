@@ -115,8 +115,9 @@ func (s *MediaService) uploadFromRequest(w http.ResponseWriter, r *http.Request,
 		return api.Media{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "media storage not configured")
 	}
 
-	// Hard cap request size.
-	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.MaxUploadBytes())
+	// Hard cap request size (use the largest limit across all media types;
+	// the per-type size check runs later once the media type is known).
+	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.MaxRequestBytes())
 
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		var mbe *http.MaxBytesError
@@ -569,11 +570,11 @@ func (s *MediaService) uploadImagePassthrough(ctx context.Context, user auth.Use
 
 // uploadVideo validates and processes video uploads, converting to MP4 (H.264+AAC)
 // and generating a WebP thumbnail from the first frame.
+// When video encoding is disabled, the video is remuxed (stream-copy) to strip
+// metadata without CPU-intensive re-encoding.
 func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
-	// Video encoding is always required
-	if !s.cfg.Encoding.Video {
-		return api.Media{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "video encoding is disabled")
-	}
+	// Even passthrough mode requires ffprobe for validation + ffmpeg for
+	// lightweight remux / thumbnail, so encoding tools must be available.
 	if err := s.requireEncoding(); err != nil {
 		return api.Media{}, err
 	}
@@ -616,15 +617,39 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 	}
 	cleanupOut := func() { _ = os.RemoveAll(outDir) }
 
-	// Convert to MP4 (H.264 + AAC)
-	videoPath := filepath.Join(outDir, "video.mp4")
-	outputWidth, outputHeight, err := s.convertToMP4(ctx, inPath, videoPath, videoInfo)
-	if err != nil {
-		cleanupOut()
-		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "video conversion failed")
+	var outputWidth, outputHeight int
+	var storeExt string
+
+	if s.cfg.Encoding.Video {
+		// Full encode: convert to MP4 (H.264 + AAC)
+		storeExt = "mp4"
+		videoPath := filepath.Join(outDir, "video."+storeExt)
+		outputWidth, outputHeight, err = s.convertToMP4(ctx, inPath, videoPath, videoInfo)
+		if err != nil {
+			cleanupOut()
+			return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "video conversion failed")
+		}
+	} else {
+		// Passthrough: remux with stream-copy (no re-encoding, near-zero CPU).
+		// Try MP4 container first; fall back to the original extension if the
+		// codec is incompatible with MP4 (e.g. VP8/VP9 in webm).
+		storeExt = "mp4"
+		videoPath := filepath.Join(outDir, "video."+storeExt)
+		if err := s.remuxVideo(ctx, inPath, videoPath); err != nil {
+			// MP4 remux failed — save in original container format.
+			storeExt = strings.TrimPrefix(strings.ToLower(ext), ".")
+			videoPath = filepath.Join(outDir, "video."+storeExt)
+			if cpErr := copyFile(inPath, videoPath); cpErr != nil {
+				cleanupOut()
+				return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "video processing failed")
+			}
+		}
+		outputWidth = videoInfo.Width
+		outputHeight = videoInfo.Height
 	}
 
 	// Generate thumbnail from first frame
+	videoPath := filepath.Join(outDir, "video."+storeExt)
 	thumbnailPath := filepath.Join(outDir, "thumbnail.webp")
 	if err := s.generateThumbnail(ctx, videoPath, thumbnailPath); err != nil {
 		cleanupOut()
@@ -637,7 +662,7 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 		ID:       id,
 		UserID:   user.ID,
 		Type:     "video",
-		Ext:      "mp4",
+		Ext:      storeExt,
 		Width:    int32(outputWidth),
 		Height:   int32(outputHeight),
 		Duration: duration,
@@ -1443,7 +1468,6 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath string) (*v
 	// Use ffprobe to get video metadata in JSON format
 	args := []string{
 		"-v", "error",
-		"-select_streams", "v:0",
 		"-show_entries", "stream=width,height,duration,codec_type",
 		"-show_entries", "format=duration",
 		"-of", "json",
@@ -1584,6 +1608,52 @@ func (s *MediaService) convertToMP4(ctx context.Context, inPath, outPath string,
 	}
 
 	return outputWidth, outputHeight, nil
+}
+
+// remuxVideo re-wraps the input video into an MP4 container using stream-copy
+// (no re-encoding). This strips metadata and ensures a browser-friendly
+// container with near-zero CPU cost.
+func (s *MediaService) remuxVideo(ctx context.Context, inPath, outPath string) error {
+	args := []string{
+		"-i", inPath,
+		"-c", "copy", // Stream-copy all tracks (no re-encoding)
+		"-movflags", "+faststart", // Enable progressive playback
+		"-map_metadata", "-1", // Strip metadata
+		"-map_chapters", "-1", // Strip chapters
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		slog.Warn("ffmpeg remux failed (codec may be incompatible with MP4 container)", "error", err, "stderr", msg)
+		return fmt.Errorf("remux failed")
+	}
+
+	return nil
+}
+
+// copyFile copies a file from src to dst.
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Close()
 }
 
 // generateThumbnail generates a WebP thumbnail from the first frame of a video
