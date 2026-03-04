@@ -212,12 +212,20 @@ export function VideoPlayer({
   // Progress bar seek
   // -----------------------------------------------------------------------
   const handleProgressBarSeek = (
-    e: MouseEvent | React.MouseEvent<HTMLDivElement>,
+    e:
+      | MouseEvent
+      | TouchEvent
+      | React.MouseEvent<HTMLDivElement>
+      | React.TouchEvent<HTMLDivElement>,
   ) => {
     if (!progressBarRef.current || !videoRef.current) return;
 
+    const clientX =
+      "touches" in e
+        ? (e.touches[0] ?? e.changedTouches[0])?.clientX ?? 0
+        : e.clientX;
     const rect = progressBarRef.current.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
+    const pos = (clientX - rect.left) / rect.width;
     const newTime = Math.max(0, Math.min(duration, pos * duration));
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
@@ -238,18 +246,45 @@ export function VideoPlayer({
     setIsDraggingProgress(false);
   };
 
+  const handleProgressBarTouchStart = (
+    e: React.TouchEvent<HTMLDivElement>,
+  ) => {
+    e.preventDefault();
+    setIsDraggingProgress(true);
+    handleProgressBarSeek(e);
+  };
+
+  const handleProgressBarTouchMove = (e: TouchEvent) => {
+    if (isDraggingProgress) {
+      e.preventDefault();
+      handleProgressBarSeek(e);
+    }
+  };
+
+  const handleProgressBarTouchEnd = () => {
+    setIsDraggingProgress(false);
+  };
+
   // -----------------------------------------------------------------------
   // Volume bar
   // -----------------------------------------------------------------------
   const handleVolumeBarChange = (
-    e: MouseEvent | React.MouseEvent<HTMLDivElement>,
+    e:
+      | MouseEvent
+      | TouchEvent
+      | React.MouseEvent<HTMLDivElement>
+      | React.TouchEvent<HTMLDivElement>,
   ) => {
     if (!volumeBarRef.current || !videoRef.current) return;
 
     hasUserInteracted.current = true;
 
+    const clientX =
+      "touches" in e
+        ? (e.touches[0] ?? e.changedTouches[0])?.clientX ?? 0
+        : e.clientX;
     const rect = volumeBarRef.current.getBoundingClientRect();
-    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     videoRef.current.volume = pos;
     setVolume(pos);
     setSavedVolume(pos);
@@ -272,6 +307,23 @@ export function VideoPlayer({
   };
 
   const handleVolumeBarMouseUp = () => {
+    setIsDraggingVolume(false);
+  };
+
+  const handleVolumeBarTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingVolume(true);
+    handleVolumeBarChange(e);
+  };
+
+  const handleVolumeBarTouchMove = (e: TouchEvent) => {
+    if (isDraggingVolume) {
+      e.preventDefault();
+      handleVolumeBarChange(e);
+    }
+  };
+
+  const handleVolumeBarTouchEnd = () => {
     setIsDraggingVolume(false);
   };
 
@@ -431,25 +483,45 @@ export function VideoPlayer({
     };
   }, [isPlaying, isHovering]);
 
-  // Handle drag events
+  // Handle drag events (progress bar)
   useEffect(() => {
     if (isDraggingProgress) {
       document.addEventListener("mousemove", handleProgressBarMouseMove);
       document.addEventListener("mouseup", handleProgressBarMouseUp);
+      document.addEventListener("touchmove", handleProgressBarTouchMove, {
+        passive: false,
+      });
+      document.addEventListener("touchend", handleProgressBarTouchEnd);
+      document.addEventListener("touchcancel", handleProgressBarTouchEnd);
       return () => {
         document.removeEventListener("mousemove", handleProgressBarMouseMove);
         document.removeEventListener("mouseup", handleProgressBarMouseUp);
+        document.removeEventListener("touchmove", handleProgressBarTouchMove);
+        document.removeEventListener("touchend", handleProgressBarTouchEnd);
+        document.removeEventListener(
+          "touchcancel",
+          handleProgressBarTouchEnd,
+        );
       };
     }
   }, [isDraggingProgress]);
 
+  // Handle drag events (volume bar)
   useEffect(() => {
     if (isDraggingVolume) {
       document.addEventListener("mousemove", handleVolumeBarMouseMove);
       document.addEventListener("mouseup", handleVolumeBarMouseUp);
+      document.addEventListener("touchmove", handleVolumeBarTouchMove, {
+        passive: false,
+      });
+      document.addEventListener("touchend", handleVolumeBarTouchEnd);
+      document.addEventListener("touchcancel", handleVolumeBarTouchEnd);
       return () => {
         document.removeEventListener("mousemove", handleVolumeBarMouseMove);
         document.removeEventListener("mouseup", handleVolumeBarMouseUp);
+        document.removeEventListener("touchmove", handleVolumeBarTouchMove);
+        document.removeEventListener("touchend", handleVolumeBarTouchEnd);
+        document.removeEventListener("touchcancel", handleVolumeBarTouchEnd);
       };
     }
   }, [isDraggingVolume]);
@@ -540,7 +612,9 @@ export function VideoPlayer({
         <div className="px-2">
           <div
             className="py-0 sm:py-1 cursor-pointer group/progress"
+            style={{ touchAction: "none" }}
             onMouseDown={handleProgressBarMouseDown}
+            onTouchStart={handleProgressBarTouchStart}
           >
             <div
               ref={progressBarRef}
@@ -613,7 +687,9 @@ export function VideoPlayer({
                   track is only h-1 (thin). */}
               <div
                 className="py-3 px-2 cursor-pointer"
+                style={{ touchAction: "none" }}
                 onMouseDown={handleVolumeBarMouseDown}
+                onTouchStart={handleVolumeBarTouchStart}
               >
                 <div
                   ref={volumeBarRef}
