@@ -273,6 +273,7 @@ export function PostCard({
                   src={videoMedia.url}
                   width={videoMedia.width}
                   height={videoMedia.height}
+                  poster={videoMedia.thumbnailUrl}
                 />
               </div>
             </div>

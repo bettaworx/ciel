@@ -12,6 +12,7 @@ import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
 import { CharacterCounter } from "./post-composer/CharacterCounter";
 import { ImagePreview } from "./post-composer/ImagePreview";
+import { VideoPreview } from "./post-composer/VideoPreview";
 import { MAX_CONTENT_LENGTH } from "./post-composer/constants";
 import { ImageLightbox } from "@/components/ImageLightbox";
 
@@ -26,7 +27,8 @@ interface CreatePostDialogProps {
  *
  * Features:
  * - Text input with auto-resize (max 400px desktop, 50vh mobile)
- * - Image upload with Base64 preview (max 4 images, 10MB each)
+ * - Image upload with Base64 preview (max 4 images)
+ * - Video upload with object URL preview (max 1 video)
  * - Character counter with progress ring
  * - Ctrl/Cmd + Enter to post
  * - Responsive layout (600px desktop, full-width mobile with margins)
@@ -44,6 +46,7 @@ export function CreatePostDialog({
   const {
     content,
     images,
+    video,
     isUploading,
     isDragging,
     fileInputRef,
@@ -53,6 +56,7 @@ export function CreatePostDialog({
     handlePaste,
     handleImageSelect,
     handleRemoveImage,
+    handleRemoveVideo,
     handlePost,
     handleDragOver,
     handleDragEnter,
@@ -111,7 +115,7 @@ export function CreatePostDialog({
             <div className="text-center">
               <ImageIcon className="w-12 h-12 mx-auto mb-2 text-c-1" />
               <p className="text-lg font-medium text-foreground">
-                {t("createPost.dropImages")}
+                {t("createPost.dropMedia")}
               </p>
             </div>
           </div>
@@ -204,31 +208,34 @@ export function CreatePostDialog({
             </div>
           )}
 
+          {/* Video Preview */}
+          {video && (
+            <div className="px-3 pb-3">
+              <VideoPreview
+                video={video}
+                onRemove={handleRemoveVideo}
+                disabled={createPostMutation.isPending || isUploading}
+              />
+            </div>
+          )}
+
           {/* Actions */}
           <div className="px-3 pb-3">
             <input
               ref={fileInputRef}
               type="file"
-              accept="file"
+              accept="image/*,video/*"
               multiple
               onChange={handleImageSelect}
               className="hidden"
-              disabled={
-                images.length >= 4 ||
-                createPostMutation.isPending ||
-                isUploading
-              }
+              disabled={isDropDisabled}
             />
             <Button
               variant="ghost"
               size="icon"
               onClick={() => fileInputRef.current?.click()}
-              disabled={
-                images.length >= 4 ||
-                createPostMutation.isPending ||
-                isUploading
-              }
-              aria-label={t("createPost.uploadImage")}
+              disabled={isDropDisabled}
+              aria-label={t("createPost.uploadMedia")}
               className="h-8 w-8"
             >
               <ImageIcon className="w-4 h-4" />

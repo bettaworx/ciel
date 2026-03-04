@@ -10,6 +10,7 @@ interface VideoPlayerProps {
   src: string;
   width: number;
   height: number;
+  poster?: string | null;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -34,6 +35,7 @@ export function VideoPlayer({
   src,
   width,
   height,
+  poster,
   className,
   style,
 }: VideoPlayerProps) {
@@ -55,6 +57,7 @@ export function VideoPlayer({
       fill: true,
       preload: "metadata",
       playsinline: true,
+      poster: poster || undefined,
       inactivityTimeout: 3000,
       controlBar: {
         children: [
@@ -110,7 +113,7 @@ export function VideoPlayer({
         playerRef.current = null;
       }
     };
-  }, [src, width, height]);
+  }, [src, width, height, poster]);
 
   return (
     <div

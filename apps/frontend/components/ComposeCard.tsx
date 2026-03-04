@@ -16,7 +16,8 @@ import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
 import { CharacterCounter } from "./post-composer/CharacterCounter";
 import { ImagePreview } from "./post-composer/ImagePreview";
-import { MAX_CONTENT_LENGTH, MAX_IMAGES } from "./post-composer/constants";
+import { VideoPreview } from "./post-composer/VideoPreview";
+import { MAX_CONTENT_LENGTH } from "./post-composer/constants";
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { UserMenuContent } from "@/components/auth/UserMenuContent";
 import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
@@ -59,6 +60,7 @@ export function ComposeCard() {
   const {
     content,
     images,
+    video,
     isUploading,
     isDragging,
     fileInputRef,
@@ -68,6 +70,7 @@ export function ComposeCard() {
     handlePaste,
     handleImageSelect,
     handleRemoveImage,
+    handleRemoveVideo,
     handlePost,
     handleDragOver,
     handleDragEnter,
@@ -126,7 +129,7 @@ export function ComposeCard() {
       // Only collapse if content is empty AND no images
       // Note: We check content.length, not trim().length, as per user request
       // (spaces-only input should NOT be considered empty)
-      if (content.length === 0 && images.length === 0) {
+      if (content.length === 0 && images.length === 0 && !video) {
         setIsExpanded(false);
       }
     }, 200);
@@ -156,7 +159,7 @@ export function ComposeCard() {
             <div className="text-center">
               <ImageIcon className="w-12 h-12 mx-auto mb-2 text-c-1" />
               <p className="text-lg font-medium text-foreground">
-                {t("createPost.dropImages")}
+                {t("createPost.dropMedia")}
               </p>
             </div>
           </div>
@@ -271,33 +274,36 @@ export function ComposeCard() {
               </div>
             )}
 
+            {/* Video Preview */}
+            {video && (
+              <div className="pl-[52px] sm:pl-[60px]">
+                <VideoPreview
+                  video={video}
+                  onRemove={handleRemoveVideo}
+                  disabled={createPostMutation.isPending || isUploading}
+                />
+              </div>
+            )}
+
             {/* Actions Bar */}
             <div className="flex items-center justify-between pl-[52px] sm:pl-[60px]">
-              {/* Left: Image Upload Button */}
+              {/* Left: Media Upload Button */}
               <div>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="file"
+                  accept="image/*,video/*"
                   multiple
                   onChange={handleImageSelect}
                   className="hidden"
-                  disabled={
-                    images.length >= MAX_IMAGES ||
-                    createPostMutation.isPending ||
-                    isUploading
-                  }
+                  disabled={isDropDisabled}
                 />
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={
-                    images.length >= MAX_IMAGES ||
-                    createPostMutation.isPending ||
-                    isUploading
-                  }
-                  aria-label={t("createPost.uploadImage")}
+                  disabled={isDropDisabled}
+                  aria-label={t("createPost.uploadMedia")}
                   className="h-9 w-9"
                 >
                   <ImageIcon className="w-5 h-5" />
