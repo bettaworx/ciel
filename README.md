@@ -31,12 +31,12 @@ cd ./apps/backend/ && go install
 
 Generate the code from the OpenAPI Scheme:
 ```
-pnpm gen openapi && pnpm gen openapi:ts
+pnpm run gen:openapi && pnpm run gen:openapi:ts
 ```
 
 Generate the code from the SQL query:
 ```
-pnpm gen sqlc
+pnpm run gen:sqlc
 ```
 
 Create `.env` file:
