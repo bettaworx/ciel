@@ -55,6 +55,11 @@ mv ./apps/backend/config/config.yaml.example ./apps/backend/config/config.yaml
 ```
 If you want to change anything at that point, do so; most things will be auto-configured by the backend.
 
+Create `docker-compose.yml` file:
+```bash
+mv ./docker-compose.yml.example ./docker-compose.yml
+```
+
 Build images and compose containers:
 ```bash
 docker compose up --build
