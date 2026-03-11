@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { safeFetch } from '@/lib/ogp/ssrf';
 import { parseOgp } from '@/lib/ogp/parse-ogp';
 import { ogpRateLimiter, getClientIdentifier } from '@/lib/ogp/rate-limit';
+import { fetchTwitterOgp, parseTweetUrl } from '@/lib/ogp/twitter';
 import type { OgpApiResponse } from '@/lib/ogp/types';
 
 export const runtime = 'nodejs';
@@ -37,6 +38,27 @@ export async function GET(request: Request): Promise<NextResponse<OgpApiResponse
 			}
 		} catch {
 			return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
+		}
+
+		// --- Twitter/X fast-path ---
+		if (parseTweetUrl(url)) {
+			try {
+				const twitterOgp = await fetchTwitterOgp(url);
+				if (twitterOgp) {
+					return NextResponse.json(
+						{ data: twitterOgp },
+						{
+							headers: {
+								'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+							},
+						},
+					);
+				}
+				// Syndication API failed – fall through to standard OGP fetch.
+				// (x.com won't return OG tags either, but let's try anyway.)
+			} catch (err) {
+				console.error('[OGP] Twitter syndication failed, falling back:', err);
+			}
 		}
 
 		// --- Fetch the page ---

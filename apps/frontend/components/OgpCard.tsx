@@ -63,7 +63,7 @@ export function OgpCard({ url }: OgpCardProps) {
 					<img
 						src={imageProxyUrl}
 						alt={ogp.title ?? ''}
-						className="w-full h-auto max-h-64 object-cover"
+						className="w-full h-auto"
 						loading="lazy"
 					/>
 				</div>

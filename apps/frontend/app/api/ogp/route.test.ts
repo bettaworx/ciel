@@ -21,6 +21,17 @@ vi.mock('@/lib/ogp/rate-limit', () => ({
 	getClientIdentifier: () => 'test-client',
 }));
 
+// Mock twitter module – control fetchTwitterOgp from tests.
+const mockFetchTwitterOgp = vi.fn();
+
+vi.mock('@/lib/ogp/twitter', async (importOriginal) => {
+	const actual = (await importOriginal()) as Record<string, unknown>;
+	return {
+		...actual,
+		fetchTwitterOgp: (...args: unknown[]) => mockFetchTwitterOgp(...args),
+	};
+});
+
 // ---------------------------------------------------------------------------
 // Helper to create a mock Response with HTML body
 // ---------------------------------------------------------------------------
@@ -53,6 +64,7 @@ describe('GET /api/ogp', () => {
 
 	beforeEach(async () => {
 		mockSafeFetch.mockReset();
+		mockFetchTwitterOgp.mockReset();
 		// Dynamic import to pick up mocks
 		const mod = await import('@/app/api/ogp/route');
 		GET = mod.GET as unknown as (request: Request) => Promise<Response>;
@@ -184,6 +196,99 @@ describe('GET /api/ogp', () => {
 		const res = await GET(req);
 		// Should handle gracefully — either 502 (empty body) or 404 (no OGP)
 		expect([404, 502]).toContain(res.status);
+	});
+
+	// --- Twitter/X fast-path tests ---
+
+	it('returns Twitter OGP data via syndication API for x.com tweet URL', async () => {
+		mockFetchTwitterOgp.mockResolvedValue({
+			title: 'jack (@jack)',
+			description: 'just setting up my twttr',
+			image: undefined,
+			siteName: 'X (Twitter)',
+			url: 'https://x.com/jack/status/20',
+		});
+
+		const req = new Request(
+			'http://localhost/api/ogp?url=https://x.com/jack/status/20',
+		);
+		const res = await GET(req);
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.data).toBeDefined();
+		expect(body.data.title).toBe('jack (@jack)');
+		expect(body.data.siteName).toBe('X (Twitter)');
+		// safeFetch should NOT have been called since Twitter fast-path succeeded
+		expect(mockSafeFetch).not.toHaveBeenCalled();
+	});
+
+	it('returns Twitter OGP data for twitter.com tweet URL', async () => {
+		mockFetchTwitterOgp.mockResolvedValue({
+			title: 'Barack Obama (@BarackObama)',
+			description: 'Four more years.',
+			image: 'https://pbs.twimg.com/media/A7EiDWcCYAAZT1D.jpg',
+			siteName: 'X (Twitter)',
+			url: 'https://twitter.com/BarackObama/status/266031293945503744',
+		});
+
+		const req = new Request(
+			'http://localhost/api/ogp?url=https://twitter.com/BarackObama/status/266031293945503744',
+		);
+		const res = await GET(req);
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.data.image).toBe('https://pbs.twimg.com/media/A7EiDWcCYAAZT1D.jpg');
+	});
+
+	it('falls back to standard OGP when Twitter syndication fails', async () => {
+		mockFetchTwitterOgp.mockResolvedValue(null);
+		// x.com won't return useful OGP, but test that the fallback mechanism works
+		mockSafeFetch.mockResolvedValue({
+			ok: true,
+			response: makeHtmlResponse('<html><head><title>X</title></head></html>'),
+			finalUrl: 'https://x.com/user/status/999',
+		});
+
+		const req = new Request(
+			'http://localhost/api/ogp?url=https://x.com/user/status/999',
+		);
+		const res = await GET(req);
+		// Should fall through to standard OGP – will get "X" as title
+		expect(res.status).toBe(200);
+		expect(mockSafeFetch).toHaveBeenCalled();
+	});
+
+	it('falls back to standard OGP when Twitter syndication throws', async () => {
+		mockFetchTwitterOgp.mockRejectedValue(new Error('Network error'));
+		mockSafeFetch.mockResolvedValue({
+			ok: true,
+			response: makeHtmlResponse('<html><head><title>Fallback</title></head></html>'),
+			finalUrl: 'https://x.com/user/status/888',
+		});
+
+		const req = new Request(
+			'http://localhost/api/ogp?url=https://x.com/user/status/888',
+		);
+		const res = await GET(req);
+		expect(res.status).toBe(200);
+		expect(mockSafeFetch).toHaveBeenCalled();
+	});
+
+	it('does not use Twitter fast-path for non-tweet URLs', async () => {
+		const html = '<html><head><meta property="og:title" content="Normal Site" /></head></html>';
+		mockSafeFetch.mockResolvedValue({
+			ok: true,
+			response: makeHtmlResponse(html),
+			finalUrl: 'https://example.com/page',
+		});
+
+		const req = new Request(
+			'http://localhost/api/ogp?url=https://example.com/page',
+		);
+		const res = await GET(req);
+		expect(res.status).toBe(200);
+		expect(mockFetchTwitterOgp).not.toHaveBeenCalled();
+		expect(mockSafeFetch).toHaveBeenCalled();
 	});
 });
 
