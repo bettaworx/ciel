@@ -183,15 +183,36 @@ export async function validateUrl(rawUrl: string): Promise<ResolvedTarget | Unsa
  * pre-validated addresses. This prevents DNS-rebinding attacks where the
  * DNS response changes between our validation step and the actual connection.
  *
- * The agent is single-use: `maxRedirections: 0` (we handle redirects ourselves)
- * and connections are not reused across different targets.
+ * The agent is single-use and connections are not reused across different
+ * targets.  We handle redirects ourselves.
  */
 export function createSafeDispatcher(validatedAddresses: string[]): Agent {
 	const address = validatedAddresses[0];
 	const family = isIP(address) === 6 ? 6 : 4;
 
-	const lookup: LookupFunction = (_hostname, _options, callback) => {
-		callback(null, address, family);
+	// Node.js `net.connect` may call lookup with either 2 or 3 arguments,
+	// and when `options.all` is true it expects an array of {address, family}
+	// rather than a single (address, family) pair.
+	const lookup: LookupFunction = (
+		_hostname: string,
+		optionsOrCb: unknown,
+		maybeCb?: unknown,
+	) => {
+		let options: { all?: boolean } = {};
+		let callback: Function;
+
+		if (typeof optionsOrCb === 'function') {
+			callback = optionsOrCb as Function;
+		} else {
+			options = (optionsOrCb ?? {}) as { all?: boolean };
+			callback = maybeCb as Function;
+		}
+
+		if (options.all) {
+			callback(null, [{ address, family }]);
+		} else {
+			callback(null, address, family);
+		}
 	};
 
 	return new Agent({
