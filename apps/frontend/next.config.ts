@@ -27,6 +27,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
 
+  // Packages that must not be bundled – they need to run as native Node.js
+  // modules in API routes (e.g. undici uses native net/tls bindings).
+  serverExternalPackages: ["undici"],
+
   // Remove console.* calls in production builds (except console.error)
   compiler: {
     removeConsole:

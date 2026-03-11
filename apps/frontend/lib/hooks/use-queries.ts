@@ -7,6 +7,7 @@ import { ApiHttpError } from '@/lib/api/client';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { authAtom } from '@/atoms/auth';
 import { ERROR_CODES } from '@/lib/errors';
+import type { OgpApiResponse } from '@/lib/ogp/types';
 
 // Query keys
 export const queryKeys = {
@@ -37,6 +38,7 @@ export const queryKeys = {
 	}) => ['adminInviteCodes', params] as const,
 	adminInviteCode: (id: string) => ['adminInviteCode', id] as const,
 	adminInviteUsageHistory: (id: string) => ['adminInviteUsageHistory', id] as const,
+	ogp: (url: string) => ['ogp', url] as const,
 };
 
 // Current user
@@ -742,5 +744,38 @@ export function useUpdateSignupSettings() {
 			queryClient.invalidateQueries({ queryKey: queryKeys.adminSettings });
 			queryClient.invalidateQueries({ queryKey: queryKeys.serverInfo });
 		},
+	});
+}
+
+// ---------------------------------------------------------------------------
+// OGP (Open Graph Protocol) link preview
+// ---------------------------------------------------------------------------
+
+const OGP_STALE_TIME = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Fetch OGP metadata for a URL via the frontend proxy API.
+ *
+ * - Only executes when `url` is non-null.
+ * - Aggressively caches (24 h staleTime + gcTime).
+ * - Does not retry on failure (most OGP failures are permanent).
+ */
+export function useOgp(url: string | null) {
+	return useQuery({
+		queryKey: queryKeys.ogp(url ?? ''),
+		queryFn: async () => {
+			const res = await fetch(`/api/ogp?url=${encodeURIComponent(url!)}`);
+			const json: OgpApiResponse = await res.json();
+			if (!res.ok || !json.data) {
+				throw new Error(json.error ?? 'Failed to fetch OGP');
+			}
+			return json.data;
+		},
+		enabled: !!url,
+		staleTime: OGP_STALE_TIME,
+		gcTime: OGP_STALE_TIME,
+		retry: false,
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: false,
 	});
 }

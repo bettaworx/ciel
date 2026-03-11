@@ -28,6 +28,8 @@ import { toast } from "sonner";
 import { useAtomValue } from "jotai";
 import { Eye, MoreHorizontal, Trash2, Clipboard } from "lucide-react";
 import { useDeletePost } from "@/lib/hooks/use-queries";
+import { OgpCard } from "@/components/OgpCard";
+import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { authAtom } from "@/atoms/auth";
 import {
@@ -152,6 +154,12 @@ export function PostCard({
   const videoMedia = useMemo(() => media.find((m) => m.type === "video"), [media]);
   const imageMedia = useMemo(() => media.filter((m) => m.type !== "video"), [media]);
 
+  // OGP: Extract the first URL from post content, but only if no media is attached.
+  const ogpUrl = useMemo(
+    () => (media.length === 0 && post.content ? extractFirstUrl(post.content) : null),
+    [media.length, post.content],
+  );
+
   // Generate initials for avatar fallback
   const initials = displayName
     .split(" ")
@@ -239,6 +247,9 @@ export function PostCard({
               <MfmRenderer text={post.content} />
             </div>
           )}
+
+          {/* OGP Link Preview – only when no media is attached */}
+          {ogpUrl && <OgpCard url={ogpUrl} />}
 
           {/* Media: Video */}
           {videoMedia && (
