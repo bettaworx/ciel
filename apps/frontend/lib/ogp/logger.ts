@@ -1,16 +1,15 @@
 /**
  * OGP API logging utilities
  * 
- * Controls log levels based on NODE_ENV and NEXT_PUBLIC_OGP_DEBUG.
- * - In development: All logs enabled by default
- * - In production: Only errors and warnings by default (unless NEXT_PUBLIC_OGP_DEBUG=true)
+ * Controls log levels based on NODE_ENV.
+ * - In development: All logs enabled
+ * - In production: Only errors and warnings
  */
 
 const isDevelopment = process.env.NODE_ENV === 'development';
-const isDebugEnabled = process.env.NEXT_PUBLIC_OGP_DEBUG === 'true';
 
-// Enable debug logs in development or when explicitly enabled
-const shouldLogDebug = isDevelopment || isDebugEnabled;
+// Enable debug logs in development only
+const shouldLogDebug = isDevelopment;
 
 /**
  * Sanitize URL for logging - removes query parameters that might contain tokens
@@ -38,7 +37,7 @@ export function getDomain(url: string): string {
 }
 
 /**
- * Log debug information (only in development or when NEXT_PUBLIC_OGP_DEBUG=true)
+ * Log debug information (only in development)
  */
 export function logDebug(message: string, data?: Record<string, unknown>): void {
 	if (shouldLogDebug) {

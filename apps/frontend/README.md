@@ -32,22 +32,9 @@ The OGP (Open Graph Protocol) preview API is available at `/internal/ogp` instea
 
 **Note:** These routes are internal Next.js API routes and should not be confused with the backend REST API at `/api/v1/`.
 
-## Environment Variables
-
-### OGP Debug Logging
-
-To enable detailed debug logging for the OGP API (useful for troubleshooting):
-
-```bash
-NEXT_PUBLIC_OGP_DEBUG=true
-```
-
-**Default behavior:**
-- **Development** (`NODE_ENV=development`): All debug logs enabled
-- **Production** (`NODE_ENV=production`): Only errors and warnings are logged
-- **With `NEXT_PUBLIC_OGP_DEBUG=true`**: Debug logs enabled in any environment
-
-**Note**: Debug logs include non-sensitive information only (domains, metadata presence, HTML structure) - never full URLs with query parameters or response bodies.
+**Logging:**
+- Development: Detailed debug logs are enabled for troubleshooting
+- Production: Only errors and warnings are logged
 
 ## Learn More
 
