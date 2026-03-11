@@ -8,6 +8,10 @@ export interface OgpData {
 	description?: string;
 	/** Thumbnail image URL (og:image > twitter:image) */
 	image?: string;
+	/** Image width in pixels (og:image:width) */
+	imageWidth?: number;
+	/** Image height in pixels (og:image:height) */
+	imageHeight?: number;
 	/** Site name (og:site_name) */
 	siteName?: string;
 	/** Canonical URL (og:url > canonical link) */

@@ -19,6 +19,8 @@ describe('parseOgp', () => {
 			title: 'OG Title',
 			description: 'OG Desc',
 			image: 'https://example.com/image.png',
+			imageWidth: undefined,
+			imageHeight: undefined,
 			siteName: 'Example',
 			url: 'https://example.com/canonical',
 		});
@@ -38,6 +40,8 @@ describe('parseOgp', () => {
 			title: 'Twitter Title',
 			description: 'Twitter Desc',
 			image: 'https://example.com/tw-image.png',
+			imageWidth: undefined,
+			imageHeight: undefined,
 			siteName: '@example',
 			url: undefined,
 		});
@@ -55,6 +59,8 @@ describe('parseOgp', () => {
 			title: 'Page Title',
 			description: 'Page Desc',
 			image: undefined,
+			imageWidth: undefined,
+			imageHeight: undefined,
 			siteName: undefined,
 			url: undefined,
 		});
@@ -177,5 +183,74 @@ describe('parseOgp', () => {
 		const result = parseOgp(html, PAGE_URL);
 		expect(result?.title).toBe('Spaced Title');
 		expect(result?.description).toBe('Spaced Desc');
+	});
+
+	it('extracts og:image:width and og:image:height', () => {
+		const html = `
+			<html><head>
+				<meta property="og:title" content="Test" />
+				<meta property="og:image" content="https://example.com/img.png" />
+				<meta property="og:image:width" content="1200" />
+				<meta property="og:image:height" content="630" />
+			</head><body></body></html>
+		`;
+		const result = parseOgp(html, PAGE_URL);
+		expect(result?.imageWidth).toBe(1200);
+		expect(result?.imageHeight).toBe(630);
+	});
+
+	it('extracts twitter:image:width and twitter:image:height as fallback', () => {
+		const html = `
+			<html><head>
+				<meta name="twitter:title" content="Test" />
+				<meta name="twitter:image" content="https://example.com/img.png" />
+				<meta name="twitter:image:width" content="400" />
+				<meta name="twitter:image:height" content="400" />
+			</head><body></body></html>
+		`;
+		const result = parseOgp(html, PAGE_URL);
+		expect(result?.imageWidth).toBe(400);
+		expect(result?.imageHeight).toBe(400);
+	});
+
+	it('returns undefined dimensions when image is missing', () => {
+		const html = `
+			<html><head>
+				<meta property="og:title" content="No Image" />
+				<meta property="og:image:width" content="1200" />
+				<meta property="og:image:height" content="630" />
+			</head><body></body></html>
+		`;
+		const result = parseOgp(html, PAGE_URL);
+		expect(result?.image).toBeUndefined();
+		expect(result?.imageWidth).toBeUndefined();
+		expect(result?.imageHeight).toBeUndefined();
+	});
+
+	it('ignores non-numeric image dimensions', () => {
+		const html = `
+			<html><head>
+				<meta property="og:title" content="Bad Dims" />
+				<meta property="og:image" content="https://example.com/img.png" />
+				<meta property="og:image:width" content="auto" />
+				<meta property="og:image:height" content="abc" />
+			</head><body></body></html>
+		`;
+		const result = parseOgp(html, PAGE_URL);
+		expect(result?.imageWidth).toBeUndefined();
+		expect(result?.imageHeight).toBeUndefined();
+	});
+
+	it('handles partial dimensions (only width provided)', () => {
+		const html = `
+			<html><head>
+				<meta property="og:title" content="Partial" />
+				<meta property="og:image" content="https://example.com/img.png" />
+				<meta property="og:image:width" content="800" />
+			</head><body></body></html>
+		`;
+		const result = parseOgp(html, PAGE_URL);
+		expect(result?.imageWidth).toBe(800);
+		expect(result?.imageHeight).toBeUndefined();
 	});
 });

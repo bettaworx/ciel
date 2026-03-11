@@ -121,8 +121,13 @@ export function tweetToOgpData(
 	// Use the first photo as the OGP image.
 	// Prefer photos[].url (higher quality) over mediaDetails[].media_url_https.
 	let image: string | undefined;
+	let imageWidth: number | undefined;
+	let imageHeight: number | undefined;
 	if (tweet.photos && tweet.photos.length > 0) {
-		image = tweet.photos[0].url;
+		const photo = tweet.photos[0];
+		image = photo.url;
+		imageWidth = photo.width;
+		imageHeight = photo.height;
 	} else if (tweet.mediaDetails && tweet.mediaDetails.length > 0) {
 		const firstPhoto = tweet.mediaDetails.find((m) => m.type === 'photo');
 		image = firstPhoto?.media_url_https;
@@ -132,6 +137,8 @@ export function tweetToOgpData(
 		title: truncate(title, 200),
 		description: tweet.text ? truncate(tweet.text, 300) : undefined,
 		image,
+		imageWidth,
+		imageHeight,
 		siteName: 'X (Twitter)',
 		url: originalUrl,
 	};

@@ -81,6 +81,8 @@ describe('tweetToOgpData', () => {
 			title: 'jack (@jack)',
 			description: 'just setting up my twttr',
 			image: undefined,
+			imageWidth: undefined,
+			imageHeight: undefined,
 			siteName: 'X (Twitter)',
 			url: 'https://x.com/jack/status/20',
 		});
@@ -100,10 +102,12 @@ describe('tweetToOgpData', () => {
 		expect(result.title).toBe('Barack Obama (@BarackObama)');
 		expect(result.description).toBe('Four more years.');
 		expect(result.image).toBe('https://pbs.twimg.com/media/A7EiDWcCYAAZT1D.jpg');
+		expect(result.imageWidth).toBe(800);
+		expect(result.imageHeight).toBe(532);
 		expect(result.siteName).toBe('X (Twitter)');
 	});
 
-	it('falls back to mediaDetails when photos array is empty', () => {
+	it('does not set dimensions when falling back to mediaDetails', () => {
 		const result = tweetToOgpData(
 			{
 				text: 'Check this out',
@@ -115,6 +119,8 @@ describe('tweetToOgpData', () => {
 		);
 
 		expect(result.image).toBe('https://pbs.twimg.com/media/fallback.jpg');
+		expect(result.imageWidth).toBeUndefined();
+		expect(result.imageHeight).toBeUndefined();
 	});
 
 	it('skips non-photo media in mediaDetails fallback', () => {

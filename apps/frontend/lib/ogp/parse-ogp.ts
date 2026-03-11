@@ -38,6 +38,11 @@ export function parseOgp(html: string, pageUrl: string): OgpData | null {
 
 	const image = ogMeta('og:image') ?? ogMeta('twitter:image');
 
+	const imageWidthRaw = ogMeta('og:image:width') ?? ogMeta('twitter:image:width');
+	const imageHeightRaw = ogMeta('og:image:height') ?? ogMeta('twitter:image:height');
+	const imageWidth = imageWidthRaw ? parseInt(imageWidthRaw, 10) : undefined;
+	const imageHeight = imageHeightRaw ? parseInt(imageHeightRaw, 10) : undefined;
+
 	const siteName =
 		ogMeta('og:site_name') ??
 		ogMeta('twitter:site');
@@ -66,6 +71,8 @@ export function parseOgp(html: string, pageUrl: string): OgpData | null {
 		title: truncate(title, 200),
 		description: description ? truncate(description, 300) : undefined,
 		image: absoluteImage,
+		imageWidth: absoluteImage && imageWidth && !Number.isNaN(imageWidth) ? imageWidth : undefined,
+		imageHeight: absoluteImage && imageHeight && !Number.isNaN(imageHeight) ? imageHeight : undefined,
 		siteName: siteName ? truncate(siteName, 100) : undefined,
 		url: canonicalUrl,
 	};

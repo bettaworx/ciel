@@ -4,6 +4,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useOgp } from '@/lib/hooks/use-queries';
 import { ExternalLink } from 'lucide-react';
 
+/** Image width threshold (px). Images this width or smaller use compact layout. */
+const COMPACT_THRESHOLD = 512;
+
 interface OgpCardProps {
 	url: string;
 }
@@ -11,8 +14,13 @@ interface OgpCardProps {
 /**
  * Displays an Open Graph Protocol (OGP) link preview card.
  *
- * Layout: large image on top (Twitter/X-style) with title, description,
- * and site name below.  Falls back gracefully when the OGP image is missing.
+ * Two layout modes based on the OGP image width:
+ *
+ * **Large** (default / width > 512px or unknown):
+ *   Image on top, text below — full-width display.
+ *
+ * **Compact** (width <= 512px):
+ *   Square-cropped image on the left, text on the right — side-by-side.
  *
  * Design follows the project's flat design philosophy — no shadows, uses
  * border + rounded-xl consistent with the media cards in PostCard.
@@ -49,6 +57,55 @@ export function OgpCard({ url }: OgpCardProps) {
 		? `/api/ogp/image?url=${encodeURIComponent(ogp.image)}`
 		: null;
 
+	// Decide layout: compact when image width is known and <= threshold.
+	const isCompact =
+		imageProxyUrl != null &&
+		ogp.imageWidth != null &&
+		ogp.imageWidth <= COMPACT_THRESHOLD;
+
+	if (isCompact) {
+		return (
+			<a
+				href={url}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="mb-3 flex rounded-xl border border-border overflow-hidden hover:bg-muted/50 transition-colors"
+			>
+				{/* Square-cropped thumbnail */}
+				<div className="relative shrink-0 w-[108px] h-[108px] bg-muted">
+					{/* eslint-disable-next-line @next/next/no-img-element */}
+					<img
+						src={imageProxyUrl}
+						alt={ogp.title ?? ''}
+						className="w-full h-full object-cover"
+						loading="lazy"
+					/>
+				</div>
+
+				{/* Text content */}
+				<div className="flex flex-col justify-center p-3 min-w-0">
+					{ogp.title && (
+						<p className="text-sm font-medium text-foreground line-clamp-2 break-words">
+							{ogp.title}
+						</p>
+					)}
+
+					{ogp.description && (
+						<p className="mt-0.5 text-xs text-muted-foreground line-clamp-1 break-words">
+							{ogp.description}
+						</p>
+					)}
+
+					<div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+						<ExternalLink size={12} className="shrink-0 opacity-60" />
+						<span className="truncate">{ogp.siteName ?? displayUrl}</span>
+					</div>
+				</div>
+			</a>
+		);
+	}
+
+	// --- Large layout (default) ---
 	return (
 		<a
 			href={url}
@@ -71,21 +128,18 @@ export function OgpCard({ url }: OgpCardProps) {
 
 			{/* Text content */}
 			<div className="p-3 min-w-0">
-				{/* Title */}
 				{ogp.title && (
 					<p className="text-sm font-medium text-foreground line-clamp-2 break-words">
 						{ogp.title}
 					</p>
 				)}
 
-				{/* Description */}
 				{ogp.description && (
 					<p className="mt-1 text-xs text-muted-foreground line-clamp-2 break-words">
 						{ogp.description}
 					</p>
 				)}
 
-				{/* Site info */}
 				<div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
 					<ExternalLink size={12} className="shrink-0 opacity-60" />
 					<span className="truncate">{ogp.siteName ?? displayUrl}</span>
