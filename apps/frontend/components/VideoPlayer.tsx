@@ -229,6 +229,14 @@ export function VideoPlayer({
     const newTime = Math.max(0, Math.min(duration, pos * duration));
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
+
+    // Seekbar interaction unmutes the video (only if user hasn't explicitly
+    // interacted with audio controls). This treats seeking as "user wants to
+    // watch this video" intent, similar to play button.
+    if (!hasUserInteracted.current) {
+      hasUserInteracted.current = true;
+      restoreSavedVolume();
+    }
   };
 
   const handleProgressBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
