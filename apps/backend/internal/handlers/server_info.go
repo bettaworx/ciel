@@ -58,6 +58,11 @@ func (h API) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 					MaxSize: cfg.Media.ServerIcon.Gif.MaxSize,
 				},
 			},
+			Video: api.MediaVideoLimits{
+				MaxUploadSizeMB:    cfg.Media.Video.MaxUploadSize,
+				MaxDurationSeconds: cfg.Media.Video.MaxDuration,
+				MaxSize:            cfg.Media.Video.MaxSize,
+			},
 		},
 	}
 

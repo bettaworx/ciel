@@ -353,8 +353,15 @@ func main() {
 	// Public media routes (authentication bypassed in OptionalAuth middleware)
 	r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image.webp", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image.jpg", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image.jpeg", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image.gif", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
+
+	// Video and thumbnail routes
+	r.Get("/media/{mediaId}/video.mp4", mediaSvc.ServeVideo)
+	r.Get("/media/{mediaId}/thumbnail.webp", mediaSvc.ServeThumbnail)
 
 	apiServer := handlers.API{
 		Auth:       authSvc,
@@ -408,12 +415,15 @@ func main() {
 	server := &http.Server{
 		Addr:    ":" + port,
 		Handler: r,
-		// ReadTimeout covers the time from connection accept to request body fully read
-		// Set to 30s to allow large file uploads (12MB over slower connections)
-		ReadTimeout: 30 * time.Second,
-		// WriteTimeout covers the time from end of request read to end of response write
-		// Set to 60s to allow image processing time (large images may take several seconds)
-		WriteTimeout: 60 * time.Second,
+		// ReadTimeout covers the time from connection accept to request body fully read.
+		// Must accommodate large video uploads (up to 100 MiB) which can take
+		// several minutes on slower connections or when a reverse proxy streams
+		// the body without buffering.
+		ReadTimeout: 5 * time.Minute,
+		// WriteTimeout covers the time from end of request read to end of response write.
+		// Must accommodate video processing (ffmpeg encode + thumbnail generation)
+		// which can take several minutes for large files.
+		WriteTimeout: 10 * time.Minute,
 		// IdleTimeout limits keep-alive connections
 		IdleTimeout: 120 * time.Second,
 		// ReadHeaderTimeout prevents slowloris attacks (slow header sends)

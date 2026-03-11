@@ -3372,37 +3372,47 @@ paths:
   /media:
     post:
       tags: [Media]
-      summary: Upload media (image or animated GIF)
+      summary: Upload media (image, animated GIF, or video)
       description: |
-        Upload an image or animated GIF and store it as WebP (static or animated).
+        Upload an image, animated GIF, or video and store it with optimized encoding.
 
-        **Allowed formats:** PNG, JPG, JPEG, WebP, GIF  
-        **File size limit:** 15 MiB (unified for all formats)
+        **Image formats:** PNG, JPG, JPEG, WebP, GIF  
+        **Video formats:** MP4, WebM, MOV, AVI, MKV, M4V, 3GP, OGV
+        
+        **File size limits:**
+        - **Images:** 15 MiB (default)
+        - **Videos:** 100 MiB (default)
         
         **Input dimension limits:** 16384x16384 pixels, 100 megapixels total  
+        **Video duration limit:** 300 seconds (5 minutes, default)
         
         **Output specifications:**
+        
+        **Images:**
         - **Animated GIF → Animated WebP:** Max 1024px (longest edge), all frames preserved
         - **Static images (PNG/JPG/WebP) → Static WebP:** Max 2048px (longest edge)
         - **Aspect ratio:** Always preserved (no upscaling)
         - **Quality:** 50 (optimized for file size)
         
-        **GIF handling:**
-        - All animation frames are preserved
-        - Frame timing and loop settings maintained
-        - Suitable for posts with animated content
+        **Videos:**
+        - **All formats → MP4 (H.264 + AAC):** Max 1920px (longest edge)
+        - **Codec:** H.264 video, AAC audio
+        - **Quality:** CRF 23 (balanced quality/size)
+        - **Audio:** Preserved and converted to AAC
+        - **Thumbnail:** Automatically generated from first frame as WebP
         
         **Security features:**
         - MIME type validation (content sniffing + ffprobe format verification)
         - Metadata stripping (EXIF/XMP/GPS)
-        - Automatic format conversion to WebP
-        - DoS protection via size and dimension limits
+        - Automatic format conversion
+        - DoS protection via size, dimension, and duration limits
 
         **Conversion examples:**
         - 6000x4000px PNG → 2048x1365px WebP
         - 800x600px JPEG → 800x600px WebP (no upscaling)
         - 2000x1500px GIF (50 frames) → 1024x768px Animated WebP (50 frames)
-        - 500x500px GIF (20 frames) → 500x500px Animated WebP (20 frames)
+        - 1920x1080 MOV (60s) → 1920x1080 MP4 (60s, H.264+AAC)
+        - 3840x2160 MKV (120s) → 1920x1080 MP4 (120s, H.264+AAC)
         
       security:
         - bearerAuth: []
@@ -3417,7 +3427,7 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: Image file (PNG/JPG/WebP) or animated GIF
+                  description: Image file (PNG/JPG/WebP/GIF) or video file (MP4/WebM/MOV/AVI/MKV/M4V/3GP/OGV)
       responses:
         '201':
           description: Media created successfully
@@ -3438,7 +3448,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '413':
-          description: Payload too large (>15 MiB)
+          description: Payload too large (>15 MiB for images, >100 MiB for videos)
           content:
             application/json:
               schema:
@@ -3708,7 +3718,7 @@ components:
 
     MediaType:
       type: string
-      enum: [image]
+      enum: [image, video]
 
     Media:
       type: object
@@ -3730,6 +3740,16 @@ components:
         createdAt:
           type: string
           format: date-time
+        duration:
+          type: number
+          format: float
+          nullable: true
+          description: Duration in seconds (video only, null for images)
+        thumbnailUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Thumbnail URL (video only, null for images)
 
     User:
 
@@ -4390,23 +4410,26 @@ components:
         - post
         - avatar
         - serverIcon
+        - video
       properties:
         maxUploadSizeMB:
           type: integer
-          description: Maximum file upload size in megabytes
+          description: Maximum file upload size in megabytes (for images)
           example: 15
         allowedExtensions:
           type: array
           items:
             type: string
           description: List of allowed file extensions
-          example: ["png", "jpg", "jpeg", "webp", "gif"]
+          example: ["png", "jpg", "jpeg", "webp", "gif", "mp4", "webm", "mov", "avi", "mkv", "m4v", "3gp", "ogv"]
         post:
           $ref: '#/components/schemas/MediaPostLimits'
         avatar:
           $ref: '#/components/schemas/MediaAvatarLimits'
         serverIcon:
           $ref: '#/components/schemas/MediaServerIconLimits'
+        video:
+          $ref: '#/components/schemas/MediaVideoLimits'
 
     MediaPostLimits:
       type: object
@@ -4467,6 +4490,26 @@ components:
               type: integer
               description: Maximum longest edge size in pixels for animated GIF server icons (aspect ratio preserved). Both animated and static (first frame) versions are created.
               example: 512
+
+    MediaVideoLimits:
+      type: object
+      required:
+        - maxUploadSizeMB
+        - maxDurationSeconds
+        - maxSize
+      properties:
+        maxUploadSizeMB:
+          type: integer
+          description: Maximum video file upload size in megabytes
+          example: 100
+        maxDurationSeconds:
+          type: integer
+          description: Maximum video duration in seconds
+          example: 300
+        maxSize:
+          type: integer
+          description: Maximum longest edge size in pixels for video output (aspect ratio preserved)
+          example: 1920
 
     CreateInviteCodeRequest:
       type: object

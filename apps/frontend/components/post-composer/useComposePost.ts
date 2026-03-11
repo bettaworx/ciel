@@ -11,14 +11,17 @@ import {
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreatePost, useUploadMedia, useMediaLimits } from "@/lib/hooks/use-queries";
+import { ApiHttpError } from "@/lib/api/client";
 import type { components } from "@/lib/api/api";
-import type { LocalImage } from "./types";
+import type { LocalImage, LocalVideo } from "./types";
 import {
   MAX_CONTENT_LENGTH,
   MAX_IMAGES,
+  MAX_VIDEOS,
   MAX_TEXTAREA_HEIGHT,
   CHARACTER_COUNT_THRESHOLD,
   ACCEPTED_IMAGE_TYPES,
+  ACCEPTED_VIDEO_TYPES,
 } from "./constants";
 
 interface UseComposePostOptions {
@@ -26,9 +29,22 @@ interface UseComposePostOptions {
   autoResize?: boolean;
 }
 
+function isVideoFile(file: File): boolean {
+  return ACCEPTED_VIDEO_TYPES.includes(file.type as (typeof ACCEPTED_VIDEO_TYPES)[number]);
+}
+
+function isImageFile(file: File): boolean {
+  return ACCEPTED_IMAGE_TYPES.includes(file.type as (typeof ACCEPTED_IMAGE_TYPES)[number]);
+}
+
 /**
  * Custom hook for post composition logic
  * Handles state management, file processing, and post submission
+ *
+ * Media rules:
+ * - A post can contain either up to MAX_IMAGES images OR MAX_VIDEOS video, not both.
+ * - Video files use URL.createObjectURL for preview (not Base64).
+ * - Video size limit is separate from image size limit (fetched from server).
  */
 export function useComposePost(options: UseComposePostOptions = {}) {
   const { onSuccess, autoResize = true } = options;
@@ -38,6 +54,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   // State
   const [content, setContent] = useState("");
   const [images, setImages] = useState<LocalImage[]>([]);
+  const [video, setVideo] = useState<LocalVideo | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -56,11 +73,15 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const showCharacterCount = contentPercentage >= CHARACTER_COUNT_THRESHOLD;
   const hasContent = content.trim().length > 0;
   const hasImages = images.length > 0;
+  const hasVideo = video !== null;
+  const hasMedia = hasImages || hasVideo;
   const isContentValid = contentLength <= MAX_CONTENT_LENGTH;
   const isDropDisabled =
-    images.length >= MAX_IMAGES || createPostMutation.isPending || isUploading;
+    (hasVideo || images.length >= MAX_IMAGES) ||
+    createPostMutation.isPending ||
+    isUploading;
   const canPost =
-    (hasContent || hasImages) &&
+    (hasContent || hasMedia) &&
     isContentValid &&
     !createPostMutation.isPending &&
     !isUploading;
@@ -77,54 +98,100 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     textarea.style.height = `${newHeight}px`;
   }, [content, autoResize]);
 
-  // Process files (validation and Base64 conversion)
+  // Process files (validation and preview generation)
   const processFiles = async (files: File[] | FileList) => {
     const fileArray = Array.from(files);
 
-    // Check max images
-    if (images.length + fileArray.length > MAX_IMAGES) {
-      toast.error(t("createPost.tooManyFiles"));
+    // Separate into images and videos
+    const imageFiles = fileArray.filter((f) => isImageFile(f));
+    const videoFiles = fileArray.filter((f) => isVideoFile(f));
+    const unknownFiles = fileArray.filter((f) => !isImageFile(f) && !isVideoFile(f));
+
+    // Reject unknown file types
+    if (unknownFiles.length > 0) {
+      toast.error(t("createPost.invalidFileType"));
+    }
+
+    // Cannot mix images and video
+    if (imageFiles.length > 0 && (videoFiles.length > 0 || hasVideo)) {
+      toast.error(t("createPost.cannotMixMediaTypes"));
+      return;
+    }
+    if (videoFiles.length > 0 && hasImages) {
+      toast.error(t("createPost.cannotMixMediaTypes"));
       return;
     }
 
-    // Validate and convert files to Base64
-    const newImages: LocalImage[] = [];
-
-    for (const file of fileArray) {
-      // Validate file type
-      if (!ACCEPTED_IMAGE_TYPES.includes(file.type as any)) {
-        toast.error(t("createPost.invalidFileType"));
-        continue;
+    // Process video files
+    if (videoFiles.length > 0) {
+      // Only allow MAX_VIDEOS video
+      if (hasVideo || videoFiles.length > MAX_VIDEOS) {
+        toast.error(t("createPost.tooManyVideos"));
+        return;
       }
 
-      // Validate file size
-      if (file.size > mediaLimits.maxUploadSizeBytes) {
-        toast.error(t("createPost.fileTooLarge"));
-        continue;
+      const videoFile = videoFiles[0];
+
+      // Validate file size against video-specific limit
+      if (videoFile.size > mediaLimits.videoMaxUploadSizeBytes) {
+        toast.error(
+          t("createPost.videoTooLarge", {
+            maxSize: mediaLimits.videoMaxUploadSizeMB,
+          }),
+        );
+        return;
       }
 
-      // Convert to Base64
-      try {
-        const previewUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        newImages.push({
-          localId: `${Date.now()}-${Math.random()}`,
-          file,
-          previewUrl,
-        });
-      } catch (error) {
-        console.error("Failed to read file:", error);
-        toast.error(t("createPost.uploadError"));
-      }
+      // Create preview via Object URL (efficient for large files)
+      const previewUrl = URL.createObjectURL(videoFile);
+      setVideo({
+        localId: `${Date.now()}-${Math.random()}`,
+        file: videoFile,
+        previewUrl,
+      });
+      return;
     }
 
-    if (newImages.length > 0) {
-      setImages((prev) => [...prev, ...newImages]);
+    // Process image files
+    if (imageFiles.length > 0) {
+      // Check max images
+      if (images.length + imageFiles.length > MAX_IMAGES) {
+        toast.error(t("createPost.tooManyFiles"));
+        return;
+      }
+
+      const newImages: LocalImage[] = [];
+
+      for (const file of imageFiles) {
+        // Validate file size against image limit
+        if (file.size > mediaLimits.maxUploadSizeBytes) {
+          toast.error(t("createPost.fileTooLarge"));
+          continue;
+        }
+
+        // Convert to Base64 for preview
+        try {
+          const previewUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          newImages.push({
+            localId: `${Date.now()}-${Math.random()}`,
+            file,
+            previewUrl,
+          });
+        } catch (error) {
+          console.error("Failed to read file:", error);
+          toast.error(t("createPost.uploadError"));
+        }
+      }
+
+      if (newImages.length > 0) {
+        setImages((prev) => [...prev, ...newImages]);
+      }
     }
   };
 
@@ -181,6 +248,13 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       }
       return prev.filter((img) => img.localId !== localId);
     });
+  };
+
+  const handleRemoveVideo = () => {
+    if (video) {
+      URL.revokeObjectURL(video.previewUrl);
+      setVideo(null);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -245,26 +319,77 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     await processFiles(files);
   };
 
+  /**
+   * Classify an upload error and show the appropriate toast message.
+   * Returns true so callers can `return showUploadError(error, "image")`.
+   */
+  const showUploadError = (error: unknown, kind: "image" | "video") => {
+    if (error instanceof ApiHttpError) {
+      if (error.status === 429) {
+        const retryAfter = error.retryAfterSeconds;
+        if (retryAfter !== null) {
+          toast.error(t("createPost.rateLimitedWithRetry", { seconds: retryAfter }));
+        } else {
+          toast.error(t("createPost.rateLimited"));
+        }
+        return;
+      }
+      if (error.status === 413) {
+        toast.error(
+          kind === "video"
+            ? t("createPost.videoTooLarge", { maxSize: mediaLimits.videoMaxUploadSizeMB })
+            : t("createPost.fileTooLarge"),
+        );
+        return;
+      }
+    }
+    // TypeError from a connection reset (e.g. nginx rejecting an oversized upload)
+    // manifests as "Failed to fetch" — surface it as a file-too-large hint.
+    if (error instanceof TypeError) {
+      toast.error(t("createPost.uploadNetworkError"));
+      return;
+    }
+    toast.error(
+      kind === "video"
+        ? t("createPost.videoUploadError")
+        : t("createPost.uploadError"),
+    );
+  };
+
   const handlePost = async () => {
     if (!canPost) return;
 
     try {
       setIsUploading(true);
 
-      // Upload images if any
+      // Upload all media (images + video)
       const mediaIds: string[] = [];
+
+      // Upload images
       if (images.length > 0) {
         for (const image of images) {
           try {
             const result = await uploadMediaMutation.mutateAsync(image.file);
             mediaIds.push(result.id);
           } catch (error) {
-            // If any upload fails, show error and abort
-            toast.error(t("createPost.uploadError"));
+            showUploadError(error, "image");
             console.error("Image upload failed:", error);
             setIsUploading(false);
-            return; // Don't create post
+            return;
           }
+        }
+      }
+
+      // Upload video
+      if (video) {
+        try {
+          const result = await uploadMediaMutation.mutateAsync(video.file);
+          mediaIds.push(result.id);
+        } catch (error) {
+          showUploadError(error, "video");
+          console.error("Video upload failed:", error);
+          setIsUploading(false);
+          return;
         }
       }
 
@@ -291,7 +416,12 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
   const resetForm = () => {
     setContent("");
+    // Revoke video blob URL on reset
+    if (video) {
+      URL.revokeObjectURL(video.previewUrl);
+    }
     setImages([]);
+    setVideo(null);
     setIsUploading(false);
     setIsDragging(false);
     dragCounterRef.current = 0;
@@ -302,6 +432,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     content,
     setContent,
     images,
+    video,
     isUploading,
     isDragging,
 
@@ -315,6 +446,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     handleImageSelect,
     handlePaste,
     handleRemoveImage,
+    handleRemoveVideo,
     handlePost,
     handleDragOver,
     handleDragEnter,
@@ -329,6 +461,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     isContentValid,
     hasContent,
     hasImages,
+    hasVideo,
+    hasMedia,
     isDropDisabled,
 
     // Mutations

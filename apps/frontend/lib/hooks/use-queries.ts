@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { useApi } from '@/lib/api/use-api';
 import type { components } from '@/lib/api/api';
+import { ApiHttpError } from '@/lib/api/client';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { authAtom } from '@/atoms/auth';
 import { ERROR_CODES } from '@/lib/errors';
@@ -89,6 +90,11 @@ export function useMediaLimits() {
 		avatarSize: serverInfo?.mediaLimits?.avatar?.size ?? 400,
 		serverIconStaticSize: serverInfo?.mediaLimits?.serverIcon?.static?.size ?? 512,
 		serverIconGifMaxSize: serverInfo?.mediaLimits?.serverIcon?.gif?.maxSize ?? 512,
+		// Video limits
+		videoMaxUploadSizeMB: serverInfo?.mediaLimits?.video?.maxUploadSizeMB ?? 100,
+		videoMaxUploadSizeBytes: (serverInfo?.mediaLimits?.video?.maxUploadSizeMB ?? 100) * 1024 * 1024,
+		videoMaxDurationSeconds: serverInfo?.mediaLimits?.video?.maxDurationSeconds ?? 300,
+		videoMaxSize: serverInfo?.mediaLimits?.video?.maxSize ?? 1920,
 	};
 }
 
@@ -209,7 +215,9 @@ export function useUploadMedia() {
 	return useMutation({
 		mutationFn: async (file: File) => {
 			const result = await api.uploadMedia(file); // Cookie-based auth
-			if (!result.ok) throw new Error(result.errorText);
+			if (!result.ok) {
+				throw new ApiHttpError(result.errorText, result.status, result.headers);
+			}
 			return result.data;
 		},
 	});

@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS posts (
   CHECK (visibility IN ('public', 'hidden', 'deleted'))
 );
 
--- Uploaded media (currently images only). Stored on disk as WebP.
+-- Uploaded media (images and videos). Images stored as WebP, videos as MP4.
 CREATE TABLE IF NOT EXISTS media (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS media (
   ext TEXT NOT NULL DEFAULT 'webp',
   width INT NOT NULL,
   height INT NOT NULL,
+  duration REAL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ,
   deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
