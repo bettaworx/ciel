@@ -1,5 +1,6 @@
 'use client';
 
+import { Skeleton } from '@/components/ui/skeleton';
 import { useOgp } from '@/lib/hooks/use-queries';
 import { ExternalLink } from 'lucide-react';
 
@@ -22,12 +23,12 @@ export function OgpCard({ url }: OgpCardProps) {
 	// --- Loading skeleton ---
 	if (isLoading) {
 		return (
-			<div className="mb-3 rounded-xl border border-border overflow-hidden animate-pulse">
-				<div className="bg-muted h-40" />
+			<div className="mb-3 rounded-xl border border-border overflow-hidden">
+				<Skeleton className="h-40 w-full rounded-none" />
 				<div className="p-3 space-y-2">
-					<div className="bg-muted h-4 w-3/4 rounded" />
-					<div className="bg-muted h-3 w-full rounded" />
-					<div className="bg-muted h-3 w-1/3 rounded" />
+					<Skeleton className="h-4 w-3/4" />
+					<Skeleton className="h-3 w-full" />
+					<Skeleton className="h-3 w-1/3" />
 				</div>
 			</div>
 		);

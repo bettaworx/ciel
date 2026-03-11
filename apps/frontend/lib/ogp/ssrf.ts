@@ -1,8 +1,7 @@
 import { resolve4, resolve6 } from 'node:dns/promises';
 import { isIP } from 'node:net';
-import { Agent as HttpAgent } from 'node:http';
-import { Agent as HttpsAgent } from 'node:https';
 import type { LookupFunction } from 'node:net';
+import { Agent, fetch as undiciFetch } from 'undici';
 
 // ---------------------------------------------------------------------------
 // Private / reserved IP range checks
@@ -176,36 +175,32 @@ export async function validateUrl(rawUrl: string): Promise<ResolvedTarget | Unsa
 }
 
 // ---------------------------------------------------------------------------
-// Safe HTTP(S) agents (DNS-rebinding mitigation)
+// Safe undici dispatcher (DNS-rebinding mitigation)
 // ---------------------------------------------------------------------------
 
 /**
- * Create an HTTP or HTTPS agent whose `lookup` function always returns one of
- * the pre-validated addresses. This prevents DNS-rebinding attacks where the
+ * Create an undici `Agent` whose DNS lookup always returns one of the
+ * pre-validated addresses. This prevents DNS-rebinding attacks where the
  * DNS response changes between our validation step and the actual connection.
+ *
+ * The agent is single-use: `maxRedirections: 0` (we handle redirects ourselves)
+ * and connections are not reused across different targets.
  */
-export function createSafeAgent(
-	protocol: 'http:' | 'https:',
-	validatedAddresses: string[],
-): HttpAgent | HttpsAgent {
-	// Pick the first validated address.
+export function createSafeDispatcher(validatedAddresses: string[]): Agent {
 	const address = validatedAddresses[0];
 	const family = isIP(address) === 6 ? 6 : 4;
 
 	const lookup: LookupFunction = (_hostname, _options, callback) => {
-		// Always resolve to our pre-validated IP, ignoring the actual DNS.
 		callback(null, address, family);
 	};
 
-	const opts = {
-		lookup,
-		// Only allow 1 socket and immediately free – prevents reuse across
-		// different targets.
-		maxSockets: 1,
-		keepAlive: false,
-	};
-
-	return protocol === 'https:' ? new HttpsAgent(opts) : new HttpAgent(opts);
+	return new Agent({
+		connect: {
+			lookup,
+			// Don't keep connections alive across different fetch calls.
+			keepAlive: false,
+		},
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +234,9 @@ export interface SafeFetchError {
 /**
  * Fetch a URL safely, following redirects manually so that each hop is
  * re-validated against SSRF rules.
+ *
+ * Uses undici's `fetch` with a custom `Agent` dispatcher whose DNS lookup
+ * is pinned to the pre-validated IP addresses (DNS-rebinding mitigation).
  */
 export async function safeFetch(
 	rawUrl: string,
@@ -252,15 +250,11 @@ export async function safeFetch(
 			return { ok: false, reason: validation.reason };
 		}
 
-		const parsed = new URL(currentUrl);
-		const agent = createSafeAgent(
-			parsed.protocol as 'http:' | 'https:',
-			validation.addresses,
-		);
+		const dispatcher = createSafeDispatcher(validation.addresses);
 
 		let response: Response;
 		try {
-			response = await fetch(currentUrl, {
+			response = (await undiciFetch(currentUrl, {
 				method: 'GET',
 				headers: {
 					'User-Agent': 'Ciel OGP Fetcher/1.0',
@@ -270,22 +264,17 @@ export async function safeFetch(
 				},
 				redirect: 'manual', // Handle redirects ourselves
 				signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-				// @ts-expect-error -- Node.js-specific option for undici
-				dispatcher: undefined,
-				// Node.js http/https agent
-				// Next.js API routes run on Node, so this works.
-				...(typeof globalThis.process !== 'undefined' ? { agent } : {}),
-			});
+				dispatcher,
+			})) as unknown as Response;
 		} catch (err) {
-			// Destroy the agent to clean up sockets.
-			agent.destroy();
+			dispatcher.close();
 			const message = err instanceof Error ? err.message : 'Fetch failed';
 			return { ok: false, reason: message };
 		}
 
 		// Handle redirects manually – re-validate the new location.
 		if ([301, 302, 303, 307, 308].includes(response.status)) {
-			agent.destroy();
+			dispatcher.close();
 			const location = response.headers.get('location');
 			if (!location) {
 				return { ok: false, reason: 'Redirect without Location header' };
@@ -297,7 +286,7 @@ export async function safeFetch(
 
 		// Non-redirect response.
 		if (!response.ok) {
-			agent.destroy();
+			dispatcher.close();
 			return { ok: false, reason: `HTTP ${response.status}`, status: response.status };
 		}
 
@@ -308,7 +297,7 @@ export async function safeFetch(
 				ct.toLowerCase().startsWith(prefix),
 			);
 			if (!allowed) {
-				agent.destroy();
+				dispatcher.close();
 				return { ok: false, reason: `Disallowed Content-Type: ${ct}` };
 			}
 		}

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { safeFetch } from '@/lib/ogp/ssrf';
 import { parseOgp } from '@/lib/ogp/parse-ogp';
 import { ogpRateLimiter, getClientIdentifier } from '@/lib/ogp/rate-limit';
@@ -9,7 +9,7 @@ export const runtime = 'nodejs';
 /** Maximum HTML body size: 1 MiB */
 const MAX_HTML_SIZE = 1024 * 1024;
 
-export async function GET(request: NextRequest): Promise<NextResponse<OgpApiResponse>> {
+export async function GET(request: Request): Promise<NextResponse<OgpApiResponse>> {
 	// --- Rate limit ---
 	const clientId = getClientIdentifier(request);
 	if (!ogpRateLimiter.check(clientId)) {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<OgpApiResp
 	}
 
 	// --- URL parameter ---
-	const url = request.nextUrl.searchParams.get('url');
+	const url = new URL(request.url).searchParams.get('url');
 	if (!url) {
 		return NextResponse.json({ error: 'Missing "url" query parameter' }, { status: 400 });
 	}

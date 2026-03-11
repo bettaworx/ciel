@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { safeFetch } from '@/lib/ogp/ssrf';
 import { imageProxyRateLimiter, getClientIdentifier } from '@/lib/ogp/rate-limit';
 
@@ -10,7 +10,7 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 /** Allowed image MIME type prefixes. */
 const ALLOWED_IMAGE_TYPES = ['image/'];
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
 	// --- Rate limit ---
 	const clientId = getClientIdentifier(request);
 	if (!imageProxyRateLimiter.check(clientId)) {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	}
 
 	// --- URL parameter ---
-	const url = request.nextUrl.searchParams.get('url');
+	const url = new URL(request.url).searchParams.get('url');
 	if (!url) {
 		return NextResponse.json({ error: 'Missing "url" query parameter' }, { status: 400 });
 	}
