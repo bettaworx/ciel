@@ -10,6 +10,12 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 /** Allowed image MIME type prefixes. */
 const ALLOWED_IMAGE_TYPES = ['image/'];
 
+/** Maximum retry attempts for rate-limited requests (429 errors). */
+const MAX_RETRY_ATTEMPTS = 3;
+
+/** Initial backoff delay in milliseconds. */
+const INITIAL_BACKOFF_MS = 1000;
+
 export async function GET(request: Request): Promise<NextResponse> {
 	try {
 		// --- Rate limit ---
@@ -43,14 +49,34 @@ export async function GET(request: Request): Promise<NextResponse> {
 			return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
 		}
 
-		// --- Fetch the image ---
-		const result = await safeFetch(url, {
+		// --- Fetch the image with retry logic for 429 errors ---
+		let result = await safeFetch(url, {
 			allowedContentTypes: ALLOWED_IMAGE_TYPES,
 			maxBodySize: MAX_IMAGE_SIZE,
 			headers: {
 				Accept: 'image/webp, image/avif, image/*, */*;q=0.1',
 			},
 		});
+
+		// Retry on 429 (rate limit) with exponential backoff
+		let retryCount = 0;
+		while (!result.ok && result.status === 429 && retryCount < MAX_RETRY_ATTEMPTS) {
+			const backoffMs = INITIAL_BACKOFF_MS * 2 ** retryCount;
+			console.log(
+				`[OGP/Image] Retrying after 429 (attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS}, waiting ${backoffMs}ms) url:`,
+				url,
+			);
+			await new Promise((resolve) => setTimeout(resolve, backoffMs));
+
+			result = await safeFetch(url, {
+				allowedContentTypes: ALLOWED_IMAGE_TYPES,
+				maxBodySize: MAX_IMAGE_SIZE,
+				headers: {
+					Accept: 'image/webp, image/avif, image/*, */*;q=0.1',
+				},
+			});
+			retryCount++;
+		}
 
 		if (!result.ok) {
 			console.error('[OGP/Image] safeFetch failed:', result.reason, 'url:', url);
@@ -101,7 +127,8 @@ export async function GET(request: Request): Promise<NextResponse> {
 			headers: {
 				'Content-Type': contentType,
 				'Content-Length': String(totalSize),
-				'Cache-Control': 'public, max-age=86400, immutable',
+				// Cache for 7 days (604800 seconds) to reduce upstream requests
+				'Cache-Control': 'public, max-age=604800, immutable',
 				// Prevent the browser from interpreting the image as something else.
 				'X-Content-Type-Options': 'nosniff',
 			},

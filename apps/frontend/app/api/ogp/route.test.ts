@@ -470,4 +470,103 @@ describe('GET /api/ogp/image', () => {
 			expect(result[i]).toBe(i);
 		}
 	});
+
+	it('retries on 429 error with exponential backoff (succeeds on 2nd attempt)', async () => {
+		vi.useFakeTimers();
+
+		const imageData = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+
+		// First call returns 429, second call succeeds
+		mockSafeFetch
+			.mockResolvedValueOnce({
+				ok: false,
+				reason: 'HTTP 429',
+				status: 429,
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				response: makeImageResponse(imageData, 'image/png'),
+				finalUrl: 'https://example.com/rate-limited.png',
+			});
+
+		const req = new Request(
+			'http://localhost/api/ogp/image?url=https://example.com/rate-limited.png',
+		);
+
+		const responsePromise = GET(req);
+
+		// Fast-forward 1 second (initial backoff)
+		await vi.advanceTimersByTimeAsync(1000);
+
+		const res = await responsePromise;
+
+		expect(res.status).toBe(200);
+		expect(mockSafeFetch).toHaveBeenCalledTimes(2);
+
+		vi.useRealTimers();
+	});
+
+	it('retries on 429 error up to 3 times then returns 429', async () => {
+		vi.useFakeTimers();
+
+		// All attempts return 429
+		mockSafeFetch.mockResolvedValue({
+			ok: false,
+			reason: 'HTTP 429',
+			status: 429,
+		});
+
+		const req = new Request(
+			'http://localhost/api/ogp/image?url=https://github.com/rate-limited.png',
+		);
+
+		const responsePromise = GET(req);
+
+		// Fast-forward through all retries (1s + 2s + 4s = 7s total)
+		await vi.advanceTimersByTimeAsync(7000);
+
+		const res = await responsePromise;
+
+		expect(res.status).toBe(429);
+		// 1 initial + 3 retries = 4 total calls
+		expect(mockSafeFetch).toHaveBeenCalledTimes(4);
+
+		vi.useRealTimers();
+	});
+
+	it('does not retry on non-429 errors', async () => {
+		mockSafeFetch.mockResolvedValue({
+			ok: false,
+			reason: 'HTTP 404',
+			status: 404,
+		});
+
+		const req = new Request(
+			'http://localhost/api/ogp/image?url=https://example.com/notfound.png',
+		);
+		const res = await GET(req);
+
+		expect(res.status).toBe(404);
+		// Should only be called once (no retries)
+		expect(mockSafeFetch).toHaveBeenCalledTimes(1);
+	});
+
+	it('uses 7-day cache for successful image responses', async () => {
+		const imageData = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+		mockSafeFetch.mockResolvedValue({
+			ok: true,
+			response: makeImageResponse(imageData, 'image/png'),
+			finalUrl: 'https://example.com/cached.png',
+		});
+
+		const req = new Request(
+			'http://localhost/api/ogp/image?url=https://example.com/cached.png',
+		);
+		const res = await GET(req);
+
+		expect(res.status).toBe(200);
+		const cacheControl = res.headers.get('cache-control');
+		expect(cacheControl).toContain('max-age=604800'); // 7 days
+		expect(cacheControl).toContain('immutable');
+	});
 });
