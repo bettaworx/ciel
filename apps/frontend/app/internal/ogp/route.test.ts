@@ -59,19 +59,19 @@ function makeImageResponse(data: Uint8Array, contentType = 'image/png'): Respons
 // OGP metadata route tests
 // ---------------------------------------------------------------------------
 
-describe('GET /api/ogp', () => {
+describe('GET /internal/ogp', () => {
 	let GET: (request: Request) => Promise<Response>;
 
 	beforeEach(async () => {
 		mockSafeFetch.mockReset();
 		mockFetchTwitterOgp.mockReset();
 		// Dynamic import to pick up mocks
-		const mod = await import('@/app/api/ogp/route');
+		const mod = await import('@/app/internal/ogp/route');
 		GET = mod.GET as unknown as (request: Request) => Promise<Response>;
 	});
 
 	it('returns 400 when url param is missing', async () => {
-		const req = new Request('http://localhost/api/ogp');
+		const req = new Request('http://localhost/internal/ogp');
 		const res = await GET(req);
 		expect(res.status).toBe(400);
 		const body = await res.json();
@@ -79,13 +79,13 @@ describe('GET /api/ogp', () => {
 	});
 
 	it('returns 400 for non-http URL', async () => {
-		const req = new Request('http://localhost/api/ogp?url=ftp://example.com');
+		const req = new Request('http://localhost/internal/ogp?url=ftp://example.com');
 		const res = await GET(req);
 		expect(res.status).toBe(400);
 	});
 
 	it('returns 400 for invalid URL', async () => {
-		const req = new Request('http://localhost/api/ogp?url=not-a-url');
+		const req = new Request('http://localhost/internal/ogp?url=not-a-url');
 		const res = await GET(req);
 		expect(res.status).toBe(400);
 	});
@@ -106,7 +106,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://example.com/page',
+			'http://localhost/internal/ogp?url=https://example.com/page',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -127,7 +127,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://example.com/empty',
+			'http://localhost/internal/ogp?url=https://example.com/empty',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(404);
@@ -142,7 +142,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://evil.com',
+			'http://localhost/internal/ogp?url=https://evil.com',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(502);
@@ -158,7 +158,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://forbidden.com',
+			'http://localhost/internal/ogp?url=https://forbidden.com',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(403);
@@ -173,7 +173,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://example.com',
+			'http://localhost/internal/ogp?url=https://example.com',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -191,7 +191,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://example.com',
+			'http://localhost/internal/ogp?url=https://example.com',
 		);
 		const res = await GET(req);
 		// Should handle gracefully — either 502 (empty body) or 404 (no OGP)
@@ -210,7 +210,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://x.com/jack/status/20',
+			'http://localhost/internal/ogp?url=https://x.com/jack/status/20',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -232,7 +232,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://twitter.com/BarackObama/status/266031293945503744',
+			'http://localhost/internal/ogp?url=https://twitter.com/BarackObama/status/266031293945503744',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -250,7 +250,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://x.com/user/status/999',
+			'http://localhost/internal/ogp?url=https://x.com/user/status/999',
 		);
 		const res = await GET(req);
 		// Should fall through to standard OGP – will get "X" as title
@@ -267,7 +267,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://x.com/user/status/888',
+			'http://localhost/internal/ogp?url=https://x.com/user/status/888',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -283,7 +283,7 @@ describe('GET /api/ogp', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp?url=https://example.com/page',
+			'http://localhost/internal/ogp?url=https://example.com/page',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -296,17 +296,17 @@ describe('GET /api/ogp', () => {
 // Image proxy route tests
 // ---------------------------------------------------------------------------
 
-describe('GET /api/ogp/image', () => {
+describe('GET /internal/ogp/image', () => {
 	let GET: (request: Request) => Promise<Response>;
 
 	beforeEach(async () => {
 		mockSafeFetch.mockReset();
-		const mod = await import('@/app/api/ogp/image/route');
+		const mod = await import('@/app/internal/ogp/image/route');
 		GET = mod.GET as unknown as (request: Request) => Promise<Response>;
 	});
 
 	it('returns 400 when url param is missing', async () => {
-		const req = new Request('http://localhost/api/ogp/image');
+		const req = new Request('http://localhost/internal/ogp/image');
 		const res = await GET(req);
 		expect(res.status).toBe(400);
 		const body = await res.json();
@@ -315,7 +315,7 @@ describe('GET /api/ogp/image', () => {
 
 	it('returns 400 for non-http URL', async () => {
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=data:image/png;base64,abc',
+			'http://localhost/internal/ogp/image?url=data:image/png;base64,abc',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(400);
@@ -330,7 +330,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://example.com/img.png',
+			'http://localhost/internal/ogp/image?url=https://example.com/img.png',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -351,7 +351,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://example.com/photo.jpg',
+			'http://localhost/internal/ogp/image?url=https://example.com/photo.jpg',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -365,7 +365,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://evil.internal/img.png',
+			'http://localhost/internal/ogp/image?url=https://evil.internal/img.png',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(502);
@@ -382,7 +382,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://example.com/empty.png',
+			'http://localhost/internal/ogp/image?url=https://example.com/empty.png',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(502);
@@ -401,7 +401,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://example.com/img.png',
+			'http://localhost/internal/ogp/image?url=https://example.com/img.png',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -419,7 +419,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://example.com/huge.png',
+			'http://localhost/internal/ogp/image?url=https://example.com/huge.png',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(413);
@@ -439,7 +439,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://example.com/noct.png',
+			'http://localhost/internal/ogp/image?url=https://example.com/noct.png',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -459,7 +459,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://example.com/binary.png',
+			'http://localhost/internal/ogp/image?url=https://example.com/binary.png',
 		);
 		const res = await GET(req);
 		expect(res.status).toBe(200);
@@ -490,7 +490,7 @@ describe('GET /api/ogp/image', () => {
 			});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://example.com/rate-limited.png',
+			'http://localhost/internal/ogp/image?url=https://example.com/rate-limited.png',
 		);
 
 		const responsePromise = GET(req);
@@ -517,7 +517,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://github.com/rate-limited.png',
+			'http://localhost/internal/ogp/image?url=https://github.com/rate-limited.png',
 		);
 
 		const responsePromise = GET(req);
@@ -542,7 +542,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://example.com/notfound.png',
+			'http://localhost/internal/ogp/image?url=https://example.com/notfound.png',
 		);
 		const res = await GET(req);
 
@@ -560,7 +560,7 @@ describe('GET /api/ogp/image', () => {
 		});
 
 		const req = new Request(
-			'http://localhost/api/ogp/image?url=https://example.com/cached.png',
+			'http://localhost/internal/ogp/image?url=https://example.com/cached.png',
 		);
 		const res = await GET(req);
 

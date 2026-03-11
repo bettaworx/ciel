@@ -20,6 +20,18 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## API Routes
+
+### OGP Preview API
+
+The OGP (Open Graph Protocol) preview API is available at `/internal/ogp` instead of `/api/ogp` to avoid conflicts with the backend API routes (which are proxied via `/api/`).
+
+**Endpoints:**
+- `GET /internal/ogp?url=<url>` - Fetch OGP metadata for a given URL
+- `GET /internal/ogp/image?url=<url>` - Proxy images from external sites (with SSRF protection)
+
+**Note:** These routes are internal Next.js API routes and should not be confused with the backend REST API at `/api/v1/`.
+
 ## Environment Variables
 
 ### OGP Debug Logging
