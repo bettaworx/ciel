@@ -20,6 +20,23 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment Variables
+
+### OGP Debug Logging
+
+To enable detailed debug logging for the OGP API (useful for troubleshooting):
+
+```bash
+NEXT_PUBLIC_OGP_DEBUG=true
+```
+
+**Default behavior:**
+- **Development** (`NODE_ENV=development`): All debug logs enabled
+- **Production** (`NODE_ENV=production`): Only errors and warnings are logged
+- **With `NEXT_PUBLIC_OGP_DEBUG=true`**: Debug logs enabled in any environment
+
+**Note**: Debug logs include non-sensitive information only (domains, metadata presence, HTML structure) - never full URLs with query parameters or response bodies.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { logWarn, getDomain } from '@/lib/ogp/logger';
 import type { OgpData } from '@/lib/ogp/types';
 
 /**
@@ -25,10 +26,14 @@ export function parseOgp(html: string, pageUrl: string): OgpData | null {
 
 	// ---- Extract with fallback chain ----
 
+	const ogTitle = ogMeta('og:title');
+	const twitterTitle = ogMeta('twitter:title');
+	const htmlTitle = $('title').first().text().trim();
+	
 	const title =
-		(ogMeta('og:title') ??
-		ogMeta('twitter:title') ??
-		$('title').first().text().trim()) ||
+		(ogTitle ??
+		twitterTitle ??
+		htmlTitle) ||
 		undefined;
 
 	const description =
@@ -53,7 +58,16 @@ export function parseOgp(html: string, pageUrl: string): OgpData | null {
 		undefined;
 
 	// If we couldn't even find a title, there's nothing useful to show.
-	if (!title) return null;
+	if (!title) {
+		logWarn('parseOgp: No title found', {
+			ogTitle,
+			twitterTitle,
+			htmlTitle,
+			metaTagCount: $('meta').length,
+			pageUrlDomain: getDomain(pageUrl),
+		});
+		return null;
+	}
 
 	// ---- Normalise the OGP image URL to absolute ----
 

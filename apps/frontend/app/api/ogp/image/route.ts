@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { safeFetch } from '@/lib/ogp/ssrf';
 import { imageProxyRateLimiter, getClientIdentifier } from '@/lib/ogp/rate-limit';
+import { logDebug, logWarn, logError, getDomain } from '@/lib/ogp/logger';
 
 export const runtime = 'nodejs';
 
@@ -62,10 +63,12 @@ export async function GET(request: Request): Promise<NextResponse> {
 		let retryCount = 0;
 		while (!result.ok && result.status === 429 && retryCount < MAX_RETRY_ATTEMPTS) {
 			const backoffMs = INITIAL_BACKOFF_MS * 2 ** retryCount;
-			console.log(
-				`[OGP/Image] Retrying after 429 (attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS}, waiting ${backoffMs}ms) url:`,
-				url,
-			);
+			logDebug('Retrying after 429', {
+				attempt: retryCount + 1,
+				maxAttempts: MAX_RETRY_ATTEMPTS,
+				backoffMs,
+				urlDomain: getDomain(url),
+			});
 			await new Promise((resolve) => setTimeout(resolve, backoffMs));
 
 			result = await safeFetch(url, {
@@ -79,7 +82,11 @@ export async function GET(request: Request): Promise<NextResponse> {
 		}
 
 		if (!result.ok) {
-			console.error('[OGP/Image] safeFetch failed:', result.reason, 'url:', url);
+			logError('Image safeFetch failed', {
+				reason: result.reason,
+				status: result.status,
+				urlDomain: getDomain(url),
+			});
 			const status = result.status ?? 502;
 			return NextResponse.json({ error: result.reason }, { status });
 		}
@@ -107,7 +114,11 @@ export async function GET(request: Request): Promise<NextResponse> {
 				chunks.push(value);
 			}
 		} catch (err) {
-			console.error('[OGP/Image] Failed to read image body:', err);
+			logError('Failed to read image body', {
+				error: err instanceof Error ? err.message : String(err),
+				errorType: err?.constructor?.name,
+				urlDomain: getDomain(url),
+			});
 			return NextResponse.json({ error: 'Failed to read image' }, { status: 502 });
 		}
 
@@ -134,7 +145,11 @@ export async function GET(request: Request): Promise<NextResponse> {
 			},
 		});
 	} catch (err) {
-		console.error('[OGP/Image] Unhandled error in image proxy route:', err);
+		logError('Unhandled error in image proxy route', {
+			error: err instanceof Error ? err.message : String(err),
+			errorType: err?.constructor?.name,
+			stack: err instanceof Error ? err.stack : undefined,
+		});
 		return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
 	}
 }
