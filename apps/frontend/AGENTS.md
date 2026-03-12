@@ -52,6 +52,9 @@ apps/frontend/
 │   ├── providers.tsx        # Main providers wrapper
 │   ├── theme-provider.tsx   # Theme context (next-themes)
 │   └── realtime-provider.tsx # WebSocket realtime updates
+├── .storybook/               # Storybook configuration
+│   ├── main.ts              # Framework, addons, stories glob
+│   └── preview.ts           # Global decorators, dark mode toggle
 ├── components.json           # shadcn/ui configuration
 ├── tailwind.config.ts       # Tailwind configuration
 └── package.json             # Dependencies and scripts
@@ -356,6 +359,10 @@ pnpm -C apps/frontend lint
 
 # Regenerate API types from OpenAPI spec
 pnpm -C apps/frontend gen:openapi
+
+# Storybook
+pnpm -C apps/frontend storybook        # Dev server (port 6006)
+pnpm -C apps/frontend build-storybook  # Static build
 ```
 
 ## Adding New Features
@@ -419,6 +426,55 @@ export function ProfileCard({ user }: ProfileCardProps) {
 ```bash
 # Add a new shadcn/ui component
 npx shadcn@latest add dialog
+```
+
+## Storybook
+
+### Overview
+
+Storybook v10.2.17 is configured for documenting and testing shadcn/ui components. Stories are co-located with their component files.
+
+### Conventions
+
+- **Story file location**: Co-located with components (e.g., `components/ui/button.stories.tsx` next to `button.tsx`)
+- **Title format**: `"UI/ComponentName"` (e.g., `"UI/Button"`)
+- **Tags**: Always include `["autodocs"]` for automatic documentation
+- **Interaction tests**: Use `storybook/test` play functions for key interactions
+- **Dark mode**: Available via toolbar toggle (uses `withThemeByClassName` with `.dark` class)
+
+### Writing a New Story
+
+```tsx
+import type { Meta, StoryObj } from "@storybook/react";
+import { MyComponent } from "./my-component";
+
+const meta = {
+  title: "UI/MyComponent",
+  component: MyComponent,
+  tags: ["autodocs"],
+} satisfies Meta<typeof MyComponent>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: { /* ... */ },
+};
+```
+
+### Adding Interaction Tests
+
+```tsx
+import { expect, userEvent, within } from "storybook/test";
+
+export const ClickTest: Story = {
+  args: { children: "Click me" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button"));
+    await expect(/* assertion */).toBeTruthy();
+  },
+};
 ```
 
 ## Security
