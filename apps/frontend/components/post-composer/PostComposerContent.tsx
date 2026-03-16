@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { X, Image as ImageIcon } from "lucide-react";
+import { X, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageLightbox } from "@/components/ImageLightbox";
@@ -10,7 +10,12 @@ import { PostMediaPreview } from "@/components/PostMediaPreview";
 import { OgpCard } from "@/components/OgpCard";
 import { cn } from "@/lib/utils";
 import { CharacterCounter } from "./CharacterCounter";
-import { MAX_CONTENT_LENGTH } from "./constants";
+import { MediaUploadButton } from "./MediaUploadButton";
+import {
+  MAX_CONTENT_LENGTH,
+  ACCEPTED_IMAGE_TYPES,
+  ACCEPTED_VIDEO_TYPES,
+} from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
 
 // ---------------------------------------------------------------------------
@@ -86,7 +91,8 @@ export function PostComposerContent({
   // ---------------------------------------------------------------------------
   const {
     // Refs — only used as JSX `ref` props or inside callbacks, never read .current during render
-    fileInputRef,
+    imageFileInputRef,
+    videoFileInputRef,
     textareaRef,
     // State
     content,
@@ -101,6 +107,8 @@ export function PostComposerContent({
     showCharacterCount,
     canPost,
     isDropDisabled,
+    isImageUploadDisabled,
+    isVideoUploadDisabled,
     // Handlers
     handleContentChange,
     handleKeyDown,
@@ -151,29 +159,31 @@ export function PostComposerContent({
     </div>
   );
 
-  /** Hidden file input + upload button */
-  const uploadButton = (
-    <>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,video/*"
+  /** Upload buttons — separate for images and video */
+  const uploadButtons = (
+    <div className="flex items-center gap-1">
+      <MediaUploadButton
+        inputRef={imageFileInputRef}
+        accept={ACCEPTED_IMAGE_TYPES.join(",")}
         multiple
+        disabled={isImageUploadDisabled}
         onChange={handleImageSelect}
-        className="hidden"
-        disabled={isDropDisabled}
-      />
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={isDropDisabled}
-        aria-label={t("createPost.uploadMedia")}
+        icon={ImageIcon}
+        ariaLabel={t("createPost.uploadImage")}
         className={s.uploadButton}
-      >
-        <ImageIcon className={s.uploadIcon} />
-      </Button>
-    </>
+        iconClassName={s.uploadIcon}
+      />
+      <MediaUploadButton
+        inputRef={videoFileInputRef}
+        accept={ACCEPTED_VIDEO_TYPES.join(",")}
+        disabled={isVideoUploadDisabled}
+        onChange={handleImageSelect}
+        icon={VideoIcon}
+        ariaLabel={t("createPost.uploadVideo")}
+        className={s.uploadButton}
+        iconClassName={s.uploadIcon}
+      />
+    </div>
   );
 
   /** Avatar + Textarea row */
@@ -259,8 +269,8 @@ export function PostComposerContent({
             {mediaPreview}
           </div>
 
-          {/* Upload button only */}
-          <div className="px-3 pb-3">{uploadButton}</div>
+          {/* Upload buttons */}
+          <div className="px-3 pb-3">{uploadButtons}</div>
         </div>
 
         <ImageLightbox
@@ -289,7 +299,7 @@ export function PostComposerContent({
         <div
           className={cn("flex items-center justify-between", s.contentPadding)}
         >
-          <div>{uploadButton}</div>
+          <div>{uploadButtons}</div>
           {counterAndPost}
         </div>
       </div>

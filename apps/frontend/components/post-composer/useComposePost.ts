@@ -97,7 +97,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const [ogpUrl, setOgpUrl] = useState<string | null>(null);
 
   // Refs
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounterRef = useRef(0);
 
@@ -116,6 +117,16 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const isContentValid = contentLength <= MAX_CONTENT_LENGTH;
   const isDropDisabled =
     (hasVideo || images.length >= MAX_IMAGES) ||
+    createPostMutation.isPending ||
+    isUploading;
+  /** Image upload is disabled when a video is attached or max images reached */
+  const isImageUploadDisabled =
+    hasVideo || images.length >= MAX_IMAGES ||
+    createPostMutation.isPending ||
+    isUploading;
+  /** Video upload is disabled when images are attached or a video is already attached */
+  const isVideoUploadDisabled =
+    hasImages || hasVideo ||
     createPostMutation.isPending ||
     isUploading;
   const canPost =
@@ -316,9 +327,12 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
     await processFiles(files);
 
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    // Reset file inputs so the same file can be re-selected
+    if (imageFileInputRef.current) {
+      imageFileInputRef.current.value = "";
+    }
+    if (videoFileInputRef.current) {
+      videoFileInputRef.current.value = "";
     }
   };
 
@@ -555,7 +569,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     previewMedia,
 
     // Refs
-    fileInputRef,
+    imageFileInputRef,
+    videoFileInputRef,
     textareaRef,
 
     // Handlers
@@ -583,6 +598,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     hasVideo,
     hasMedia,
     isDropDisabled,
+    isImageUploadDisabled,
+    isVideoUploadDisabled,
 
     // Mutations
     createPostMutation,
