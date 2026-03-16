@@ -12,15 +12,15 @@ const preview: Preview = {
     },
     layout: "centered",
     backgrounds: {
-      default: "dark",
+      default: "light",
       values: [
         {
           name: "dark",
-          value: "#1a1a1a",
+          value: "#0a0a0a",
         },
         {
           name: "light",
-          value: "#f5f5f5",
+          value: "#e5e5e5",
         },
       ],
     },
