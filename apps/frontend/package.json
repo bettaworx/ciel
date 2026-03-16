@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:openapi": "openapi-typescript ../../packages/api/openapi.yml -o lib/api/api.d.ts"
+    "gen:openapi": "openapi-typescript ../../packages/api/openapi.yml -o lib/api/api.d.ts",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -57,6 +59,9 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@storybook/addon-themes": "10.2.17",
+    "@storybook/nextjs": "10.2.17",
+    "@storybook/react": "10.2.17",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -68,6 +73,7 @@
     "eslint-config-next": "16.1.4",
     "openapi-typescript": "^7.10.1",
     "postcss": "^8.5.6",
+    "storybook": "10.2.17",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
