@@ -232,7 +232,10 @@ export function PostCard({
 
           {/* Post Content */}
           {post.content && (
-            <div className="text-foreground whitespace-pre-wrap break-words mb-3">
+            <div className={cn(
+              "text-foreground whitespace-pre-wrap break-words",
+              (previewMedia.length > 0 || ogpUrl) ? "mb-2" : "mb-3"
+            )}>
               <MfmRenderer text={post.content} />
             </div>
           )}
