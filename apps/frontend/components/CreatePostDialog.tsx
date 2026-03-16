@@ -15,6 +15,7 @@ import { MAX_CONTENT_LENGTH } from "./post-composer/constants";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { PostMediaPreview } from "@/components/PostMediaPreview";
 import { OgpCard } from "@/components/OgpCard";
+import { cn } from "@/lib/utils";
 
 // Types
 interface CreatePostDialogProps {
@@ -184,7 +185,9 @@ export function CreatePostDialog({
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder={t("createPost.placeholder")}
-              className="mt-1.5 md:mt-0.75 flex-1 min-h-[100px] max-h-[400px] max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none"
+              className={cn(
+                "mt-1.5 md:mt-0.75 flex-1 max-h-[400px] max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0"
+              )}
               maxLength={MAX_CONTENT_LENGTH}
               disabled={createPostMutation.isPending || isUploading}
             />
