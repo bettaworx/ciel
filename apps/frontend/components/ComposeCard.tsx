@@ -263,14 +263,14 @@ export function ComposeCard() {
 
             {/* OGP Link Preview – only when no media is attached */}
             {ogpUrl && (
-              <div className="pl-[52px] sm:pl-[60px] pt-1">
+              <div className="pl-[52px] sm:pl-[60px]">
                 <OgpCard url={ogpUrl} />
               </div>
             )}
 
             {/* Media Preview (images / video) */}
             {previewMedia.length > 0 && (
-              <div className="pl-[52px] sm:pl-[60px] pt-1">
+              <div className="pl-[52px] sm:pl-[60px]">
                 <PostMediaPreview
                   media={previewMedia}
                   editable
