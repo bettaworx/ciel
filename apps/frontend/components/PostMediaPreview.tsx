@@ -84,8 +84,14 @@ export function PostMediaPreview({
   const tCompose = useTranslations("createPost");
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
-  const videoMedia = useMemo(() => media.find((m) => m.type === "video"), [media]);
-  const imageMedia = useMemo(() => media.filter((m) => m.type !== "video"), [media]);
+  const videoMedia = useMemo(
+    () => media.find((m) => m.type === "video"),
+    [media],
+  );
+  const imageMedia = useMemo(
+    () => media.filter((m) => m.type !== "video"),
+    [media],
+  );
 
   // Single image display constraints (same as PostCard):
   //   Aspect ratio: 3:4 (portrait) to 21:9 (landscape), clipped via object-cover
@@ -93,7 +99,8 @@ export function PostMediaPreview({
   const singleImageStyle = useMemo((): React.CSSProperties | undefined => {
     if (media.length !== 1 || media[0].type !== "image") return undefined;
     const m = media[0];
-    if (!m.width || !m.height || m.width <= 0 || m.height <= 0) return undefined;
+    if (!m.width || !m.height || m.width <= 0 || m.height <= 0)
+      return undefined;
 
     const MIN_RATIO = 3 / 4; // portrait limit
     const MAX_RATIO = 21 / 9; // landscape limit
@@ -146,13 +153,17 @@ export function PostMediaPreview({
     index: number,
     extraImgClass?: string,
   ) => (
-    <div key={item.id} className="relative bg-muted overflow-hidden group">
+    <div key={item.id} className="relative overflow-hidden group">
       <Image
         src={item.url}
         alt=""
         fill
         unoptimized
-        className={cn("object-cover", onLightboxOpen && "cursor-zoom-in", extraImgClass)}
+        className={cn(
+          "object-cover",
+          onLightboxOpen && "cursor-zoom-in",
+          extraImgClass,
+        )}
         sizes="(max-width: 600px) 100vw, 600px"
       />
       {onLightboxOpen && (
@@ -174,7 +185,7 @@ export function PostMediaPreview({
     return (
       <div className={cn("mb-3", className)}>
         <div
-          className="relative w-full bg-muted overflow-hidden rounded-xl group"
+          className="relative w-full overflow-hidden rounded-xl group"
           style={singleImageStyle}
         >
           <Image
@@ -208,13 +219,16 @@ export function PostMediaPreview({
   if (imageMedia.length === 2) {
     return (
       <div className={cn("grid grid-cols-2 gap-1 mb-3", className)}>
-        <div className="relative bg-muted aspect-[8/9] overflow-hidden group">
+        <div className="relative aspect-[8/9] overflow-hidden group">
           <Image
             src={imageMedia[0].url}
             alt=""
             fill
             unoptimized
-            className={cn("object-cover rounded-l-xl", onLightboxOpen && "cursor-zoom-in")}
+            className={cn(
+              "object-cover rounded-l-xl",
+              onLightboxOpen && "cursor-zoom-in",
+            )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {onLightboxOpen && (
@@ -232,13 +246,16 @@ export function PostMediaPreview({
             />
           )}
         </div>
-        <div className="relative bg-muted aspect-[8/9] overflow-hidden group">
+        <div className="relative aspect-[8/9] overflow-hidden group">
           <Image
             src={imageMedia[1].url}
             alt=""
             fill
             unoptimized
-            className={cn("object-cover rounded-r-xl", onLightboxOpen && "cursor-zoom-in")}
+            className={cn(
+              "object-cover rounded-r-xl",
+              onLightboxOpen && "cursor-zoom-in",
+            )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {onLightboxOpen && (
@@ -264,13 +281,16 @@ export function PostMediaPreview({
   if (imageMedia.length === 3) {
     return (
       <div className={cn("grid grid-cols-2 gap-1 mb-3", className)}>
-        <div className="relative bg-muted row-span-2 overflow-hidden group">
+        <div className="relative row-span-2 overflow-hidden group">
           <Image
             src={imageMedia[0].url}
             alt=""
             fill
             unoptimized
-            className={cn("object-cover rounded-l-xl", onLightboxOpen && "cursor-zoom-in")}
+            className={cn(
+              "object-cover rounded-l-xl",
+              onLightboxOpen && "cursor-zoom-in",
+            )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {onLightboxOpen && (
@@ -288,13 +308,16 @@ export function PostMediaPreview({
             />
           )}
         </div>
-        <div className="relative bg-muted aspect-video overflow-hidden group">
+        <div className="relative aspect-video overflow-hidden group">
           <Image
             src={imageMedia[1].url}
             alt=""
             fill
             unoptimized
-            className={cn("object-cover rounded-tr-xl", onLightboxOpen && "cursor-zoom-in")}
+            className={cn(
+              "object-cover rounded-tr-xl",
+              onLightboxOpen && "cursor-zoom-in",
+            )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {onLightboxOpen && (
@@ -312,13 +335,16 @@ export function PostMediaPreview({
             />
           )}
         </div>
-        <div className="relative bg-muted aspect-video overflow-hidden group">
+        <div className="relative aspect-video overflow-hidden group">
           <Image
             src={imageMedia[2].url}
             alt=""
             fill
             unoptimized
-            className={cn("object-cover rounded-br-xl", onLightboxOpen && "cursor-zoom-in")}
+            className={cn(
+              "object-cover rounded-br-xl",
+              onLightboxOpen && "cursor-zoom-in",
+            )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {onLightboxOpen && (
@@ -354,7 +380,7 @@ export function PostMediaPreview({
         {fourImages.map((item, i) => (
           <div
             key={item.id}
-            className="relative bg-muted aspect-video overflow-hidden group"
+            className="relative aspect-video overflow-hidden group"
           >
             <Image
               src={item.url}

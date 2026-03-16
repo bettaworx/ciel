@@ -592,3 +592,6 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     resetForm,
   };
 }
+
+/** Return type of the useComposePost hook */
+export type UseComposePostReturn = ReturnType<typeof useComposePost>;
