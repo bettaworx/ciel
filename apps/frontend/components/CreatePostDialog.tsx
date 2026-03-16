@@ -11,10 +11,10 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
 import { CharacterCounter } from "./post-composer/CharacterCounter";
-import { ImagePreview } from "./post-composer/ImagePreview";
-import { VideoPreview } from "./post-composer/VideoPreview";
 import { MAX_CONTENT_LENGTH } from "./post-composer/constants";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { PostMediaPreview } from "@/components/PostMediaPreview";
+import { OgpCard } from "@/components/OgpCard";
 
 // Types
 interface CreatePostDialogProps {
@@ -27,8 +27,8 @@ interface CreatePostDialogProps {
  *
  * Features:
  * - Text input with auto-resize (max 400px desktop, 50vh mobile)
- * - Image upload with Base64 preview (max 4 images)
- * - Video upload with object URL preview (max 1 video)
+ * - Image upload with blob URL preview (max 4 images)
+ * - Video upload with blob URL preview (max 1 video)
  * - Character counter with progress ring
  * - Ctrl/Cmd + Enter to post
  * - Responsive layout (600px desktop, full-width mobile with margins)
@@ -46,17 +46,17 @@ export function CreatePostDialog({
   const {
     content,
     images,
-    video,
     isUploading,
     isDragging,
+    ogpUrl,
+    previewMedia,
     fileInputRef,
     textareaRef,
     handleContentChange,
     handleKeyDown,
     handlePaste,
     handleImageSelect,
-    handleRemoveImage,
-    handleRemoveVideo,
+    handleRemoveMedia,
     handlePost,
     handleDragOver,
     handleDragEnter,
@@ -78,6 +78,11 @@ export function CreatePostDialog({
       return;
     }
     onOpenChange(newOpen);
+  };
+
+  const handleLightboxOpen = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
   };
 
   return (
@@ -185,36 +190,21 @@ export function CreatePostDialog({
             />
           </div>
 
-          {/* Image Previews */}
-          {images.length > 0 && (
+          {/* OGP Link Preview – only when no media is attached */}
+          {ogpUrl && (
             <div className="px-3 pb-3">
-              <div className="flex gap-2 flex-wrap">
-                {images.map((image) => (
-                  <ImagePreview
-                    key={image.localId}
-                    image={image}
-                    onRemove={handleRemoveImage}
-                    disabled={createPostMutation.isPending || isUploading}
-                    onPreview={() => {
-                      const index = images.findIndex(
-                        (candidate) => candidate.localId === image.localId,
-                      );
-                      setLightboxIndex(index === -1 ? 0 : index);
-                      setLightboxOpen(true);
-                    }}
-                  />
-                ))}
-              </div>
+              <OgpCard url={ogpUrl} />
             </div>
           )}
 
-          {/* Video Preview */}
-          {video && (
+          {/* Media Preview (images / video) */}
+          {previewMedia.length > 0 && (
             <div className="px-3 pb-3">
-              <VideoPreview
-                video={video}
-                onRemove={handleRemoveVideo}
-                disabled={createPostMutation.isPending || isUploading}
+              <PostMediaPreview
+                media={previewMedia}
+                editable
+                onRemove={handleRemoveMedia}
+                onLightboxOpen={handleLightboxOpen}
               />
             </div>
           )}
@@ -244,7 +234,7 @@ export function CreatePostDialog({
         </div>
       </DialogContent>
       <ImageLightbox
-        images={images.map((image) => ({ src: image.previewUrl, alt: "" }))}
+        images={images.map((img) => ({ src: img.previewUrl, alt: "" }))}
         open={lightboxOpen}
         onOpenChange={setLightboxOpen}
         initialIndex={lightboxIndex}

@@ -15,13 +15,13 @@ import {
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
 import { CharacterCounter } from "./post-composer/CharacterCounter";
-import { ImagePreview } from "./post-composer/ImagePreview";
-import { VideoPreview } from "./post-composer/VideoPreview";
 import { MAX_CONTENT_LENGTH } from "./post-composer/constants";
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { UserMenuContent } from "@/components/auth/UserMenuContent";
 import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { PostMediaPreview } from "@/components/PostMediaPreview";
+import { OgpCard } from "@/components/OgpCard";
 
 /**
  * Inline compose card for creating posts
@@ -63,14 +63,15 @@ export function ComposeCard() {
     video,
     isUploading,
     isDragging,
+    ogpUrl,
+    previewMedia,
     fileInputRef,
     textareaRef,
     handleContentChange,
     handleKeyDown,
     handlePaste,
     handleImageSelect,
-    handleRemoveImage,
-    handleRemoveVideo,
+    handleRemoveMedia,
     handlePost,
     handleDragOver,
     handleDragEnter,
@@ -142,6 +143,11 @@ export function ComposeCard() {
     src: image.previewUrl,
     alt: "",
   }));
+
+  const handleLightboxOpen = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
 
   return (
     <>
@@ -251,36 +257,21 @@ export function ComposeCard() {
               />
             </div>
 
-            {/* Image Previews */}
-            {images.length > 0 && (
+            {/* OGP Link Preview – only when no media is attached */}
+            {ogpUrl && (
               <div className="pl-[52px] sm:pl-[60px]">
-                <div className="flex gap-2 flex-wrap">
-                  {images.map((image) => (
-                    <ImagePreview
-                      key={image.localId}
-                      image={image}
-                      onRemove={handleRemoveImage}
-                      disabled={createPostMutation.isPending || isUploading}
-                      onPreview={() => {
-                        const index = images.findIndex(
-                          (candidate) => candidate.localId === image.localId,
-                        );
-                        setLightboxIndex(index === -1 ? 0 : index);
-                        setLightboxOpen(true);
-                      }}
-                    />
-                  ))}
-                </div>
+                <OgpCard url={ogpUrl} />
               </div>
             )}
 
-            {/* Video Preview */}
-            {video && (
+            {/* Media Preview (images / video) */}
+            {previewMedia.length > 0 && (
               <div className="pl-[52px] sm:pl-[60px]">
-                <VideoPreview
-                  video={video}
-                  onRemove={handleRemoveVideo}
-                  disabled={createPostMutation.isPending || isUploading}
+                <PostMediaPreview
+                  media={previewMedia}
+                  editable
+                  onRemove={handleRemoveMedia}
+                  onLightboxOpen={handleLightboxOpen}
                 />
               </div>
             )}

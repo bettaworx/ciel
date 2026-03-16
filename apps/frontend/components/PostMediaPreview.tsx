@@ -152,10 +152,10 @@ export function PostMediaPreview({
         alt=""
         fill
         unoptimized
-        className={cn("object-cover", !editable && "cursor-zoom-in", extraImgClass)}
+        className={cn("object-cover", onLightboxOpen && "cursor-zoom-in", extraImgClass)}
         sizes="(max-width: 600px) 100vw, 600px"
       />
-      {!editable && onLightboxOpen && (
+      {onLightboxOpen && (
         <button
           type="button"
           onClick={() => onLightboxOpen(index)}
@@ -182,10 +182,10 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover", !editable && "cursor-zoom-in")}
+            className={cn("object-cover", onLightboxOpen && "cursor-zoom-in")}
             sizes="(max-width: 600px) 100vw, 600px"
           />
-          {!editable && onLightboxOpen && (
+          {onLightboxOpen && (
             <button
               type="button"
               onClick={() => onLightboxOpen(0)}
@@ -214,10 +214,10 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover rounded-l-xl", !editable && "cursor-zoom-in")}
+            className={cn("object-cover rounded-l-xl", onLightboxOpen && "cursor-zoom-in")}
             sizes="(max-width: 600px) 50vw, 300px"
           />
-          {!editable && onLightboxOpen && (
+          {onLightboxOpen && (
             <button
               type="button"
               onClick={() => onLightboxOpen(0)}
@@ -238,10 +238,10 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover rounded-r-xl", !editable && "cursor-zoom-in")}
+            className={cn("object-cover rounded-r-xl", onLightboxOpen && "cursor-zoom-in")}
             sizes="(max-width: 600px) 50vw, 300px"
           />
-          {!editable && onLightboxOpen && (
+          {onLightboxOpen && (
             <button
               type="button"
               onClick={() => onLightboxOpen(1)}
@@ -270,10 +270,10 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover rounded-l-xl", !editable && "cursor-zoom-in")}
+            className={cn("object-cover rounded-l-xl", onLightboxOpen && "cursor-zoom-in")}
             sizes="(max-width: 600px) 50vw, 300px"
           />
-          {!editable && onLightboxOpen && (
+          {onLightboxOpen && (
             <button
               type="button"
               onClick={() => onLightboxOpen(0)}
@@ -294,10 +294,10 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover rounded-tr-xl", !editable && "cursor-zoom-in")}
+            className={cn("object-cover rounded-tr-xl", onLightboxOpen && "cursor-zoom-in")}
             sizes="(max-width: 600px) 50vw, 300px"
           />
-          {!editable && onLightboxOpen && (
+          {onLightboxOpen && (
             <button
               type="button"
               onClick={() => onLightboxOpen(1)}
@@ -318,10 +318,10 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover rounded-br-xl", !editable && "cursor-zoom-in")}
+            className={cn("object-cover rounded-br-xl", onLightboxOpen && "cursor-zoom-in")}
             sizes="(max-width: 600px) 50vw, 300px"
           />
-          {!editable && onLightboxOpen && (
+          {onLightboxOpen && (
             <button
               type="button"
               onClick={() => onLightboxOpen(2)}
@@ -364,11 +364,11 @@ export function PostMediaPreview({
               className={cn(
                 "object-cover",
                 roundingClasses[i],
-                !editable && "cursor-zoom-in",
+                onLightboxOpen && "cursor-zoom-in",
               )}
               sizes="(max-width: 600px) 50vw, 300px"
             />
-            {!editable && onLightboxOpen && (
+            {onLightboxOpen && (
               <button
                 type="button"
                 onClick={() => onLightboxOpen(i)}
