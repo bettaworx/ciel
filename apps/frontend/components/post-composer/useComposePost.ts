@@ -170,15 +170,10 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    // Calculate minimum height based on font size (line-height * 2 lines ≈ 32px for text-base)
-    const computedStyle = window.getComputedStyle(textarea);
-    const lineHeight = parseFloat(computedStyle.lineHeight);
-    const minHeight = lineHeight * 2; // Roughly 2 lines of text (≈32px for text-base)
-
-    // Override min-height to prevent it from affecting scrollHeight calculation
+    // Override min-height to prevent CSS min-height from inflating scrollHeight
     textarea.style.minHeight = "0";
-    textarea.style.height = "auto";
-    const newHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT));
+    textarea.style.height = "0";
+    const newHeight = Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT);
     textarea.style.height = `${newHeight}px`;
   }, [content, autoResize]);
 

@@ -246,6 +246,7 @@ export function ComposeCard() {
 
               <Textarea
                 ref={textareaRef}
+                rows={1}
                 value={content}
                 onChange={handleContentChange}
                 onKeyDown={handleKeyDown}

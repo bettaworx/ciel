@@ -21,7 +21,7 @@ export function HomePage() {
   const posts = data?.pages.flatMap((page) => page.items ?? []) ?? [];
 
   return (
-    <PageContainer maxWidth="3xl">
+    <PageContainer maxWidth="2xl">
       <div className="space-y-3">
         {auth.user ? <ComposeCard /> : <WelcomeCard />}
         <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">

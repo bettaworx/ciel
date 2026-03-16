@@ -6,7 +6,7 @@ interface PageContainerProps {
    * 最大幅の設定
    * @default "6xl" (max-w-6xl, 72rem / 1152px)
    */
-  maxWidth?: "2xl" | "3xl" | "4xl" | "6xl" | "full";
+  maxWidth?: "xl" | "2xl" | "3xl" | "4xl" | "6xl" | "full";
   /**
    * パディングのサイズ
    * @default "default" (px-4 py-8)
@@ -24,6 +24,7 @@ interface PageContainerProps {
 }
 
 const maxWidthClasses = {
+  xl: "max-w-xl",
   "2xl": "max-w-2xl",
   "3xl": "max-w-3xl",
   "4xl": "max-w-4xl",

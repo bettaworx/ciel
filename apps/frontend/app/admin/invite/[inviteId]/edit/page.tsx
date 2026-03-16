@@ -66,7 +66,7 @@ export default function EditInvitePage({
 }) {
   const t = useTranslations("admin.invites");
   const router = useRouter();
-  
+
   // Unwrap params promise
   const { inviteId } = use(params);
 
@@ -247,10 +247,7 @@ export default function EditInvitePage({
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="never" id="never" />
-                  <Label
-                    htmlFor="never"
-                    className="font-normal cursor-pointer"
-                  >
+                  <Label htmlFor="never" className="font-normal cursor-pointer">
                     {t("form.never")}
                   </Label>
                 </div>
@@ -267,11 +264,7 @@ export default function EditInvitePage({
                   </Label>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <RadioGroupItem
-                    value="custom"
-                    id="custom"
-                    className="mt-2"
-                  />
+                  <RadioGroupItem value="custom" id="custom" className="mt-2" />
                   <div className="flex-1 space-y-2">
                     <Label
                       htmlFor="custom"
