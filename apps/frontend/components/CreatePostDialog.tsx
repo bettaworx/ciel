@@ -187,7 +187,7 @@ export function CreatePostDialog({
               onPaste={handlePaste}
               placeholder={t("createPost.placeholder")}
               className={cn(
-                "mt-1.5 md:mt-0.75 flex-1 max-h-[400px] max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0",
+                "mt-2 md:mt-3 flex-1 max-h-[400px] max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0",
               )}
               maxLength={MAX_CONTENT_LENGTH}
               disabled={createPostMutation.isPending || isUploading}
@@ -214,7 +214,7 @@ export function CreatePostDialog({
           )}
 
           {/* Actions */}
-          <div className="pl-18 px-3 pb-3">
+          <div className="px-3 pb-3">
             <input
               ref={fileInputRef}
               type="file"
