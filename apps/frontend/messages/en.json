@@ -172,6 +172,7 @@
     "uploadNetworkError": "Upload failed. The file may be too large or the connection was interrupted"
   },
   "lightbox": {
+    "title": "Image viewer",
     "open": "Open image",
     "close": "Close",
     "previous": "Previous image",
