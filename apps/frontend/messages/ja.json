@@ -523,7 +523,9 @@
     "deleteSuccess": "投稿を削除しました",
     "deleteError": "投稿の削除に失敗しました",
     "copySuccess": "ユーザーIDをコピーしました",
-    "copyError": "ユーザーIDのコピーに失敗しました"
+    "copyError": "ユーザーIDのコピーに失敗しました",
+    "showMore": "もっと見る",
+    "showLess": "閉じる"
   },
   "welcome": {
     "title": "{serverName}へようこそ！",

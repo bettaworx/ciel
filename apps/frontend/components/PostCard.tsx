@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
@@ -73,8 +73,17 @@ export function PostCard({
   const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(
     null,
   );
+  const [isContentExpanded, setIsContentExpanded] = useState(false);
+  const [isContentOverflowing, setIsContentOverflowing] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const isOwner = auth.user?.id === post.author?.id;
   const hasReactions = reactions.length > 0;
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    setIsContentOverflowing(el.scrollHeight > 128);
+  }, [post.content]);
 
   const handleToggleReaction = useCallback(
     (emoji: string) => {
@@ -234,8 +243,30 @@ export function PostCard({
 
           {/* Post Content */}
           {post.content && (
-            <div className="text-foreground whitespace-pre-wrap break-words mb-3">
-              <MfmRenderer text={post.content} />
+            <div className="mb-3">
+              <div
+                ref={contentRef}
+                className={cn(
+                  "text-foreground whitespace-pre-wrap break-words",
+                  !isContentExpanded &&
+                    isContentOverflowing &&
+                    "max-h-32 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_50%,transparent_100%)]",
+                )}
+              >
+                <MfmRenderer text={post.content} />
+              </div>
+              {isContentOverflowing && (
+                <div className="flex justify-start mt-1">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-muted-foreground"
+                    onClick={() => setIsContentExpanded((v) => !v)}
+                  >
+                    {isContentExpanded ? t("showLess") : t("showMore")}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
@@ -340,7 +371,7 @@ export function PostCard({
                   </Button>
                 </DrawerTrigger>
                 <DrawerContent>
-                  <div className="flex flex-col gap-2 p-2">
+                  <div className="flex flex-col gap-2 p-2 pb-4">
                     {hasReactions && (
                       <Button
                         variant="ghost"

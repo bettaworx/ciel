@@ -523,7 +523,9 @@
     "deleteSuccess": "Post deleted",
     "deleteError": "Failed to delete post",
     "copySuccess": "User ID copied",
-    "copyError": "Failed to copy user ID"
+    "copyError": "Failed to copy user ID",
+    "showMore": "Show more",
+    "showLess": "Show less"
   },
   "welcome": {
     "title": "Welcome to {serverName}!",
