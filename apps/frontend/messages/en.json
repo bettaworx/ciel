@@ -147,6 +147,8 @@
     "placeholder": "What's happening?",
     "post": "Post",
     "posting": "Posting...",
+    "formatBold": "Bold",
+    "formatItalic": "Italic",
     "uploadImage": "Upload Image",
     "uploadVideo": "Upload Video",
     "uploadMedia": "Upload Image or Video",

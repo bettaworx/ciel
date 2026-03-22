@@ -2,7 +2,11 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { X, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
+import {
+  X,
+  Image as ImageIcon,
+  Video as VideoIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageLightbox } from "@/components/ImageLightbox";
@@ -29,6 +33,8 @@ interface PostComposerContentProps {
   compose: UseComposePostReturn;
   /** Avatar element — Card passes a Popover-wrapped avatar, Dialog a static one */
   avatar: ReactNode;
+  /** (optional) Text formatting toolbar buttons (e.g. bold, italic) */
+  formatButtons?: ReactNode;
   /** (dialog only) Called when the close button is clicked */
   onClose?: () => void;
   /** (dialog only) Whether the close button should be disabled */
@@ -76,6 +82,7 @@ export function PostComposerContent({
   layout,
   compose,
   avatar,
+  formatButtons,
   onClose,
   closeDisabled,
   onBlur,
@@ -300,7 +307,12 @@ export function PostComposerContent({
           className={cn("flex items-center justify-between", s.contentPadding)}
         >
           <div>{uploadButtons}</div>
-          {counterAndPost}
+          <div className="flex flex-row gap-3">
+            {formatButtons && (
+              <div className="flex items-center gap-1">{formatButtons}</div>
+            )}
+            {counterAndPost}
+          </div>
         </div>
       </div>
 

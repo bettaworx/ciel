@@ -147,6 +147,8 @@
     "placeholder": "いまどうしてる?",
     "post": "投稿",
     "posting": "投稿中...",
+    "formatBold": "太字",
+    "formatItalic": "斜体",
     "uploadImage": "画像をアップロード",
     "uploadVideo": "動画をアップロード",
     "uploadMedia": "画像・動画をアップロード",
