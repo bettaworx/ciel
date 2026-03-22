@@ -1,16 +1,20 @@
 // Service Worker for Ciel PWA
 // Implements hybrid caching strategy for optimal offline experience
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `ciel-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ciel-dynamic-${CACHE_VERSION}`;
+const RSC_CACHE = `ciel-rsc-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
+
+// RSC cache TTL: 5 minutes
+const RSC_TTL_MS = 300_000;
 
 // Assets to precache on install
 const PRECACHE_URLS = [
   '/',
   '/offline',
-  '/api/manifest.json',
+  '/pwa/manifest.json',
 ];
 
 // Install event: Precache critical assets
@@ -35,8 +39,9 @@ self.addEventListener('activate', (event) => {
             // Delete old versions of our caches
             return (
               cacheName.startsWith('ciel-static-') ||
-              cacheName.startsWith('ciel-dynamic-')
-            ) && cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE;
+              cacheName.startsWith('ciel-dynamic-') ||
+              cacheName.startsWith('ciel-rsc-')
+            ) && cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE && cacheName !== RSC_CACHE;
           })
           .map((cacheName) => caches.delete(cacheName))
       );
@@ -62,19 +67,43 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // React Server Components requests (_rsc query param) - always fetch from network
+  // React Server Components requests (_rsc query param)
+  // Stale-While-Revalidate with 5-minute TTL for fast client-side navigation
   if (url.searchParams.has('_rsc')) {
-    event.respondWith(fetch(request));
+    event.respondWith(
+      caches.open(RSC_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        const fetchPromise = fetch(request).then((res) => {
+          if (res.ok) {
+            cache.put(request, res.clone());
+          }
+          return res;
+        });
+
+        if (cached) {
+          // Check TTL (5 minutes)
+          const date = cached.headers.get('date');
+          const age = date ? Date.now() - new Date(date).getTime() : Infinity;
+          if (age < RSC_TTL_MS) {
+            // Serve from cache immediately, update in background
+            fetchPromise.catch(() => {});
+            return cached;
+          }
+        }
+
+        // Cache expired or not cached: fetch from network
+        return fetchPromise;
+      })
+    );
     return;
   }
 
-  // Navigation requests (HTML pages)
+  // Navigation requests (HTML pages) - Stale-While-Revalidate
   if (request.mode === 'navigate') {
     // Special handling for offline page - always fetch from network
     if (url.pathname === OFFLINE_URL) {
       event.respondWith(
         fetch(request).catch(() => {
-          // If network fails for /offline, return cached version
           return caches.match(OFFLINE_URL);
         })
       );
@@ -82,39 +111,35 @@ self.addEventListener('fetch', (event) => {
     }
 
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // If response is OK, cache and return it
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(DYNAMIC_CACHE).then((cache) => {
-              cache.put(request, responseClone);
-            });
-            return response;
-          }
-          
-          // If server error (5xx) or service unavailable, show offline page
-          if (response.status >= 500) {
-            return caches.match(request).then((cachedResponse) => {
-              return cachedResponse || caches.match(OFFLINE_URL);
-            });
-          }
-          
-          // For other errors (4xx, etc.), return the error response
-          return response;
-        })
-        .catch(() => {
-          // Network failed, try cache
-          return caches.match(request).then((cachedResponse) => {
-            // Return cached page or offline page
-            return cachedResponse || caches.match(OFFLINE_URL);
-          });
-        })
+      caches.open(DYNAMIC_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        const fetchPromise = fetch(request)
+          .then((res) => {
+            if (res.ok) {
+              cache.put(request, res.clone());
+              return res;
+            }
+            // If server error (5xx), fall back to cache or offline page
+            if (res.status >= 500) {
+              return cached || caches.match(OFFLINE_URL);
+            }
+            return res;
+          })
+          .catch(() => cached || caches.match(OFFLINE_URL));
+
+        // Serve from cache immediately if available, update in background
+        if (cached) {
+          fetchPromise.catch(() => {});
+          return cached;
+        }
+
+        return fetchPromise;
+      })
     );
     return;
   }
 
-  // Static assets (JS, CSS, images from _next/static or root)
+  // Static assets (JS, CSS, images from _next/static or root) - Cache First
   if (
     url.pathname.startsWith('/_next/static/') ||
     url.pathname.match(/\.(js|css|woff2?|png|jpg|jpeg|gif|svg|webp|ico)$/i)
@@ -137,7 +162,6 @@ self.addEventListener('fetch', (event) => {
           })
           .catch((error) => {
             console.error('Failed to fetch static asset:', request.url, error);
-            // Return a minimal error response instead of throwing
             return new Response('', { status: 503, statusText: 'Service Unavailable' });
           });
       })
@@ -145,35 +169,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // PWA icons - Cache first with long-term fallback
-  // Use cached version even if stale when server is offline
-  if (url.pathname === '/api/pwa-icon-192' || url.pathname === '/api/pwa-icon-512') {
+  // PWA icons - Stale-While-Revalidate with long-term fallback
+  if (url.pathname.startsWith('/pwa/icon-')) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         const fetchPromise = fetch(request)
           .then((response) => {
-            // Update cache if server returns OK
             if (response.ok) {
               const responseClone = response.clone();
               caches.open(STATIC_CACHE).then((cache) => {
                 cache.put(request, responseClone);
               });
             }
-            // If server error (5xx) but we have cache, use cache instead
             if (response.status >= 500 && cachedResponse) {
               return cachedResponse;
             }
             return response;
           })
           .catch(() => {
-            // Network failed - use cache even if stale
             if (cachedResponse) {
               return cachedResponse;
             }
-            // No cache available, return error
             return new Response('', { status: 503, statusText: 'Service Unavailable' });
           });
-        
+
         // Return cached version immediately (if exists), then update in background
         return cachedResponse || fetchPromise;
       })
@@ -181,32 +200,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Manifest.json - Cache first with stale-while-revalidate
-  // Use cached version even if stale when server is offline
-  if (url.pathname === '/api/manifest.json') {
+  // PWA Manifest - Stale-While-Revalidate
+  if (url.pathname === '/pwa/manifest.json') {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         const fetchPromise = fetch(request)
           .then((response) => {
-            // Update cache if server returns OK
             if (response.ok) {
               const responseClone = response.clone();
               caches.open(DYNAMIC_CACHE).then((cache) => {
                 cache.put(request, responseClone);
               });
             }
-            // If server error (5xx) but we have cache, use cache instead
             if (response.status >= 500 && cachedResponse) {
               return cachedResponse;
             }
             return response;
           })
           .catch(() => {
-            // Network failed - use cache even if stale
             if (cachedResponse) {
               return cachedResponse;
             }
-            // No cache available, return minimal fallback
             return new Response(
               JSON.stringify({
                 name: 'Ciel',
@@ -224,51 +238,26 @@ self.addEventListener('fetch', (event) => {
               }
             );
           });
-        
-        // Return cached version immediately (if exists), then update in background
+
         return cachedResponse || fetchPromise;
       })
     );
     return;
   }
 
-  // API requests (frontend API routes or backend API)
+  // API requests and external origins - Network Only
+  // APIs must not be cached; data freshness is required
   if (url.pathname.startsWith('/api/') || url.origin !== self.location.origin) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful API responses for 5 minutes
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(DYNAMIC_CACHE).then((cache) => {
-              cache.put(request, responseClone);
-            });
+      fetch(request).catch(() =>
+        new Response(
+          JSON.stringify({ error: 'Network unavailable' }),
+          {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
           }
-          return response;
-        })
-        .catch(() => {
-          // Network failed, try cache (5-minute fallback)
-          return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              // Check cache age (5 minutes = 300,000 ms)
-              const cacheDate = cachedResponse.headers.get('date');
-              if (cacheDate) {
-                const age = Date.now() - new Date(cacheDate).getTime();
-                if (age < 300000) {
-                  return cachedResponse;
-                }
-              }
-            }
-            // Cache too old or not found, return error response
-            return new Response(
-              JSON.stringify({ error: 'Network unavailable' }),
-              {
-                status: 503,
-                headers: { 'Content-Type': 'application/json' },
-              }
-            );
-          });
-        })
+        )
+      )
     );
     return;
   }
