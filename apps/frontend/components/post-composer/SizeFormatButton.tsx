@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { applyFormatToTextarea } from "./applyFormat";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -232,21 +233,6 @@ export function SizeFormatButton({
   );
   const isActive = sizeMatch !== null;
 
-  const applyToTextarea = (
-    newValue: string,
-    newStart: number,
-    newEnd: number,
-  ) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    setContent(newValue);
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newStart, newEnd);
-      setSelectionRange({ start: newStart, end: newEnd });
-    });
-  };
-
   const handleRemove = () => {
     const textarea = textareaRef.current;
     if (!textarea || !sizeMatch) return;
@@ -257,7 +243,7 @@ export function SizeFormatButton({
       selectionEnd,
       sizeMatch,
     );
-    applyToTextarea(newValue, newStart, newEnd);
+    applyFormatToTextarea(textarea, newValue, newStart, newEnd, setContent, setSelectionRange);
   };
 
   const handleSelectSize = (sizeName: SizeName) => {
@@ -270,7 +256,7 @@ export function SizeFormatButton({
       selectionEnd,
       sizeName,
     );
-    applyToTextarea(newValue, newStart, newEnd);
+    applyFormatToTextarea(textarea, newValue, newStart, newEnd, setContent, setSelectionRange);
     setMenuOpen(false);
   };
 

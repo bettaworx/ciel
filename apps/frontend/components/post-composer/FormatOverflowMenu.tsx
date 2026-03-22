@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
+import { applyFormatToTextarea } from "./applyFormat";
 import {
   findFontDecoration,
   removeFontDecoration,
@@ -131,19 +132,10 @@ export function FormatOverflowMenu({
       linkMatch !== null ||
       isCenterActive;
 
-  const applyToTextarea = (
-    newValue: string,
-    newStart: number,
-    newEnd: number,
-  ) => {
+  const apply = (newValue: string, newStart: number, newEnd: number) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    setContent(newValue);
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newStart, newEnd);
-      setSelectionRange({ start: newStart, end: newEnd });
-    });
+    applyFormatToTextarea(textarea, newValue, newStart, newEnd, setContent, setSelectionRange);
   };
 
   // --- Font handlers ---
@@ -153,30 +145,15 @@ export function FormatOverflowMenu({
     const { selectionStart, selectionEnd, value } = textarea;
 
     if (fontMatch && fontMatch.fontName === fontName) {
-      const { newValue, newStart, newEnd } = removeFontDecoration(
-        value,
-        selectionStart,
-        selectionEnd,
-        fontMatch,
-      );
-      applyToTextarea(newValue, newStart, newEnd);
+      const { newValue, newStart, newEnd } = removeFontDecoration(value, selectionStart, selectionEnd, fontMatch);
+      apply(newValue, newStart, newEnd);
     } else if (fontMatch) {
-      const { newValue, newStart, newEnd } = removeFontDecoration(
-        value,
-        selectionStart,
-        selectionEnd,
-        fontMatch,
-      );
+      const { newValue, newStart, newEnd } = removeFontDecoration(value, selectionStart, selectionEnd, fontMatch);
       const result = insertFontDecoration(newValue, newStart, newEnd, fontName);
-      applyToTextarea(result.newValue, result.newStart, result.newEnd);
+      apply(result.newValue, result.newStart, result.newEnd);
     } else {
-      const { newValue, newStart, newEnd } = insertFontDecoration(
-        value,
-        selectionStart,
-        selectionEnd,
-        fontName,
-      );
-      applyToTextarea(newValue, newStart, newEnd);
+      const { newValue, newStart, newEnd } = insertFontDecoration(value, selectionStart, selectionEnd, fontName);
+      apply(newValue, newStart, newEnd);
     }
     setDrawerOpen(false);
   };
@@ -188,30 +165,15 @@ export function FormatOverflowMenu({
     const { selectionStart, selectionEnd, value } = textarea;
 
     if (sizeMatch && sizeMatch.sizeName === sizeName) {
-      const { newValue, newStart, newEnd } = removeSizeDecoration(
-        value,
-        selectionStart,
-        selectionEnd,
-        sizeMatch,
-      );
-      applyToTextarea(newValue, newStart, newEnd);
+      const { newValue, newStart, newEnd } = removeSizeDecoration(value, selectionStart, selectionEnd, sizeMatch);
+      apply(newValue, newStart, newEnd);
     } else if (sizeMatch) {
-      const { newValue, newStart, newEnd } = removeSizeDecoration(
-        value,
-        selectionStart,
-        selectionEnd,
-        sizeMatch,
-      );
+      const { newValue, newStart, newEnd } = removeSizeDecoration(value, selectionStart, selectionEnd, sizeMatch);
       const result = insertSizeDecoration(newValue, newStart, newEnd, sizeName);
-      applyToTextarea(result.newValue, result.newStart, result.newEnd);
+      apply(result.newValue, result.newStart, result.newEnd);
     } else {
-      const { newValue, newStart, newEnd } = insertSizeDecoration(
-        value,
-        selectionStart,
-        selectionEnd,
-        sizeName,
-      );
-      applyToTextarea(newValue, newStart, newEnd);
+      const { newValue, newStart, newEnd } = insertSizeDecoration(value, selectionStart, selectionEnd, sizeName);
+      apply(newValue, newStart, newEnd);
     }
     setDrawerOpen(false);
   };
@@ -223,44 +185,28 @@ export function FormatOverflowMenu({
     const { selectionStart, selectionEnd, value } = textarea;
 
     if (codeMatch) {
-      const { newValue, newStart, newEnd } = removeCodeDecoration(
-        value,
-        selectionStart,
-        selectionEnd,
-        codeMatch,
-      );
-      applyToTextarea(newValue, newStart, newEnd);
+      const { newValue, newStart, newEnd } = removeCodeDecoration(value, selectionStart, selectionEnd, codeMatch);
+      apply(newValue, newStart, newEnd);
     } else {
       const hasSelection = selectionStart !== selectionEnd;
       if (!hasSelection) {
-        const newValue =
-          value.slice(0, selectionStart) + "``" + value.slice(selectionStart);
-        applyToTextarea(newValue, selectionStart + 1, selectionStart + 1);
+        apply(value.slice(0, selectionStart) + "``" + value.slice(selectionStart), selectionStart + 1, selectionStart + 1);
       } else {
         const selected = value.slice(selectionStart, selectionEnd);
-        const isMultiLine = selected.includes("\n");
-        if (isMultiLine) {
+        if (selected.includes("\n")) {
           const prefix = "```\n";
           const suffix = "\n```";
-          const newValue =
-            value.slice(0, selectionStart) +
-            prefix +
-            selected +
-            suffix +
-            value.slice(selectionEnd);
-          applyToTextarea(
-            newValue,
+          apply(
+            value.slice(0, selectionStart) + prefix + selected + suffix + value.slice(selectionEnd),
             selectionStart + prefix.length,
             selectionEnd + prefix.length,
           );
         } else {
-          const newValue =
-            value.slice(0, selectionStart) +
-            "`" +
-            selected +
-            "`" +
-            value.slice(selectionEnd);
-          applyToTextarea(newValue, selectionStart + 1, selectionEnd + 1);
+          apply(
+            value.slice(0, selectionStart) + "`" + selected + "`" + value.slice(selectionEnd),
+            selectionStart + 1,
+            selectionEnd + 1,
+          );
         }
       }
     }
@@ -274,44 +220,20 @@ export function FormatOverflowMenu({
     const { selectionStart, selectionEnd, value } = textarea;
 
     if (linkMatch) {
-      const { newValue, newStart, newEnd } = removeLinkDecoration(
-        value,
-        selectionStart,
-        selectionEnd,
-        linkMatch,
-      );
-      applyToTextarea(newValue, newStart, newEnd);
+      const { newValue, newStart, newEnd } = removeLinkDecoration(value, selectionStart, selectionEnd, linkMatch);
+      apply(newValue, newStart, newEnd);
     } else {
       const hasSelection = selectionStart !== selectionEnd;
       if (hasSelection) {
         const selected = value.slice(selectionStart, selectionEnd);
-        const isUrl = /^https?:\/\/\S+$/.test(selected.trim());
-
-        if (isUrl) {
-          const newValue =
-            value.slice(0, selectionStart) +
-            "[](" +
-            selected +
-            ")" +
-            value.slice(selectionEnd);
-          const cursor = selectionStart + 1;
-          applyToTextarea(newValue, cursor, cursor);
+        if (/^https?:\/\/\S+$/.test(selected.trim())) {
+          apply(value.slice(0, selectionStart) + "[](" + selected + ")" + value.slice(selectionEnd), selectionStart + 1, selectionStart + 1);
         } else {
-          const newValue =
-            value.slice(0, selectionStart) +
-            "[" +
-            selected +
-            "]()" +
-            value.slice(selectionEnd);
           const cursor = selectionStart + 1 + selected.length + 2;
-          applyToTextarea(newValue, cursor, cursor);
+          apply(value.slice(0, selectionStart) + "[" + selected + "]()" + value.slice(selectionEnd), cursor, cursor);
         }
       } else {
-        const newValue =
-          value.slice(0, selectionStart) +
-          "[](url)" +
-          value.slice(selectionStart);
-        applyToTextarea(newValue, selectionStart + 1, selectionStart + 1);
+        apply(value.slice(0, selectionStart) + "[](url)" + value.slice(selectionStart), selectionStart + 1, selectionStart + 1);
       }
     }
     setDrawerOpen(false);
@@ -324,31 +246,23 @@ export function FormatOverflowMenu({
     const { selectionStart, selectionEnd, value } = textarea;
 
     if (isCenterActive) {
-      const { newValue, newStart, newEnd } = removeDecoration(
-        value,
-        selectionStart,
-        selectionEnd,
-        "<center>",
-        "</center>",
-      );
-      applyToTextarea(newValue, newStart, newEnd);
+      const { newValue, newStart, newEnd } = removeDecoration(value, selectionStart, selectionEnd, "<center>", "</center>");
+      apply(newValue, newStart, newEnd);
     } else {
       const hasSelection = selectionStart !== selectionEnd;
       if (hasSelection) {
         const selected = value.slice(selectionStart, selectionEnd);
-        const newValue =
-          value.slice(0, selectionStart) +
-          "<center>" +
-          selected +
-          "</center>" +
-          value.slice(selectionEnd);
-        applyToTextarea(newValue, selectionStart + 8, selectionEnd + 8);
+        apply(
+          value.slice(0, selectionStart) + "<center>" + selected + "</center>" + value.slice(selectionEnd),
+          selectionStart + 8,
+          selectionEnd + 8,
+        );
       } else {
-        const newValue =
-          value.slice(0, selectionStart) +
-          "<center></center>" +
-          value.slice(selectionStart);
-        applyToTextarea(newValue, selectionStart + 8, selectionStart + 8);
+        apply(
+          value.slice(0, selectionStart) + "<center></center>" + value.slice(selectionStart),
+          selectionStart + 8,
+          selectionStart + 8,
+        );
       }
     }
     setDrawerOpen(false);

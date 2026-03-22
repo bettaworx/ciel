@@ -4,6 +4,7 @@ import { useEffect, useState, type RefObject } from "react";
 import { type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { applyFormatToTextarea } from "./applyFormat";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -206,26 +207,13 @@ export function LinkFormatButton({
   );
   const isActive = linkMatch !== null;
 
-  const applyToTextarea = (
-    newValue: string,
-    newStart: number,
-    newEnd: number,
-  ) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    setContent(newValue);
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newStart, newEnd);
-      setSelectionRange({ start: newStart, end: newEnd });
-    });
-  };
-
   const handleClick = () => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
     const { selectionStart, selectionEnd, value } = textarea;
+    const apply = (newValue: string, newStart: number, newEnd: number) =>
+      applyFormatToTextarea(textarea, newValue, newStart, newEnd, setContent, setSelectionRange);
 
     if (isActive && linkMatch) {
       const { newValue, newStart, newEnd } = removeLinkDecoration(
@@ -234,7 +222,7 @@ export function LinkFormatButton({
         selectionEnd,
         linkMatch,
       );
-      applyToTextarea(newValue, newStart, newEnd);
+      apply(newValue, newStart, newEnd);
       return;
     }
 
@@ -245,32 +233,26 @@ export function LinkFormatButton({
       const isUrl = /^https?:\/\/\S+$/.test(selected.trim());
 
       if (isUrl) {
-        // Selected text is a URL → [](selectedURL) with cursor inside []
         const newValue =
           value.slice(0, selectionStart) +
           "[](" +
           selected +
           ")" +
           value.slice(selectionEnd);
-        const cursor = selectionStart + 1; // inside []
-        applyToTextarea(newValue, cursor, cursor);
+        apply(newValue, selectionStart + 1, selectionStart + 1);
       } else {
-        // Selected text is display text → [selectedText]() with cursor inside ()
         const newValue =
           value.slice(0, selectionStart) +
           "[" +
           selected +
           "]()" +
           value.slice(selectionEnd);
-        const cursor = selectionStart + 1 + selected.length + 2; // inside ()
-        applyToTextarea(newValue, cursor, cursor);
+        apply(newValue, selectionStart + 1 + selected.length + 2, selectionStart + 1 + selected.length + 2);
       }
     } else {
-      // No selection: [](url) — cursor inside []
       const newValue =
         value.slice(0, selectionStart) + "[](url)" + value.slice(selectionStart);
-      const cursor = selectionStart + 1; // inside []
-      applyToTextarea(newValue, cursor, cursor);
+      apply(newValue, selectionStart + 1, selectionStart + 1);
     }
   };
 

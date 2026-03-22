@@ -4,6 +4,7 @@ import { useEffect, useState, type RefObject } from "react";
 import { type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { applyFormatToTextarea } from "./applyFormat";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -264,12 +265,7 @@ export function TextFormatButton({
         prefix,
         suffix,
       );
-      setContent(newValue);
-      requestAnimationFrame(() => {
-        textarea.focus();
-        textarea.setSelectionRange(newStart, newEnd);
-        setSelectionRange({ start: newStart, end: newEnd });
-      });
+      applyFormatToTextarea(textarea, newValue, newStart, newEnd, setContent, setSelectionRange);
     } else {
       const hasSelection = selectionStart !== selectionEnd;
       let newValue: string;
@@ -296,12 +292,7 @@ export function TextFormatButton({
         newEnd = newStart;
       }
 
-      setContent(newValue);
-      requestAnimationFrame(() => {
-        textarea.focus();
-        textarea.setSelectionRange(newStart, newEnd);
-        setSelectionRange({ start: newStart, end: newEnd });
-      });
+      applyFormatToTextarea(textarea, newValue, newStart, newEnd, setContent, setSelectionRange);
     }
   };
 

@@ -4,6 +4,7 @@ import { useEffect, useState, type RefObject } from "react";
 import { type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { applyFormatToTextarea } from "./applyFormat";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -274,48 +275,31 @@ export function CodeFormatButton({
   );
   const isActive = codeMatch !== null;
 
-  const applyToTextarea = (
-    newValue: string,
-    newStart: number,
-    newEnd: number,
-  ) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    setContent(newValue);
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newStart, newEnd);
-      setSelectionRange({ start: newStart, end: newEnd });
-    });
-  };
-
   const handleClick = () => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
     const { selectionStart, selectionEnd, value } = textarea;
+    const apply = (newValue: string, newStart: number, newEnd: number) =>
+      applyFormatToTextarea(textarea, newValue, newStart, newEnd, setContent, setSelectionRange);
 
     if (isActive && codeMatch) {
-      // Remove decoration
       const { newValue, newStart, newEnd } = removeCodeDecoration(
         value,
         selectionStart,
         selectionEnd,
         codeMatch,
       );
-      applyToTextarea(newValue, newStart, newEnd);
+      apply(newValue, newStart, newEnd);
       return;
     }
 
-    // Insert decoration
     const hasSelection = selectionStart !== selectionEnd;
 
     if (!hasSelection) {
-      // No selection — insert `` and place cursor between
       const newValue =
         value.slice(0, selectionStart) + "``" + value.slice(selectionStart);
-      const cursor = selectionStart + 1;
-      applyToTextarea(newValue, cursor, cursor);
+      apply(newValue, selectionStart + 1, selectionStart + 1);
       return;
     }
 
@@ -323,7 +307,6 @@ export function CodeFormatButton({
     const isMultiLine = selected.includes("\n");
 
     if (isMultiLine) {
-      // Multi-line — wrap with ```
       const prefix = "```\n";
       const suffix = "\n```";
       const newValue =
@@ -332,20 +315,15 @@ export function CodeFormatButton({
         selected +
         suffix +
         value.slice(selectionEnd);
-      applyToTextarea(
-        newValue,
-        selectionStart + prefix.length,
-        selectionEnd + prefix.length,
-      );
+      apply(newValue, selectionStart + prefix.length, selectionEnd + prefix.length);
     } else {
-      // Single-line — wrap with `
       const newValue =
         value.slice(0, selectionStart) +
         "`" +
         selected +
         "`" +
         value.slice(selectionEnd);
-      applyToTextarea(newValue, selectionStart + 1, selectionEnd + 1);
+      apply(newValue, selectionStart + 1, selectionEnd + 1);
     }
   };
 
