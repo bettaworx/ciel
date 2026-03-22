@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback, useId } from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, useId } from "react";
 import {
   Play,
   Pause,
@@ -120,6 +120,14 @@ export function VideoPlayer({
   // Mobile: whether the volume slider is explicitly shown (toggled by tap)
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
 
+  // Controls whether the video src is loaded. Cleared when far off-screen to
+  // release the video buffer; restored when re-entering the load zone.
+  const [activeSrc, setActiveSrc] = useState(src);
+  // Ref copy so effect callbacks always see the latest value without needing
+  // to re-create the observer on every activeSrc change.
+  const activeSrcRef = useRef(activeSrc);
+  activeSrcRef.current = activeSrc;
+
   // -----------------------------------------------------------------------
   // Helpers: restore saved volume onto the <video> element
   // -----------------------------------------------------------------------
@@ -135,7 +143,7 @@ export function VideoPlayer({
   // Play / Pause
   // -----------------------------------------------------------------------
   const togglePlay = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !activeSrc) return;
 
     if (isPlaying) {
       userPaused.current = true;
@@ -150,7 +158,7 @@ export function VideoPlayer({
         restoreSavedVolume();
       }
       claimPlayback(playerId, () => videoRef.current?.pause());
-      videoRef.current.play();
+      videoRef.current.play().catch(() => {});
     }
   };
 
@@ -436,6 +444,22 @@ export function VideoPlayer({
     };
   }, []);
 
+  // Imperatively manage the video src attribute so that React 19's internal
+  // reconciler cannot incorrectly set src="" (which resolves to the page URL
+  // and causes NotSupportedError when play() is called). useLayoutEffect runs
+  // synchronously after the DOM mutation, ensuring the attribute is correct
+  // before the browser paints or the user can interact.
+  useLayoutEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (activeSrc) {
+      video.setAttribute('src', activeSrc);
+    } else {
+      video.removeAttribute('src');
+      try { video.load(); } catch { /* expected: resets buffered state */ }
+    }
+  }, [activeSrc]);
+
   // -----------------------------------------------------------------------
   // IntersectionObserver — auto-play when near viewport center, pause when
   // scrolled away. Only one video plays at a time (via claimPlayback).
@@ -447,13 +471,22 @@ export function VideoPlayer({
     const container = containerRef.current;
     if (!video || !container) return;
 
+    // Same Strict Mode guard as the load-zone observer: ignore any initial
+    // false callback that fires before the first true. Set only by the
+    // observer's true callback so that a false after a true (genuine scroll-
+    // out) is still processed correctly.
+    let settled = false;
+
     // rootMargin shrinks the effective viewport to roughly the middle 40%.
     // A video must overlap this central band to be considered "in view".
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
+          settled = true;
           // Don't auto-play if the user explicitly paused this video.
           if (userPaused.current) return;
+          // Don't play if src is unloaded by the load-zone observer.
+          if (!activeSrcRef.current) return;
 
           claimPlayback(playerId, () => video.pause());
           video.play().catch(() => {
@@ -463,6 +496,8 @@ export function VideoPlayer({
           // In fullscreen the element technically leaves the normal viewport
           // intersection rect — do NOT pause when that happens.
           if (isFullscreenRef.current) return;
+          // Ignore initial false that arrives before any true (Strict Mode).
+          if (!settled) return;
 
           // Scrolled out of center band — pause & release
           video.pause();
@@ -474,11 +509,80 @@ export function VideoPlayer({
 
     observer.observe(container);
 
+    // Synchronous initial position check: if the video is already in the
+    // center band, start playing immediately. This handles React 19 Strict
+    // Mode's double-invocation where the cleanup → re-setup cycle leaves the
+    // video paused even though it is genuinely in the auto-play zone.
+    // Note: settled remains false here so that a subsequent observer false
+    // (Strict Mode false-positive) is still ignored.
+    const rect = container.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const midY = (rect.top + rect.bottom) / 2;
+    if (
+      midY > vh * 0.3 &&
+      midY < vh * 0.7 &&
+      !userPaused.current &&
+      activeSrcRef.current
+    ) {
+      claimPlayback(playerId, () => video.pause());
+      video.play().catch(() => {});
+    }
+
     return () => {
       observer.disconnect();
       releasePlayback(playerId);
+      video.pause();
     };
   }, [playerId]);
+
+  // -----------------------------------------------------------------------
+  // Load-zone observer — keeps src loaded within ~3 viewport heights.
+  // When scrolled far away, clears activeSrc to release the video buffer.
+  // -----------------------------------------------------------------------
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // React 19 Strict Mode double-invokes effects (cleanup → setup). The new
+    // observer's initial callback can fire isIntersecting:false for elements
+    // that are genuinely within the load zone, because the browser has not yet
+    // re-run the intersection check against the updated layout. Guard against
+    // this by ignoring any false firing that arrives before the first true —
+    // the element's activeSrc is already correct from the previous invocation.
+    let settled = false;
+
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          settled = true;
+          setActiveSrc(src);
+        } else {
+          // Do not release while in fullscreen — the element technically
+          // leaves the normal viewport intersection rect in that state.
+          if (isFullscreenRef.current) return;
+          // Ignore a false callback that arrives before we have ever seen a
+          // true for this observer instance (Strict Mode false-positive).
+          if (!settled) return;
+          setActiveSrc('');
+        }
+      },
+      { rootMargin: '300% 0px 300% 0px', threshold: 0 },
+    );
+
+    obs.observe(container);
+    return () => obs.disconnect();
+  }, [src]);
+
+  // When activeSrc is cleared, release playback and pause.
+  useEffect(() => {
+    if (!activeSrc) {
+      const video = videoRef.current;
+      if (video) {
+        video.pause();
+      }
+      releasePlayback(playerId);
+    }
+  }, [activeSrc, playerId]);
 
   useEffect(() => {
     scheduleHideControls();
@@ -568,21 +672,18 @@ export function VideoPlayer({
       <video
         ref={videoRef}
         className="w-full h-full cursor-pointer select-none"
-        src={src}
         poster={poster || undefined}
         playsInline
         preload="metadata"
         muted
         loop
         draggable={false}
-        onClick={togglePlay}
-      >
-        <source src={src} type={getMimeType(src)} />
-      </video>
+        onClick={activeSrc ? togglePlay : undefined}
+      />
 
-      {/* Big play button (center) — shown only when paused.
+      {/* Big play button (center) — shown only when src loaded and paused.
           z-20 ensures it sits above the control bar gradient (z-10). */}
-      {!isPlaying && (
+      {activeSrc && !isPlaying && (
         <button
           onClick={togglePlay}
           className="absolute inset-0 m-auto w-12 h-12 z-20 flex items-center justify-center bg-black/55 backdrop-blur-sm rounded-full hover:bg-black/70 hover:scale-110 transition-all duration-150"
@@ -597,8 +698,8 @@ export function VideoPlayer({
         </button>
       )}
 
-      {/* Control bar */}
-      <div
+      {/* Control bar — hidden when src is unloaded */}
+      {activeSrc && <div
         className={cn(
           "absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 select-none",
           showControls || !isPlaying ? "opacity-100" : "opacity-0",
@@ -722,7 +823,7 @@ export function VideoPlayer({
             )}
           </button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
