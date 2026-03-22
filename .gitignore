@@ -105,3 +105,4 @@ apps/frontend/lib/api/api.d.ts
 # SQLC generated files (keep generate.go as marker file)
 apps/backend/internal/db/sqlc/*.go
 !apps/backend/internal/db/sqlc/generate.go
+.claude/settings.local.json
