@@ -513,7 +513,8 @@
       "more": "More actions",
       "viewReactions": "View reactions",
       "delete": "Delete post",
-      "copyUserId": "Copy user ID"
+      "copyUserId": "Copy user ID",
+      "copyText": "Copy text"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
@@ -524,6 +525,8 @@
     "deleteError": "Failed to delete post",
     "copySuccess": "User ID copied",
     "copyError": "Failed to copy user ID",
+    "copyTextSuccess": "Text copied",
+    "copyTextError": "Failed to copy text",
     "showMore": "Show more",
     "showLess": "Show less"
   },

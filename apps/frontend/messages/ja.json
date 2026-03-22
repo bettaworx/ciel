@@ -513,7 +513,8 @@
       "more": "その他の操作",
       "viewReactions": "リアクションを見る",
       "delete": "投稿を削除",
-      "copyUserId": "ユーザーIDをコピー"
+      "copyUserId": "ユーザーIDをコピー",
+      "copyText": "テキストをコピー"
     },
     "deleteConfirmTitle": "投稿を削除しますか？",
     "deleteConfirmDescription": "この操作は取り消せません。投稿はタイムラインから削除されます。",
@@ -524,6 +525,8 @@
     "deleteError": "投稿の削除に失敗しました",
     "copySuccess": "ユーザーIDをコピーしました",
     "copyError": "ユーザーIDのコピーに失敗しました",
+    "copyTextSuccess": "テキストをコピーしました",
+    "copyTextError": "テキストのコピーに失敗しました",
     "showMore": "もっと見る",
     "showLess": "閉じる"
   },

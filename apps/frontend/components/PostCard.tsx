@@ -14,7 +14,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
-import { Eye, MoreHorizontal, Trash2, Clipboard } from "lucide-react";
+import { Eye, MoreHorizontal, Trash2, Clipboard, ClipboardCopy } from "lucide-react";
 import { useDeletePost } from "@/lib/hooks/use-queries";
 import { OgpCard } from "@/components/OgpCard";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
@@ -26,7 +26,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -113,6 +121,20 @@ export function PostCard({
     }
     setMenuOpen(false);
   }, [post.author?.id, t]);
+
+  const handleCopyText = useCallback(async () => {
+    if (!post.content) {
+      toast.error(t("copyTextError"));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(post.content);
+      toast.success(t("copyTextSuccess"));
+    } catch {
+      toast.error(t("copyTextError"));
+    }
+    setMenuOpen(false);
+  }, [post.content, t]);
 
   const handleOpenDelete = useCallback(() => {
     setMenuOpen(false);
@@ -340,6 +362,12 @@ export function PostCard({
                       {t("actions.viewReactions")}
                     </DropdownMenuItem>
                   )}
+                  {post.content && (
+                    <DropdownMenuItem onSelect={handleCopyText}>
+                      <ClipboardCopy className="h-4 w-4" />
+                      {t("actions.copyText")}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onSelect={handleCopyUserId}
                     disabled={!hasAuthorId}
@@ -386,6 +414,16 @@ export function PostCard({
                         {t("actions.viewReactions")}
                       </Button>
                     )}
+                    {post.content && (
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-2"
+                        onClick={handleCopyText}
+                      >
+                        <ClipboardCopy className="h-4 w-4" />
+                        {t("actions.copyText")}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       className="w-full justify-start gap-2"
@@ -418,28 +456,55 @@ export function PostCard({
         onOpenChange={setLightboxOpen}
         initialIndex={lightboxIndex}
       />
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("deleteConfirmDescription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePost.isPending}>
-              {t("deleteCancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={deletePost.isPending}
-              variant="destructive"
-            >
-              {deletePost.isPending ? t("deleteDeleting") : t("deleteConfirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {isDesktop ? (
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("deleteConfirmTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("deleteConfirmDescription")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletePost.isPending}>
+                {t("deleteCancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                disabled={deletePost.isPending}
+                variant="destructive"
+              >
+                {deletePost.isPending ? t("deleteDeleting") : t("deleteConfirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : (
+        <Drawer open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>{t("deleteConfirmTitle")}</DrawerTitle>
+              <DrawerDescription>{t("deleteConfirmDescription")}</DrawerDescription>
+            </DrawerHeader>
+            <DrawerFooter>
+              <Button
+                variant="destructive"
+                onClick={handleConfirmDelete}
+                disabled={deletePost.isPending}
+              >
+                {deletePost.isPending ? t("deleteDeleting") : t("deleteConfirm")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setConfirmOpen(false)}
+                disabled={deletePost.isPending}
+              >
+                {t("deleteCancel")}
+              </Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      )}
     </article>
   );
 }
