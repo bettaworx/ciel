@@ -31,7 +31,7 @@ const buttonVariants = cva(
         lg: "rounded-lg",
         md: "rounded-md",
         none: "rounded-none",
-      }
+      },
     },
     defaultVariants: {
       variant: "default",
@@ -48,7 +48,17 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, rounded = "default", asChild = false, ...props }, ref) => {
+  (
+    {
+      className,
+      variant,
+      size,
+      rounded = "default",
+      asChild = false,
+      ...props
+    },
+    ref,
+  ) => {
     const Comp = asChild ? Slot : "button";
     return (
       <Comp
