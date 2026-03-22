@@ -197,8 +197,9 @@ type UrlSegment = { text: string; dim: boolean };
 
 /**
  * Splits a URL into display segments for styled rendering.
- * - "https://www." prefix and query/hash suffix are dimmed (50% opacity)
- * - Total displayed text is capped at 32 characters (truncated with "…")
+ * - scheme ("https://") and path/query/hash suffix are dimmed (50% opacity)
+ * - domain including subdomains is fully opaque (100%)
+ * - Total displayed text is capped at 64 characters (truncated with "…")
  */
 function formatDisplayUrl(rawUrl: string): UrlSegment[] {
   const MAX_LEN = 64;
@@ -211,15 +212,14 @@ function formatDisplayUrl(rawUrl: string): UrlSegment[] {
     return [{ text, dim: false }];
   }
 
-  const schemeAndSlashes = `${parsed.protocol}//`;
-  const www = parsed.hostname.startsWith("www.") ? "www." : "";
-  const dimPrefix = schemeAndSlashes + www;
+  const dimPrefix = `${parsed.protocol}//`;
 
-  const hostWithoutWww = www ? parsed.hostname.slice(4) : parsed.hostname;
-  const mainPart =
-    hostWithoutWww + (parsed.pathname === "/" ? "" : parsed.pathname);
+  const mainPart = parsed.hostname;
 
-  const dimSuffix = parsed.search + parsed.hash;
+  const dimSuffix =
+    (parsed.pathname === "/" ? "" : parsed.pathname) +
+    parsed.search +
+    parsed.hash;
 
   const fullLen = dimPrefix.length + mainPart.length + dimSuffix.length;
   if (fullLen <= MAX_LEN) {
