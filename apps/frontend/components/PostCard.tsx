@@ -14,7 +14,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
-import { Eye, MoreHorizontal, Trash2, Clipboard, ClipboardCopy } from "lucide-react";
+import {
+  Eye,
+  MoreHorizontal,
+  Trash2,
+  Clipboard,
+  ClipboardCopy,
+} from "lucide-react";
 import { useDeletePost } from "@/lib/hooks/use-queries";
 import { OgpCard } from "@/components/OgpCard";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
@@ -269,7 +275,7 @@ export function PostCard({
               <div
                 ref={contentRef}
                 className={cn(
-                  "text-foreground whitespace-pre-wrap break-words",
+                  "text-foreground whitespace-pre-wrap break-words text-sm sm:text-base",
                   !isContentExpanded &&
                     isContentOverflowing &&
                     "max-h-32 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_50%,transparent_100%)]",
@@ -474,7 +480,9 @@ export function PostCard({
                 disabled={deletePost.isPending}
                 variant="destructive"
               >
-                {deletePost.isPending ? t("deleteDeleting") : t("deleteConfirm")}
+                {deletePost.isPending
+                  ? t("deleteDeleting")
+                  : t("deleteConfirm")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -484,7 +492,9 @@ export function PostCard({
           <DrawerContent>
             <DrawerHeader>
               <DrawerTitle>{t("deleteConfirmTitle")}</DrawerTitle>
-              <DrawerDescription>{t("deleteConfirmDescription")}</DrawerDescription>
+              <DrawerDescription>
+                {t("deleteConfirmDescription")}
+              </DrawerDescription>
             </DrawerHeader>
             <DrawerFooter>
               <Button
@@ -492,7 +502,9 @@ export function PostCard({
                 onClick={handleConfirmDelete}
                 disabled={deletePost.isPending}
               >
-                {deletePost.isPending ? t("deleteDeleting") : t("deleteConfirm")}
+                {deletePost.isPending
+                  ? t("deleteDeleting")
+                  : t("deleteConfirm")}
               </Button>
               <Button
                 variant="outline"
