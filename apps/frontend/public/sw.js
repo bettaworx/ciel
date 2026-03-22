@@ -67,29 +67,44 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip Range requests (video/audio seeking) - never cache partial content
+  if (request.headers.get('range')) {
+    return;
+  }
+
+  // Media files - Network Only (large files should not be buffered or cached)
+  if (url.pathname.match(/\.(mp4|webm|ogg|mp3|wav|flac|aac|mov|avi)$/i)) {
+    return;
+  }
+
   // React Server Components requests (_rsc query param)
   // Stale-While-Revalidate with 5-minute TTL for fast client-side navigation
   if (url.searchParams.has('_rsc')) {
     event.respondWith(
       caches.open(RSC_CACHE).then(async (cache) => {
         const cached = await cache.match(request);
-        const fetchPromise = fetch(request).then((res) => {
-          if (res.ok) {
-            cache.put(request, res.clone());
-          }
-          return res;
-        });
-
         if (cached) {
           // Check TTL (5 minutes)
           const date = cached.headers.get('date');
           const age = date ? Date.now() - new Date(date).getTime() : Infinity;
           if (age < RSC_TTL_MS) {
             // Serve from cache immediately, update in background
-            fetchPromise.catch(() => {});
+            // Note: background fetch consumes the body via cache.put() only
+            fetch(request).then((res) => {
+              if (res.ok) {
+                cache.put(request, res); // consume body directly, no clone needed
+              }
+            }).catch(() => {});
             return cached;
           }
         }
+
+        const fetchPromise = fetch(request).then((res) => {
+          if (res.ok) {
+            cache.put(request, res.clone());
+          }
+          return res;
+        });
 
         // Cache expired or not cached: fetch from network
         return fetchPromise;
@@ -129,7 +144,11 @@ self.addEventListener('fetch', (event) => {
 
         // Serve from cache immediately if available, update in background
         if (cached) {
-          fetchPromise.catch(() => {});
+          fetch(request).then((res) => {
+            if (res.ok) {
+              cache.put(request, res); // consume body directly, no clone needed
+            }
+          }).catch(() => {});
           return cached;
         }
 
@@ -262,20 +281,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Default: Network first, fallback to cache
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok) {
-          const responseClone = response.clone();
-          caches.open(DYNAMIC_CACHE).then((cache) => {
-            cache.put(request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(request);
-      })
-  );
+  // Default: Network only (no caching for unmatched requests)
+  // Avoid caching unknown content types that may be large (media, blobs, etc.)
+  event.respondWith(fetch(request));
 });
