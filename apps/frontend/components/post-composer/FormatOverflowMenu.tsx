@@ -289,7 +289,7 @@ export function FormatOverflowMenu({
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="z-[70]">
           <DropdownMenuItem
             className={cn(codeMatch && activeClass)}
             onClick={handleCodeToggle}

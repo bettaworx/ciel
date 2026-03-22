@@ -10,6 +10,9 @@ import {
   Italic,
   Type,
   ALargeSmall,
+  CodeXml,
+  Link,
+  AlignHorizontalSpaceAround,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +24,9 @@ import { CharacterCounter } from "./CharacterCounter";
 import { MediaUploadButton } from "./MediaUploadButton";
 import { TextFormatButton } from "./TextFormatButton";
 import { FontFormatButton } from "./FontFormatButton";
+import { CodeFormatButton } from "./CodeFormatButton";
 import { SizeFormatButton } from "./SizeFormatButton";
+import { LinkFormatButton } from "./LinkFormatButton";
 import { FormatOverflowMenu } from "./FormatOverflowMenu";
 import {
   MAX_CONTENT_LENGTH,
@@ -203,7 +208,7 @@ export function PostComposerContent({
   /** Text formatting buttons — order: Bold, Italic, Font, Size, Code, URL, Center */
   const formatButtons = (
     <div className="flex items-center gap-1">
-      {/* Always visible on all screens */}
+      {/* Bold, Italic — always visible */}
       <TextFormatButton
         icon={Bold}
         prefix="<b>"
@@ -227,14 +232,14 @@ export function PostComposerContent({
         iconClassName={s.toolbarIcon}
       />
 
-      {/* Desktop only (hidden on mobile, shown in overflow menu instead) */}
+      {/* Font, Size — always visible in dialog; desktop-only in card */}
       <FontFormatButton
         icon={Type}
         textareaRef={textareaRef}
         setContent={setContent}
         content={content}
         ariaLabel={t("createPost.formatFont")}
-        className={cn(s.toolbarButton, "max-sm:hidden")}
+        className={cn(s.toolbarButton, layout === "card" && "max-sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
       <SizeFormatButton
@@ -243,17 +248,52 @@ export function PostComposerContent({
         setContent={setContent}
         content={content}
         ariaLabel={t("createPost.formatSize")}
-        className={cn(s.toolbarButton, "max-sm:hidden")}
+        className={cn(s.toolbarButton, layout === "card" && "max-sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
-      {/* Overflow menu: Code, Link, Center always in menu; Font/Size also in menu on mobile */}
-      <FormatOverflowMenu
-        textareaRef={textareaRef}
-        setContent={setContent}
-        content={content}
-        className={s.toolbarButton}
-        iconClassName={s.toolbarIcon}
-      />
+
+      {/* Code, Link, Center — shown directly in dialog; in overflow menu in card */}
+      {layout === "dialog" ? (
+        <>
+          <CodeFormatButton
+            icon={CodeXml}
+            textareaRef={textareaRef}
+            setContent={setContent}
+            content={content}
+            ariaLabel={t("createPost.formatCode")}
+            className={s.toolbarButton}
+            iconClassName={s.toolbarIcon}
+          />
+          <LinkFormatButton
+            icon={Link}
+            textareaRef={textareaRef}
+            setContent={setContent}
+            content={content}
+            ariaLabel={t("createPost.formatLink")}
+            className={s.toolbarButton}
+            iconClassName={s.toolbarIcon}
+          />
+          <TextFormatButton
+            icon={AlignHorizontalSpaceAround}
+            prefix="<center>"
+            suffix="</center>"
+            textareaRef={textareaRef}
+            setContent={setContent}
+            content={content}
+            ariaLabel={t("createPost.formatCenter")}
+            className={s.toolbarButton}
+            iconClassName={s.toolbarIcon}
+          />
+        </>
+      ) : (
+        <FormatOverflowMenu
+          textareaRef={textareaRef}
+          setContent={setContent}
+          content={content}
+          className={s.toolbarButton}
+          iconClassName={s.toolbarIcon}
+        />
+      )}
     </div>
   );
 
