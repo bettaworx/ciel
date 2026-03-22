@@ -114,6 +114,24 @@ export function PostMediaPreview({
     };
   }, [media, isDesktop]);
 
+  // Apply the same constraints to videos (portrait 9:16 videos would otherwise
+  // dominate the screen).
+  const singleVideoStyle = useMemo((): React.CSSProperties | undefined => {
+    if (!videoMedia?.width || !videoMedia.height || videoMedia.width <= 0 || videoMedia.height <= 0)
+      return undefined;
+
+    const MIN_RATIO = 3 / 4;
+    const MAX_RATIO = 21 / 9;
+    const MAX_HEIGHT = 512;
+
+    const ratio = Math.max(MIN_RATIO, Math.min(MAX_RATIO, videoMedia.width / videoMedia.height));
+
+    return {
+      aspectRatio: `${ratio}`,
+      ...(isDesktop && { maxWidth: `${MAX_HEIGHT * ratio}px` }),
+    };
+  }, [videoMedia, isDesktop]);
+
   if (media.length === 0) return null;
 
   const removeLabel = tCompose("removeImage");
@@ -124,7 +142,7 @@ export function PostMediaPreview({
       <div className={cn("mb-3", className)}>
         <div
           className="relative w-full bg-muted overflow-hidden rounded-xl group"
-          style={singleImageStyle}
+          style={singleVideoStyle}
         >
           <VideoPlayer
             src={videoMedia.url}

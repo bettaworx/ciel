@@ -26,11 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,7 +70,9 @@ export function PostCard({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [reactionDialogOpen, setReactionDialogOpen] = useState(false);
-  const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(null);
+  const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(
+    null,
+  );
   const isOwner = auth.user?.id === post.author?.id;
   const hasReactions = reactions.length > 0;
 
@@ -90,7 +88,7 @@ export function PostCard({
         },
       });
     },
-    [toggleReaction, tReactions]
+    [toggleReaction, tReactions],
   );
 
   const handleCopyUserId = useCallback(async () => {
@@ -156,7 +154,8 @@ export function PostCard({
 
   // OGP: Extract the first URL from post content, but only if no media is attached.
   const ogpUrl = useMemo(
-    () => (media.length === 0 && post.content ? extractFirstUrl(post.content) : null),
+    () =>
+      media.length === 0 && post.content ? extractFirstUrl(post.content) : null,
     [media.length, post.content],
   );
 
@@ -214,7 +213,10 @@ export function PostCard({
                 onClick={handleUserClick}
                 className="font-semibold text-sm sm:text-base text-foreground hover:underline focus:underline focus:outline-none truncate"
               >
-                <MfmRenderer text={displayName} allowList={DISPLAY_NAME_ALLOW_LIST} />
+                <MfmRenderer
+                  text={displayName}
+                  allowList={DISPLAY_NAME_ALLOW_LIST}
+                />
               </button>
               {hasDisplayName && (
                 <span className="text-muted-foreground text-xs sm:text-sm truncate">
@@ -338,7 +340,7 @@ export function PostCard({
                   </Button>
                 </DrawerTrigger>
                 <DrawerContent>
-                  <div className="flex flex-col gap-2 p-4">
+                  <div className="flex flex-col gap-2 p-2">
                     {hasReactions && (
                       <Button
                         variant="ghost"
