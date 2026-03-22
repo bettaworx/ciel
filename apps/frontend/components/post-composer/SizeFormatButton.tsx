@@ -9,7 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { applyFormatToTextarea } from "./applyFormat";
 
 // ---------------------------------------------------------------------------
@@ -195,6 +197,7 @@ export function SizeFormatButton({
   className,
   iconClassName,
 }: SizeFormatButtonProps) {
+  const isDesktop = useMediaQuery("(min-width: 640px)");
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 });
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -279,29 +282,52 @@ export function SizeFormatButton({
     );
   }
 
+  const triggerButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      type="button"
+      aria-label={ariaLabel}
+      className={cn(className)}
+    >
+      <Icon className={cn(iconClassName)} />
+    </Button>
+  );
+
+  // Desktop: DropdownMenu
+  if (isDesktop) {
+    return (
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="bottom" className="z-[70]">
+          {SIZE_NAMES.map((name) => (
+            <DropdownMenuItem key={name} onSelect={() => handleSelectSize(name)}>
+              {SIZE_LABELS[name]}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  // Mobile: Drawer
   return (
-    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          type="button"
-          aria-label={ariaLabel}
-          className={cn(className)}
-        >
-          <Icon className={cn(iconClassName)} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="bottom" className="z-[70]">
-        {SIZE_NAMES.map((name) => (
-          <DropdownMenuItem
-            key={name}
-            onSelect={() => handleSelectSize(name)}
-          >
-            {SIZE_LABELS[name]}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+      <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+      <DrawerContent>
+        <div className="flex flex-col gap-1 p-2 pb-4">
+          {SIZE_NAMES.map((name) => (
+            <Button
+              key={name}
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={() => handleSelectSize(name)}
+            >
+              {SIZE_LABELS[name]}
+            </Button>
+          ))}
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }

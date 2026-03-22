@@ -60,6 +60,8 @@ interface FormatOverflowMenuProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   setContent: (value: string) => void;
   content: string;
+  /** Whether to include Font/Size in the mobile Drawer (default: true) */
+  includeFontSize?: boolean;
   className?: string;
   iconClassName?: string;
 }
@@ -72,6 +74,7 @@ export function FormatOverflowMenu({
   textareaRef,
   setContent,
   content,
+  includeFontSize = true,
   className,
   iconClassName,
 }: FormatOverflowMenuProps) {
@@ -330,81 +333,85 @@ export function FormatOverflowMenu({
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent>
         <div className="flex flex-col gap-1 p-2 pb-4">
-          {/* Font — nested Drawer */}
-          <Drawer nested>
-            <DrawerTrigger asChild>
-              <Button
-                variant="ghost"
-                className={cn(itemClass, fontMatch && activeClass)}
-              >
-                <Type className="h-4 w-4" />
-                {t("createPost.formatFont")}
-                <span className="ml-auto flex items-center gap-1">
-                  {fontMatch && <Check className="h-4 w-4" />}
-                  <ChevronRight className="h-4 w-4" />
-                </span>
-              </Button>
-            </DrawerTrigger>
-            <DrawerContent>
-              <div className="flex flex-col gap-1 p-2 pb-4">
-                {FONT_NAMES.map((name) => (
-                  <Button
-                    key={name}
-                    variant="ghost"
-                    className={cn(
-                      itemClass,
-                      fontMatch?.fontName === name && activeClass,
-                    )}
-                    onClick={() => handleFontSelect(name)}
-                  >
-                    <span className={FONT_LABELS[name].style}>
-                      {FONT_LABELS[name].label}
-                    </span>
-                    {fontMatch?.fontName === name && (
-                      <Check className="ml-auto h-4 w-4" />
-                    )}
-                  </Button>
-                ))}
-              </div>
-            </DrawerContent>
-          </Drawer>
+          {/* Font — nested Drawer (card layout only) */}
+          {includeFontSize && (
+            <Drawer nested>
+              <DrawerTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={cn(itemClass, fontMatch && activeClass)}
+                >
+                  <Type className="h-4 w-4" />
+                  {t("createPost.formatFont")}
+                  <span className="ml-auto flex items-center gap-1">
+                    {fontMatch && <Check className="h-4 w-4" />}
+                    <ChevronRight className="h-4 w-4" />
+                  </span>
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent>
+                <div className="flex flex-col gap-1 p-2 pb-4">
+                  {FONT_NAMES.map((name) => (
+                    <Button
+                      key={name}
+                      variant="ghost"
+                      className={cn(
+                        itemClass,
+                        fontMatch?.fontName === name && activeClass,
+                      )}
+                      onClick={() => handleFontSelect(name)}
+                    >
+                      <span className={FONT_LABELS[name].style}>
+                        {FONT_LABELS[name].label}
+                      </span>
+                      {fontMatch?.fontName === name && (
+                        <Check className="ml-auto h-4 w-4" />
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </DrawerContent>
+            </Drawer>
+          )}
 
-          {/* Size — nested Drawer */}
-          <Drawer nested>
-            <DrawerTrigger asChild>
-              <Button
-                variant="ghost"
-                className={cn(itemClass, sizeMatch && activeClass)}
-              >
-                <ALargeSmall className="h-4 w-4" />
-                {t("createPost.formatSize")}
-                <span className="ml-auto flex items-center gap-1">
-                  {sizeMatch && <Check className="h-4 w-4" />}
-                  <ChevronRight className="h-4 w-4" />
-                </span>
-              </Button>
-            </DrawerTrigger>
-            <DrawerContent>
-              <div className="flex flex-col gap-1 p-2 pb-4">
-                {SIZE_NAMES.map((name) => (
-                  <Button
-                    key={name}
-                    variant="ghost"
-                    className={cn(
-                      itemClass,
-                      sizeMatch?.sizeName === name && activeClass,
-                    )}
-                    onClick={() => handleSizeSelect(name)}
-                  >
-                    {SIZE_LABELS[name]}
-                    {sizeMatch?.sizeName === name && (
-                      <Check className="ml-auto h-4 w-4" />
-                    )}
-                  </Button>
-                ))}
-              </div>
-            </DrawerContent>
-          </Drawer>
+          {/* Size — nested Drawer (card layout only) */}
+          {includeFontSize && (
+            <Drawer nested>
+              <DrawerTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={cn(itemClass, sizeMatch && activeClass)}
+                >
+                  <ALargeSmall className="h-4 w-4" />
+                  {t("createPost.formatSize")}
+                  <span className="ml-auto flex items-center gap-1">
+                    {sizeMatch && <Check className="h-4 w-4" />}
+                    <ChevronRight className="h-4 w-4" />
+                  </span>
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent>
+                <div className="flex flex-col gap-1 p-2 pb-4">
+                  {SIZE_NAMES.map((name) => (
+                    <Button
+                      key={name}
+                      variant="ghost"
+                      className={cn(
+                        itemClass,
+                        sizeMatch?.sizeName === name && activeClass,
+                      )}
+                      onClick={() => handleSizeSelect(name)}
+                    >
+                      {SIZE_LABELS[name]}
+                      {sizeMatch?.sizeName === name && (
+                        <Check className="ml-auto h-4 w-4" />
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </DrawerContent>
+            </Drawer>
+          )}
 
           {/* Code */}
           <Button

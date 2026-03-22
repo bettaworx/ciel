@@ -252,8 +252,11 @@ export function PostComposerContent({
         iconClassName={s.toolbarIcon}
       />
 
-      {/* Code, Link, Center — shown directly in dialog; in overflow menu in card */}
-      {layout === "dialog" ? (
+      {/* Code, Link, Center:
+          - card layout: always in overflow menu
+          - dialog layout desktop: direct buttons
+          - dialog layout mobile: in overflow menu (without Font/Size) */}
+      {layout === "dialog" && (
         <>
           <CodeFormatButton
             icon={CodeXml}
@@ -261,7 +264,7 @@ export function PostComposerContent({
             setContent={setContent}
             content={content}
             ariaLabel={t("createPost.formatCode")}
-            className={s.toolbarButton}
+            className={cn(s.toolbarButton, "max-sm:hidden")}
             iconClassName={s.toolbarIcon}
           />
           <LinkFormatButton
@@ -270,7 +273,7 @@ export function PostComposerContent({
             setContent={setContent}
             content={content}
             ariaLabel={t("createPost.formatLink")}
-            className={s.toolbarButton}
+            className={cn(s.toolbarButton, "max-sm:hidden")}
             iconClassName={s.toolbarIcon}
           />
           <TextFormatButton
@@ -281,19 +284,20 @@ export function PostComposerContent({
             setContent={setContent}
             content={content}
             ariaLabel={t("createPost.formatCenter")}
-            className={s.toolbarButton}
+            className={cn(s.toolbarButton, "max-sm:hidden")}
             iconClassName={s.toolbarIcon}
           />
         </>
-      ) : (
-        <FormatOverflowMenu
-          textareaRef={textareaRef}
-          setContent={setContent}
-          content={content}
-          className={s.toolbarButton}
-          iconClassName={s.toolbarIcon}
-        />
       )}
+      {/* Overflow menu: card always, dialog mobile only (Code/Link/Center only) */}
+      <FormatOverflowMenu
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        includeFontSize={layout === "card"}
+        className={cn(s.toolbarButton, layout === "dialog" && "sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
     </div>
   );
 

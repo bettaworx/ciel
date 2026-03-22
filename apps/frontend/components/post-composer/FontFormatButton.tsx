@@ -9,7 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { applyFormatToTextarea } from "./applyFormat";
 
 // ---------------------------------------------------------------------------
@@ -211,6 +213,7 @@ export function FontFormatButton({
   className,
   iconClassName,
 }: FontFormatButtonProps) {
+  const isDesktop = useMediaQuery("(min-width: 640px)");
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 });
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -297,32 +300,54 @@ export function FontFormatButton({
     );
   }
 
-  // When inactive, show dropdown with font choices
+  const triggerButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      type="button"
+      aria-label={ariaLabel}
+      className={cn(className)}
+    >
+      <Icon className={cn(iconClassName)} />
+    </Button>
+  );
+
+  const fontItems = FONT_NAMES.map((name) => ({ name, ...FONT_LABELS[name] }));
+
+  // Desktop: DropdownMenu
+  if (isDesktop) {
+    return (
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="bottom" className="z-[70]">
+          {fontItems.map(({ name, label, style }) => (
+            <DropdownMenuItem key={name} onSelect={() => handleSelectFont(name)}>
+              <span className={style}>{label}</span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  // Mobile: Drawer
   return (
-    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          type="button"
-          aria-label={ariaLabel}
-          className={cn(className)}
-        >
-          <Icon className={cn(iconClassName)} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="bottom" className="z-[70]">
-        {FONT_NAMES.map((name) => (
-          <DropdownMenuItem
-            key={name}
-            onSelect={() => handleSelectFont(name)}
-          >
-            <span className={FONT_LABELS[name].style}>
-              {FONT_LABELS[name].label}
-            </span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+      <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+      <DrawerContent>
+        <div className="flex flex-col gap-1 p-2 pb-4">
+          {fontItems.map(({ name, label, style }) => (
+            <Button
+              key={name}
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={() => handleSelectFont(name)}
+            >
+              <span className={style}>{label}</span>
+            </Button>
+          ))}
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }
