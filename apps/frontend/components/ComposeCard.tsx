@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { User as UserIcon, Bold, Italic } from "lucide-react";
+import { User as UserIcon } from "lucide-react";
 import { useAtomValue } from "jotai";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -13,7 +13,7 @@ import {
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
 import { PostComposerContent } from "./post-composer/PostComposerContent";
-import { TextFormatButton } from "./post-composer/TextFormatButton";
+
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { UserMenuContent } from "@/components/auth/UserMenuContent";
 import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
@@ -56,9 +56,9 @@ export function ComposeCard() {
     },
   });
 
-  // Destructure textareaRef / setContent so the linter recognises them as stable
-  // identities (accessing compose.textareaRef triggers react-hooks/exhaustive-deps)
-  const { textareaRef, setContent, content } = compose;
+  // Destructure textareaRef so the linter recognises it as a stable ref identity
+  // (accessing compose.textareaRef triggers react-hooks/exhaustive-deps)
+  const { textareaRef } = compose;
 
   // Focus textarea when expanded
   useEffect(() => {
@@ -97,6 +97,15 @@ export function ComposeCard() {
 
       // If focus is still within ComposeCard, don't collapse
       if (composeCard.contains(document.activeElement)) {
+        return;
+      }
+
+      // If focus moved to a portaled dropdown/popover (e.g. font picker), don't collapse
+      if (
+        document.activeElement?.closest(
+          "[data-radix-popper-content-wrapper]",
+        )
+      ) {
         return;
       }
 
@@ -201,28 +210,6 @@ export function ComposeCard() {
             compose={compose}
             avatar={avatarElement}
             onBlur={handleBlur}
-            formatButtons={
-              <>
-                <TextFormatButton
-                  icon={Bold}
-                  prefix="**"
-                  suffix="**"
-                  textareaRef={textareaRef}
-                  setContent={setContent}
-                  content={content}
-                  ariaLabel={t("createPost.formatBold")}
-                />
-                <TextFormatButton
-                  icon={Italic}
-                  prefix="<i>"
-                  suffix="</i>"
-                  textareaRef={textareaRef}
-                  setContent={setContent}
-                  content={content}
-                  ariaLabel={t("createPost.formatItalic")}
-                />
-              </>
-            }
           />
         )}
       </div>

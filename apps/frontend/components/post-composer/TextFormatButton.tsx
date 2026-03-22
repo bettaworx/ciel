@@ -61,7 +61,7 @@ function firstSingleStarIndex(text: string): number {
  * An odd count means the cursor is inside an unclosed decoration.
  * We also verify that a closing marker exists after `selectionEnd`.
  */
-function isInsideDecoration(
+export function isInsideDecoration(
   content: string,
   selectionStart: number,
   selectionEnd: number,
@@ -115,7 +115,7 @@ function isInsideDecoration(
  * Removes the decoration markers that surround the current cursor/selection.
  * Assumes `isInsideDecoration` has already returned `true`.
  */
-function removeDecoration(
+export function removeDecoration(
   content: string,
   selectionStart: number,
   selectionEnd: number,

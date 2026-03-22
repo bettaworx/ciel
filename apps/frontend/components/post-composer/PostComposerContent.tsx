@@ -6,6 +6,13 @@ import {
   X,
   Image as ImageIcon,
   Video as VideoIcon,
+  Bold,
+  Italic,
+  AlignHorizontalSpaceAround,
+  Type,
+  CodeXml,
+  ALargeSmall,
+  Link,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +22,12 @@ import { OgpCard } from "@/components/OgpCard";
 import { cn } from "@/lib/utils";
 import { CharacterCounter } from "./CharacterCounter";
 import { MediaUploadButton } from "./MediaUploadButton";
+import { TextFormatButton } from "./TextFormatButton";
+import { FontFormatButton } from "./FontFormatButton";
+import { CodeFormatButton } from "./CodeFormatButton";
+import { SizeFormatButton } from "./SizeFormatButton";
+import { LinkFormatButton } from "./LinkFormatButton";
+import { FormatOverflowMenu } from "./FormatOverflowMenu";
 import {
   MAX_CONTENT_LENGTH,
   ACCEPTED_IMAGE_TYPES,
@@ -33,8 +46,6 @@ interface PostComposerContentProps {
   compose: UseComposePostReturn;
   /** Avatar element — Card passes a Popover-wrapped avatar, Dialog a static one */
   avatar: ReactNode;
-  /** (optional) Text formatting toolbar buttons (e.g. bold, italic) */
-  formatButtons?: ReactNode;
   /** (dialog only) Called when the close button is clicked */
   onClose?: () => void;
   /** (dialog only) Whether the close button should be disabled */
@@ -51,16 +62,16 @@ const styles = {
   card: {
     /** Padding that aligns content under the textarea (past the avatar) */
     contentPadding: "pl-15 px-0",
-    /** Upload button size */
-    uploadButton: "h-9 w-9",
-    uploadIcon: "w-5 h-5",
+    /** Upload / format button size */
+    toolbarButton: "h-9 w-9",
+    toolbarIcon: "w-5 h-5",
     /** Post button height */
     postButton: "h-9 px-4",
   },
   dialog: {
     contentPadding: "pl-18 px-3",
-    uploadButton: "h-8 w-8",
-    uploadIcon: "w-4 h-4",
+    toolbarButton: "h-9 w-9",
+    toolbarIcon: "w-5 h-5",
     postButton: "h-8 px-4",
   },
 } as const;
@@ -82,7 +93,6 @@ export function PostComposerContent({
   layout,
   compose,
   avatar,
-  formatButtons,
   onClose,
   closeDisabled,
   onBlur,
@@ -101,6 +111,8 @@ export function PostComposerContent({
     imageFileInputRef,
     videoFileInputRef,
     textareaRef,
+    // State setters
+    setContent,
     // State
     content,
     images,
@@ -177,8 +189,8 @@ export function PostComposerContent({
         onChange={handleImageSelect}
         icon={ImageIcon}
         ariaLabel={t("createPost.uploadImage")}
-        className={s.uploadButton}
-        iconClassName={s.uploadIcon}
+        className={s.toolbarButton}
+        iconClassName={s.toolbarIcon}
       />
       <MediaUploadButton
         inputRef={videoFileInputRef}
@@ -187,8 +199,95 @@ export function PostComposerContent({
         onChange={handleImageSelect}
         icon={VideoIcon}
         ariaLabel={t("createPost.uploadVideo")}
-        className={s.uploadButton}
-        iconClassName={s.uploadIcon}
+        className={s.toolbarButton}
+        iconClassName={s.toolbarIcon}
+      />
+    </div>
+  );
+
+  /** Text formatting buttons — order: Bold, Italic, Font, Size, Code, URL, Center */
+  const formatButtons = (
+    <div className="flex items-center gap-1">
+      {/* Always visible on all screens */}
+      <TextFormatButton
+        icon={Bold}
+        prefix="<b>"
+        suffix="</b>"
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatBold")}
+        className={s.toolbarButton}
+        iconClassName={s.toolbarIcon}
+      />
+      <TextFormatButton
+        icon={Italic}
+        prefix="<i>"
+        suffix="</i>"
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatItalic")}
+        className={s.toolbarButton}
+        iconClassName={s.toolbarIcon}
+      />
+
+      {/* Desktop only (hidden on mobile, shown in overflow menu instead) */}
+      <FontFormatButton
+        icon={Type}
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatFont")}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+      <SizeFormatButton
+        icon={ALargeSmall}
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatSize")}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+      <CodeFormatButton
+        icon={CodeXml}
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatCode")}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+      <LinkFormatButton
+        icon={Link}
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatLink")}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+      <TextFormatButton
+        icon={AlignHorizontalSpaceAround}
+        prefix="<center>"
+        suffix="</center>"
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatCenter")}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+
+      {/* Mobile overflow menu (Size, Code, Link, Center) */}
+      <FormatOverflowMenu
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        className={cn(s.toolbarButton, "sm:hidden")}
+        iconClassName={s.toolbarIcon}
       />
     </div>
   );
@@ -276,8 +375,11 @@ export function PostComposerContent({
             {mediaPreview}
           </div>
 
-          {/* Upload buttons */}
-          <div className="px-3 pb-3">{uploadButtons}</div>
+          {/* Upload & format buttons */}
+          <div className="px-3 pb-3 flex items-center justify-between">
+            {uploadButtons}
+            {formatButtons}
+          </div>
         </div>
 
         <ImageLightbox
@@ -308,9 +410,7 @@ export function PostComposerContent({
         >
           <div>{uploadButtons}</div>
           <div className="flex flex-row gap-3">
-            {formatButtons && (
-              <div className="flex items-center gap-1">{formatButtons}</div>
-            )}
+            {formatButtons}
             {counterAndPost}
           </div>
         </div>
