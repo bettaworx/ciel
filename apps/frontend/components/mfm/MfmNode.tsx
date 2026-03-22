@@ -94,6 +94,7 @@ export function MfmNode({ node }: MfmNodeProps) {
       if (!url) {
         return <span>{node.props.url}</span>;
       }
+      const segments = formatDisplayUrl(node.props.url);
       return (
         <a
           href={url}
@@ -101,7 +102,15 @@ export function MfmNode({ node }: MfmNodeProps) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          {node.props.url}
+          {segments.map((seg, i) =>
+            seg.dim ? (
+              <span key={i} className="opacity-50">
+                {seg.text}
+              </span>
+            ) : (
+              seg.text
+            ),
+          )}
           <ExternalLink size={12} className="mfm-external-link-icon" />
         </a>
       );
@@ -182,6 +191,65 @@ export function MfmNode({ node }: MfmNodeProps) {
 function renderChildren(children?: MfmNodeType[]): ReactNode {
   if (!children || children.length === 0) return null;
   return children.map((child, i) => <MfmNode key={i} node={child} />);
+}
+
+type UrlSegment = { text: string; dim: boolean };
+
+/**
+ * Splits a URL into display segments for styled rendering.
+ * - "https://www." prefix and query/hash suffix are dimmed (50% opacity)
+ * - Total displayed text is capped at 32 characters (truncated with "…")
+ */
+function formatDisplayUrl(rawUrl: string): UrlSegment[] {
+  const MAX_LEN = 64;
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    const text =
+      rawUrl.length > MAX_LEN ? rawUrl.slice(0, MAX_LEN - 1) + "…" : rawUrl;
+    return [{ text, dim: false }];
+  }
+
+  const schemeAndSlashes = `${parsed.protocol}//`;
+  const www = parsed.hostname.startsWith("www.") ? "www." : "";
+  const dimPrefix = schemeAndSlashes + www;
+
+  const hostWithoutWww = www ? parsed.hostname.slice(4) : parsed.hostname;
+  const mainPart =
+    hostWithoutWww + (parsed.pathname === "/" ? "" : parsed.pathname);
+
+  const dimSuffix = parsed.search + parsed.hash;
+
+  const fullLen = dimPrefix.length + mainPart.length + dimSuffix.length;
+  if (fullLen <= MAX_LEN) {
+    const segs: UrlSegment[] = [];
+    if (dimPrefix) segs.push({ text: dimPrefix, dim: true });
+    if (mainPart) segs.push({ text: mainPart, dim: false });
+    if (dimSuffix) segs.push({ text: dimSuffix, dim: true });
+    return segs;
+  }
+
+  // Truncate: fill up to MAX_LEN - 1 chars then append "…"
+  const keepLen = MAX_LEN - 1;
+  let remaining = keepLen;
+  const segs: UrlSegment[] = [];
+  for (const seg of [
+    { text: dimPrefix, dim: true },
+    { text: mainPart, dim: false },
+    { text: dimSuffix, dim: true },
+  ]) {
+    if (remaining <= 0) break;
+    if (seg.text.length <= remaining) {
+      if (seg.text) segs.push({ text: seg.text, dim: seg.dim });
+      remaining -= seg.text.length;
+    } else {
+      segs.push({ text: seg.text.slice(0, remaining), dim: seg.dim });
+      remaining = 0;
+    }
+  }
+  segs.push({ text: "…", dim: false });
+  return segs;
 }
 
 /**
