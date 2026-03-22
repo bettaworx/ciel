@@ -106,7 +106,7 @@ export function MfmNode({ node }: MfmNodeProps) {
         >
           {segments.map((seg, i) =>
             seg.dim ? (
-              <span key={i} className="opacity-75 font-normal">
+              <span key={i} className="opacity-85 font-normal">
                 {seg.text}
               </span>
             ) : (
