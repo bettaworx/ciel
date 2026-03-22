@@ -8,11 +8,8 @@ import {
   Video as VideoIcon,
   Bold,
   Italic,
-  AlignHorizontalSpaceAround,
   Type,
-  CodeXml,
   ALargeSmall,
-  Link,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,9 +21,7 @@ import { CharacterCounter } from "./CharacterCounter";
 import { MediaUploadButton } from "./MediaUploadButton";
 import { TextFormatButton } from "./TextFormatButton";
 import { FontFormatButton } from "./FontFormatButton";
-import { CodeFormatButton } from "./CodeFormatButton";
 import { SizeFormatButton } from "./SizeFormatButton";
-import { LinkFormatButton } from "./LinkFormatButton";
 import { FormatOverflowMenu } from "./FormatOverflowMenu";
 import {
   MAX_CONTENT_LENGTH,
@@ -251,42 +246,12 @@ export function PostComposerContent({
         className={cn(s.toolbarButton, "max-sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
-      <CodeFormatButton
-        icon={CodeXml}
-        textareaRef={textareaRef}
-        setContent={setContent}
-        content={content}
-        ariaLabel={t("createPost.formatCode")}
-        className={cn(s.toolbarButton, "max-sm:hidden")}
-        iconClassName={s.toolbarIcon}
-      />
-      <LinkFormatButton
-        icon={Link}
-        textareaRef={textareaRef}
-        setContent={setContent}
-        content={content}
-        ariaLabel={t("createPost.formatLink")}
-        className={cn(s.toolbarButton, "max-sm:hidden")}
-        iconClassName={s.toolbarIcon}
-      />
-      <TextFormatButton
-        icon={AlignHorizontalSpaceAround}
-        prefix="<center>"
-        suffix="</center>"
-        textareaRef={textareaRef}
-        setContent={setContent}
-        content={content}
-        ariaLabel={t("createPost.formatCenter")}
-        className={cn(s.toolbarButton, "max-sm:hidden")}
-        iconClassName={s.toolbarIcon}
-      />
-
-      {/* Mobile overflow menu (Size, Code, Link, Center) */}
+      {/* Overflow menu: Code, Link, Center always in menu; Font/Size also in menu on mobile */}
       <FormatOverflowMenu
         textareaRef={textareaRef}
         setContent={setContent}
         content={content}
-        className={cn(s.toolbarButton, "sm:hidden")}
+        className={s.toolbarButton}
         iconClassName={s.toolbarIcon}
       />
     </div>

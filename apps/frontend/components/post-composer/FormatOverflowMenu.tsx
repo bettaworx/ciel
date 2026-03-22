@@ -10,18 +10,18 @@ import {
   Link,
   AlignHorizontalSpaceAround,
   Check,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import {
   findFontDecoration,
   removeFontDecoration,
@@ -75,8 +75,9 @@ export function FormatOverflowMenu({
   iconClassName,
 }: FormatOverflowMenuProps) {
   const t = useTranslations();
+  const isDesktop = useMediaQuery("(min-width: 640px)");
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 });
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -121,12 +122,14 @@ export function FormatOverflowMenu({
     "</center>",
   );
 
-  const hasAnyActive =
-    fontMatch !== null ||
-    sizeMatch !== null ||
-    codeMatch !== null ||
-    linkMatch !== null ||
-    isCenterActive;
+  // On desktop, Font/Size have dedicated buttons so don't count them here
+  const hasAnyActive = isDesktop
+    ? codeMatch !== null || linkMatch !== null || isCenterActive
+    : fontMatch !== null ||
+      sizeMatch !== null ||
+      codeMatch !== null ||
+      linkMatch !== null ||
+      isCenterActive;
 
   const applyToTextarea = (
     newValue: string,
@@ -175,7 +178,7 @@ export function FormatOverflowMenu({
       );
       applyToTextarea(newValue, newStart, newEnd);
     }
-    setMenuOpen(false);
+    setDrawerOpen(false);
   };
 
   // --- Size handlers ---
@@ -210,7 +213,7 @@ export function FormatOverflowMenu({
       );
       applyToTextarea(newValue, newStart, newEnd);
     }
-    setMenuOpen(false);
+    setDrawerOpen(false);
   };
 
   // --- Code handler ---
@@ -261,7 +264,7 @@ export function FormatOverflowMenu({
         }
       }
     }
-    setMenuOpen(false);
+    setDrawerOpen(false);
   };
 
   // --- Link handler ---
@@ -311,7 +314,7 @@ export function FormatOverflowMenu({
         applyToTextarea(newValue, selectionStart + 1, selectionStart + 1);
       }
     }
-    setMenuOpen(false);
+    setDrawerOpen(false);
   };
 
   // --- Center handler ---
@@ -339,11 +342,7 @@ export function FormatOverflowMenu({
           selected +
           "</center>" +
           value.slice(selectionEnd);
-        applyToTextarea(
-          newValue,
-          selectionStart + 8,
-          selectionEnd + 8,
-        );
+        applyToTextarea(newValue, selectionStart + 8, selectionEnd + 8);
       } else {
         const newValue =
           value.slice(0, selectionStart) +
@@ -352,111 +351,181 @@ export function FormatOverflowMenu({
         applyToTextarea(newValue, selectionStart + 8, selectionStart + 8);
       }
     }
-    setMenuOpen(false);
+    setDrawerOpen(false);
   };
 
-  const activeItemClass = "text-c-1";
+  const activeClass = "text-c-1";
+
+  const triggerButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      type="button"
+      aria-label={t("post.actions.more")}
+      className={cn(hasAnyActive && "text-c-1", className)}
+    >
+      <Ellipsis className={cn(iconClassName)} />
+    </Button>
+  );
+
+  // ---------------------------------------------------------------------------
+  // Desktop: DropdownMenu (Code, Link, Center only — Font/Size have dedicated buttons)
+  // ---------------------------------------------------------------------------
+  if (isDesktop) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            className={cn(codeMatch && activeClass)}
+            onClick={handleCodeToggle}
+          >
+            <CodeXml />
+            {t("createPost.formatCode")}
+            {codeMatch && <Check className="ml-auto h-4 w-4" />}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className={cn(linkMatch && activeClass)}
+            onClick={handleLinkToggle}
+          >
+            <Link />
+            {t("createPost.formatLink")}
+            {linkMatch && <Check className="ml-auto h-4 w-4" />}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className={cn(isCenterActive && activeClass)}
+            onClick={handleCenterToggle}
+          >
+            <AlignHorizontalSpaceAround />
+            {t("createPost.formatCenter")}
+            {isCenterActive && <Check className="ml-auto h-4 w-4" />}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mobile: Drawer (Font, Size, Code, Link, Center)
+  // Font and Size open as nested Drawers on top of the main drawer
+  // ---------------------------------------------------------------------------
+  const itemClass = "w-full justify-start gap-2";
 
   return (
-    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          type="button"
-          aria-label={t("post.actions.more")}
-          className={cn(hasAnyActive && "text-c-1", className)}
-        >
-          <Ellipsis className={cn(iconClassName)} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="bottom" className="z-[70]">
-        {/* Font submenu */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger
-            className={cn(fontMatch && activeItemClass)}
-          >
-            <Type className="mr-2 h-4 w-4" />
-            {t("createPost.formatFont")}
-            {fontMatch && <Check className="ml-auto h-4 w-4" />}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="z-[70]">
-            {FONT_NAMES.map((name) => (
-              <DropdownMenuItem
-                key={name}
-                onSelect={() => handleFontSelect(name)}
-                className={cn(
-                  fontMatch?.fontName === name && activeItemClass,
-                )}
+    <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+      <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+      <DrawerContent>
+        <div className="flex flex-col gap-1 p-2 pb-4">
+          {/* Font — nested Drawer */}
+          <Drawer nested>
+            <DrawerTrigger asChild>
+              <Button
+                variant="ghost"
+                className={cn(itemClass, fontMatch && activeClass)}
               >
-                <span className={FONT_LABELS[name].style}>
-                  {FONT_LABELS[name].label}
+                <Type className="h-4 w-4" />
+                {t("createPost.formatFont")}
+                <span className="ml-auto flex items-center gap-1">
+                  {fontMatch && <Check className="h-4 w-4" />}
+                  <ChevronRight className="h-4 w-4" />
                 </span>
-                {fontMatch?.fontName === name && (
-                  <Check className="ml-auto h-4 w-4" />
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+              </Button>
+            </DrawerTrigger>
+            <DrawerContent>
+              <div className="flex flex-col gap-1 p-2 pb-4">
+                {FONT_NAMES.map((name) => (
+                  <Button
+                    key={name}
+                    variant="ghost"
+                    className={cn(
+                      itemClass,
+                      fontMatch?.fontName === name && activeClass,
+                    )}
+                    onClick={() => handleFontSelect(name)}
+                  >
+                    <span className={FONT_LABELS[name].style}>
+                      {FONT_LABELS[name].label}
+                    </span>
+                    {fontMatch?.fontName === name && (
+                      <Check className="ml-auto h-4 w-4" />
+                    )}
+                  </Button>
+                ))}
+              </div>
+            </DrawerContent>
+          </Drawer>
 
-        {/* Size submenu */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger
-            className={cn(sizeMatch && activeItemClass)}
-          >
-            <ALargeSmall className="mr-2 h-4 w-4" />
-            {t("createPost.formatSize")}
-            {sizeMatch && <Check className="ml-auto h-4 w-4" />}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="z-[70]">
-            {SIZE_NAMES.map((name) => (
-              <DropdownMenuItem
-                key={name}
-                onSelect={() => handleSizeSelect(name)}
-                className={cn(
-                  sizeMatch?.sizeName === name && activeItemClass,
-                )}
+          {/* Size — nested Drawer */}
+          <Drawer nested>
+            <DrawerTrigger asChild>
+              <Button
+                variant="ghost"
+                className={cn(itemClass, sizeMatch && activeClass)}
               >
-                {SIZE_LABELS[name]}
-                {sizeMatch?.sizeName === name && (
-                  <Check className="ml-auto h-4 w-4" />
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+                <ALargeSmall className="h-4 w-4" />
+                {t("createPost.formatSize")}
+                <span className="ml-auto flex items-center gap-1">
+                  {sizeMatch && <Check className="h-4 w-4" />}
+                  <ChevronRight className="h-4 w-4" />
+                </span>
+              </Button>
+            </DrawerTrigger>
+            <DrawerContent>
+              <div className="flex flex-col gap-1 p-2 pb-4">
+                {SIZE_NAMES.map((name) => (
+                  <Button
+                    key={name}
+                    variant="ghost"
+                    className={cn(
+                      itemClass,
+                      sizeMatch?.sizeName === name && activeClass,
+                    )}
+                    onClick={() => handleSizeSelect(name)}
+                  >
+                    {SIZE_LABELS[name]}
+                    {sizeMatch?.sizeName === name && (
+                      <Check className="ml-auto h-4 w-4" />
+                    )}
+                  </Button>
+                ))}
+              </div>
+            </DrawerContent>
+          </Drawer>
 
-        {/* Code */}
-        <DropdownMenuItem
-          onSelect={handleCodeToggle}
-          className={cn(codeMatch && activeItemClass)}
-        >
-          <CodeXml className="mr-2 h-4 w-4" />
-          {t("createPost.formatCode")}
-          {codeMatch && <Check className="ml-auto h-4 w-4" />}
-        </DropdownMenuItem>
+          {/* Code */}
+          <Button
+            variant="ghost"
+            className={cn(itemClass, codeMatch && activeClass)}
+            onClick={handleCodeToggle}
+          >
+            <CodeXml className="h-4 w-4" />
+            {t("createPost.formatCode")}
+            {codeMatch && <Check className="ml-auto h-4 w-4" />}
+          </Button>
 
-        {/* Link */}
-        <DropdownMenuItem
-          onSelect={handleLinkToggle}
-          className={cn(linkMatch && activeItemClass)}
-        >
-          <Link className="mr-2 h-4 w-4" />
-          {t("createPost.formatLink")}
-          {linkMatch && <Check className="ml-auto h-4 w-4" />}
-        </DropdownMenuItem>
+          {/* Link */}
+          <Button
+            variant="ghost"
+            className={cn(itemClass, linkMatch && activeClass)}
+            onClick={handleLinkToggle}
+          >
+            <Link className="h-4 w-4" />
+            {t("createPost.formatLink")}
+            {linkMatch && <Check className="ml-auto h-4 w-4" />}
+          </Button>
 
-        {/* Center */}
-        <DropdownMenuItem
-          onSelect={handleCenterToggle}
-          className={cn(isCenterActive && activeItemClass)}
-        >
-          <AlignHorizontalSpaceAround className="mr-2 h-4 w-4" />
-          {t("createPost.formatCenter")}
-          {isCenterActive && <Check className="ml-auto h-4 w-4" />}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {/* Center */}
+          <Button
+            variant="ghost"
+            className={cn(itemClass, isCenterActive && activeClass)}
+            onClick={handleCenterToggle}
+          >
+            <AlignHorizontalSpaceAround className="h-4 w-4" />
+            {t("createPost.formatCenter")}
+            {isCenterActive && <Check className="ml-auto h-4 w-4" />}
+          </Button>
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }
