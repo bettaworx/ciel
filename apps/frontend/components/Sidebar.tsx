@@ -22,7 +22,7 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 h-screen w-auto bg-background-1 flex flex-col items-center justify-between p-2 z-40">
+      <aside className="fixed left-0 top-0 h-dvh w-auto bg-background-1 flex flex-col items-center justify-between p-2 z-40">
         {/* 上部: ホームボタン */}
         <div className="flex flex-col items-center gap-2">
           <Link href="/" aria-label={tNav("home")}>
