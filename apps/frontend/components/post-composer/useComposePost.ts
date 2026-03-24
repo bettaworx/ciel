@@ -247,7 +247,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       }
 
       setVideo({
-        localId: `${Date.now()}-${Math.random()}`,
+        localId: crypto.randomUUID(),
         file: videoFile,
         previewUrl,
         width,
@@ -289,7 +289,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
           }
 
           newImages.push({
-            localId: `${Date.now()}-${Math.random()}`,
+            localId: crypto.randomUUID(),
             file,
             previewUrl,
             width,
