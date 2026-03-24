@@ -657,7 +657,7 @@
   "websocket": {
     "inactivity": {
       "title": "Connection Paused",
-      "description": "Your connection was paused due to 5 minutes of inactivity to reduce server load.",
+      "description": "Your connection was paused to reduce server load.",
       "reconnect": "Reconnect",
       "dismiss": "OK"
     }
