@@ -147,6 +147,13 @@
     "placeholder": "What's happening?",
     "post": "Post",
     "posting": "Posting...",
+    "formatBold": "Bold",
+    "formatItalic": "Italic",
+    "formatCenter": "Center",
+    "formatFont": "Font",
+    "formatCode": "Code",
+    "formatSize": "Text size",
+    "formatLink": "Link",
     "uploadImage": "Upload Image",
     "uploadVideo": "Upload Video",
     "uploadMedia": "Upload Image or Video",
@@ -650,7 +657,7 @@
   "websocket": {
     "inactivity": {
       "title": "Connection Paused",
-      "description": "Your connection was paused due to 5 minutes of inactivity to reduce server load.",
+      "description": "Your connection was paused to reduce server load.",
       "reconnect": "Reconnect",
       "dismiss": "OK"
     }

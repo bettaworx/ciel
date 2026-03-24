@@ -147,6 +147,13 @@
     "placeholder": "いまどうしてる?",
     "post": "投稿",
     "posting": "投稿中...",
+    "formatBold": "太字",
+    "formatItalic": "斜体",
+    "formatCenter": "中央揃え",
+    "formatFont": "書体",
+    "formatCode": "コード",
+    "formatSize": "文字サイズ",
+    "formatLink": "リンク",
     "uploadImage": "画像をアップロード",
     "uploadVideo": "動画をアップロード",
     "uploadMedia": "画像・動画をアップロード",
@@ -650,14 +657,14 @@
   "websocket": {
     "inactivity": {
       "title": "接続が一時停止されました",
-      "description": "サーバー負荷軽減のため、5分間の無操作により接続が一時停止されました。",
+      "description": "サーバー負荷軽減のため、接続が一時停止されました。",
       "reconnect": "再接続",
       "dismiss": "OK"
     }
   },
   "offline": {
     "title": "オフラインです",
-    "description": "おっと、サーバーがオフラインのようです。時間を置いてアクセスしてみてください。",
+    "description": "おっと、サーバーがオフラインのようです。\n時間を置いてアクセスしてみてください。",
     "reload": "リロード"
   },
   "admin": {

@@ -340,6 +340,34 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     const items = e.clipboardData?.items;
     if (!items || items.length === 0) return;
 
+    // Check for URL paste while text is selected → auto-format as link
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const { selectionStart, selectionEnd, value } = textarea;
+      if (selectionStart !== selectionEnd) {
+        const pastedText = e.clipboardData?.getData("text/plain") ?? "";
+        if (pastedText && /^https?:\/\/\S+$/.test(pastedText.trim())) {
+          e.preventDefault();
+          const selected = value.slice(selectionStart, selectionEnd);
+          const url = pastedText.trim();
+          const linkSyntax = `[${selected}](${url})`;
+          const newValue =
+            value.slice(0, selectionStart) +
+            linkSyntax +
+            value.slice(selectionEnd);
+          setContent(newValue);
+          // Select the display text inside []
+          const cursorStart = selectionStart + 1;
+          const cursorEnd = selectionStart + 1 + selected.length;
+          requestAnimationFrame(() => {
+            textarea.focus();
+            textarea.setSelectionRange(cursorStart, cursorEnd);
+          });
+          return;
+        }
+      }
+    }
+
     const pastedFiles: File[] = [];
     for (const item of Array.from(items)) {
       if (item.kind !== "file") continue;

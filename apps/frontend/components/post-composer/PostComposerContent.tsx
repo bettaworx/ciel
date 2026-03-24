@@ -2,7 +2,18 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { X, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
+import {
+  X,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  Bold,
+  Italic,
+  Type,
+  ALargeSmall,
+  CodeXml,
+  Link,
+  AlignHorizontalSpaceAround,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageLightbox } from "@/components/ImageLightbox";
@@ -11,6 +22,12 @@ import { OgpCard } from "@/components/OgpCard";
 import { cn } from "@/lib/utils";
 import { CharacterCounter } from "./CharacterCounter";
 import { MediaUploadButton } from "./MediaUploadButton";
+import { TextFormatButton } from "./TextFormatButton";
+import { FontFormatButton } from "./FontFormatButton";
+import { CodeFormatButton } from "./CodeFormatButton";
+import { SizeFormatButton } from "./SizeFormatButton";
+import { LinkFormatButton } from "./LinkFormatButton";
+import { FormatOverflowMenu } from "./FormatOverflowMenu";
 import {
   MAX_CONTENT_LENGTH,
   ACCEPTED_IMAGE_TYPES,
@@ -45,16 +62,16 @@ const styles = {
   card: {
     /** Padding that aligns content under the textarea (past the avatar) */
     contentPadding: "pl-15 px-0",
-    /** Upload button size */
-    uploadButton: "h-9 w-9",
-    uploadIcon: "w-5 h-5",
+    /** Upload / format button size */
+    toolbarButton: "h-9 w-9",
+    toolbarIcon: "w-5 h-5",
     /** Post button height */
     postButton: "h-9 px-4",
   },
   dialog: {
     contentPadding: "pl-18 px-3",
-    uploadButton: "h-8 w-8",
-    uploadIcon: "w-4 h-4",
+    toolbarButton: "h-9 w-9",
+    toolbarIcon: "w-5 h-5",
     postButton: "h-8 px-4",
   },
 } as const;
@@ -94,6 +111,8 @@ export function PostComposerContent({
     imageFileInputRef,
     videoFileInputRef,
     textareaRef,
+    // State setters
+    setContent,
     // State
     content,
     images,
@@ -170,8 +189,8 @@ export function PostComposerContent({
         onChange={handleImageSelect}
         icon={ImageIcon}
         ariaLabel={t("createPost.uploadImage")}
-        className={s.uploadButton}
-        iconClassName={s.uploadIcon}
+        className={s.toolbarButton}
+        iconClassName={s.toolbarIcon}
       />
       <MediaUploadButton
         inputRef={videoFileInputRef}
@@ -180,8 +199,104 @@ export function PostComposerContent({
         onChange={handleImageSelect}
         icon={VideoIcon}
         ariaLabel={t("createPost.uploadVideo")}
-        className={s.uploadButton}
-        iconClassName={s.uploadIcon}
+        className={s.toolbarButton}
+        iconClassName={s.toolbarIcon}
+      />
+    </div>
+  );
+
+  /** Text formatting buttons — order: Bold, Italic, Font, Size, Code, URL, Center */
+  const formatButtons = (
+    <div className="flex items-center gap-1">
+      {/* Bold, Italic — always visible */}
+      <TextFormatButton
+        icon={Bold}
+        prefix="<b>"
+        suffix="</b>"
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatBold")}
+        className={s.toolbarButton}
+        iconClassName={s.toolbarIcon}
+      />
+      <TextFormatButton
+        icon={Italic}
+        prefix="<i>"
+        suffix="</i>"
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatItalic")}
+        className={s.toolbarButton}
+        iconClassName={s.toolbarIcon}
+      />
+
+      {/* Font, Size — always visible in dialog; desktop-only in card */}
+      <FontFormatButton
+        icon={Type}
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatFont")}
+        className={cn(s.toolbarButton, layout === "card" && "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+      <SizeFormatButton
+        icon={ALargeSmall}
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        ariaLabel={t("createPost.formatSize")}
+        className={cn(s.toolbarButton, layout === "card" && "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+
+      {/* Code, Link, Center:
+          - card layout: always in overflow menu
+          - dialog layout desktop: direct buttons
+          - dialog layout mobile: in overflow menu (without Font/Size) */}
+      {layout === "dialog" && (
+        <>
+          <CodeFormatButton
+            icon={CodeXml}
+            textareaRef={textareaRef}
+            setContent={setContent}
+            content={content}
+            ariaLabel={t("createPost.formatCode")}
+            className={cn(s.toolbarButton, "max-sm:hidden")}
+            iconClassName={s.toolbarIcon}
+          />
+          <LinkFormatButton
+            icon={Link}
+            textareaRef={textareaRef}
+            setContent={setContent}
+            content={content}
+            ariaLabel={t("createPost.formatLink")}
+            className={cn(s.toolbarButton, "max-sm:hidden")}
+            iconClassName={s.toolbarIcon}
+          />
+          <TextFormatButton
+            icon={AlignHorizontalSpaceAround}
+            prefix="<center>"
+            suffix="</center>"
+            textareaRef={textareaRef}
+            setContent={setContent}
+            content={content}
+            ariaLabel={t("createPost.formatCenter")}
+            className={cn(s.toolbarButton, "max-sm:hidden")}
+            iconClassName={s.toolbarIcon}
+          />
+        </>
+      )}
+      {/* Overflow menu: card always, dialog mobile only (Code/Link/Center only) */}
+      <FormatOverflowMenu
+        textareaRef={textareaRef}
+        setContent={setContent}
+        content={content}
+        includeFontSize={layout === "card"}
+        className={cn(s.toolbarButton, layout === "dialog" && "sm:hidden")}
+        iconClassName={s.toolbarIcon}
       />
     </div>
   );
@@ -269,8 +384,11 @@ export function PostComposerContent({
             {mediaPreview}
           </div>
 
-          {/* Upload buttons */}
-          <div className="px-3 pb-3">{uploadButtons}</div>
+          {/* Upload & format buttons */}
+          <div className="px-3 pb-3 flex items-center justify-between">
+            {uploadButtons}
+            {formatButtons}
+          </div>
         </div>
 
         <ImageLightbox
@@ -300,7 +418,10 @@ export function PostComposerContent({
           className={cn("flex items-center justify-between", s.contentPadding)}
         >
           <div>{uploadButtons}</div>
-          {counterAndPost}
+          <div className="flex flex-row gap-3">
+            {formatButtons}
+            {counterAndPost}
+          </div>
         </div>
       </div>
 

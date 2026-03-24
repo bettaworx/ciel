@@ -13,6 +13,7 @@ import {
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
 import { PostComposerContent } from "./post-composer/PostComposerContent";
+
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { UserMenuContent } from "@/components/auth/UserMenuContent";
 import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
@@ -96,6 +97,15 @@ export function ComposeCard() {
 
       // If focus is still within ComposeCard, don't collapse
       if (composeCard.contains(document.activeElement)) {
+        return;
+      }
+
+      // If focus moved to a portaled dropdown/popover (e.g. font picker), don't collapse
+      if (
+        document.activeElement?.closest(
+          "[data-radix-popper-content-wrapper]",
+        )
+      ) {
         return;
       }
 

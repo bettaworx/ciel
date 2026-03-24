@@ -47,7 +47,9 @@ export function MfmNode({ node }: MfmNodeProps) {
 
     // --- Small text ---
     case "small": {
-      return <small className="mfm-small">{renderChildren(node.children)}</small>;
+      return (
+        <small className="mfm-small">{renderChildren(node.children)}</small>
+      );
     }
 
     // --- Center align (block) ---
@@ -98,13 +100,13 @@ export function MfmNode({ node }: MfmNodeProps) {
       return (
         <a
           href={url}
-          className="mfm-url"
+          className="mfm-url font-bold"
           target="_blank"
           rel="noopener noreferrer"
         >
           {segments.map((seg, i) =>
             seg.dim ? (
-              <span key={i} className="opacity-50">
+              <span key={i} className="opacity-85 font-normal">
                 {seg.text}
               </span>
             ) : (
