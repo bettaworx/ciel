@@ -163,6 +163,23 @@ export function VideoPlayer({
   };
 
   // -----------------------------------------------------------------------
+  // Video area click — first click unmutes only; subsequent clicks toggle play
+  // -----------------------------------------------------------------------
+  const handleVideoClick = () => {
+    if (!videoRef.current || !activeSrc) return;
+
+    // First interaction while auto-playing muted → unmute only, keep playing
+    if (!hasUserInteracted.current) {
+      hasUserInteracted.current = true;
+      restoreSavedVolume();
+      return;
+    }
+
+    // Subsequent clicks → normal play/pause toggle
+    togglePlay();
+  };
+
+  // -----------------------------------------------------------------------
   // Mute toggle
   // -----------------------------------------------------------------------
   const toggleMute = () => {
@@ -678,7 +695,7 @@ export function VideoPlayer({
         muted
         loop
         draggable={false}
-        onClick={activeSrc ? togglePlay : undefined}
+        onClick={activeSrc ? handleVideoClick : undefined}
       />
 
       {/* Big play button (center) — shown only when src loaded and paused.
