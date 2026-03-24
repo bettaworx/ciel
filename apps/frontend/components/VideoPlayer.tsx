@@ -81,6 +81,10 @@ export function VideoPlayer({
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const rafRef = useRef<number | null>(null);
 
+  // Ref copy of showControls so click/touch handlers always see the latest
+  // value without needing to be recreated on every render.
+  const showControlsRef = useRef(true);
+
   // Stable identity for the playback manager
   const playerId = useId();
 
@@ -112,6 +116,7 @@ export function VideoPlayer({
   const [isMuted, setIsMuted] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  showControlsRef.current = showControls;
   const [isHovering, setIsHovering] = useState(false);
   const [isDraggingProgress, setIsDraggingProgress] = useState(false);
   const [isDraggingVolume, setIsDraggingVolume] = useState(false);
@@ -167,6 +172,14 @@ export function VideoPlayer({
   // -----------------------------------------------------------------------
   const handleVideoClick = () => {
     if (!videoRef.current || !activeSrc) return;
+
+    // On touch devices: if controls are currently hidden, first tap only shows
+    // controls without any play/pause action. The hide timer is already
+    // scheduled by the isPlaying effect so no extra call is needed.
+    if (isTouchDevice && !showControlsRef.current) {
+      setShowControls(true);
+      return;
+    }
 
     // First interaction while auto-playing muted → unmute only, keep playing
     if (!hasUserInteracted.current) {
@@ -369,7 +382,7 @@ export function VideoPlayer({
     if (isPlaying && !isHovering) {
       hideControlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
-      }, 0);
+      }, 3000);
     }
   };
 
@@ -379,6 +392,9 @@ export function VideoPlayer({
   };
 
   const handleMouseEnter = () => {
+    // Touch devices fire synthetic mouseenter on tap — ignore to prevent
+    // isHovering from getting stuck at true and blocking the hide timer.
+    if (isTouchDevice) return;
     setIsHovering(true);
     setShowControls(true);
     if (hideControlsTimeoutRef.current) {
@@ -387,6 +403,7 @@ export function VideoPlayer({
   };
 
   const handleMouseLeave = () => {
+    if (isTouchDevice) return;
     setIsHovering(false);
     scheduleHideControls();
   };
