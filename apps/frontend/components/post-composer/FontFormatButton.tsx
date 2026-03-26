@@ -171,6 +171,27 @@ export function insertFontDecoration(
 
   if (hasSelection) {
     const selected = value.slice(selectionStart, selectionEnd);
+
+    // If the selection is wrapped in an HTML-like tag (e.g. <center>...</center>),
+    // $[...] must go *inside* the HTML tag, not outside.
+    const htmlTagMatch = /^(<([a-zA-Z]\w*)>)([\s\S]*?)(<\/\2>)$/.exec(selected);
+    if (htmlTagMatch) {
+      const [, openTag, , innerContent, closeTag] = htmlTagMatch;
+      const newValue =
+        value.slice(0, selectionStart) +
+        openTag +
+        prefix +
+        innerContent +
+        suffix +
+        closeTag +
+        value.slice(selectionEnd);
+      return {
+        newValue,
+        newStart: selectionStart + openTag.length + prefix.length,
+        newEnd: selectionStart + openTag.length + prefix.length + innerContent.length,
+      };
+    }
+
     const newValue =
       value.slice(0, selectionStart) +
       prefix +

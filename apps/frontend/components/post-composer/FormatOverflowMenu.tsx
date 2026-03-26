@@ -51,6 +51,7 @@ import {
   isInsideDecoration,
   removeDecoration,
 } from "./TextFormatButton";
+import { insertCenterDecoration } from "./centerDecoration";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -252,21 +253,8 @@ export function FormatOverflowMenu({
       const { newValue, newStart, newEnd } = removeDecoration(value, selectionStart, selectionEnd, "<center>", "</center>");
       apply(newValue, newStart, newEnd);
     } else {
-      const hasSelection = selectionStart !== selectionEnd;
-      if (hasSelection) {
-        const selected = value.slice(selectionStart, selectionEnd);
-        apply(
-          value.slice(0, selectionStart) + "<center>" + selected + "</center>" + value.slice(selectionEnd),
-          selectionStart + 8,
-          selectionEnd + 8,
-        );
-      } else {
-        apply(
-          value.slice(0, selectionStart) + "<center></center>" + value.slice(selectionStart),
-          selectionStart + 8,
-          selectionStart + 8,
-        );
-      }
+      const { newValue, newStart, newEnd } = insertCenterDecoration(value, selectionStart, selectionEnd);
+      apply(newValue, newStart, newEnd);
     }
     setDrawerOpen(false);
   };

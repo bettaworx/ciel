@@ -1,206 +1,15 @@
 {
   "hello": "こんにちは",
-  "welcome": "ようこそ",
+  "welcome": {
+    "title": "{serverName}へようこそ！",
+    "description": "{serverDescription}",
+    "descriptionFallback": "プラットフォームを探索して、あなたの考えをシェアしましょう"
+  },
   "username": "ユーザー名",
   "password": "パスワード",
   "passwordRequirements": "パスワードは9文字以上で、大文字、小文字、数字を含む必要があります。",
   "post": "投稿",
   "profile": "プロフィール",
-  "settings": "設定",
-  "loading": "読み込み中...",
-  "user": {
-    "anonymous": "匿名",
-    "posts": "投稿",
-    "noPosts": "投稿がありません",
-    "notFound": "ユーザーが見つかりません",
-    "noBio": "自己紹介がありません",
-    "unknown": "不明なユーザー",
-    "unknownUsername": "不明"
-  },
-  "login": {
-    "title": "ログイン",
-    "success": "ログインしました",
-    "failed": "ログインに失敗しました",
-    "goToLogin": "ログインはこちら",
-    "wizard": {
-      "username": {
-        "title": "ログイン",
-        "description": "ユーザー名を入力してください",
-        "notFound": "ユーザーが見つかりませんでした",
-        "checkingAvailability": "ユーザー名を確認中...",
-        "error": "ユーザー名の確認に失敗しました。もう一度お試しください。"
-      },
-      "password": {
-        "title": "パスワードを入力",
-        "description": "パスワードを入力してください",
-        "welcomeBack": "おかえりなさい！"
-      }
-    }
-  },
-  "logout": "ログアウト",
-  "logoutConfirm": {
-    "title": "ログアウトしますか？",
-    "description": "本当にログアウトしてもよろしいですか？",
-    "cancel": "キャンセル",
-    "confirm": "ログアウト"
-  },
-  "signup": {
-    "title": "新規登録",
-    "success": "アカウントを作成しました",
-    "failed": "アカウント作成に失敗しました",
-    "createAccount": "アカウントを作成",
-    "wizard": {
-      "terms": {
-        "title": "利用規約",
-        "description": "サービス利用規約をご確認ください",
-        "agree": "同意する",
-        "decline": "同意しない",
-        "checkbox": "利用規約に同意します"
-      },
-      "privacy": {
-        "title": "プライバシーポリシー",
-        "description": "プライバシーポリシーをご確認ください",
-        "agree": "同意する",
-        "decline": "同意しない",
-        "checkbox": "プライバシーポリシーに同意します"
-      },
-      "username": {
-        "title": "アカウントを作成",
-        "description": "ユーザー名を決めてください",
-        "alreadyExists": "このユーザー名は既に使われています",
-        "checkingAvailability": "ユーザー名を確認中...",
-        "error": "ユーザー名の確認に失敗しました。もう一度お試しください。"
-      },
-      "password": {
-        "title": "パスワードを設定",
-        "description": "パスワードを設定してください"
-      },
-      "inviteCode": {
-        "title": "招待コードを入力",
-        "description": "サーバー管理者から受け取った招待コードを入力してください",
-        "placeholder": "aB3cD4eF",
-        "label": "招待コード",
-        "required": "招待コードは必須です",
-        "invalid": "招待コードが無効です。サーバー管理者に確認してください。"
-      }
-    }
-  },
-  "auth": {
-    "required": "ログインが必要です",
-    "requiredDescription": "この機能を利用するにはログインが必要です",
-    "logout": "ログアウト"
-  },
-  "agreements": {
-    "accepted": "規約に同意しました",
-    "declined": "サービスを利用するには規約への同意が必要です"
-  },
-  "validation": {
-    "username": {
-      "requirements": "ユーザー名は3文字以上32文字以下で、英数字とアンダースコアのみ使用できます。",
-      "required": "ユーザー名は必須です",
-      "tooShort": "ユーザー名は3文字以上で入力してください",
-      "tooLong": "ユーザー名は32文字以下で入力してください",
-      "invalidCharacters": "ユーザー名は英数字とアンダースコアのみ使用できます"
-    },
-    "password": {
-      "required": "パスワードは必須です",
-      "tooShort": "パスワードは9文字以上で入力してください",
-      "tooLong": "パスワードは256文字以下で入力してください",
-      "missingRequirements": "パスワードは大文字・小文字・数字をすべて含めてください"
-    }
-  },
-  "error": {
-    "title": "エラーが発生しました",
-    "generic": "エラーが発生しました",
-    "authRequired": "認証が必要です",
-    "postIdRequired": "投稿IDが必要です",
-    "usernameRequired": "ユーザー名が必要です",
-    "auth": {
-      "sessionInvalid": "セッションが無効です。",
-      "loginStartFailed": "ログイン開始に失敗しました。",
-      "loginFailed": "ログインに失敗しました。",
-      "registrationFailed": "アカウント作成に失敗しました。"
-    }
-  },
-  "meta": {
-    "title": "{serverName}",
-    "description": "ミニSNS",
-    "pages": {
-      "home": "ホーム",
-      "login": "ログイン",
-      "signup": "新規登録",
-      "settings": "設定",
-      "settingsGeneral": "一般設定",
-      "settingsProfile": "プロフィール設定",
-      "settingsAppearance": "外観設定",
-      "setup": "プロフィール設定",
-      "adminSetup": "サーバー初期設定"
-    }
-  },
-  "timeline": {
-    "title": "タイムライン",
-    "noPosts": "投稿がありません",
-    "loadMore": "もっと見る"
-  },
-  "createPost": {
-    "title": "投稿する",
-    "placeholder": "いまどうしてる?",
-    "post": "投稿",
-    "posting": "投稿中...",
-    "formatBold": "太字",
-    "formatItalic": "斜体",
-    "formatCenter": "中央揃え",
-    "formatFont": "書体",
-    "formatCode": "コード",
-    "formatSize": "文字サイズ",
-    "formatLink": "リンク",
-    "uploadImage": "画像をアップロード",
-    "uploadVideo": "動画をアップロード",
-    "uploadMedia": "画像・動画をアップロード",
-    "removeImage": "画像を削除",
-    "removeVideo": "動画を削除",
-    "maxImages": "最大4枚まで",
-    "maxLength": "最大300文字まで",
-    "contentTooLong": "投稿内容は300文字以内で入力してください",
-    "characterCount": "{current}/{max}",
-    "success": "投稿しました",
-    "error": "投稿に失敗しました",
-    "uploadError": "メディアのアップロードに失敗しました",
-    "videoUploadError": "動画のアップロードに失敗しました",
-    "invalidFileType": "サポートされていないファイル形式です。画像または動画ファイルを選択してください",
-    "tooManyFiles": "一度にアップロードできる画像は4枚までです",
-    "tooManyVideos": "動画は1投稿につき1つまでです",
-    "cannotMixMediaTypes": "画像と動画を同じ投稿に混在させることはできません",
-    "fileTooLarge": "画像ファイルが大きすぎます",
-    "videoTooLarge": "動画ファイルが大きすぎます（最大{maxSize}MB）",
-    "dropImages": "画像をドロップ",
-    "dropMedia": "ファイルをドロップ",
-    "rateLimited": "アップロードの回数制限に達しました。しばらくしてからお試しください",
-    "rateLimitedWithRetry": "アップロードの回数制限に達しました。{seconds}秒後にお試しください",
-    "uploadNetworkError": "アップロードに失敗しました。ファイルが大きすぎるか、接続が中断された可能性があります"
-  },
-  "lightbox": {
-    "title": "画像ビューア",
-    "open": "画像を拡大",
-    "close": "閉じる",
-    "previous": "前の画像",
-    "next": "次の画像",
-    "zoomIn": "拡大",
-    "zoomOut": "縮小",
-    "imageAlt": "画像プレビュー"
-  },
-  "language": {
-    "switcher": {
-      "label": "言語"
-    },
-    "japanese": "日本語",
-    "english": "English"
-  },
-  "theme": {
-    "toggle": "テーマを切り替え",
-    "light": "ライトモードに切り替え",
-    "dark": "ダークモードに切り替え"
-  },
   "settings": {
     "title": "設定",
     "backToSettings": "設定に戻る",
@@ -435,6 +244,200 @@
       "unsavedChanges": "未保存の変更があります"
     }
   },
+  "loading": "読み込み中...",
+  "user": {
+    "anonymous": "匿名",
+    "posts": "投稿",
+    "noPosts": "投稿がありません",
+    "notFound": "ユーザーが見つかりません",
+    "noBio": "自己紹介がありません",
+    "unknown": "不明なユーザー",
+    "unknownUsername": "不明"
+  },
+  "login": {
+    "title": "ログイン",
+    "success": "ログインしました",
+    "failed": "ログインに失敗しました",
+    "goToLogin": "ログインはこちら",
+    "wizard": {
+      "username": {
+        "title": "ログイン",
+        "description": "ユーザー名を入力してください",
+        "notFound": "ユーザーが見つかりませんでした",
+        "checkingAvailability": "ユーザー名を確認中...",
+        "error": "ユーザー名の確認に失敗しました。もう一度お試しください。"
+      },
+      "password": {
+        "title": "パスワードを入力",
+        "description": "パスワードを入力してください",
+        "welcomeBack": "おかえりなさい！"
+      }
+    }
+  },
+  "logout": "ログアウト",
+  "logoutConfirm": {
+    "title": "ログアウトしますか？",
+    "description": "本当にログアウトしてもよろしいですか？",
+    "cancel": "キャンセル",
+    "confirm": "ログアウト"
+  },
+  "signup": {
+    "title": "新規登録",
+    "success": "アカウントを作成しました",
+    "failed": "アカウント作成に失敗しました",
+    "createAccount": "アカウントを作成",
+    "wizard": {
+      "terms": {
+        "title": "利用規約",
+        "description": "サービス利用規約をご確認ください",
+        "agree": "同意する",
+        "decline": "同意しない",
+        "checkbox": "利用規約に同意します"
+      },
+      "privacy": {
+        "title": "プライバシーポリシー",
+        "description": "プライバシーポリシーをご確認ください",
+        "agree": "同意する",
+        "decline": "同意しない",
+        "checkbox": "プライバシーポリシーに同意します"
+      },
+      "username": {
+        "title": "アカウントを作成",
+        "description": "ユーザー名を決めてください",
+        "alreadyExists": "このユーザー名は既に使われています",
+        "checkingAvailability": "ユーザー名を確認中...",
+        "error": "ユーザー名の確認に失敗しました。もう一度お試しください。"
+      },
+      "password": {
+        "title": "パスワードを設定",
+        "description": "パスワードを設定してください"
+      },
+      "inviteCode": {
+        "title": "招待コードを入力",
+        "description": "サーバー管理者から受け取った招待コードを入力してください",
+        "placeholder": "aB3cD4eF",
+        "label": "招待コード",
+        "required": "招待コードは必須です",
+        "invalid": "招待コードが無効です。サーバー管理者に確認してください。"
+      }
+    }
+  },
+  "auth": {
+    "required": "ログインが必要です",
+    "requiredDescription": "この機能を利用するにはログインが必要です",
+    "logout": "ログアウト"
+  },
+  "agreements": {
+    "accepted": "規約に同意しました",
+    "declined": "サービスを利用するには規約への同意が必要です"
+  },
+  "validation": {
+    "username": {
+      "requirements": "ユーザー名は3文字以上32文字以下で、英数字とアンダースコアのみ使用できます。",
+      "required": "ユーザー名は必須です",
+      "tooShort": "ユーザー名は3文字以上で入力してください",
+      "tooLong": "ユーザー名は32文字以下で入力してください",
+      "invalidCharacters": "ユーザー名は英数字とアンダースコアのみ使用できます"
+    },
+    "password": {
+      "required": "パスワードは必須です",
+      "tooShort": "パスワードは9文字以上で入力してください",
+      "tooLong": "パスワードは256文字以下で入力してください",
+      "missingRequirements": "パスワードは大文字・小文字・数字をすべて含めてください"
+    }
+  },
+  "error": {
+    "title": "エラーが発生しました",
+    "generic": "エラーが発生しました",
+    "authRequired": "認証が必要です",
+    "postIdRequired": "投稿IDが必要です",
+    "usernameRequired": "ユーザー名が必要です",
+    "auth": {
+      "sessionInvalid": "セッションが無効です。",
+      "loginStartFailed": "ログイン開始に失敗しました。",
+      "loginFailed": "ログインに失敗しました。",
+      "registrationFailed": "アカウント作成に失敗しました。"
+    }
+  },
+  "meta": {
+    "title": "{serverName}",
+    "description": "ミニSNS",
+    "pages": {
+      "home": "ホーム",
+      "login": "ログイン",
+      "signup": "新規登録",
+      "settings": "設定",
+      "settingsGeneral": "一般設定",
+      "settingsProfile": "プロフィール設定",
+      "settingsAppearance": "外観設定",
+      "setup": "プロフィール設定",
+      "adminSetup": "サーバー初期設定"
+    }
+  },
+  "timeline": {
+    "title": "タイムライン",
+    "noPosts": "投稿がありません",
+    "loadMore": "もっと見る"
+  },
+  "createPost": {
+    "title": "投稿する",
+    "placeholder": "いまどうしてる?",
+    "post": "投稿",
+    "posting": "投稿中...",
+    "formatBold": "太字",
+    "formatItalic": "斜体",
+    "formatCenter": "中央揃え",
+    "formatFont": "書体",
+    "formatCode": "コード",
+    "formatSize": "文字サイズ",
+    "formatLink": "リンク",
+    "uploadImage": "画像をアップロード",
+    "uploadVideo": "動画をアップロード",
+    "uploadMedia": "画像・動画をアップロード",
+    "removeImage": "画像を削除",
+    "removeVideo": "動画を削除",
+    "maxImages": "最大4枚まで",
+    "maxLength": "最大300文字まで",
+    "contentTooLong": "投稿内容は300文字以内で入力してください",
+    "characterCount": "{current}/{max}",
+    "success": "投稿しました",
+    "error": "投稿に失敗しました",
+    "uploadError": "メディアのアップロードに失敗しました",
+    "videoUploadError": "動画のアップロードに失敗しました",
+    "invalidFileType": "サポートされていないファイル形式です。画像または動画ファイルを選択してください",
+    "tooManyFiles": "一度にアップロードできる画像は4枚までです",
+    "tooManyVideos": "動画は1投稿につき1つまでです",
+    "cannotMixMediaTypes": "画像と動画を同じ投稿に混在させることはできません",
+    "fileTooLarge": "画像ファイルが大きすぎます",
+    "videoTooLarge": "動画ファイルが大きすぎます（最大{maxSize}MB）",
+    "dropImages": "画像をドロップ",
+    "dropMedia": "ファイルをドロップ",
+    "rateLimited": "アップロードの回数制限に達しました。しばらくしてからお試しください",
+    "rateLimitedWithRetry": "アップロードの回数制限に達しました。{seconds}秒後にお試しください",
+    "uploadNetworkError": "アップロードに失敗しました。ファイルが大きすぎるか、接続が中断された可能性があります"
+  },
+  "lightbox": {
+    "title": "画像ビューア",
+    "open": "画像を拡大",
+    "close": "閉じる",
+    "previous": "前の画像",
+    "next": "次の画像",
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "imageAlt": "画像プレビュー"
+  },
+  "language": {
+    "switcher": {
+      "label": "言語"
+    },
+    "japanese": "日本語",
+    "english": "English"
+  },
+  "theme": {
+    "toggle": "テーマを切り替え",
+    "light": "ライトモードに切り替え",
+    "dark": "ダークモードに切り替え"
+  },
   "userMenu": {
     "viewProfile": "プロフィール",
     "theme": "テーマ",
@@ -547,11 +550,6 @@
     "showMore": "もっと見る",
     "showLess": "閉じる"
   },
-  "welcome": {
-    "title": "{serverName}へようこそ！",
-    "description": "{serverDescription}",
-    "descriptionFallback": "プラットフォームを探索して、あなたの考えをシェアしましょう"
-  },
   "adminSetup": {
     "title": "サーバー初期設定",
     "step": "ステップ",
@@ -559,7 +557,17 @@
     "back": "戻る",
     "next": "次へ",
     "skip": "スキップ",
-    "complete": "完了",
+    "complete": {
+      "title": "セットアップ完了！",
+      "description": "サーバーの初期設定が完了しました。ホームページに移動してCielを始めましょう。",
+      "goToHome": "ホームに移動",
+      "setupSummary": "セットアップ内容",
+      "adminAccount": "管理者アカウント: {username}",
+      "serverName": "サーバー名: {name}",
+      "inviteOnly": "招待制: {enabled}",
+      "enabled": "有効",
+      "disabled": "無効"
+    },
     "saving": "保存中...",
     "welcome": {
       "title": "Cielサーバーへようこそ",
@@ -645,17 +653,6 @@
       "copyCode": "コピー",
       "codeCopied": "コピーしました",
       "copyError": "コードのコピーに失敗しました"
-    },
-    "complete": {
-      "title": "セットアップ完了！",
-      "description": "サーバーの初期設定が完了しました。ホームページに移動してCielを始めましょう。",
-      "goToHome": "ホームに移動",
-      "setupSummary": "セットアップ内容",
-      "adminAccount": "管理者アカウント: {username}",
-      "serverName": "サーバー名: {name}",
-      "inviteOnly": "招待制: {enabled}",
-      "enabled": "有効",
-      "disabled": "無効"
     },
     "error": {
       "setupFailed": "セットアップに失敗しました",
@@ -1066,5 +1063,15 @@
       "search": "検索",
       "filter": "フィルター"
     }
+  },
+  "videoPlayer": {
+    "play": "再生",
+    "pause": "一時停止",
+    "mute": "ミュート",
+    "unmute": "ミュート解除",
+    "fullscreen": "全画面",
+    "exitFullscreen": "全画面終了",
+    "doubleSpeed": "2×",
+    "seekSeconds": "{seconds}秒"
   }
 }
