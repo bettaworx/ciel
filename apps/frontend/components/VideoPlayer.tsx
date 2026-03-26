@@ -19,6 +19,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
 import {
@@ -99,6 +100,7 @@ export function VideoPlayer({
   const playerId = useId();
 
   const isTouchDevice = useIsTouchDevice();
+  const t = useTranslations("videoPlayer");
 
   // Whether the user has explicitly interacted with audio controls.
   // Once true, auto-unmute on pause→play is skipped because the user
@@ -1011,7 +1013,7 @@ export function VideoPlayer({
         <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-30">
           <div className="flex items-center gap-1.5 bg-black/60 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
             <Gauge className="w-3.5 h-3.5" style={{ filter: "none" }} />
-            <span>2×</span>
+            <span>{t("doubleSpeed")}</span>
           </div>
         </div>
       )}
@@ -1032,11 +1034,11 @@ export function VideoPlayer({
                   className="w-3.5 h-3.5"
                   style={{ filter: "none" }}
                 />
-                <span>{seekOverlay.seconds}秒</span>
+                <span>{t("seekSeconds", { seconds: seekOverlay.seconds })}</span>
               </>
             ) : (
               <>
-                <span>{seekOverlay.seconds}秒</span>
+                <span>{t("seekSeconds", { seconds: seekOverlay.seconds })}</span>
                 <ChevronsRight
                   className="w-3.5 h-3.5"
                   style={{ filter: "none" }}
@@ -1054,7 +1056,7 @@ export function VideoPlayer({
           onClick={togglePlay}
           className="absolute inset-0 m-auto w-12 h-12 z-20 flex items-center justify-center bg-black/55 backdrop-blur-sm rounded-full hover:bg-black/70 hover:scale-110 transition-all duration-150"
           style={{ textShadow: "none" }}
-          aria-label="Play"
+          aria-label={t("play")}
         >
           <Play
             className="w-5 h-5 text-white ml-0.5"
@@ -1110,7 +1112,7 @@ export function VideoPlayer({
             <button
               onClick={togglePlay}
               className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
-              aria-label={isPlaying ? "Pause" : "Play"}
+              aria-label={isPlaying ? t("pause") : t("play")}
             >
               {isPlaying ? (
                 <Pause className="w-4 h-4" style={{ filter: "none" }} />
@@ -1140,7 +1142,7 @@ export function VideoPlayer({
               <button
                 onClick={handleVolumeButtonClick}
                 className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
-                aria-label={isMuted ? "Unmute" : "Mute"}
+                aria-label={isMuted ? t("unmute") : t("mute")}
               >
                 {isMuted || volume === 0 ? (
                   <VolumeX className="w-4 h-4" style={{ filter: "none" }} />
@@ -1183,7 +1185,7 @@ export function VideoPlayer({
             <button
               onClick={toggleFullscreen}
               className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
-              aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              aria-label={isFullscreen ? t("exitFullscreen") : t("fullscreen")}
             >
               {isFullscreen ? (
                 <Minimize className="w-4 h-4" style={{ filter: "none" }} />

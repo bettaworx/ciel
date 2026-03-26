@@ -1,206 +1,15 @@
 {
   "hello": "Hello",
-  "welcome": "Welcome",
+  "welcome": {
+    "title": "Welcome to {serverName}!",
+    "description": "{serverDescription}",
+    "descriptionFallback": "Explore our platform and start sharing your thoughts."
+  },
   "username": "Username",
   "password": "Password",
   "passwordRequirements": "Password must be at least 9 characters long and contain uppercase, lowercase, and numbers.",
   "post": "Post",
   "profile": "Profile",
-  "settings": "Settings",
-  "loading": "Loading...",
-  "user": {
-    "anonymous": "Anonymous",
-    "posts": "Posts",
-    "noPosts": "No posts yet",
-    "notFound": "User not found",
-    "noBio": "No bio yet",
-    "unknown": "Unknown User",
-    "unknownUsername": "unknown"
-  },
-  "login": {
-    "title": "Login",
-    "success": "Successfully logged in",
-    "failed": "Login failed",
-    "goToLogin": "Already have an account?",
-    "wizard": {
-      "username": {
-        "title": "Login",
-        "description": "Enter your username",
-        "notFound": "This username does not exist",
-        "checkingAvailability": "Checking username...",
-        "error": "Unable to verify username. Please try again."
-      },
-      "password": {
-        "title": "Enter Password",
-        "description": "Enter your password",
-        "welcomeBack": "Welcome back"
-      }
-    }
-  },
-  "logout": "Logout",
-  "logoutConfirm": {
-    "title": "Log out?",
-    "description": "Are you sure you want to log out?",
-    "cancel": "Cancel",
-    "confirm": "Log out"
-  },
-  "signup": {
-    "title": "Sign Up",
-    "success": "Account created successfully",
-    "failed": "Failed to create account",
-    "createAccount": "Create an account",
-    "wizard": {
-      "terms": {
-        "title": "Terms of Service",
-        "description": "Please review the Terms of Service",
-        "agree": "Agree",
-        "decline": "Decline",
-        "checkbox": "I agree to the Terms of Service"
-      },
-      "privacy": {
-        "title": "Privacy Policy",
-        "description": "Please review the Privacy Policy",
-        "agree": "Agree",
-        "decline": "Decline",
-        "checkbox": "I agree to the Privacy Policy"
-      },
-      "username": {
-        "title": "Create an Account",
-        "description": "Choose your username",
-        "alreadyExists": "This username is already taken",
-        "checkingAvailability": "Checking username...",
-        "error": "Unable to verify username. Please try again."
-      },
-      "password": {
-        "title": "Set Password",
-        "description": "Set your password"
-      },
-      "inviteCode": {
-        "title": "Enter Invite Code",
-        "description": "Enter the invite code you received from the server administrator",
-        "placeholder": "aB3cD4eF",
-        "label": "Invite Code",
-        "required": "Invite code is required",
-        "invalid": "Invalid invite code. Please contact your server administrator."
-      }
-    }
-  },
-  "auth": {
-    "required": "Login Required",
-    "requiredDescription": "You need to log in to use this feature",
-    "logout": "Logout"
-  },
-  "agreements": {
-    "accepted": "Agreements accepted successfully",
-    "declined": "You must accept the agreements to continue using this service"
-  },
-  "validation": {
-    "username": {
-      "requirements": "Username must be 3-32 characters long and contain only letters, numbers, and underscores.",
-      "required": "Username is required",
-      "tooShort": "Username must be at least 3 characters long",
-      "tooLong": "Username must be no more than 32 characters long",
-      "invalidCharacters": "Username can only contain letters, numbers, and underscores"
-    },
-    "password": {
-      "required": "Password is required",
-      "tooShort": "Password must be at least 9 characters long",
-      "tooLong": "Password must be no more than 256 characters long",
-      "missingRequirements": "Password must include uppercase, lowercase, and numbers"
-    }
-  },
-  "error": {
-    "title": "An error occurred",
-    "generic": "An error occurred",
-    "authRequired": "Authentication required",
-    "postIdRequired": "Post ID is required",
-    "usernameRequired": "Username is required",
-    "auth": {
-      "sessionInvalid": "Session is invalid.",
-      "loginStartFailed": "Failed to start login.",
-      "loginFailed": "Login failed.",
-      "registrationFailed": "Failed to create account."
-    }
-  },
-  "meta": {
-    "title": "{serverName}",
-    "description": "A micro social network",
-    "pages": {
-      "home": "Home",
-      "login": "Login",
-      "signup": "Sign Up",
-      "settings": "Settings",
-      "settingsGeneral": "General Settings",
-      "settingsProfile": "Profile Settings",
-      "settingsAppearance": "Appearance Settings",
-      "setup": "Setup Profile",
-      "adminSetup": "Server Setup"
-    }
-  },
-  "timeline": {
-    "title": "Timeline",
-    "noPosts": "No posts yet",
-    "loadMore": "Load More"
-  },
-  "createPost": {
-    "title": "Create Post",
-    "placeholder": "What's happening?",
-    "post": "Post",
-    "posting": "Posting...",
-    "formatBold": "Bold",
-    "formatItalic": "Italic",
-    "formatCenter": "Center",
-    "formatFont": "Font",
-    "formatCode": "Code",
-    "formatSize": "Text size",
-    "formatLink": "Link",
-    "uploadImage": "Upload Image",
-    "uploadVideo": "Upload Video",
-    "uploadMedia": "Upload Image or Video",
-    "removeImage": "Remove Image",
-    "removeVideo": "Remove Video",
-    "maxImages": "Maximum 4 images",
-    "maxLength": "Maximum 300 characters",
-    "contentTooLong": "Post content must be 300 characters or less",
-    "characterCount": "{current}/{max}",
-    "success": "Posted successfully",
-    "error": "Failed to post",
-    "uploadError": "Failed to upload media",
-    "videoUploadError": "Failed to upload video",
-    "invalidFileType": "Unsupported file type. Please select an image or video file",
-    "tooManyFiles": "You can upload up to 4 images at once",
-    "tooManyVideos": "You can upload up to 1 video per post",
-    "cannotMixMediaTypes": "You cannot mix images and videos in the same post",
-    "fileTooLarge": "Image file is too large",
-    "videoTooLarge": "Video file is too large (maximum {maxSize}MB)",
-    "dropImages": "Drop images here",
-    "dropMedia": "Drop files here",
-    "rateLimited": "Upload rate limit reached. Please wait and try again",
-    "rateLimitedWithRetry": "Upload rate limit reached. Please try again in {seconds} seconds",
-    "uploadNetworkError": "Upload failed. The file may be too large or the connection was interrupted"
-  },
-  "lightbox": {
-    "title": "Image viewer",
-    "open": "Open image",
-    "close": "Close",
-    "previous": "Previous image",
-    "next": "Next image",
-    "zoomIn": "Zoom in",
-    "zoomOut": "Zoom out",
-    "imageAlt": "Image preview"
-  },
-  "language": {
-    "switcher": {
-      "label": "Language"
-    },
-    "japanese": "日本語",
-    "english": "English"
-  },
-  "theme": {
-    "toggle": "Toggle theme",
-    "light": "Switch to light mode",
-    "dark": "Switch to dark mode"
-  },
   "settings": {
     "title": "Settings",
     "backToSettings": "Back to settings",
@@ -435,6 +244,200 @@
       "unsavedChanges": "You have unsaved changes"
     }
   },
+  "loading": "Loading...",
+  "user": {
+    "anonymous": "Anonymous",
+    "posts": "Posts",
+    "noPosts": "No posts yet",
+    "notFound": "User not found",
+    "noBio": "No bio yet",
+    "unknown": "Unknown User",
+    "unknownUsername": "unknown"
+  },
+  "login": {
+    "title": "Login",
+    "success": "Successfully logged in",
+    "failed": "Login failed",
+    "goToLogin": "Already have an account?",
+    "wizard": {
+      "username": {
+        "title": "Login",
+        "description": "Enter your username",
+        "notFound": "This username does not exist",
+        "checkingAvailability": "Checking username...",
+        "error": "Unable to verify username. Please try again."
+      },
+      "password": {
+        "title": "Enter Password",
+        "description": "Enter your password",
+        "welcomeBack": "Welcome back"
+      }
+    }
+  },
+  "logout": "Logout",
+  "logoutConfirm": {
+    "title": "Log out?",
+    "description": "Are you sure you want to log out?",
+    "cancel": "Cancel",
+    "confirm": "Log out"
+  },
+  "signup": {
+    "title": "Sign Up",
+    "success": "Account created successfully",
+    "failed": "Failed to create account",
+    "createAccount": "Create an account",
+    "wizard": {
+      "terms": {
+        "title": "Terms of Service",
+        "description": "Please review the Terms of Service",
+        "agree": "Agree",
+        "decline": "Decline",
+        "checkbox": "I agree to the Terms of Service"
+      },
+      "privacy": {
+        "title": "Privacy Policy",
+        "description": "Please review the Privacy Policy",
+        "agree": "Agree",
+        "decline": "Decline",
+        "checkbox": "I agree to the Privacy Policy"
+      },
+      "username": {
+        "title": "Create an Account",
+        "description": "Choose your username",
+        "alreadyExists": "This username is already taken",
+        "checkingAvailability": "Checking username...",
+        "error": "Unable to verify username. Please try again."
+      },
+      "password": {
+        "title": "Set Password",
+        "description": "Set your password"
+      },
+      "inviteCode": {
+        "title": "Enter Invite Code",
+        "description": "Enter the invite code you received from the server administrator",
+        "placeholder": "aB3cD4eF",
+        "label": "Invite Code",
+        "required": "Invite code is required",
+        "invalid": "Invalid invite code. Please contact your server administrator."
+      }
+    }
+  },
+  "auth": {
+    "required": "Login Required",
+    "requiredDescription": "You need to log in to use this feature",
+    "logout": "Logout"
+  },
+  "agreements": {
+    "accepted": "Agreements accepted successfully",
+    "declined": "You must accept the agreements to continue using this service"
+  },
+  "validation": {
+    "username": {
+      "requirements": "Username must be 3-32 characters long and contain only letters, numbers, and underscores.",
+      "required": "Username is required",
+      "tooShort": "Username must be at least 3 characters long",
+      "tooLong": "Username must be no more than 32 characters long",
+      "invalidCharacters": "Username can only contain letters, numbers, and underscores"
+    },
+    "password": {
+      "required": "Password is required",
+      "tooShort": "Password must be at least 9 characters long",
+      "tooLong": "Password must be no more than 256 characters long",
+      "missingRequirements": "Password must include uppercase, lowercase, and numbers"
+    }
+  },
+  "error": {
+    "title": "An error occurred",
+    "generic": "An error occurred",
+    "authRequired": "Authentication required",
+    "postIdRequired": "Post ID is required",
+    "usernameRequired": "Username is required",
+    "auth": {
+      "sessionInvalid": "Session is invalid.",
+      "loginStartFailed": "Failed to start login.",
+      "loginFailed": "Login failed.",
+      "registrationFailed": "Failed to create account."
+    }
+  },
+  "meta": {
+    "title": "{serverName}",
+    "description": "A micro social network",
+    "pages": {
+      "home": "Home",
+      "login": "Login",
+      "signup": "Sign Up",
+      "settings": "Settings",
+      "settingsGeneral": "General Settings",
+      "settingsProfile": "Profile Settings",
+      "settingsAppearance": "Appearance Settings",
+      "setup": "Setup Profile",
+      "adminSetup": "Server Setup"
+    }
+  },
+  "timeline": {
+    "title": "Timeline",
+    "noPosts": "No posts yet",
+    "loadMore": "Load More"
+  },
+  "createPost": {
+    "title": "Create Post",
+    "placeholder": "What's happening?",
+    "post": "Post",
+    "posting": "Posting...",
+    "formatBold": "Bold",
+    "formatItalic": "Italic",
+    "formatCenter": "Center",
+    "formatFont": "Font",
+    "formatCode": "Code",
+    "formatSize": "Text size",
+    "formatLink": "Link",
+    "uploadImage": "Upload Image",
+    "uploadVideo": "Upload Video",
+    "uploadMedia": "Upload Image or Video",
+    "removeImage": "Remove Image",
+    "removeVideo": "Remove Video",
+    "maxImages": "Maximum 4 images",
+    "maxLength": "Maximum 300 characters",
+    "contentTooLong": "Post content must be 300 characters or less",
+    "characterCount": "{current}/{max}",
+    "success": "Posted successfully",
+    "error": "Failed to post",
+    "uploadError": "Failed to upload media",
+    "videoUploadError": "Failed to upload video",
+    "invalidFileType": "Unsupported file type. Please select an image or video file",
+    "tooManyFiles": "You can upload up to 4 images at once",
+    "tooManyVideos": "You can upload up to 1 video per post",
+    "cannotMixMediaTypes": "You cannot mix images and videos in the same post",
+    "fileTooLarge": "Image file is too large",
+    "videoTooLarge": "Video file is too large (maximum {maxSize}MB)",
+    "dropImages": "Drop images here",
+    "dropMedia": "Drop files here",
+    "rateLimited": "Upload rate limit reached. Please wait and try again",
+    "rateLimitedWithRetry": "Upload rate limit reached. Please try again in {seconds} seconds",
+    "uploadNetworkError": "Upload failed. The file may be too large or the connection was interrupted"
+  },
+  "lightbox": {
+    "title": "Image viewer",
+    "open": "Open image",
+    "close": "Close",
+    "previous": "Previous image",
+    "next": "Next image",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "imageAlt": "Image preview"
+  },
+  "language": {
+    "switcher": {
+      "label": "Language"
+    },
+    "japanese": "日本語",
+    "english": "English"
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Switch to light mode",
+    "dark": "Switch to dark mode"
+  },
   "userMenu": {
     "viewProfile": "Profile",
     "theme": "Theme",
@@ -537,11 +540,6 @@
     "showMore": "Show more",
     "showLess": "Show less"
   },
-  "welcome": {
-    "title": "Welcome to {serverName}!",
-    "description": "{serverDescription}",
-    "descriptionFallback": "Explore our platform and start sharing your thoughts."
-  },
   "adminSetup": {
     "title": "Server Initial Setup",
     "step": "Step",
@@ -549,7 +547,17 @@
     "back": "Back",
     "next": "Next",
     "skip": "Skip",
-    "complete": "Complete",
+    "complete": {
+      "title": "Setup Complete!",
+      "description": "Server setup is complete. Head to the home page and start using Ciel.",
+      "goToHome": "Go to Home",
+      "setupSummary": "Setup Summary",
+      "adminAccount": "Admin Account: {username}",
+      "serverName": "Server Name: {name}",
+      "inviteOnly": "Invite Only: {enabled}",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
     "saving": "Saving...",
     "welcome": {
       "title": "Welcome to Ciel Server",
@@ -635,17 +643,6 @@
       "copyCode": "Copy",
       "codeCopied": "Copied",
       "copyError": "Failed to copy code"
-    },
-    "complete": {
-      "title": "Setup Complete!",
-      "description": "Server setup is complete. Head to the home page and start using Ciel.",
-      "goToHome": "Go to Home",
-      "setupSummary": "Setup Summary",
-      "adminAccount": "Admin Account: {username}",
-      "serverName": "Server Name: {name}",
-      "inviteOnly": "Invite Only: {enabled}",
-      "enabled": "Enabled",
-      "disabled": "Disabled"
     },
     "error": {
       "setupFailed": "Setup failed",
@@ -1056,5 +1053,15 @@
       "search": "Search",
       "filter": "Filter"
     }
+  },
+  "videoPlayer": {
+    "play": "Play",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "doubleSpeed": "2×",
+    "seekSeconds": "{seconds}s"
   }
 }
