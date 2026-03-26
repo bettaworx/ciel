@@ -382,7 +382,7 @@ export function VideoPlayer({
     if (isPlaying && !isHovering) {
       hideControlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
-      }, 1000);
+      }, isTouchDevice ? 3000 : 1000);
     }
   };
 
