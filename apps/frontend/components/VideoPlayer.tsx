@@ -1,6 +1,13 @@
 "use client";
 
-import { useRef, useEffect, useLayoutEffect, useState, useCallback, useId } from "react";
+import {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useCallback,
+  useId,
+} from "react";
 import {
   Play,
   Pause,
@@ -8,6 +15,9 @@ import {
   VolumeX,
   Maximize,
   Minimize,
+  Gauge,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
@@ -104,6 +114,31 @@ export function VideoPlayer({
   // to re-create the observer on every fullscreen toggle.
   const isFullscreenRef = useRef(false);
 
+  // Long press (2x speed) refs
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPressingRef = useRef(false);
+  const touchStartPosRef = useRef({ x: 0, y: 0 });
+
+  // Suppress onClick after touch-handled events (long press, double tap)
+  const touchHandledRef = useRef(false);
+
+  // Double-tap seek state
+  const tapStateRef = useRef<{
+    lastTime: number;
+    lastSide: "left" | "right" | null;
+    totalSeeked: number;
+    displayTimer: ReturnType<typeof setTimeout> | null;
+    singleTapTimer: ReturnType<typeof setTimeout> | null;
+    animKey: number;
+  }>({
+    lastTime: 0,
+    lastSide: null,
+    totalSeeked: 0,
+    displayTimer: null,
+    singleTapTimer: null,
+    animKey: 0,
+  });
+
   // Persisted volume (shared across all VideoPlayer instances)
   const [savedVolume, setSavedVolume] = useAtom(videoVolumeAtom);
 
@@ -120,10 +155,23 @@ export function VideoPlayer({
   const [isHovering, setIsHovering] = useState(false);
   const [isDraggingProgress, setIsDraggingProgress] = useState(false);
   const [isDraggingVolume, setIsDraggingVolume] = useState(false);
+  // Relative drag: start position and value recorded on pointer-down (touch only)
+  const progressDragStartRef = useRef({ x: 0, value: 0 });
+  const volumeDragStartRef = useRef({ x: 0, value: 0 });
   const [isVolumeHovered, setIsVolumeHovered] = useState(false);
 
   // Mobile: whether the volume slider is explicitly shown (toggled by tap)
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+
+  // Long press 2x speed overlay
+  const [isLongPressing, setIsLongPressing] = useState(false);
+
+  // Seek indicator overlay (double tap)
+  const [seekOverlay, setSeekOverlay] = useState<{
+    side: "left" | "right";
+    seconds: number;
+    key: number;
+  } | null>(null);
 
   // Controls whether the video src is loaded. Cleared when far off-screen to
   // release the video buffer; restored when re-entering the load zone.
@@ -143,6 +191,10 @@ export function VideoPlayer({
     setVolume(savedVolume);
     setIsMuted(false);
   }, [savedVolume]);
+
+  // Stable ref so setTimeout callbacks always call the latest version
+  const restoreSavedVolumeRef = useRef(restoreSavedVolume);
+  restoreSavedVolumeRef.current = restoreSavedVolume;
 
   // -----------------------------------------------------------------------
   // Play / Pause
@@ -167,11 +219,35 @@ export function VideoPlayer({
     }
   };
 
+  // Stable ref for use in setTimeout callbacks
+  const togglePlayRef = useRef(togglePlay);
+  togglePlayRef.current = togglePlay;
+
+  // -----------------------------------------------------------------------
+  // Single tap handler — called after double-tap window expires
+  // -----------------------------------------------------------------------
+  const handleSingleTapRef = useRef<() => void>(() => {});
+  handleSingleTapRef.current = () => {
+    if (!videoRef.current || !activeSrcRef.current) return;
+    if (!hasUserInteracted.current) {
+      hasUserInteracted.current = true;
+      restoreSavedVolumeRef.current();
+      return;
+    }
+    togglePlayRef.current();
+  };
+
   // -----------------------------------------------------------------------
   // Video area click — first click unmutes only; subsequent clicks toggle play
   // -----------------------------------------------------------------------
   const handleVideoClick = () => {
     if (!videoRef.current || !activeSrc) return;
+
+    // Suppress click when touch handlers already processed this gesture
+    if (touchHandledRef.current) {
+      touchHandledRef.current = false;
+      return;
+    }
 
     // On touch devices: if controls are currently hidden, first tap only shows
     // controls without any play/pause action. The hide timer is already
@@ -248,44 +324,32 @@ export function VideoPlayer({
 
   // -----------------------------------------------------------------------
   // Progress bar seek
+  // Mouse: absolute position. Touch: relative drag.
   // -----------------------------------------------------------------------
-  const handleProgressBarSeek = (
-    e:
-      | MouseEvent
-      | TouchEvent
-      | React.MouseEvent<HTMLDivElement>
-      | React.TouchEvent<HTMLDivElement>,
-  ) => {
-    if (!progressBarRef.current || !videoRef.current) return;
-
-    const clientX =
-      "touches" in e
-        ? ((e.touches[0] ?? e.changedTouches[0])?.clientX ?? 0)
-        : e.clientX;
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const pos = (clientX - rect.left) / rect.width;
-    const newTime = Math.max(0, Math.min(duration, pos * duration));
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-
-    // Seekbar interaction unmutes the video (only if user hasn't explicitly
-    // interacted with audio controls). This treats seeking as "user wants to
-    // watch this video" intent, similar to play button.
+  const handleProgressBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current || !progressBarRef.current) return;
     if (!hasUserInteracted.current) {
       hasUserInteracted.current = true;
       restoreSavedVolume();
     }
-  };
-
-  const handleProgressBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Absolute position seek on mouse down
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTime = ratio * duration;
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
     setIsDraggingProgress(true);
-    handleProgressBarSeek(e);
   };
 
   const handleProgressBarMouseMove = (e: MouseEvent) => {
-    if (isDraggingProgress) {
-      handleProgressBarSeek(e);
-    }
+    if (!isDraggingProgress || !progressBarRef.current || !videoRef.current)
+      return;
+    // Absolute position for mouse drag
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTime = ratio * duration;
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const handleProgressBarMouseUp = () => {
@@ -294,15 +358,38 @@ export function VideoPlayer({
 
   const handleProgressBarTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
+    if (!videoRef.current) return;
+    const touch = e.touches[0] ?? e.changedTouches[0];
+    if (!touch) return;
+    if (!hasUserInteracted.current) {
+      hasUserInteracted.current = true;
+      restoreSavedVolume();
+    }
+    // Record current position as drag origin — relative drag for touch
+    progressDragStartRef.current = {
+      x: touch.clientX,
+      value: videoRef.current.currentTime,
+    };
     setIsDraggingProgress(true);
-    handleProgressBarSeek(e);
   };
 
   const handleProgressBarTouchMove = (e: TouchEvent) => {
-    if (isDraggingProgress) {
-      e.preventDefault();
-      handleProgressBarSeek(e);
-    }
+    if (!isDraggingProgress || !progressBarRef.current || !videoRef.current)
+      return;
+    e.preventDefault();
+    const touch = e.touches[0] ?? e.changedTouches[0];
+    if (!touch) return;
+    // Relative drag for touch
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const delta =
+      ((touch.clientX - progressDragStartRef.current.x) / rect.width) *
+      duration;
+    const newTime = Math.max(
+      0,
+      Math.min(duration, progressDragStartRef.current.value + delta),
+    );
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const handleProgressBarTouchEnd = () => {
@@ -311,42 +398,35 @@ export function VideoPlayer({
 
   // -----------------------------------------------------------------------
   // Volume bar
+  // Mouse: absolute position. Touch: relative drag.
   // -----------------------------------------------------------------------
-  const handleVolumeBarChange = (
-    e:
-      | MouseEvent
-      | TouchEvent
-      | React.MouseEvent<HTMLDivElement>
-      | React.TouchEvent<HTMLDivElement>,
-  ) => {
-    if (!volumeBarRef.current || !videoRef.current) return;
-
+  const handleVolumeBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current || !volumeBarRef.current) return;
     hasUserInteracted.current = true;
-
-    const clientX =
-      "touches" in e
-        ? ((e.touches[0] ?? e.changedTouches[0])?.clientX ?? 0)
-        : e.clientX;
+    // Absolute position on mouse down
     const rect = volumeBarRef.current.getBoundingClientRect();
-    const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    videoRef.current.volume = pos;
-    setVolume(pos);
-    setSavedVolume(pos);
-
-    if (pos > 0 && isMuted) {
+    const newVol = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    videoRef.current.volume = newVol;
+    setVolume(newVol);
+    setSavedVolume(newVol);
+    if (newVol > 0 && isMuted) {
       setIsMuted(false);
       videoRef.current.muted = false;
     }
-  };
-
-  const handleVolumeBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     setIsDraggingVolume(true);
-    handleVolumeBarChange(e);
   };
 
   const handleVolumeBarMouseMove = (e: MouseEvent) => {
-    if (isDraggingVolume) {
-      handleVolumeBarChange(e);
+    if (!isDraggingVolume || !volumeBarRef.current || !videoRef.current) return;
+    // Absolute position for mouse drag
+    const rect = volumeBarRef.current.getBoundingClientRect();
+    const newVol = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    videoRef.current.volume = newVol;
+    setVolume(newVol);
+    setSavedVolume(newVol);
+    if (newVol > 0 && isMuted) {
+      setIsMuted(false);
+      videoRef.current.muted = false;
     }
   };
 
@@ -356,17 +436,37 @@ export function VideoPlayer({
 
   const handleVolumeBarTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
+    if (!videoRef.current) return;
+    hasUserInteracted.current = true;
+    const touch = e.touches[0] ?? e.changedTouches[0];
+    if (!touch) return;
+    // Record current volume as drag origin — relative drag for touch
+    const currentVol = isMuted ? 0 : videoRef.current.volume;
+    volumeDragStartRef.current = { x: touch.clientX, value: currentVol };
     setIsDraggingVolume(true);
-    handleVolumeBarChange(e);
     scheduleHideControls();
   };
 
   const handleVolumeBarTouchMove = (e: TouchEvent) => {
-    if (isDraggingVolume) {
-      e.preventDefault();
-      handleVolumeBarChange(e);
-      scheduleHideControls();
+    if (!isDraggingVolume || !volumeBarRef.current || !videoRef.current) return;
+    e.preventDefault();
+    const touch = e.touches[0] ?? e.changedTouches[0];
+    if (!touch) return;
+    // Relative drag for touch
+    const rect = volumeBarRef.current.getBoundingClientRect();
+    const delta = (touch.clientX - volumeDragStartRef.current.x) / rect.width;
+    const newVol = Math.max(
+      0,
+      Math.min(1, volumeDragStartRef.current.value + delta),
+    );
+    videoRef.current.volume = newVol;
+    setVolume(newVol);
+    setSavedVolume(newVol);
+    if (newVol > 0 && isMuted) {
+      setIsMuted(false);
+      videoRef.current.muted = false;
     }
+    scheduleHideControls();
   };
 
   const handleVolumeBarTouchEnd = () => {
@@ -383,9 +483,12 @@ export function VideoPlayer({
     }
 
     if (isPlaying && !isHovering) {
-      hideControlsTimeoutRef.current = setTimeout(() => {
-        setShowControls(false);
-      }, isTouchDevice ? 3000 : 1000);
+      hideControlsTimeoutRef.current = setTimeout(
+        () => {
+          setShowControls(false);
+        },
+        isTouchDevice ? 3000 : 1000,
+      );
     }
   };
 
@@ -409,6 +512,160 @@ export function VideoPlayer({
     if (isTouchDevice) return;
     setIsHovering(false);
     scheduleHideControls();
+  };
+
+  // -----------------------------------------------------------------------
+  // Long press (2x speed) + double tap seek — touch handlers on video element
+  // -----------------------------------------------------------------------
+  const endLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    if (isLongPressingRef.current && videoRef.current) {
+      videoRef.current.playbackRate = 1;
+      isLongPressingRef.current = false;
+      setIsLongPressing(false);
+    }
+  };
+
+  const handleVideoTouchStart = (e: React.TouchEvent<HTMLVideoElement>) => {
+    if (!activeSrc) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+
+    // Cancel any pending single-tap timer
+    const tapState = tapStateRef.current;
+    if (tapState.singleTapTimer) {
+      clearTimeout(tapState.singleTapTimer);
+      tapState.singleTapTimer = null;
+    }
+
+    // Start long press timer
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      if (!videoRef.current) return;
+      videoRef.current.playbackRate = 2;
+      isLongPressingRef.current = true;
+      setIsLongPressing(true);
+      touchHandledRef.current = true;
+    }, 500);
+  };
+
+  const handleVideoTouchMove = (e: React.TouchEvent<HTMLVideoElement>) => {
+    // Cancel long press if finger moved significantly (likely scrolling)
+    if (!isLongPressingRef.current && longPressTimerRef.current) {
+      const touch = e.touches[0];
+      if (touch) {
+        const dx = touch.clientX - touchStartPosRef.current.x;
+        const dy = touch.clientY - touchStartPosRef.current.y;
+        if (Math.sqrt(dx * dx + dy * dy) > 10) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+      }
+    }
+  };
+
+  const handleVideoTouchEnd = (e: React.TouchEvent<HTMLVideoElement>) => {
+    if (!activeSrc) return;
+
+    const wasLongPressing = isLongPressingRef.current;
+    endLongPress();
+
+    if (wasLongPressing) {
+      touchHandledRef.current = true;
+      return;
+    }
+
+    if (!containerRef.current || !videoRef.current) return;
+
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const relX = touch.clientX - rect.left;
+    const side: "left" | "right" = relX < rect.width / 2 ? "left" : "right";
+    const now = Date.now();
+    const tapState = tapStateRef.current;
+
+    const isSequential =
+      now - tapState.lastTime < 400 && tapState.lastSide === side;
+    tapState.lastTime = now;
+    tapState.lastSide = side;
+
+    if (isSequential) {
+      // Double tap or additional tap → seek
+      touchHandledRef.current = true;
+
+      if (tapState.displayTimer) {
+        clearTimeout(tapState.displayTimer);
+        tapState.displayTimer = null;
+      }
+      if (tapState.singleTapTimer) {
+        clearTimeout(tapState.singleTapTimer);
+        tapState.singleTapTimer = null;
+      }
+
+      const delta = side === "left" ? -10 : 10;
+      tapState.totalSeeked += delta;
+      tapState.animKey++;
+
+      const video = videoRef.current;
+      const newTime = Math.max(
+        0,
+        Math.min(video.duration || 0, video.currentTime + delta),
+      );
+      video.currentTime = newTime;
+      setCurrentTime(newTime);
+
+      const { animKey, totalSeeked } = tapState;
+      setSeekOverlay({
+        side,
+        seconds: Math.abs(totalSeeked),
+        key: animKey,
+      });
+
+      tapState.displayTimer = setTimeout(() => {
+        setSeekOverlay(null);
+        tapState.totalSeeked = 0;
+        tapState.lastSide = null;
+      }, 800);
+    } else {
+      // First tap in potential sequence
+      if (tapState.displayTimer) {
+        clearTimeout(tapState.displayTimer);
+        tapState.displayTimer = null;
+        setSeekOverlay(null);
+        tapState.totalSeeked = 0;
+      }
+
+      // Always suppress onClick — we handle the action ourselves
+      touchHandledRef.current = true;
+
+      // Controls hidden → show controls immediately, no play/pause action
+      if (!showControlsRef.current) {
+        setShowControls(true);
+        return;
+      }
+
+      // Schedule single-tap action to allow double-tap detection
+      tapState.singleTapTimer = setTimeout(() => {
+        tapState.singleTapTimer = null;
+        handleSingleTapRef.current();
+      }, 300);
+    }
+  };
+
+  const handleVideoTouchCancel = () => {
+    endLongPress();
+    const tapState = tapStateRef.current;
+    if (tapState.singleTapTimer) {
+      clearTimeout(tapState.singleTapTimer);
+      tapState.singleTapTimer = null;
+    }
   };
 
   // -----------------------------------------------------------------------
@@ -481,6 +738,16 @@ export function VideoPlayer({
     };
   }, []);
 
+  // Cleanup long press and tap timers on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+      const tapState = tapStateRef.current;
+      if (tapState.displayTimer) clearTimeout(tapState.displayTimer);
+      if (tapState.singleTapTimer) clearTimeout(tapState.singleTapTimer);
+    };
+  }, []);
+
   // Imperatively manage the video src attribute so that React 19's internal
   // reconciler cannot incorrectly set src="" (which resolves to the page URL
   // and causes NotSupportedError when play() is called). useLayoutEffect runs
@@ -490,10 +757,14 @@ export function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
     if (activeSrc) {
-      video.setAttribute('src', activeSrc);
+      video.setAttribute("src", activeSrc);
     } else {
-      video.removeAttribute('src');
-      try { video.load(); } catch { /* expected: resets buffered state */ }
+      video.removeAttribute("src");
+      try {
+        video.load();
+      } catch {
+        /* expected: resets buffered state */
+      }
     }
   }, [activeSrc]);
 
@@ -600,10 +871,10 @@ export function VideoPlayer({
           // Ignore a false callback that arrives before we have ever seen a
           // true for this observer instance (Strict Mode false-positive).
           if (!settled) return;
-          setActiveSrc('');
+          setActiveSrc("");
         }
       },
-      { rootMargin: '300% 0px 300% 0px', threshold: 0 },
+      { rootMargin: "300% 0px 300% 0px", threshold: 0 },
     );
 
     obs.observe(container);
@@ -716,7 +987,47 @@ export function VideoPlayer({
         loop
         draggable={false}
         onClick={activeSrc ? handleVideoClick : undefined}
+        onTouchStart={activeSrc ? handleVideoTouchStart : undefined}
+        onTouchMove={activeSrc ? handleVideoTouchMove : undefined}
+        onTouchEnd={activeSrc ? handleVideoTouchEnd : undefined}
+        onTouchCancel={activeSrc ? handleVideoTouchCancel : undefined}
+        onContextMenu={(e) => e.preventDefault()}
       />
+
+      {/* Long press 2× speed indicator — top center */}
+      {isLongPressing && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-30">
+          <div className="flex items-center gap-1.5 bg-black/60 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
+            <Gauge className="w-3.5 h-3.5" style={{ filter: "none" }} />
+            <span>2×</span>
+          </div>
+        </div>
+      )}
+
+      {/* Double-tap seek indicator — left/right edges */}
+      {seekOverlay && (
+        <div
+          key={seekOverlay.key}
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 pointer-events-none z-30",
+            seekOverlay.side === "left" ? "left-3" : "right-3",
+          )}
+        >
+          <div className="flex items-center gap-1 bg-black/60 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
+            {seekOverlay.side === "left" ? (
+              <>
+                <ChevronsLeft className="w-3.5 h-3.5" style={{ filter: "none" }} />
+                <span>{seekOverlay.seconds}秒</span>
+              </>
+            ) : (
+              <>
+                <span>{seekOverlay.seconds}秒</span>
+                <ChevronsRight className="w-3.5 h-3.5" style={{ filter: "none" }} />
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Big play button (center) — shown only when src loaded and paused.
           z-20 ensures it sits above the control bar gradient (z-10). */}
@@ -736,131 +1047,135 @@ export function VideoPlayer({
       )}
 
       {/* Control bar — hidden when src is unloaded */}
-      {activeSrc && <div
-        className={cn(
-          "absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 select-none",
-          showControls || !isPlaying ? "opacity-100" : "opacity-0",
-        )}
-      >
-        {/* Background gradient */}
+      {activeSrc && (
         <div
-          className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none"
-          style={{ height: "80px" }}
-        />
-
-        {/* Progress bar — transparent padding expands touch target while
-            the visible track stays thin (h-1, expanding to h-1.5 on hover). */}
-        <div className="px-2">
-          <div
-            className="py-0 sm:py-1 cursor-pointer group/progress"
-            style={{ touchAction: "none" }}
-            onMouseDown={handleProgressBarMouseDown}
-            onTouchStart={handleProgressBarTouchStart}
-          >
-            <div
-              ref={progressBarRef}
-              className="relative h-1 bg-white/25 rounded-full group-hover/progress:h-1.5 transition-all"
-            >
-              <div
-                className="h-full bg-white rounded-full relative"
-                style={{ width: `${progress}%` }}
-              >
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-3 bg-white rounded-full scale-0 group-hover/progress:scale-100 transition-transform shadow-md" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div
-          className="relative flex items-center gap-0 p-1 sm:px-2 pb-1 sm:pb-2"
-          style={{ textShadow: "none" }}
+          className={cn(
+            "absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 select-none",
+            showControls || !isPlaying ? "opacity-100" : "opacity-0",
+          )}
         >
-          {/* Play/Pause */}
-          <button
-            onClick={togglePlay}
-            className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
-            aria-label={isPlaying ? "Pause" : "Play"}
-          >
-            {isPlaying ? (
-              <Pause className="w-4 h-4" style={{ filter: "none" }} />
-            ) : (
-              <Play className="w-4 h-4" style={{ filter: "none" }} />
-            )}
-          </button>
-
-          {/* Time */}
-          <div className="text-white text-xs tabular-nums px-2 select-none">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </div>
-
-          <div className="flex-1" />
-
-          {/* Volume */}
+          {/* Background gradient */}
           <div
-            ref={volumeAreaRef}
-            className="flex items-center group/volume"
-            onMouseEnter={() => {
-              if (!isTouchDevice) setIsVolumeHovered(true);
-            }}
-            onMouseLeave={() => {
-              if (!isTouchDevice) setIsVolumeHovered(false);
-            }}
-          >
-            <button
-              onClick={handleVolumeButtonClick}
-              className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
-              aria-label={isMuted ? "Unmute" : "Mute"}
-            >
-              {isMuted || volume === 0 ? (
-                <VolumeX className="w-4 h-4" style={{ filter: "none" }} />
-              ) : (
-                <Volume2 className="w-4 h-4" style={{ filter: "none" }} />
-              )}
-            </button>
+            className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none"
+            style={{ height: "80px" }}
+          />
+
+          {/* Progress bar — transparent padding expands touch target while
+            the visible track stays thin (h-1, expanding to h-1.5 on hover). */}
+          <div className="px-2">
             <div
-              className={cn(
-                "relative transition-all overflow-hidden",
-                volumeSliderVisible ? "w-[88px] opacity-100" : "w-0 opacity-0",
-              )}
+              className="pt-3 pb-2 cursor-pointer group/progress"
+              style={{ touchAction: "none" }}
+              onMouseDown={handleProgressBarMouseDown}
+              onTouchStart={handleProgressBarTouchStart}
             >
-              {/* py-3 creates a tall transparent hit area; the visible
-                  track is only h-1 (thin). */}
               <div
-                className="py-3 px-2 cursor-pointer"
-                style={{ touchAction: "none" }}
-                onMouseDown={handleVolumeBarMouseDown}
-                onTouchStart={handleVolumeBarTouchStart}
+                ref={progressBarRef}
+                className="relative h-1 bg-white/25 rounded-full group-hover/progress:h-1.5 transition-all"
               >
                 <div
-                  ref={volumeBarRef}
-                  className="h-1 bg-white/25 rounded-full w-full"
+                  className="h-full bg-white rounded-full relative"
+                  style={{ width: `${progress}%` }}
                 >
-                  <div
-                    className="h-full bg-white rounded-full relative"
-                    style={{ width: `${isMuted ? 0 : volume * 100}%` }}
-                  >
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-2.5 h-2.5 bg-white rounded-full shadow-sm" />
-                  </div>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-3 bg-white rounded-full scale-0 group-hover/progress:scale-100 transition-transform shadow-md" />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Fullscreen */}
-          <button
-            onClick={toggleFullscreen}
-            className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
-            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          {/* Controls */}
+          <div
+            className="relative flex items-center gap-0 pt-0 p-1 sm:px-2 pb-1 sm:pb-2"
+            style={{ textShadow: "none" }}
           >
-            {isFullscreen ? (
-              <Minimize className="w-4 h-4" style={{ filter: "none" }} />
-            ) : (
-              <Maximize className="w-4 h-4" style={{ filter: "none" }} />
-            )}
-          </button>
+            {/* Play/Pause */}
+            <button
+              onClick={togglePlay}
+              className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
+              aria-label={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4" style={{ filter: "none" }} />
+              ) : (
+                <Play className="w-4 h-4" style={{ filter: "none" }} />
+              )}
+            </button>
+
+            {/* Time */}
+            <div className="text-white text-xs tabular-nums px-2 select-none">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </div>
+
+            <div className="flex-1" />
+
+            {/* Volume */}
+            <div
+              ref={volumeAreaRef}
+              className="flex items-center group/volume"
+              onMouseEnter={() => {
+                if (!isTouchDevice) setIsVolumeHovered(true);
+              }}
+              onMouseLeave={() => {
+                if (!isTouchDevice) setIsVolumeHovered(false);
+              }}
+            >
+              <button
+                onClick={handleVolumeButtonClick}
+                className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
+                aria-label={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted || volume === 0 ? (
+                  <VolumeX className="w-4 h-4" style={{ filter: "none" }} />
+                ) : (
+                  <Volume2 className="w-4 h-4" style={{ filter: "none" }} />
+                )}
+              </button>
+              <div
+                className={cn(
+                  "relative transition-all overflow-hidden",
+                  volumeSliderVisible
+                    ? "w-[88px] opacity-100"
+                    : "w-0 opacity-0",
+                )}
+              >
+                {/* py-3 creates a tall transparent hit area; the visible
+                  track is only h-1 (thin). */}
+                <div
+                  className="py-3 px-2 cursor-pointer"
+                  style={{ touchAction: "none" }}
+                  onMouseDown={handleVolumeBarMouseDown}
+                  onTouchStart={handleVolumeBarTouchStart}
+                >
+                  <div
+                    ref={volumeBarRef}
+                    className="h-1 bg-white/25 rounded-full w-full"
+                  >
+                    <div
+                      className="h-full bg-white rounded-full relative"
+                      style={{ width: `${isMuted ? 0 : volume * 100}%` }}
+                    >
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-2.5 h-2.5 bg-white rounded-full shadow-sm" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Fullscreen */}
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
+              aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            >
+              {isFullscreen ? (
+                <Minimize className="w-4 h-4" style={{ filter: "none" }} />
+              ) : (
+                <Maximize className="w-4 h-4" style={{ filter: "none" }} />
+              )}
+            </button>
+          </div>
         </div>
-      </div>}
+      )}
     </div>
   );
 }
