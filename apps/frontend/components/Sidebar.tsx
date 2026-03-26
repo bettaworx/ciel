@@ -30,6 +30,8 @@ export function Sidebar() {
 
   const isExpanded = canExpand && (isHovered || isPinned);
   const isTopControlsVisible = canExpand && isHovered;
+  const shouldShowSidebarBackground =
+    isNarrowLayout || (isHovered && !isPinned);
 
   useEffect(() => {
     setIsExpanded(isExpanded);
@@ -43,7 +45,8 @@ export function Sidebar() {
         className={cn(
           "fixed left-0 top-0 h-dvh w-auto max-w-[240px] flex flex-col p-2 z-40 gap-2",
           "overflow-hidden",
-          isNarrowLayout && "bg-background-1",
+          isExpanded && "min-w-[240px]",
+          shouldShowSidebarBackground && "bg-background-1",
         )}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}

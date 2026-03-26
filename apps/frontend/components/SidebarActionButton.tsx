@@ -37,7 +37,7 @@ export function SidebarActionButton({
     buttonVariants({ variant: "sidebar", size: "sidebar" }),
     "h-[64px] [&_svg]:size-5",
     isExpanded
-      ? "w-fit min-w-[232px] self-start justify-start gap-2"
+      ? "w-full min-w-[180px] self-start justify-start gap-2"
       : "w-[64px] aspect-square justify-center self-start gap-0",
     hoverBg,
     className,

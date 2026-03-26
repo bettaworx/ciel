@@ -93,7 +93,7 @@ export function DesktopUserMenu({
             subLabel={`@${user.username}`}
             isExpanded={isExpanded}
             hoverBg={hoverBg}
-            className={isExpanded ? "w-full min-w-[232px]" : undefined}
+            className={isExpanded ? "w-full min-w-[180px]" : undefined}
             aria-label={tNav("openUserMenu")}
             iconPaddingClassName="h-[64px] w-[64px] flex items-center justify-center"
           />
