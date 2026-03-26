@@ -334,7 +334,10 @@ export function VideoPlayer({
     }
     // Absolute position seek on mouse down
     const rect = progressBarRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const ratio = Math.max(
+      0,
+      Math.min(1, (e.clientX - rect.left) / rect.width),
+    );
     const newTime = ratio * duration;
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
@@ -346,7 +349,10 @@ export function VideoPlayer({
       return;
     // Absolute position for mouse drag
     const rect = progressBarRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const ratio = Math.max(
+      0,
+      Math.min(1, (e.clientX - rect.left) / rect.width),
+    );
     const newTime = ratio * duration;
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
@@ -405,7 +411,10 @@ export function VideoPlayer({
     hasUserInteracted.current = true;
     // Absolute position on mouse down
     const rect = volumeBarRef.current.getBoundingClientRect();
-    const newVol = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newVol = Math.max(
+      0,
+      Math.min(1, (e.clientX - rect.left) / rect.width),
+    );
     videoRef.current.volume = newVol;
     setVolume(newVol);
     setSavedVolume(newVol);
@@ -420,7 +429,10 @@ export function VideoPlayer({
     if (!isDraggingVolume || !volumeBarRef.current || !videoRef.current) return;
     // Absolute position for mouse drag
     const rect = volumeBarRef.current.getBoundingClientRect();
-    const newVol = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newVol = Math.max(
+      0,
+      Math.min(1, (e.clientX - rect.left) / rect.width),
+    );
     videoRef.current.volume = newVol;
     setVolume(newVol);
     setSavedVolume(newVol);
@@ -655,7 +667,7 @@ export function VideoPlayer({
       tapState.singleTapTimer = setTimeout(() => {
         tapState.singleTapTimer = null;
         handleSingleTapRef.current();
-      }, 300);
+      }, 200);
     }
   };
 
@@ -1016,13 +1028,19 @@ export function VideoPlayer({
           <div className="flex items-center gap-1 bg-black/60 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
             {seekOverlay.side === "left" ? (
               <>
-                <ChevronsLeft className="w-3.5 h-3.5" style={{ filter: "none" }} />
+                <ChevronsLeft
+                  className="w-3.5 h-3.5"
+                  style={{ filter: "none" }}
+                />
                 <span>{seekOverlay.seconds}秒</span>
               </>
             ) : (
               <>
                 <span>{seekOverlay.seconds}秒</span>
-                <ChevronsRight className="w-3.5 h-3.5" style={{ filter: "none" }} />
+                <ChevronsRight
+                  className="w-3.5 h-3.5"
+                  style={{ filter: "none" }}
+                />
               </>
             )}
           </div>
