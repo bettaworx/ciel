@@ -28,6 +28,7 @@ import { CodeFormatButton } from "./CodeFormatButton";
 import { SizeFormatButton } from "./SizeFormatButton";
 import { LinkFormatButton } from "./LinkFormatButton";
 import { FormatOverflowMenu } from "./FormatOverflowMenu";
+import { insertCenterDecoration } from "./centerDecoration";
 import {
   MAX_CONTENT_LENGTH,
   ACCEPTED_IMAGE_TYPES,
@@ -286,6 +287,7 @@ export function PostComposerContent({
             ariaLabel={t("createPost.formatCenter")}
             className={cn(s.toolbarButton, "max-sm:hidden")}
             iconClassName={s.toolbarIcon}
+            onInsert={insertCenterDecoration}
           />
         </>
       )}

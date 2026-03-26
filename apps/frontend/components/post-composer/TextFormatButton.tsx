@@ -24,6 +24,16 @@ interface TextFormatButtonProps {
   ariaLabel?: string;
   className?: string;
   iconClassName?: string;
+  /**
+   * Optional override for the *insertion* path (not removal).
+   * When provided, it replaces the default `prefix + selected + suffix` logic.
+   * Return `null` to fall back to the default behaviour.
+   */
+  onInsert?: (
+    value: string,
+    selectionStart: number,
+    selectionEnd: number,
+  ) => { newValue: string; newStart: number; newEnd: number } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +221,7 @@ export function TextFormatButton({
   ariaLabel,
   className,
   iconClassName,
+  onInsert,
 }: TextFormatButtonProps) {
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 });
 
@@ -267,6 +278,13 @@ export function TextFormatButton({
       );
       applyFormatToTextarea(textarea, newValue, newStart, newEnd, setContent, setSelectionRange);
     } else {
+      // Allow callers to fully override the insertion logic (e.g. for <center>).
+      const override = onInsert?.(value, selectionStart, selectionEnd);
+      if (override !== null && override !== undefined) {
+        applyFormatToTextarea(textarea, override.newValue, override.newStart, override.newEnd, setContent, setSelectionRange);
+        return;
+      }
+
       const hasSelection = selectionStart !== selectionEnd;
       let newValue: string;
       let newStart: number;
@@ -274,14 +292,28 @@ export function TextFormatButton({
 
       if (hasSelection) {
         const selected = value.slice(selectionStart, selectionEnd);
-        newValue =
-          value.slice(0, selectionStart) +
-          prefix +
-          selected +
-          suffix +
-          value.slice(selectionEnd);
-        newStart = selectionStart + prefix.length;
-        newEnd = selectionEnd + prefix.length;
+
+        // If the selection is wrapped in <center>...</center> and the current
+        // decoration is NOT center itself, the decoration must go *inside*
+        // <center> so that <center> remains the outermost HTML wrapper.
+        if (prefix !== "<center>" && selected.startsWith("<center>") && selected.endsWith("</center>")) {
+          const inner = selected.slice("<center>".length, selected.length - "</center>".length);
+          newValue =
+            value.slice(0, selectionStart) +
+            "<center>" + prefix + inner + suffix + "</center>" +
+            value.slice(selectionEnd);
+          newStart = selectionStart + "<center>".length + prefix.length;
+          newEnd = newStart + inner.length;
+        } else {
+          newValue =
+            value.slice(0, selectionStart) +
+            prefix +
+            selected +
+            suffix +
+            value.slice(selectionEnd);
+          newStart = selectionStart + prefix.length;
+          newEnd = selectionEnd + prefix.length;
+        }
       } else {
         newValue =
           value.slice(0, selectionStart) +
