@@ -358,17 +358,20 @@ export function VideoPlayer({
     e.preventDefault();
     setIsDraggingVolume(true);
     handleVolumeBarChange(e);
+    scheduleHideControls();
   };
 
   const handleVolumeBarTouchMove = (e: TouchEvent) => {
     if (isDraggingVolume) {
       e.preventDefault();
       handleVolumeBarChange(e);
+      scheduleHideControls();
     }
   };
 
   const handleVolumeBarTouchEnd = () => {
     setIsDraggingVolume(false);
+    scheduleHideControls();
   };
 
   // -----------------------------------------------------------------------
