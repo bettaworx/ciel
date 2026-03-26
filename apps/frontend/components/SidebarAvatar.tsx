@@ -12,11 +12,18 @@ import { MobileLogoutConfirm } from "@/components/auth/MobileLogoutConfirm";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
+interface SidebarAvatarProps {
+  /** サイドバー展開時にユーザー名を表示するか */
+  isExpanded?: boolean;
+  /** ピン止め状態（ホバーカラー制御用） */
+  isPinned?: boolean;
+}
+
 /**
  * サイドバー用のアバターコンポーネント
  * Avatar component for sidebar with menu functionality
  */
-export function SidebarAvatar() {
+export function SidebarAvatar({ isExpanded = false, isPinned = false }: SidebarAvatarProps) {
   const user = useAtomValue(userAtom);
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
@@ -63,6 +70,8 @@ export function SidebarAvatar() {
         onProfileClick={() => handleProfileClick(user.username)}
         onSettingsClick={handleSettingsClick}
         onUserInfoClick={() => handleUserInfoClick(user.username)}
+        isExpanded={isExpanded}
+        isPinned={isPinned}
       />
     );
   }

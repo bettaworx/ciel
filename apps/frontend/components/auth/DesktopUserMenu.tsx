@@ -1,20 +1,22 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { SidebarActionButton } from "@/components/SidebarActionButton";
 import { UserMenuContent } from "./UserMenuContent";
 import { LogoutConfirmDialog } from "./LogoutConfirmDialog";
+import { MfmRenderer } from "@/components/mfm/MfmRenderer";
+import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import type { components } from "@/lib/api/api";
 import type { Theme } from "@/atoms/theme";
 import type { Locale } from "@/i18n/constants";
 
-type User = components['schemas']['User'];
-type MenuView = 'main' | 'theme' | 'language';
+type User = components["schemas"]["User"];
+type MenuView = "main" | "theme" | "language";
 
 interface DesktopUserMenuProps {
   user: User;
@@ -34,6 +36,10 @@ interface DesktopUserMenuProps {
   onProfileClick: () => void;
   onSettingsClick: () => void;
   onUserInfoClick: () => void;
+  /** サイドバー展開時にユーザー名を表示するか */
+  isExpanded?: boolean;
+  /** ピン止め時のホバーカラー制御用 */
+  isPinned?: boolean;
 }
 
 export function DesktopUserMenu({
@@ -54,25 +60,41 @@ export function DesktopUserMenu({
   onProfileClick,
   onSettingsClick,
   onUserInfoClick,
+  isExpanded = false,
 }: DesktopUserMenuProps) {
+  const hoverBg = "hover:bg-sidebar-hover";
+
   return (
     <>
       <Popover open={isOpen} onOpenChange={onOpenChange}>
         <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            className="w-14 h-14 rounded-full p-0 hover:bg-transparent"
+          <SidebarActionButton
+            icon={
+              <Avatar className="w-12 h-12 shrink-0">
+                {user.avatarUrl && (
+                  <AvatarImage
+                    src={user.avatarUrl}
+                    alt={user.displayName || user.username}
+                  />
+                )}
+                <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            }
+            label={
+              <MfmRenderer
+                text={user.displayName || user.username}
+                allowList={DISPLAY_NAME_ALLOW_LIST}
+              />
+            }
+            subLabel={`@${user.username}`}
+            isExpanded={isExpanded}
+            hoverBg={hoverBg}
+            className={isExpanded ? "w-full min-w-[232px]" : undefined}
             aria-label="User menu"
-          >
-            <Avatar className="w-12 h-12">
-              {user.avatarUrl && (
-                <AvatarImage src={user.avatarUrl} alt={user.displayName || user.username} />
-              )}
-              <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          </Button>
+            iconPaddingClassName="h-[64px] w-[64px] flex items-center justify-center"
+          />
         </PopoverTrigger>
 
         <PopoverContent className="p-0 w-64" side="right" align="center">
