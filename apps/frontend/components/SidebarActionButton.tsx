@@ -73,7 +73,7 @@ export function SidebarActionButton({
     </>
   );
 
-  if ("href" in props) {
+  if (typeof props.href === "string") {
     return (
       <Link href={props.href} className={classes}>
         {content}
