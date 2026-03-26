@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import {
   videoVolumeAtom,
   claimPlayback,
@@ -73,6 +74,7 @@ export function VideoPlayer({
   className,
   style,
 }: VideoPlayerProps) {
+  const tVideoPlayer = useTranslations("videoPlayer");
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -722,7 +724,7 @@ export function VideoPlayer({
           onClick={togglePlay}
           className="absolute inset-0 m-auto w-12 h-12 z-20 flex items-center justify-center bg-black/55 backdrop-blur-sm rounded-full hover:bg-black/70 hover:scale-110 transition-all duration-150"
           style={{ textShadow: "none" }}
-          aria-label="Play"
+          aria-label={tVideoPlayer("play")}
         >
           <Play
             className="w-5 h-5 text-white ml-0.5"
@@ -777,7 +779,7 @@ export function VideoPlayer({
           <button
             onClick={togglePlay}
             className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? tVideoPlayer("pause") : tVideoPlayer("play")}
           >
             {isPlaying ? (
               <Pause className="w-4 h-4" style={{ filter: "none" }} />
@@ -807,7 +809,7 @@ export function VideoPlayer({
             <button
               onClick={handleVolumeButtonClick}
               className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
-              aria-label={isMuted ? "Unmute" : "Mute"}
+              aria-label={isMuted ? tVideoPlayer("unmute") : tVideoPlayer("mute")}
             >
               {isMuted || volume === 0 ? (
                 <VolumeX className="w-4 h-4" style={{ filter: "none" }} />
@@ -848,7 +850,11 @@ export function VideoPlayer({
           <button
             onClick={toggleFullscreen}
             className="p-2 flex items-center justify-center text-white rounded-lg hover:bg-white/15 transition-colors"
-            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            aria-label={
+              isFullscreen
+                ? tVideoPlayer("exitFullscreen")
+                : tVideoPlayer("fullscreen")
+            }
           >
             {isFullscreen ? (
               <Minimize className="w-4 h-4" style={{ filter: "none" }} />

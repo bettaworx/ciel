@@ -1,9 +1,14 @@
-'use client';
+"use client";
 
-import { cn } from '@/lib/utils';
+import { usePathname } from "next/navigation";
+import { useAtomValue } from "jotai";
+import { isAuthenticatedAtom } from "@/atoms/auth";
+import { sidebarExpandedAtom } from "@/atoms/sidebar";
+import { isConcentratedMode } from "@/lib/utils/concentrated-mode";
+import { cn } from "@/lib/utils";
 
 interface MainContentProps {
-	children: React.ReactNode;
+  children: React.ReactNode;
 }
 
 /**
@@ -14,13 +19,23 @@ interface MainContentProps {
  * Applies appropriate margins when sidebar is visible
  */
 export function MainContent({ children }: MainContentProps) {
-	return (
-		<div
-			className={cn(
-				'pb-20 sm:pb-0'
-			)}
-		>
-			{children}
-		</div>
-	);
+  const pathname = usePathname();
+  const isAuthenticated = useAtomValue(isAuthenticatedAtom);
+  const isSidebarExpanded = useAtomValue(sidebarExpandedAtom);
+  const isConcentrated = isConcentratedMode(pathname);
+  const shouldApplySidebarOffset = isAuthenticated && !isConcentrated;
+
+  return (
+    <div
+      className={cn(
+        "pb-20 sm:pb-0",
+        shouldApplySidebarOffset &&
+          (isSidebarExpanded
+            ? "sm:pl-20 sm:pr-20 xl:pl-60 xl:pr-60"
+            : "sm:pl-20 sm:pr-20"),
+      )}
+    >
+      {children}
+    </div>
+  );
 }

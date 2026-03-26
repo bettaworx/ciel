@@ -24,6 +24,7 @@ export function Sidebar() {
   const [, setIsExpanded] = useAtom(sidebarExpandedAtom);
   const { data: serverInfo } = useServerInfo();
   const canExpand = useMediaQuery("(min-width: 1280px)");
+  const isNarrowLayout = useMediaQuery("(max-width: 840px)");
   const tNav = useTranslations("nav");
   const tCreatePost = useTranslations("createPost");
 
@@ -31,8 +32,8 @@ export function Sidebar() {
   const isTopControlsVisible = canExpand && isHovered;
 
   useEffect(() => {
-    setIsExpanded(canExpand && isPinned);
-  }, [isPinned, canExpand, setIsExpanded]);
+    setIsExpanded(isExpanded);
+  }, [isExpanded, setIsExpanded]);
 
   const hoverBg = "hover:bg-sidebar-hover";
 
@@ -40,8 +41,9 @@ export function Sidebar() {
     <>
       <aside
         className={cn(
-          "fixed left-0 top-0 h-dvh w-auto xl:max-w-[306px] 2xl:max-w-[480px] flex flex-col justify-between p-2 z-40",
+          "fixed left-0 top-0 h-dvh w-auto max-w-[240px] flex flex-col p-2 z-40 gap-2",
           "overflow-hidden",
+          isNarrowLayout && "bg-background-1",
         )}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -89,9 +91,7 @@ export function Sidebar() {
                 hoverBg,
               )}
               onClick={() => setIsPinned(!isPinned)}
-              aria-label={
-                isPinned ? "サイドバーのピンを解除" : "サイドバーを固定"
-              }
+              aria-label={tNav(isPinned ? "unpinSidebar" : "pinSidebar")}
               tabIndex={isTopControlsVisible ? 0 : -1}
             >
               {isPinned ? (
@@ -103,7 +103,7 @@ export function Sidebar() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 grow">
           <SidebarActionButton
             href="/"
             icon={<Home className="w-6 h-6 shrink-0" />}

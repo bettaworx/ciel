@@ -14,6 +14,7 @@ import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import type { components } from "@/lib/api/api";
 import type { Theme } from "@/atoms/theme";
 import type { Locale } from "@/i18n/constants";
+import { useTranslations } from "next-intl";
 
 type User = components["schemas"]["User"];
 type MenuView = "main" | "theme" | "language";
@@ -62,6 +63,7 @@ export function DesktopUserMenu({
   onUserInfoClick,
   isExpanded = false,
 }: DesktopUserMenuProps) {
+  const tNav = useTranslations("nav");
   const hoverBg = "hover:bg-sidebar-hover";
 
   return (
@@ -92,7 +94,7 @@ export function DesktopUserMenu({
             isExpanded={isExpanded}
             hoverBg={hoverBg}
             className={isExpanded ? "w-full min-w-[232px]" : undefined}
-            aria-label="User menu"
+            aria-label={tNav("openUserMenu")}
             iconPaddingClassName="h-[64px] w-[64px] flex items-center justify-center"
           />
         </PopoverTrigger>

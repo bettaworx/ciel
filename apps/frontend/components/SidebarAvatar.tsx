@@ -11,6 +11,7 @@ import { MobileUserMenu } from "@/components/auth/MobileUserMenu";
 import { MobileLogoutConfirm } from "@/components/auth/MobileLogoutConfirm";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 
 interface SidebarAvatarProps {
   /** サイドバー展開時にユーザー名を表示するか */
@@ -111,13 +112,14 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false }: SidebarA
  */
 export function SidebarAvatarButton() {
   const user = useAtomValue(userAtom);
+  const tNav = useTranslations("nav");
 
   if (!user) return null;
 
   const initials = (user.displayName?.[0] || user.username[0]).toUpperCase();
 
   return (
-    <Button variant="link" className="w-14 h-14" aria-label="User menu">
+    <Button variant="link" className="w-14 h-14" aria-label={tNav("openUserMenu")}>
       <Avatar className="w-12 h-12">
         <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
           {initials}

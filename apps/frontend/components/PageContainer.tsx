@@ -73,7 +73,7 @@ export function PageContainer({
   return (
     <Component
       className={cn(
-        "container mx-auto",
+        "ciel-page-container container mx-auto",
         maxWidthClasses[maxWidth],
         paddingClasses[padding],
         className,
