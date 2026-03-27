@@ -42,14 +42,14 @@ export function SidebarActionButton({
   ...props
 }: SidebarActionButtonProps | SidebarActionLinkProps) {
   const iconWrapperClasses = iconPaddingClassName ?? "w-[48px] h-[48px]";
+  const isChromaticActive = isActive && buttonVariant === "sidebar";
+
   const classes = cn(
     buttonVariants({ variant: buttonVariant, size: "sidebar" }),
     "h-[48px] w-full self-start justify-start gap-2 [&_svg]:size-4",
     hoverBg,
     className,
-    isActive &&
-      buttonVariant === "sidebar" &&
-      "bg-c-1/15 hover:bg-c-1/25 [&_svg]:text-c-1",
+    isChromaticActive && "bg-c-1/15 hover:bg-c-1/25 [&_svg]:text-c-1",
   );
 
   const content = (
@@ -84,17 +84,32 @@ export function SidebarActionButton({
             !trailingIcon && "pr-4",
           )}
         >
-          <span className="text-sm font-medium leading-tight truncate">
+          <span
+            className={cn(
+              "text-sm font-medium leading-tight truncate",
+              isChromaticActive && "text-c-1",
+            )}
+          >
             {label}
           </span>
           {subLabel && (
-            <span className="text-xs text-muted-foreground leading-tight truncate">
+            <span
+              className={cn(
+                "text-xs leading-tight truncate",
+                isChromaticActive ? "text-c-1" : "text-muted-foreground",
+              )}
+            >
               {subLabel}
             </span>
           )}
         </div>
         {trailingIcon && (
-          <div className="shrink-0 ml-2 text-muted-foreground">
+          <div
+            className={cn(
+              "shrink-0 ml-2",
+              isChromaticActive ? "text-c-1" : "text-muted-foreground",
+            )}
+          >
             {trailingIcon}
           </div>
         )}
