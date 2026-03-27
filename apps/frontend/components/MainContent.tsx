@@ -31,8 +31,8 @@ export function MainContent({ children }: MainContentProps) {
         "pb-20 sm:pb-0",
         shouldApplySidebarOffset &&
           (isSidebarExpanded
-            ? "sm:pl-20 sm:pr-0 xl:pl-60 xl:pr-60"
-            : "sm:pl-20 sm:pr-0 xl:pr-20"),
+            ? "sm:pl-14 sm:pr-0 xl:pl-[232px] xl:pr-[232px]"
+            : "sm:pl-14 sm:pr-0 xl:pr-14"),
       )}
     >
       {children}

@@ -13,6 +13,7 @@ const buttonVariants = cva(
         primary: "bg-c-1 text-c-foreground hover:bg-c-2",
         primary_disabled: "bg-c-1/80 text-c-foreground/80 hover:bg-c-2",
         sidebar: "rounded-2xl transition-colors",
+        sidebar_primary: "bg-c-1 text-c-foreground hover:bg-c-2 rounded-2xl transition-colors",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:

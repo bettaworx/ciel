@@ -1,7 +1,9 @@
 "use client";
 
-import { useAtomValue } from "jotai";
+import { useEffect } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { userAtom } from "@/atoms/auth";
+import { sidebarMenuOpenAtom } from "@/atoms/sidebar";
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 
@@ -18,15 +20,18 @@ interface SidebarAvatarProps {
   isExpanded?: boolean;
   /** ピン止め状態（ホバーカラー制御用） */
   isPinned?: boolean;
+  /** アニメーション可能か */
+  canAnimate?: boolean;
 }
 
 /**
  * サイドバー用のアバターコンポーネント
  * Avatar component for sidebar with menu functionality
  */
-export function SidebarAvatar({ isExpanded = false, isPinned = false }: SidebarAvatarProps) {
+export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate = true }: SidebarAvatarProps) {
   const user = useAtomValue(userAtom);
   const isDesktop = useMediaQuery("(min-width: 640px)");
+  const setMenuOpen = useSetAtom(sidebarMenuOpenAtom);
 
   const {
     menuView,
@@ -45,6 +50,11 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false }: SidebarA
     handleProfileClick,
     handleSettingsClick,
   } = useUserMenu();
+
+  useEffect(() => {
+    setMenuOpen(isMenuOpen);
+    return () => setMenuOpen(false);
+  }, [isMenuOpen, setMenuOpen]);
 
   if (!user) return null;
 
@@ -73,6 +83,7 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false }: SidebarA
         onUserInfoClick={() => handleUserInfoClick(user.username)}
         isExpanded={isExpanded}
         isPinned={isPinned}
+        canAnimate={canAnimate}
       />
     );
   }

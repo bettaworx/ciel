@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -7,8 +8,11 @@ interface SidebarActionBaseProps {
   icon: ReactNode;
   label: ReactNode;
   subLabel?: ReactNode;
+  trailingIcon?: ReactNode;
   isExpanded: boolean;
-  hoverBg: string;
+  canAnimate?: boolean;
+  hoverBg?: string;
+  buttonVariant?: "sidebar" | "sidebar_primary";
   className?: string;
   iconPaddingClassName?: string;
 }
@@ -26,19 +30,19 @@ export function SidebarActionButton({
   icon,
   label,
   subLabel,
+  trailingIcon,
   isExpanded,
+  canAnimate = true,
   hoverBg,
+  buttonVariant = "sidebar",
   className,
   iconPaddingClassName,
   ...props
 }: SidebarActionButtonProps | SidebarActionLinkProps) {
-  const iconWrapperClasses = iconPaddingClassName ?? "w-[64px] h-[64px]";
+  const iconWrapperClasses = iconPaddingClassName ?? "w-[48px] h-[48px]";
   const classes = cn(
-    buttonVariants({ variant: "sidebar", size: "sidebar" }),
-    "h-[64px] [&_svg]:size-5",
-    isExpanded
-      ? "w-full min-w-[180px] self-start justify-start gap-2"
-      : "w-[64px] aspect-square justify-center self-start gap-0",
+    buttonVariants({ variant: buttonVariant, size: "sidebar" }),
+    "h-[48px] w-full self-start justify-start gap-[6px] [&_svg]:size-4",
     hoverBg,
     className,
   );
@@ -47,29 +51,42 @@ export function SidebarActionButton({
     <>
       <div
         className={cn(
-          "w-[64px] h-[64px] flex items-center justify-center shrink-0",
+          "w-[48px] h-[48px] flex items-center justify-center shrink-0",
           iconWrapperClasses,
         )}
       >
         {icon}
       </div>
-      <div
-        className={cn(
-          "overflow-hidden whitespace-nowrap",
-          isExpanded ? "block" : "hidden",
-        )}
+      <motion.div
+        animate={{
+          width: isExpanded ? 170 : 0,
+          opacity: isExpanded ? 1 : 0,
+        }}
+        transition={canAnimate ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }}
+        className={cn("overflow-hidden whitespace-nowrap flex items-center", trailingIcon && "pr-4")}
+        style={{ pointerEvents: isExpanded ? "auto" : "none", flexShrink: 0 }}
       >
-        <div className="flex min-w-0 flex-col text-left pr-4">
-          <span className="text-base font-medium leading-tight truncate">
+        <div
+          className={cn(
+            "flex min-w-0 flex-col text-left grow",
+            !trailingIcon && "pr-4",
+          )}
+        >
+          <span className="text-sm font-medium leading-tight truncate">
             {label}
           </span>
           {subLabel && (
-            <span className="text-sm text-muted-foreground leading-tight truncate">
+            <span className="text-xs text-muted-foreground leading-tight truncate">
               {subLabel}
             </span>
           )}
         </div>
-      </div>
+        {trailingIcon && (
+          <div className="shrink-0 ml-2 text-muted-foreground">
+            {trailingIcon}
+          </div>
+        )}
+      </motion.div>
     </>
   );
 

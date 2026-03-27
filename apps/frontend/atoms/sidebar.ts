@@ -50,3 +50,6 @@ export const sidebarPinnedAtom = atomWithStorage<boolean>(
 
 /** サイドバーの展開状態 (一時的 — ホバーまたはピン時にtrue、MainContent用) */
 export const sidebarExpandedAtom = atom<boolean>(false);
+
+/** ユーザーメニューの開閉状態 (サイドバー展開維持用) */
+export const sidebarMenuOpenAtom = atom<boolean>(false);

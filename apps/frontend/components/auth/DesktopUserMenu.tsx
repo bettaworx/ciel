@@ -14,7 +14,9 @@ import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import type { components } from "@/lib/api/api";
 import type { Theme } from "@/atoms/theme";
 import type { Locale } from "@/i18n/constants";
+import { MoreHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { motion } from "framer-motion";
 
 type User = components["schemas"]["User"];
 type MenuView = "main" | "theme" | "language";
@@ -41,6 +43,8 @@ interface DesktopUserMenuProps {
   isExpanded?: boolean;
   /** ピン止め時のホバーカラー制御用 */
   isPinned?: boolean;
+  /** アニメーション可能か */
+  canAnimate?: boolean;
 }
 
 export function DesktopUserMenu({
@@ -62,6 +66,7 @@ export function DesktopUserMenu({
   onSettingsClick,
   onUserInfoClick,
   isExpanded = false,
+  canAnimate = true,
 }: DesktopUserMenuProps) {
   const tNav = useTranslations("nav");
   const hoverBg = "hover:bg-sidebar-hover";
@@ -72,17 +77,32 @@ export function DesktopUserMenu({
         <PopoverTrigger asChild>
           <SidebarActionButton
             icon={
-              <Avatar className="w-12 h-12 shrink-0">
-                {user.avatarUrl && (
-                  <AvatarImage
-                    src={user.avatarUrl}
-                    alt={user.displayName || user.username}
-                  />
-                )}
-                <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <motion.div
+                animate={{
+                  width: isExpanded ? 36 : 48,
+                  height: isExpanded ? 36 : 48,
+                  borderRadius: isExpanded ? "12px" : "16px",
+                }}
+                transition={
+                  canAnimate
+                    ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
+                    : { duration: 0 }
+                }
+                className="shrink-0 overflow-hidden"
+              >
+                <Avatar className="w-full h-full rounded-none">
+                  {user.avatarUrl && (
+                    <AvatarImage
+                      src={user.avatarUrl}
+                      alt={user.displayName || user.username}
+                      className="object-cover"
+                    />
+                  )}
+                  <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold rounded-none">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              </motion.div>
             }
             label={
               <MfmRenderer
@@ -91,11 +111,12 @@ export function DesktopUserMenu({
               />
             }
             subLabel={`@${user.username}`}
+            trailingIcon={<MoreHorizontal className="w-4 h-4" />}
             isExpanded={isExpanded}
+            canAnimate={canAnimate}
             hoverBg={hoverBg}
             className={isExpanded ? "w-full min-w-[180px]" : undefined}
             aria-label={tNav("openUserMenu")}
-            iconPaddingClassName="h-[64px] w-[64px] flex items-center justify-center"
           />
         </PopoverTrigger>
 
