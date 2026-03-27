@@ -496,7 +496,7 @@ export function VideoPlayer({
       clearTimeout(hideControlsTimeoutRef.current);
     }
 
-    if (isPlaying && !isHovering) {
+    if (isPlaying && !isHovering && !isDraggingProgress && !isDraggingVolume) {
       hideControlsTimeoutRef.current = setTimeout(
         () => {
           setShowControls(false);
@@ -545,6 +545,7 @@ export function VideoPlayer({
 
   const handleVideoTouchStart = (e: React.TouchEvent<HTMLVideoElement>) => {
     if (!activeSrc) return;
+    e.preventDefault();
     const touch = e.touches[0];
     if (!touch) return;
 
@@ -565,6 +566,9 @@ export function VideoPlayer({
       isLongPressingRef.current = true;
       setIsLongPressing(true);
       touchHandledRef.current = true;
+      // Unmute on long press (2x speed gesture)
+      hasUserInteracted.current = true;
+      restoreSavedVolumeRef.current();
     }, 500);
   };
 
@@ -634,6 +638,10 @@ export function VideoPlayer({
       );
       video.currentTime = newTime;
       setCurrentTime(newTime);
+
+      // Unmute on double-tap seek gesture
+      hasUserInteracted.current = true;
+      restoreSavedVolumeRef.current();
 
       const { animKey, totalSeeked } = tapState;
       setSeekOverlay({
@@ -913,7 +921,7 @@ export function VideoPlayer({
         clearTimeout(hideControlsTimeoutRef.current);
       }
     };
-  }, [isPlaying, isHovering]);
+  }, [isPlaying, isHovering, isDraggingProgress, isDraggingVolume]);
 
   // Handle drag events (progress bar)
   useEffect(() => {
