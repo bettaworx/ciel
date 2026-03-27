@@ -56,14 +56,14 @@ export function Sidebar() {
   return (
     <>
       <motion.aside
-        animate={{ width: isExpanded ? 240 : 64 }}
+        animate={{ width: isExpanded ? 256 : 72 }}
         transition={
           canExpand
             ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
             : { duration: 0 }
         }
-        className="fixed left-0 top-0 h-dvh flex flex-col p-2 z-40 gap-2 overflow-hidden"
-        onMouseEnter={() => setIsHovered(true)}
+        className="fixed left-0 top-0 h-dvh flex flex-col p-3 z-40 gap-3 overflow-hidden"
+        onMouseEnter={(e) => { if (e.clientX <= 72) setIsHovered(true); }}
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex items-center h-12 gap-2">
@@ -122,7 +122,7 @@ export function Sidebar() {
           </motion.div>
         </div>
 
-        <div className="flex flex-col gap-2 grow">
+        <div className="flex flex-col gap-3 grow">
           <SidebarActionButton
             href="/"
             icon={<Home className="w-5 h-5 shrink-0" />}
@@ -133,7 +133,7 @@ export function Sidebar() {
           />
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           {isAuthenticated && (
             <SidebarActionButton
               icon={<SquarePen className="w-5 h-5 shrink-0" />}

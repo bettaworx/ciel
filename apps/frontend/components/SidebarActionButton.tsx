@@ -42,7 +42,7 @@ export function SidebarActionButton({
   const iconWrapperClasses = iconPaddingClassName ?? "w-[48px] h-[48px]";
   const classes = cn(
     buttonVariants({ variant: buttonVariant, size: "sidebar" }),
-    "h-[48px] w-full self-start justify-start gap-[6px] [&_svg]:size-4",
+    "h-[48px] w-full self-start justify-start gap-3 [&_svg]:size-4",
     hoverBg,
     className,
   );
@@ -59,7 +59,7 @@ export function SidebarActionButton({
       </div>
       <motion.div
         animate={{
-          width: isExpanded ? 170 : 0,
+          width: isExpanded ? 172 : 0,
           opacity: isExpanded ? 1 : 0,
         }}
         transition={canAnimate ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }}
