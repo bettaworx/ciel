@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useAtomValue, useAtom } from "jotai";
 import { Home, SquarePen, Pin, PinOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 export function Sidebar() {
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const pathname = usePathname();
   const isAuthenticated = useAtomValue(isAuthenticatedAtom);
   const [isPinned, setIsPinned] = useAtom(sidebarPinnedAtom);
   const [, setIsExpanded] = useAtom(sidebarExpandedAtom);
@@ -63,10 +65,16 @@ export function Sidebar() {
             : { duration: 0 }
         }
         className="fixed left-0 top-0 h-dvh flex flex-col p-3 z-40 gap-3 overflow-hidden"
-        onMouseEnter={(e) => { if (e.clientX <= 72) setIsHovered(true); }}
+        onMouseEnter={(e) => {
+          if (isMenuOpen && !isPinned) {
+            if (e.clientX <= 72) setIsHovered(true);
+          } else {
+            setIsHovered(true);
+          }
+        }}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="flex items-center h-12 gap-2">
+        <div className="flex items-center h-12 gap-3">
           <Link href="/" aria-label={tNav("home")}>
             <div
               className={cn(
@@ -127,6 +135,7 @@ export function Sidebar() {
             href="/"
             icon={<Home className="w-5 h-5 shrink-0" />}
             label={tNav("home")}
+            isActive={pathname === "/"}
             isExpanded={isExpanded}
             canAnimate={canExpand}
             hoverBg={hoverBg}
