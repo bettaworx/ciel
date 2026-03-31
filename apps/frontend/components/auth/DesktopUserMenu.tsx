@@ -105,12 +105,16 @@ export function DesktopUserMenu({
               </motion.div>
             }
             label={
-              <MfmRenderer
-                text={user.displayName || user.username}
-                allowList={DISPLAY_NAME_ALLOW_LIST}
-              />
+              user.displayName ? (
+                <MfmRenderer
+                  text={user.displayName}
+                  allowList={DISPLAY_NAME_ALLOW_LIST}
+                />
+              ) : (
+                `@${user.username}`
+              )
             }
-            subLabel={`@${user.username}`}
+            subLabel={user.displayName ? `@${user.username}` : undefined}
             trailingIcon={<MoreHorizontal className="w-4 h-4" />}
             isExpanded={isExpanded}
             canAnimate={canAnimate}

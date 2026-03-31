@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -41,6 +41,14 @@ export function Sidebar() {
   useEffect(() => {
     setIsExpanded(isExpanded);
   }, [isExpanded, setIsExpanded]);
+
+  const prevIsMenuOpenRef = useRef(isMenuOpen);
+  useEffect(() => {
+    if (prevIsMenuOpenRef.current && !isMenuOpen && !isPinned) {
+      setIsHovered(false);
+    }
+    prevIsMenuOpenRef.current = isMenuOpen;
+  }, [isMenuOpen, isPinned]);
 
   const [pinIconRef, animatePinIcon] = useAnimate();
   const hoverBg = "hover:bg-sidebar-hover";

@@ -85,8 +85,8 @@ export function UserMenuContent({
     <div
       ref={containerRef}
       className={cn(
-        "relative overflow-hidden [transform:translateZ(0)] [backface-visibility:hidden] [perspective:1000px]", 
-        isMobile ? "w-full" : "w-64"
+        "relative overflow-hidden [transform:translateZ(0)] [backface-visibility:hidden] [perspective:1000px]",
+        isMobile ? "w-full" : "w-64",
       )}
     >
       {/* ====== メイン画面 ====== */}
@@ -117,12 +117,23 @@ export function UserMenuContent({
             </AvatarFallback>
           </Avatar>
           <div className="text-center">
-            <div className="font-semibold">
-              <MfmRenderer text={user.displayName || user.username} allowList={DISPLAY_NAME_ALLOW_LIST} />
-            </div>
-            <div className="text-sm text-muted-foreground">
-              @{user.username}
-            </div>
+            {user.displayName ? (
+              <>
+                <div className="text-sm font-semibold">
+                  <MfmRenderer
+                    text={user.displayName}
+                    allowList={DISPLAY_NAME_ALLOW_LIST}
+                  />
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  @{user.username}
+                </div>
+              </>
+            ) : (
+              <div className="font-semibold">
+                @{user.username}
+              </div>
+            )}
           </div>
 
           {/* Xボタン（デスクトップのみ） */}

@@ -74,14 +74,14 @@ export function SidebarActionButton({
         }
         className={cn(
           "overflow-hidden whitespace-nowrap flex items-center",
-          trailingIcon && "pr-4",
+          trailingIcon && "pr-3",
         )}
         style={{ pointerEvents: isExpanded ? "auto" : "none", flexShrink: 0 }}
       >
         <div
           className={cn(
             "flex min-w-0 flex-col text-left grow",
-            !trailingIcon && "pr-4",
+            !trailingIcon && "pr-3",
           )}
         >
           <span
