@@ -284,7 +284,6 @@ func main() {
 		StepupSessionStore: stepupSessionStore,
 	})
 	authSvc.SetConfigManager(configMgr)
-	authSvc.StartCleanupWorker(context.Background())
 
 	// Initialize admin services
 	modLogsSvc := moderation.NewLogsService(store)

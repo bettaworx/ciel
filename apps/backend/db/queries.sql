@@ -25,7 +25,6 @@ SELECT
 	u.privacy_version,
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
-	u.deleted_at,
 	m.ext AS avatar_ext
 FROM users u
 LEFT JOIN media m ON m.id = u.avatar_media_id
@@ -43,7 +42,6 @@ SELECT
 	u.privacy_version,
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
-	u.deleted_at,
 	m.ext AS avatar_ext
 FROM users u
 LEFT JOIN media m ON m.id = u.avatar_media_id
@@ -113,7 +111,6 @@ SELECT
 	u.privacy_version,
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
-	u.deleted_at,
 	m.ext AS avatar_ext,
 	c.salt,
 	c.iterations,
@@ -158,44 +155,6 @@ WHERE user_id = $1;
 -- name: DeleteUserByID :exec
 DELETE FROM users
 WHERE id = $1;
-
--- name: SoftDeleteUser :exec
-UPDATE users
-SET deleted_at = now()
-WHERE id = $1;
-
--- name: RestoreUser :exec
-UPDATE users
-SET deleted_at = NULL
-WHERE id = $1;
-
--- name: GetUsersForPermanentDeletion :many
-SELECT id FROM users
-WHERE deleted_at IS NOT NULL
-	AND deleted_at < now() - interval '14 days';
-
--- name: UpdateUsername :one
-UPDATE users
-SET username = $2
-WHERE id = $1
-RETURNING id, username, display_name, bio, avatar_media_id, created_at,
-	terms_version, privacy_version, terms_accepted_at, privacy_accepted_at;
-
--- name: SoftDeleteUserPosts :exec
-UPDATE posts
-SET deleted_at = now(),
-	deleted_by = $1,
-	deletion_reason = 'account_deleted'
-WHERE user_id = $1
-	AND deleted_at IS NULL;
-
--- name: RestoreUserPosts :exec
-UPDATE posts
-SET deleted_at = NULL,
-	deleted_by = NULL,
-	deletion_reason = NULL
-WHERE user_id = $1
-	AND deletion_reason = 'account_deleted';
 
 -- name: CreatePost :one
 INSERT INTO posts (user_id, content)
