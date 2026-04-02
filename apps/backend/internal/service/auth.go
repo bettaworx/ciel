@@ -192,8 +192,8 @@ func (s *AuthService) createUserTransaction(
 	req api.RegisterRequest,
 	creds scramCredentials,
 	inviteValidation inviteCodeValidation,
-) (sqlc.User, error) {
-	var created sqlc.User
+) (sqlc.CreateUserRow, error) {
+	var created sqlc.CreateUserRow
 	var inviteCodeID uuid.UUID
 
 	err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
@@ -413,12 +413,23 @@ func (s *AuthService) LoginFinish(ctx context.Context, req api.LoginFinishReques
 		return api.LoginFinishResponse{}, err
 	}
 
-	return api.LoginFinishResponse{
+	resp := api.LoginFinishResponse{
 		AccessToken:      token,
 		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
 		ExpiresInSeconds: expiresIn,
 		User:             mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt),
-	}, nil
+	}
+
+	// If the account is soft-deleted, flag it in the response so the frontend
+	// can prompt the user to restore or confirm permanent deletion.
+	if row.DeletedAt.Valid {
+		pendingDeletion := true
+		resp.PendingDeletion = &pendingDeletion
+		deleteScheduledAt := row.DeletedAt.Time.Add(14 * 24 * time.Hour)
+		resp.DeleteScheduledAt = &deleteScheduledAt
+	}
+
+	return resp, nil
 }
 
 func (s *AuthService) StepUpStart(ctx context.Context, user auth.User, req api.StepupStartRequest) (api.StepupStartResponse, error) {
@@ -589,13 +600,95 @@ func (s *AuthService) DeleteAccount(ctx context.Context, user auth.User) error {
 		return NewError(http.StatusUnauthorized, "unauthorized", "unauthorized")
 	}
 
-	// Invalidate all existing tokens before deleting the account
-	if err := s.tokens.InvalidateUserTokens(ctx, user.ID.String()); err != nil {
-		slog.Warn("failed to invalidate user tokens before account deletion", "error", err, "user_id", user.ID.String())
-		// Continue with account deletion even if token invalidation fails
+	// Soft-delete the account and all of the user's posts.
+	if err := s.store.Q.SoftDeleteUser(ctx, user.ID); err != nil {
+		return err
+	}
+	if err := s.store.Q.SoftDeleteUserPosts(ctx, uuid.NullUUID{UUID: user.ID, Valid: true}); err != nil {
+		slog.Warn("failed to soft-delete user posts during account deletion", "error", err, "user_id", user.ID.String())
 	}
 
-	return s.store.Q.DeleteUserByID(ctx, user.ID)
+	// Invalidate all existing tokens so the user is forced to log in again.
+	if err := s.tokens.InvalidateUserTokens(ctx, user.ID.String()); err != nil {
+		slog.Warn("failed to invalidate user tokens before account deletion", "error", err, "user_id", user.ID.String())
+	}
+
+	return nil
+}
+
+// RestoreAccount un-soft-deletes an account and its posts.
+// It is callable only while the account is still within the 14-day grace period.
+func (s *AuthService) RestoreAccount(ctx context.Context, user auth.User) error {
+	if s.store == nil {
+		return NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	if user.ID == uuid.Nil {
+		return NewError(http.StatusUnauthorized, "unauthorized", "unauthorized")
+	}
+
+	row, err := s.store.Q.GetUserByID(ctx, user.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewError(http.StatusNotFound, "not_found", "user not found")
+		}
+		return err
+	}
+	if !row.DeletedAt.Valid {
+		return NewError(http.StatusConflict, "not_pending_deletion", "account is not pending deletion")
+	}
+
+	if err := s.store.Q.RestoreUser(ctx, user.ID); err != nil {
+		return err
+	}
+	if err := s.store.Q.RestoreUserPosts(ctx, user.ID); err != nil {
+		slog.Warn("failed to restore user posts during account restoration", "error", err, "user_id", user.ID.String())
+	}
+
+	return nil
+}
+
+// StartCleanupWorker runs a background goroutine that permanently deletes accounts
+// whose 14-day grace period has expired. It runs once immediately at startup and
+// then once per day. The goroutine is stopped when ctx is cancelled.
+func (s *AuthService) StartCleanupWorker(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		// Run once at startup.
+		s.purgeExpiredAccounts(ctx)
+		for {
+			select {
+			case <-ticker.C:
+				s.purgeExpiredAccounts(ctx)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+// PurgeExpiredAccounts permanently deletes accounts whose 14-day grace period
+// has elapsed. It is exported so it can be called directly in tests.
+func (s *AuthService) PurgeExpiredAccounts(ctx context.Context) {
+	s.purgeExpiredAccounts(ctx)
+}
+
+func (s *AuthService) purgeExpiredAccounts(ctx context.Context) {
+	if s.store == nil {
+		return
+	}
+	ids, err := s.store.Q.GetUsersForPermanentDeletion(ctx)
+	if err != nil {
+		slog.Error("failed to query expired soft-deleted accounts", "error", err)
+		return
+	}
+	for _, id := range ids {
+		if err := s.store.Q.DeleteUserByID(ctx, id); err != nil {
+			slog.Error("failed to permanently delete expired account", "error", err, "user_id", id.String())
+		} else {
+			slog.Info("permanently deleted expired account", "user_id", id.String())
+		}
+	}
 }
 
 func auditStepup(ctx context.Context, event, outcome string, user auth.User, reason string) {

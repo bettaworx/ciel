@@ -7,10 +7,12 @@ import (
 	"strings"
 
 	"backend/internal/api"
+	"backend/internal/auth"
 	"backend/internal/db/sqlc"
 	"backend/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type UsersService struct {
@@ -85,6 +87,32 @@ func (s *UsersService) UpdateProfile(ctx context.Context, userID uuid.UUID, disp
 		return api.User{}, err
 	}
 	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, sql.NullString{}, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt), nil
+}
+
+func (s *UsersService) UpdateUsername(ctx context.Context, userID uuid.UUID, newUsername string) error {
+	if s.store == nil {
+		return NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	newUsername = strings.TrimSpace(newUsername)
+	if err := auth.ValidateUsername(newUsername); err != nil {
+		return NewError(http.StatusBadRequest, "invalid_request", err.Error())
+	}
+
+	_, err := s.store.Q.UpdateUsername(ctx, sqlc.UpdateUsernameParams{
+		ID:       userID,
+		Username: newUsername,
+	})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errorsAs(err, &pgErr) && pgErr.Code == "23505" {
+			return NewError(http.StatusConflict, "username_taken", "username already taken")
+		}
+		if err == sql.ErrNoRows {
+			return NewError(http.StatusNotFound, "not_found", "user not found")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *UsersService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarMediaID uuid.UUID) (api.User, *uuid.UUID, error) {

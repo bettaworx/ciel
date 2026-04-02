@@ -350,6 +350,72 @@ func (h API) DeleteMe(w http.ResponseWriter, r *http.Request, _ api.DeleteMePara
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.PatchMeUsernameParams) {
+	if h.Users == nil || h.Tokens == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})
+		return
+	}
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "username_change") {
+		return
+	}
+	var req api.UpdateUsernameRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "invalid json"})
+		return
+	}
+	if err := h.Users.UpdateUsername(r.Context(), user.ID, req.Username); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	// Fetch updated user so avatar URL is included in the response.
+	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	// Invalidate existing tokens and issue a new one (JWT contains the username).
+	if err := h.Tokens.InvalidateUserTokens(r.Context(), user.ID.String()); err != nil {
+		slog.Warn("failed to invalidate user tokens after username change", "error", err, "user_id", user.ID.String())
+	}
+	token, expiresIn, err := h.Tokens.Issue(auth.User{ID: user.ID, Username: req.Username})
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, api.Error{Code: "internal_error", Message: "failed to issue token"})
+		return
+	}
+
+	setAuthCookie(w, r, token, expiresIn)
+	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+		AccessToken:      token,
+		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		ExpiresInSeconds: expiresIn,
+		User:             updatedUser,
+	})
+}
+
+func (h API) PostMeRestore(w http.ResponseWriter, r *http.Request) {
+	if h.Auth == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "auth not configured"})
+		return
+	}
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	if err := h.Auth.RestoreAccount(r.Context(), user); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h API) GetUsersUsername(w http.ResponseWriter, r *http.Request, username api.Username) {
 	if h.Users == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})

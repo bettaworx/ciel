@@ -154,7 +154,7 @@ func (s *SetupService) CreateAdminAccount(ctx context.Context, setupToken, usern
 	iterations := auth.DefaultIterations
 	storedKey, serverKey := auth.DeriveVerifier(password, salt, iterations)
 
-	var created sqlc.User
+	var created sqlc.CreateUserRow
 	var token string
 
 	err = s.store.WithTx(ctx, func(q *sqlc.Queries) error {
