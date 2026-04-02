@@ -28,11 +28,11 @@ export function BottomNav() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 h-16 bg-background-1 flex items-center justify-around px-4 z-40">
+      <div className="fixed bottom-0 left-0 right-0 h-16 bg-background-1 flex items-center justify-between px-8 z-40 border-t border-border">
         {/* ホームボタン */}
         <Link href="/" aria-label={tNav("home")}>
-          <Button variant="ghost" rounded="lg" className="w-10 h-10">
-            <Home className="w-9 h-9" />
+          <Button variant="ghost" rounded="lg" className="w-12 h-12">
+            <Home className="w-6 h-6" />
           </Button>
         </Link>
 
@@ -41,11 +41,11 @@ export function BottomNav() {
           <Button
             variant="ghost"
             rounded="lg"
-            className="w-14 h-14"
+            className="w-12 h-12"
             onClick={() => setIsPostDialogOpen(true)}
             aria-label={tCreatePost("title")}
           >
-            <SquarePen className="w-full h-full" />
+            <SquarePen className="w-6 h-6" />
           </Button>
         )}
 

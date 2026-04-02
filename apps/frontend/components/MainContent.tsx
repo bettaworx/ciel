@@ -1,49 +1,41 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { usePathname } from "next/navigation";
+import { useAtomValue } from "jotai";
+import { isAuthenticatedAtom } from "@/atoms/auth";
+import { sidebarExpandedAtom } from "@/atoms/sidebar";
+import { isConcentratedMode } from "@/lib/utils/concentrated-mode";
+import { cn } from "@/lib/utils";
 
 interface MainContentProps {
-	children: React.ReactNode;
+  children: React.ReactNode;
 }
 
 /**
  * メインコンテンツエリアのラッパーコンポーネント
  * サイドバー表示時に適切なマージンを適用する
- * 
+ *
  * Main content area wrapper component
  * Applies appropriate margins when sidebar is visible
  */
 export function MainContent({ children }: MainContentProps) {
-	const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+  const pathname = usePathname();
+  const isAuthenticated = useAtomValue(isAuthenticatedAtom);
+  const isSidebarExpanded = useAtomValue(sidebarExpandedAtom);
+  const isConcentrated = isConcentratedMode(pathname);
+  const shouldApplySidebarOffset = isAuthenticated && !isConcentrated;
 
-	useEffect(() => {
-		// サイドバーの表示状態を監視
-		const checkSidebarVisibility = () => {
-			setIsSidebarVisible(document.body.hasAttribute('data-sidebar-visible'));
-		};
-
-		// 初回チェック
-		checkSidebarVisibility();
-
-		// MutationObserverでbody属性の変更を監視
-		const observer = new MutationObserver(checkSidebarVisibility);
-		observer.observe(document.body, {
-			attributes: true,
-			attributeFilter: ['data-sidebar-visible'],
-		});
-
-		return () => observer.disconnect();
-	}, []);
-
-	return (
-		<div
-			className={
-				isSidebarVisible
-					? 'sm:ml-20 pb-20 sm:pb-0'
-					: ''
-			}
-		>
-			{children}
-		</div>
-	);
+  return (
+    <div
+      className={cn(
+        "pb-20 sm:pb-0",
+        shouldApplySidebarOffset &&
+          (isSidebarExpanded
+            ? "sm:pl-[72px] sm:pr-0 xl:pl-[248px] xl:pr-[248px]"
+            : "sm:pl-[72px] sm:pr-0 xl:pr-[72px]"),
+      )}
+    >
+      {children}
+    </div>
+  );
 }

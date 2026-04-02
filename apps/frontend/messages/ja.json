@@ -450,7 +450,17 @@
   },
   "nav": {
     "home": "ホーム",
-    "openUserMenu": "ユーザーメニュー"
+    "openUserMenu": "ユーザーメニュー",
+    "pinSidebar": "サイドバーを固定",
+    "unpinSidebar": "サイドバーのピンを解除"
+  },
+  "videoPlayer": {
+    "play": "再生",
+    "pause": "一時停止",
+    "mute": "ミュート",
+    "unmute": "ミュート解除",
+    "fullscreen": "全画面",
+    "exitFullscreen": "全画面を終了"
   },
   "reactions": {
     "label": "{emoji} {count}件のリアクション",

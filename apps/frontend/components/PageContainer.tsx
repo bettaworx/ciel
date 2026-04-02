@@ -33,8 +33,8 @@ const maxWidthClasses = {
 };
 
 const paddingClasses = {
-  default: "px-3 py-3",
-  compact: "px-3 py-3",
+  default: "px-3 sm:pl-0 sm:pr-3 py-3",
+  compact: "px-3 sm:pl-0 sm:pr-3 py-3",
   none: "",
 };
 
@@ -73,7 +73,7 @@ export function PageContainer({
   return (
     <Component
       className={cn(
-        "container mx-auto",
+        "ciel-page-container container mx-auto",
         maxWidthClasses[maxWidth],
         paddingClasses[padding],
         className,

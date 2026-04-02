@@ -450,7 +450,17 @@
   },
   "nav": {
     "home": "Home",
-    "openUserMenu": "User menu"
+    "openUserMenu": "User menu",
+    "pinSidebar": "Pin sidebar",
+    "unpinSidebar": "Unpin sidebar"
+  },
+  "videoPlayer": {
+    "play": "Play",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen"
   },
   "reactions": {
     "label": "{emoji} {count} reactions",
