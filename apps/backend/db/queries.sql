@@ -52,6 +52,22 @@ SELECT id, username, display_name, created_at
 FROM users
 ORDER BY created_at ASC;
 
+-- name: UpdateUsername :one
+UPDATE users
+SET username = $2
+WHERE id = $1
+RETURNING
+	id,
+	username,
+	display_name,
+	bio,
+	avatar_media_id,
+	created_at,
+	terms_version,
+	privacy_version,
+	terms_accepted_at,
+	privacy_accepted_at;
+
 -- name: UpdateUserProfile :one
 UPDATE users
 SET display_name = COALESCE(sqlc.narg('display_name'), display_name),

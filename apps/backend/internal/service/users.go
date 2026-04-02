@@ -7,10 +7,12 @@ import (
 	"strings"
 
 	"backend/internal/api"
+	"backend/internal/auth"
 	"backend/internal/db/sqlc"
 	"backend/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type UsersService struct {
@@ -109,4 +111,28 @@ func (s *UsersService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avata
 	}
 	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt)
 	return user, previous, nil
+}
+
+func (s *UsersService) UpdateUsername(ctx context.Context, userID uuid.UUID, newUsername string) error {
+	if s.store == nil {
+		return NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	if err := auth.ValidateUsername(newUsername); err != nil {
+		return NewError(http.StatusBadRequest, "invalid_request", err.Error())
+	}
+	_, err := s.store.Q.UpdateUsername(ctx, sqlc.UpdateUsernameParams{
+		ID:       userID,
+		Username: newUsername,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewError(http.StatusNotFound, "not_found", "user not found")
+		}
+		var pgErr *pgconn.PgError
+		if errorsAsImpl(err, &pgErr) && pgErr.Code == "23505" {
+			return NewError(http.StatusConflict, "username_taken", "username already taken")
+		}
+		return err
+	}
+	return nil
 }
