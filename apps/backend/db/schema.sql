@@ -19,8 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   terms_version INT NOT NULL DEFAULT 0,
   privacy_version INT NOT NULL DEFAULT 0,
   terms_accepted_at TIMESTAMPTZ,
-  privacy_accepted_at TIMESTAMPTZ,
-  deleted_at TIMESTAMPTZ
+  privacy_accepted_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS auth_credentials (

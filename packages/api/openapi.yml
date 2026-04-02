@@ -3280,69 +3280,6 @@ paths:
         '401':
           description: Unauthorized
 
-  /me/username:
-    patch:
-      tags: [Users]
-      summary: Change username (step-up required)
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: X-Stepup-Token
-          in: header
-          required: false
-          schema:
-            type: string
-          description: Short-lived step-up token.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateUsernameRequest'
-      responses:
-        '200':
-          description: Username updated. Returns a new access token (JWT contains username).
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LoginFinishResponse'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized / step-up required
-        '409':
-          description: Username already taken
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /me/restore:
-    post:
-      tags: [Users]
-      summary: Restore a soft-deleted account
-      description: |
-        Restores an account that was soft-deleted within the last 14 days.
-        Also restores all posts that were hidden due to account deletion.
-        Requires authentication (log in with the deleted account first).
-      security:
-        - bearerAuth: []
-      responses:
-        '204':
-          description: Account restored
-        '401':
-          description: Unauthorized
-        '409':
-          description: Account is not pending deletion
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /users/{username}:
     get:
       tags: [Users]
@@ -4043,14 +3980,6 @@ components:
           minimum: 1
         user:
           $ref: '#/components/schemas/User'
-        pendingDeletion:
-          type: boolean
-          description: True if the account is soft-deleted and awaiting permanent deletion.
-        deleteScheduledAt:
-          type: string
-          format: date-time
-          nullable: true
-          description: The date/time when the account will be permanently deleted (14 days after soft-delete).
 
     StepupStartRequest:
       type: object
@@ -4116,15 +4045,6 @@ components:
           type: string
           minLength: 8
           maxLength: 256
-
-    UpdateUsernameRequest:
-      type: object
-      required: [username]
-      properties:
-        username:
-          type: string
-          minLength: 3
-          maxLength: 32
 
     CreatePostRequest:
       type: object
