@@ -394,10 +394,6 @@ func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.Patch
 		writeServiceError(w, err)
 		return
 	}
-	// Invalidate all existing tokens (they carry the old username claim).
-	if err := h.Tokens.InvalidateUserTokens(r.Context(), user.ID.String()); err != nil {
-		slog.Warn("failed to invalidate user tokens after username change", "error", err, "user_id", user.ID.String())
-	}
 	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
 	if err != nil {
 		writeServiceError(w, err)
