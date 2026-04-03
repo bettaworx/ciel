@@ -1042,11 +1042,15 @@ export function VideoPlayer({
                   className="w-3.5 h-3.5"
                   style={{ filter: "none" }}
                 />
-                <span>{t("seekSeconds", { seconds: seekOverlay.seconds })}</span>
+                <span>
+                  {t("seekSeconds", { seconds: seekOverlay.seconds })}
+                </span>
               </>
             ) : (
               <>
-                <span>{t("seekSeconds", { seconds: seekOverlay.seconds })}</span>
+                <span>
+                  {t("seekSeconds", { seconds: seekOverlay.seconds })}
+                </span>
                 <ChevronsRight
                   className="w-3.5 h-3.5"
                   style={{ filter: "none" }}
@@ -1092,7 +1096,7 @@ export function VideoPlayer({
             the visible track stays thin (h-1, expanding to h-1.5 on hover). */}
           <div className="px-2">
             <div
-              className="pt-3 pb-2 cursor-pointer group/progress"
+              className="pt-3 pb-1 cursor-pointer group/progress"
               style={{ touchAction: "none" }}
               onMouseDown={handleProgressBarMouseDown}
               onTouchStart={handleProgressBarTouchStart}
