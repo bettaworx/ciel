@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ImageCropDialogProps {
   open: boolean;
@@ -23,7 +24,13 @@ interface ImageCropDialogProps {
   title: string;
   /** Original file — used to derive the output filename and MIME type */
   originalFile: File;
-  onCropComplete: (file: File) => void;
+  /** Previously selected crop area. */
+  initialCrop?: Crop | null;
+  /** Optional class override for dialog content (e.g. z-index). */
+  contentClassName?: string;
+  /** Optional class override for dialog overlay. */
+  overlayClassName?: string;
+  onCropComplete: (file: File, crop?: Crop) => void;
 }
 
 async function getCroppedFile(
@@ -37,9 +44,12 @@ async function getCroppedFile(
   const scaleY = image.naturalHeight / image.height;
   const naturalW = pixelCrop.width * scaleX;
   const naturalH = pixelCrop.height * scaleY;
+  if (naturalW <= 0 || naturalH <= 0) {
+    throw new Error("Invalid crop size");
+  }
   const scale = Math.min(1, maxSize / Math.max(naturalW, naturalH));
-  canvas.width = Math.round(naturalW * scale);
-  canvas.height = Math.round(naturalH * scale);
+  canvas.width = Math.max(1, Math.round(naturalW * scale));
+  canvas.height = Math.max(1, Math.round(naturalH * scale));
 
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("No canvas context");
@@ -75,6 +85,34 @@ async function getCroppedFile(
   });
 }
 
+function makeDefaultCrop(aspect: number, width: number, height: number): Crop {
+  return centerCrop(
+    makeAspectCrop({ unit: "%", width: 100 }, aspect, width, height),
+    width,
+    height,
+  );
+}
+
+function toPixelCrop(crop: Crop, width: number, height: number): PixelCrop {
+  if (crop.unit === "%") {
+    return {
+      unit: "px",
+      x: Math.round((crop.x / 100) * width),
+      y: Math.round((crop.y / 100) * height),
+      width: Math.round((crop.width / 100) * width),
+      height: Math.round((crop.height / 100) * height),
+    };
+  }
+
+  return {
+    unit: "px",
+    x: Math.round(crop.x),
+    y: Math.round(crop.y),
+    width: Math.round(crop.width),
+    height: Math.round(crop.height),
+  };
+}
+
 export function ImageCropDialog({
   open,
   onOpenChange,
@@ -82,25 +120,40 @@ export function ImageCropDialog({
   aspect,
   title,
   originalFile,
+  initialCrop,
+  contentClassName,
+  overlayClassName,
   onCropComplete,
 }: ImageCropDialogProps) {
   const t = useTranslations("imageCrop");
   const imgRef = useRef<HTMLImageElement>(null);
+  const imageSizeRef = useRef<{ width: number; height: number } | null>(null);
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const resetCropToDefault = useCallback(() => {
+    if (!imageSizeRef.current) return;
+    const { width, height } = imageSizeRef.current;
+    const nextCrop = makeDefaultCrop(aspect, width, height);
+    setCrop(nextCrop);
+    setCompletedCrop(toPixelCrop(nextCrop, width, height));
+  }, [aspect]);
+
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
       const { naturalWidth: width, naturalHeight: height } = e.currentTarget;
-      const initial = centerCrop(
-        makeAspectCrop({ unit: "%", width: 90 }, aspect, width, height),
-        width,
-        height,
-      );
+      imageSizeRef.current = { width, height };
+      if (initialCrop && initialCrop.width > 0 && initialCrop.height > 0) {
+        setCrop(initialCrop);
+        setCompletedCrop(toPixelCrop(initialCrop, width, height));
+        return;
+      }
+      const initial = makeDefaultCrop(aspect, width, height);
       setCrop(initial);
+      setCompletedCrop(toPixelCrop(initial, width, height));
     },
-    [aspect],
+    [aspect, initialCrop],
   );
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -112,7 +165,9 @@ export function ImageCropDialog({
   };
 
   const handleConfirm = async () => {
-    if (!completedCrop || !imgRef.current) return;
+    const hasValidCrop =
+      !!completedCrop && completedCrop.width > 0 && completedCrop.height > 0;
+    if (!hasValidCrop || !imgRef.current || !crop) return;
     setIsProcessing(true);
     try {
       const file = await getCroppedFile(
@@ -120,7 +175,7 @@ export function ImageCropDialog({
         completedCrop,
         originalFile,
       );
-      onCropComplete(file);
+      onCropComplete(file, crop);
       onOpenChange(false);
     } finally {
       setIsProcessing(false);
@@ -130,7 +185,9 @@ export function ImageCropDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="
+        overlayClassName={cn("z-[60]", overlayClassName)}
+        className={cn(
+          `
           sm:max-w-xl
           gap-0
           p-0
@@ -149,8 +206,9 @@ export function ImageCropDialog({
           max-sm:rounded-xl
           max-sm:!max-h-[calc(100vh-24px)]
           max-sm:overflow-hidden
-          z-[60]
-        "
+          `,
+          contentClassName,
+        )}
       >
         {/* Header */}
         <div className="pt-3 px-3 gap-3 pb-3 flex flex-row items-center justify-start shrink-0 border-b border-border">
@@ -170,11 +228,17 @@ export function ImageCropDialog({
         </div>
 
         {/* Crop area */}
-        <div className="flex items-center justify-center bg-black p-4 max-h-[60vh] overflow-hidden">
+        <div className="flex items-center justify-center bg-muted p-4 max-h-[60vh] overflow-hidden">
           <ReactCrop
             crop={crop}
             onChange={(_, percentCrop) => setCrop(percentCrop)}
-            onComplete={(c) => setCompletedCrop(c)}
+            onComplete={(c) => {
+              if (c.width <= 0 || c.height <= 0) {
+                setCompletedCrop(undefined);
+                return;
+              }
+              setCompletedCrop(c);
+            }}
             aspect={aspect}
             circularCrop={false}
             className="max-h-[52vh]"
@@ -184,6 +248,7 @@ export function ImageCropDialog({
               ref={imgRef}
               src={imageSrc}
               onLoad={onImageLoad}
+              onClick={resetCropToDefault}
               alt=""
               style={{ maxHeight: "52vh", maxWidth: "100%", display: "block" }}
             />
@@ -202,7 +267,12 @@ export function ImageCropDialog({
           <Button
             variant="primary"
             onClick={handleConfirm}
-            disabled={isProcessing || !completedCrop}
+            disabled={
+              isProcessing ||
+              !completedCrop ||
+              completedCrop.width <= 0 ||
+              completedCrop.height <= 0
+            }
           >
             {isProcessing ? t("processing") : t("apply")}
           </Button>

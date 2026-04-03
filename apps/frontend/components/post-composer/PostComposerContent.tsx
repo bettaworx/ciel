@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   X,
@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ImageLightbox } from "@/components/ImageLightbox";
 import { PostMediaPreview } from "@/components/PostMediaPreview";
+import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { OgpCard } from "@/components/OgpCard";
 import { cn } from "@/lib/utils";
 import { CharacterCounter } from "./CharacterCounter";
@@ -129,30 +129,23 @@ export function PostComposerContent({
     isDropDisabled,
     isImageUploadDisabled,
     isVideoUploadDisabled,
+    cropDialogOpen,
+    cropImageSrc,
+    pendingCropImage,
+    cropDialogZIndexClass,
     // Handlers
     handleContentChange,
     handleKeyDown,
     handleImageSelect,
     handlePaste,
     handleRemoveMedia,
+    handleCropOpen,
+    handleCropDialogOpenChange,
+    handleCropComplete,
     handlePost,
     // Mutations
     createPostMutation,
   } = compose;
-
-  // Lightbox state (internal — not needed by parent)
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-
-  const handleLightboxOpen = (index: number) => {
-    setLightboxIndex(index);
-    setLightboxOpen(true);
-  };
-
-  const lightboxImages = images.map((img) => ({
-    src: img.previewUrl,
-    alt: "",
-  }));
 
   // ---- Shared sub-sections ------------------------------------------------
 
@@ -338,7 +331,7 @@ export function PostComposerContent({
           media={previewMedia}
           editable
           onRemove={handleRemoveMedia}
-          onLightboxOpen={handleLightboxOpen}
+          onCrop={handleCropOpen}
         />
       </div>
     ) : null;
@@ -393,12 +386,20 @@ export function PostComposerContent({
           </div>
         </div>
 
-        <ImageLightbox
-          images={lightboxImages}
-          open={lightboxOpen}
-          onOpenChange={setLightboxOpen}
-          initialIndex={lightboxIndex}
-        />
+        {cropDialogOpen && cropImageSrc && pendingCropImage && (
+          <ImageCropDialog
+            open={cropDialogOpen}
+            onOpenChange={handleCropDialogOpenChange}
+            imageSrc={cropImageSrc}
+            aspect={1}
+            title={t("createPost.cropTitle")}
+            originalFile={pendingCropImage.originalFile}
+            initialCrop={pendingCropImage.crop}
+            contentClassName={cropDialogZIndexClass}
+            overlayClassName="z-[65]"
+            onCropComplete={handleCropComplete}
+          />
+        )}
       </>
     );
   }
@@ -427,12 +428,20 @@ export function PostComposerContent({
         </div>
       </div>
 
-      <ImageLightbox
-        images={lightboxImages}
-        open={lightboxOpen}
-        onOpenChange={setLightboxOpen}
-        initialIndex={lightboxIndex}
-      />
+      {cropDialogOpen && cropImageSrc && pendingCropImage && (
+        <ImageCropDialog
+          open={cropDialogOpen}
+          onOpenChange={handleCropDialogOpenChange}
+          imageSrc={cropImageSrc}
+          aspect={1}
+          title={t("createPost.cropTitle")}
+          originalFile={pendingCropImage.originalFile}
+          initialCrop={pendingCropImage.crop}
+          contentClassName={cropDialogZIndexClass}
+          overlayClassName="z-[65]"
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </>
   );
 }

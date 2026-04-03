@@ -5,6 +5,7 @@ import {
   useRef,
   useEffect,
   useMemo,
+  useCallback,
   ChangeEvent,
   KeyboardEvent,
   ClipboardEvent,
@@ -25,6 +26,7 @@ import {
   ACCEPTED_IMAGE_TYPES,
   ACCEPTED_VIDEO_TYPES,
 } from "./constants";
+import type { Crop } from "react-image-crop";
 
 /** Debounce delay (ms) for OGP URL extraction from content. */
 const OGP_DEBOUNCE_MS = 400;
@@ -40,6 +42,19 @@ function isVideoFile(file: File): boolean {
 
 function isImageFile(file: File): boolean {
   return ACCEPTED_IMAGE_TYPES.includes(file.type as (typeof ACCEPTED_IMAGE_TYPES)[number]);
+}
+
+function isAnimatedImageFile(file: File): boolean {
+  return file.type === "image/gif";
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read image file"));
+    reader.readAsDataURL(file);
+  });
 }
 
 /**
@@ -92,6 +107,10 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const [video, setVideo] = useState<LocalVideo | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [pendingCropImageId, setPendingCropImageId] = useState<string | null>(null);
+  const [cropDialogZIndexClass, setCropDialogZIndexClass] = useState("z-[70]");
 
   // OGP: debounced URL extracted from content
   const [ogpUrl, setOgpUrl] = useState<string | null>(null);
@@ -101,6 +120,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const videoFileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounterRef = useRef(0);
+  const latestImagesRef = useRef<LocalImage[]>([]);
+  const latestVideoRef = useRef<LocalVideo | null>(null);
 
   // Mutations
   const createPostMutation = useCreatePost();
@@ -153,10 +174,34 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       id: img.localId,
       type: "image" as const,
       url: img.previewUrl,
+      isAnimated: img.isAnimated,
       width: img.width,
       height: img.height,
     }));
   }, [images, video]);
+
+  useEffect(() => {
+    latestImagesRef.current = images;
+  }, [images]);
+
+  useEffect(() => {
+    latestVideoRef.current = video;
+  }, [video]);
+
+  useEffect(() => {
+    return () => {
+      for (const img of latestImagesRef.current) {
+        URL.revokeObjectURL(img.originalPreviewUrl);
+        if (img.croppedPreviewUrl) {
+          URL.revokeObjectURL(img.croppedPreviewUrl);
+        }
+      }
+      const latestVideo = latestVideoRef.current;
+      if (latestVideo) {
+        URL.revokeObjectURL(latestVideo.previewUrl);
+      }
+    };
+  }, []);
 
   // OGP URL extraction with debounce
   useEffect(() => {
@@ -290,8 +335,14 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
           newImages.push({
             localId: crypto.randomUUID(),
+            originalFile: file,
+            originalPreviewUrl: previewUrl,
+            croppedFile: null,
+            croppedPreviewUrl: null,
+            crop: null,
             file,
             previewUrl,
+            isAnimated: isAnimatedImageFile(file),
             width,
             height,
           });
@@ -387,10 +438,18 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       const image = prev.find((img) => img.localId === localId);
       // Revoke blob URL to free memory
       if (image) {
-        URL.revokeObjectURL(image.previewUrl);
+        URL.revokeObjectURL(image.originalPreviewUrl);
+        if (image.croppedPreviewUrl) {
+          URL.revokeObjectURL(image.croppedPreviewUrl);
+        }
       }
       return prev.filter((img) => img.localId !== localId);
     });
+    if (pendingCropImageId === localId) {
+      setCropDialogOpen(false);
+      setCropImageSrc(null);
+      setPendingCropImageId(null);
+    }
   };
 
   const handleRemoveVideo = () => {
@@ -408,6 +467,75 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       handleRemoveImage(id);
     }
   };
+
+  const handleCropOpen = useCallback(
+    async (localId: string) => {
+      const target = images.find((img) => img.localId === localId);
+      if (!target || target.isAnimated) return;
+
+      try {
+        const src = await readFileAsDataUrl(target.originalFile);
+        setCropDialogZIndexClass("z-[70]");
+        setCropImageSrc(src);
+        setPendingCropImageId(localId);
+        setCropDialogOpen(true);
+      } catch {
+        toast.error(t("createPost.uploadError"));
+      }
+    },
+    [images, t],
+  );
+
+  const handleCropDialogOpenChange = (open: boolean) => {
+    setCropDialogOpen(open);
+    if (!open) {
+      setCropImageSrc(null);
+      setPendingCropImageId(null);
+      setCropDialogZIndexClass("z-[70]");
+    }
+  };
+
+  const handleCropComplete = useCallback(
+    async (croppedFile: File, crop?: Crop) => {
+      if (!pendingCropImageId) return;
+
+      const croppedPreviewUrl = URL.createObjectURL(croppedFile);
+      let width = 800;
+      let height = 800;
+      try {
+        const dims = await getImageDimensions(croppedPreviewUrl);
+        width = dims.width;
+        height = dims.height;
+      } catch {
+        // Fall back to default dimensions
+      }
+
+      setImages((prev) =>
+        prev.map((img) => {
+          if (img.localId !== pendingCropImageId) return img;
+          if (img.croppedPreviewUrl) {
+            URL.revokeObjectURL(img.croppedPreviewUrl);
+          }
+          return {
+            ...img,
+            croppedFile,
+            croppedPreviewUrl,
+            crop: crop ?? img.crop,
+            file: croppedFile,
+            previewUrl: croppedPreviewUrl,
+            width,
+            height,
+          };
+        }),
+      );
+
+      setCropDialogOpen(false);
+      setCropImageSrc(null);
+      setPendingCropImageId(null);
+      setCropDialogZIndexClass("z-[70]");
+    },
+    [pendingCropImageId],
+  );
 
   const handleDragOver = (e: React.DragEvent) => {
     // Only prevent default for file drops
@@ -570,7 +698,10 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     setContent("");
     // Revoke all blob URLs on reset
     for (const img of images) {
-      URL.revokeObjectURL(img.previewUrl);
+      URL.revokeObjectURL(img.originalPreviewUrl);
+      if (img.croppedPreviewUrl) {
+        URL.revokeObjectURL(img.croppedPreviewUrl);
+      }
     }
     if (video) {
       URL.revokeObjectURL(video.previewUrl);
@@ -580,8 +711,16 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     setOgpUrl(null);
     setIsUploading(false);
     setIsDragging(false);
+    setCropDialogOpen(false);
+    setCropImageSrc(null);
+    setPendingCropImageId(null);
+    setCropDialogZIndexClass("z-[70]");
     dragCounterRef.current = 0;
   };
+
+  const pendingCropImage = pendingCropImageId
+    ? images.find((img) => img.localId === pendingCropImageId) ?? null
+    : null;
 
   return {
     // State
@@ -609,6 +748,9 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     handleRemoveImage,
     handleRemoveVideo,
     handleRemoveMedia,
+    handleCropOpen,
+    handleCropDialogOpenChange,
+    handleCropComplete,
     handlePost,
     handleDragOver,
     handleDragEnter,
@@ -628,6 +770,12 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     isDropDisabled,
     isImageUploadDisabled,
     isVideoUploadDisabled,
+
+    // Crop state
+    cropDialogOpen,
+    cropImageSrc,
+    pendingCropImage,
+    cropDialogZIndexClass,
 
     // Mutations
     createPostMutation,

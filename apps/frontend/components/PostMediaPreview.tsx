@@ -4,7 +4,7 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { X } from "lucide-react";
+import { Crop, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
@@ -29,6 +29,8 @@ export interface PostMediaPreviewProps {
   editable?: boolean;
   /** Called when a remove button is clicked. Receives the media item id. */
   onRemove?: (id: string) => void;
+  /** Called when a crop button is clicked. Receives the media item id. */
+  onCrop?: (id: string) => void;
   /** Called when a media item (image) should open the lightbox at the given index. */
   onLightboxOpen?: (index: number) => void;
   /** Additional class name for the outer wrapper. */
@@ -52,10 +54,32 @@ function RemoveButton({
         e.stopPropagation();
         onClick(e);
       }}
-      className="absolute top-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-lg p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+      className="absolute top-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
       aria-label={label}
     >
       <X className="w-3.5 h-3.5" />
+    </button>
+  );
+}
+
+function CropButton({
+  onClick,
+  label,
+}: {
+  onClick: (e: React.MouseEvent) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(e);
+      }}
+      className="absolute top-2 right-[46px] z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+      aria-label={label}
+    >
+      <Crop className="w-3.5 h-3.5" />
     </button>
   );
 }
@@ -77,6 +101,7 @@ export function PostMediaPreview({
   media,
   editable = false,
   onRemove,
+  onCrop,
   onLightboxOpen,
   className,
 }: PostMediaPreviewProps) {
@@ -135,6 +160,32 @@ export function PostMediaPreview({
   if (media.length === 0) return null;
 
   const removeLabel = tCompose("removeImage");
+  const cropLabel = tCompose("cropImage");
+
+  const getImageCursorClass = (item: PreviewMediaItem) => {
+    if (onLightboxOpen) return "cursor-zoom-in";
+    if (editable && onCrop && !item.isAnimated) return "cursor-pointer";
+    return undefined;
+  };
+
+  const renderImageActionOverlay = (item: PreviewMediaItem, index: number) => {
+    const action = onLightboxOpen
+      ? () => onLightboxOpen(index)
+      : editable && onCrop && !item.isAnimated
+        ? () => onCrop(item.id)
+        : null;
+
+    if (!action) return null;
+
+    return (
+      <button
+        type="button"
+        onClick={action}
+        className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        aria-label={onLightboxOpen ? tLightbox("open") : cropLabel}
+      />
+    );
+  };
 
   // --- Video ---
   if (videoMedia) {
@@ -165,39 +216,6 @@ export function PostMediaPreview({
   // --- Images ---
   if (imageMedia.length === 0) return null;
 
-  // Helper to render a single image cell
-  const renderImageCell = (
-    item: PreviewMediaItem,
-    index: number,
-    extraImgClass?: string,
-  ) => (
-    <div key={item.id} className="relative overflow-hidden group">
-      <Image
-        src={item.url}
-        alt=""
-        fill
-        unoptimized
-        className={cn(
-          "object-cover",
-          onLightboxOpen && "cursor-zoom-in",
-          extraImgClass,
-        )}
-        sizes="(max-width: 600px) 100vw, 600px"
-      />
-      {onLightboxOpen && (
-        <button
-          type="button"
-          onClick={() => onLightboxOpen(index)}
-          className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          aria-label={tLightbox("open")}
-        />
-      )}
-      {editable && onRemove && (
-        <RemoveButton onClick={() => onRemove(item.id)} label={removeLabel} />
-      )}
-    </div>
-  );
-
   // 1 image
   if (imageMedia.length === 1) {
     return (
@@ -211,16 +229,12 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover", onLightboxOpen && "cursor-zoom-in")}
+            className={cn("object-cover", getImageCursorClass(imageMedia[0]))}
             sizes="(max-width: 600px) 100vw, 600px"
           />
-          {onLightboxOpen && (
-            <button
-              type="button"
-              onClick={() => onLightboxOpen(0)}
-              className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              aria-label={tLightbox("open")}
-            />
+          {renderImageActionOverlay(imageMedia[0], 0)}
+          {editable && onCrop && !imageMedia[0].isAnimated && (
+            <CropButton onClick={() => onCrop(imageMedia[0].id)} label={cropLabel} />
           )}
           {editable && onRemove && (
             <RemoveButton
@@ -245,17 +259,13 @@ export function PostMediaPreview({
             unoptimized
             className={cn(
               "object-cover rounded-l-xl",
-              onLightboxOpen && "cursor-zoom-in",
+              getImageCursorClass(imageMedia[0]),
             )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
-          {onLightboxOpen && (
-            <button
-              type="button"
-              onClick={() => onLightboxOpen(0)}
-              className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              aria-label={tLightbox("open")}
-            />
+          {renderImageActionOverlay(imageMedia[0], 0)}
+          {editable && onCrop && !imageMedia[0].isAnimated && (
+            <CropButton onClick={() => onCrop(imageMedia[0].id)} label={cropLabel} />
           )}
           {editable && onRemove && (
             <RemoveButton
@@ -272,17 +282,13 @@ export function PostMediaPreview({
             unoptimized
             className={cn(
               "object-cover rounded-r-xl",
-              onLightboxOpen && "cursor-zoom-in",
+              getImageCursorClass(imageMedia[1]),
             )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
-          {onLightboxOpen && (
-            <button
-              type="button"
-              onClick={() => onLightboxOpen(1)}
-              className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              aria-label={tLightbox("open")}
-            />
+          {renderImageActionOverlay(imageMedia[1], 1)}
+          {editable && onCrop && !imageMedia[1].isAnimated && (
+            <CropButton onClick={() => onCrop(imageMedia[1].id)} label={cropLabel} />
           )}
           {editable && onRemove && (
             <RemoveButton
@@ -307,17 +313,13 @@ export function PostMediaPreview({
             unoptimized
             className={cn(
               "object-cover rounded-l-xl",
-              onLightboxOpen && "cursor-zoom-in",
+              getImageCursorClass(imageMedia[0]),
             )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
-          {onLightboxOpen && (
-            <button
-              type="button"
-              onClick={() => onLightboxOpen(0)}
-              className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              aria-label={tLightbox("open")}
-            />
+          {renderImageActionOverlay(imageMedia[0], 0)}
+          {editable && onCrop && !imageMedia[0].isAnimated && (
+            <CropButton onClick={() => onCrop(imageMedia[0].id)} label={cropLabel} />
           )}
           {editable && onRemove && (
             <RemoveButton
@@ -334,17 +336,13 @@ export function PostMediaPreview({
             unoptimized
             className={cn(
               "object-cover rounded-tr-xl",
-              onLightboxOpen && "cursor-zoom-in",
+              getImageCursorClass(imageMedia[1]),
             )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
-          {onLightboxOpen && (
-            <button
-              type="button"
-              onClick={() => onLightboxOpen(1)}
-              className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              aria-label={tLightbox("open")}
-            />
+          {renderImageActionOverlay(imageMedia[1], 1)}
+          {editable && onCrop && !imageMedia[1].isAnimated && (
+            <CropButton onClick={() => onCrop(imageMedia[1].id)} label={cropLabel} />
           )}
           {editable && onRemove && (
             <RemoveButton
@@ -361,17 +359,13 @@ export function PostMediaPreview({
             unoptimized
             className={cn(
               "object-cover rounded-br-xl",
-              onLightboxOpen && "cursor-zoom-in",
+              getImageCursorClass(imageMedia[2]),
             )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
-          {onLightboxOpen && (
-            <button
-              type="button"
-              onClick={() => onLightboxOpen(2)}
-              className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              aria-label={tLightbox("open")}
-            />
+          {renderImageActionOverlay(imageMedia[2], 2)}
+          {editable && onCrop && !imageMedia[2].isAnimated && (
+            <CropButton onClick={() => onCrop(imageMedia[2].id)} label={cropLabel} />
           )}
           {editable && onRemove && (
             <RemoveButton
@@ -408,17 +402,13 @@ export function PostMediaPreview({
               className={cn(
                 "object-cover",
                 roundingClasses[i],
-                onLightboxOpen && "cursor-zoom-in",
+                getImageCursorClass(item),
               )}
               sizes="(max-width: 600px) 50vw, 300px"
             />
-            {onLightboxOpen && (
-              <button
-                type="button"
-                onClick={() => onLightboxOpen(i)}
-                className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                aria-label={tLightbox("open")}
-              />
+            {renderImageActionOverlay(item, i)}
+            {editable && onCrop && !item.isAnimated && (
+              <CropButton onClick={() => onCrop(item.id)} label={cropLabel} />
             )}
             {editable && onRemove && (
               <RemoveButton

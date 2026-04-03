@@ -422,6 +422,8 @@
     "uploadImage": "Upload Image",
     "uploadVideo": "Upload Video",
     "uploadMedia": "Upload Image or Video",
+    "cropTitle": "Crop Image",
+    "cropImage": "Crop Image",
     "removeImage": "Remove Image",
     "removeVideo": "Remove Video",
     "maxImages": "Maximum 4 images",

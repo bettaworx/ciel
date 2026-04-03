@@ -1,11 +1,19 @@
+import type { Crop } from "react-image-crop";
+
 /**
  * Types for post composition
  */
 
 export interface LocalImage {
   localId: string;
+  originalFile: File;
+  originalPreviewUrl: string; // Object URL (blob:) for original file
+  croppedFile: File | null;
+  croppedPreviewUrl: string | null; // Object URL (blob:) for current cropped file
+  crop: Crop | null;
   file: File;
   previewUrl: string; // Object URL (blob:)
+  isAnimated: boolean; // true for GIF and other animated image formats
   width: number;
   height: number;
 }
@@ -30,6 +38,7 @@ export interface PreviewMediaItem {
   id: string;
   type: "image" | "video";
   url: string;
+  isAnimated?: boolean;
   width: number;
   height: number;
   thumbnailUrl?: string | null;

@@ -422,6 +422,8 @@
     "uploadImage": "画像をアップロード",
     "uploadVideo": "動画をアップロード",
     "uploadMedia": "画像・動画をアップロード",
+    "cropTitle": "画像をトリミング",
+    "cropImage": "画像をトリミング",
     "removeImage": "画像を削除",
     "removeVideo": "動画を削除",
     "maxImages": "最大4枚まで",
