@@ -1096,7 +1096,7 @@ export function VideoPlayer({
             the visible track stays thin (h-1, expanding to h-1.5 on hover). */}
           <div className="px-2">
             <div
-              className="pt-3 pb-1 cursor-pointer group/progress"
+              className="pt-3 pb-1 sm:pb-2 cursor-pointer group/progress"
               style={{ touchAction: "none" }}
               onMouseDown={handleProgressBarMouseDown}
               onTouchStart={handleProgressBarTouchStart}
