@@ -15,15 +15,33 @@ import {
 } from "@/lib/hooks/use-queries";
 import { userAtom } from "@/atoms/auth";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Pencil, User, X, Save, Upload } from "lucide-react";
+import {
+  Clipboard,
+  MoreHorizontal,
+  Pencil,
+  Share,
+  User,
+  X,
+  Save,
+  Upload,
+} from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
+import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
 import { Spinner } from "@/components/Spinner";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { toast } from "sonner";
 
 type UserProfileContentProps = {
@@ -53,6 +71,8 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editBio, setEditBio] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   // Avatar upload state
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -68,6 +88,16 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   );
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Crop dialog state
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropAspect, setCropAspect] = useState<number>(1);
+  const [cropTitle, setCropTitle] = useState<string>("");
+  const [cropTarget, setCropTarget] = useState<"avatar" | "banner" | null>(
+    null,
+  );
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
+
   // Mutations
   const queryClient = useQueryClient();
   const updateProfile = useUpdateProfile();
@@ -75,9 +105,17 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   const updateBanner = useUpdateBanner();
   const isSaving =
     updateProfile.isPending || updateAvatar.isPending || updateBanner.isPending;
+  const normalizedDisplayName = editDisplayName.trim() || null;
+  const normalizedBio = editBio.trim() || null;
+  const hasTextChanges =
+    normalizedDisplayName !== (user?.displayName ?? null) ||
+    normalizedBio !== (user?.bio ?? null);
+  const hasImageChanges = Boolean(selectedAvatarFile || selectedBannerFile);
+  const canSaveProfile = hasTextChanges || hasImageChanges;
 
   const handleEditStart = () => {
     if (!user) return;
+    setMenuOpen(false);
     setEditDisplayName(user.displayName || "");
     setEditBio(user.bio || "");
     setAvatarPreview(null);
@@ -93,19 +131,25 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     setSelectedAvatarFile(null);
     setBannerPreview(null);
     setSelectedBannerFile(null);
+    setCropDialogOpen(false);
+    setCropImageSrc(null);
+    setPendingCropFile(null);
+    setCropTarget(null);
     if (avatarFileInputRef.current) avatarFileInputRef.current.value = "";
     if (bannerFileInputRef.current) bannerFileInputRef.current.value = "";
   };
 
   const handleSave = async () => {
+    if (!canSaveProfile) return;
+
     try {
       if (selectedAvatarFile)
         await updateAvatar.mutateAsync(selectedAvatarFile);
       if (selectedBannerFile)
         await updateBanner.mutateAsync(selectedBannerFile);
       await updateProfile.mutateAsync({
-        displayName: editDisplayName.trim() || null,
-        bio: editBio.trim() || null,
+        displayName: normalizedDisplayName,
+        bio: normalizedBio,
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.user(username),
@@ -125,18 +169,83 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onloadend = () => setAvatarPreview(reader.result as string);
+    reader.onloadend = () => {
+      setCropImageSrc(reader.result as string);
+      setCropAspect(1);
+      setCropTitle(t("settings.profile.avatar.cropTitle"));
+      setCropTarget("avatar");
+      setPendingCropFile(file);
+      setCropDialogOpen(true);
+    };
     reader.readAsDataURL(file);
-    setSelectedAvatarFile(file);
+    e.target.value = "";
   };
 
   const handleBannerFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onloadend = () => setBannerPreview(reader.result as string);
+    reader.onloadend = () => {
+      setCropImageSrc(reader.result as string);
+      setCropAspect(3);
+      setCropTitle(t("settings.profile.banner.cropTitle"));
+      setCropTarget("banner");
+      setPendingCropFile(file);
+      setCropDialogOpen(true);
+    };
     reader.readAsDataURL(file);
-    setSelectedBannerFile(file);
+    e.target.value = "";
+  };
+
+  const handleCropComplete = (croppedFile: File) => {
+    const previewUrl = URL.createObjectURL(croppedFile);
+    if (cropTarget === "avatar") {
+      setAvatarPreview(previewUrl);
+      setSelectedAvatarFile(croppedFile);
+    } else if (cropTarget === "banner") {
+      setBannerPreview(previewUrl);
+      setSelectedBannerFile(croppedFile);
+    }
+    setCropDialogOpen(false);
+    setCropImageSrc(null);
+    setPendingCropFile(null);
+    setCropTarget(null);
+  };
+
+  const handleShareProfile = async () => {
+    if (!user) return;
+    const profileUrl = `${window.location.origin}/users/${username}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: user.displayName || `@${user.username}`,
+          url: profileUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(profileUrl);
+      }
+      toast.success(t("user.shareSuccess"));
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+      toast.error(t("user.shareError"));
+    }
+  };
+
+  const handleCopyUserId = async () => {
+    if (!user?.id) {
+      toast.error(t("user.copyIdError"));
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(user.id);
+      toast.success(t("user.copyIdSuccess"));
+      setMenuOpen(false);
+    } catch {
+      toast.error(t("user.copyIdError"));
+    }
   };
 
   if (userLoading) {
@@ -166,7 +275,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     <PageContainer maxWidth="2xl">
       <div>
         {/* User Profile Header */}
-        <div className="bg-card rounded-2xl overflow-hidden mb-8">
+        <div className="select-none bg-card rounded-2xl overflow-hidden mb-8">
           {/* Banner */}
           <div
             className={`w-full aspect-[3/1] bg-muted relative ${isEditing ? "cursor-pointer" : ""}`}
@@ -187,14 +296,16 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               />
             )}
             {isEditing && (
-              <>
-                <input
-                  ref={bannerFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleBannerFileSelect}
-                  className="hidden"
-                />
+              <input
+                ref={bannerFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleBannerFileSelect}
+                className="hidden"
+              />
+            )}
+            <div className="absolute top-3 right-3">
+              {isEditing ? (
                 <Button
                   type="button"
                   variant="secondary"
@@ -204,18 +315,74 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                     bannerFileInputRef.current?.click();
                   }}
                   disabled={isSaving}
-                  className="absolute top-2 right-2 bg-background/50 hover:bg-background/60"
+                  className="bg-black/60 text-white hover:bg-black/85 hover:text-white"
                 >
                   {t("settings.profile.banner.change")}
                 </Button>
-              </>
-            )}
+              ) : isDesktop ? (
+                <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      aria-label={t("user.moreActions")}
+                      className="bg-black/60 text-white hover:bg-black/85 hover:text-white"
+                    >
+                      <MoreHorizontal className="w-3.5 h-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={handleShareProfile}>
+                      <Share className="w-4 h-4" />
+                      {t("user.shareProfile")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={handleCopyUserId}>
+                      <Clipboard className="w-4 h-4" />
+                      {t("user.copyUserId")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+                  <DrawerTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      aria-label={t("user.moreActions")}
+                      className="bg-black/60 text-white hover:bg-black/85 hover:text-white"
+                    >
+                      <MoreHorizontal className="w-3.5 h-3.5" />
+                    </Button>
+                  </DrawerTrigger>
+                  <DrawerContent>
+                    <div className="flex flex-col gap-2 p-2 pb-3">
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-2"
+                        onClick={handleShareProfile}
+                      >
+                        <Share className="w-4 h-4" />
+                        {t("user.shareProfile")}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-2"
+                        onClick={handleCopyUserId}
+                      >
+                        <Clipboard className="w-4 h-4" />
+                        {t("user.copyUserId")}
+                      </Button>
+                    </div>
+                  </DrawerContent>
+                </Drawer>
+              )}
+            </div>
           </div>
 
-          <div className="px-4">
+          <div className="px-3">
             {/* Avatar row + action buttons */}
-            <div className="flex items-start h-12 sm:h-16 mb-4">
-              <div className="relative shrink-0">
+            <div className="flex items-start h-12 sm:h-16 mb-3">
+              <div className="relative shrink-0 ml-1">
                 {isEditing && (
                   <input
                     ref={avatarFileInputRef}
@@ -257,7 +424,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                       avatarFileInputRef.current?.click();
                     }}
                     disabled={isSaving}
-                    className="absolute bottom-1 right-1 sm:hidden bg-background/50 hover:bg-background/60"
+                    className="absolute bottom-1 right-1 sm:hidden bg-black/60 text-white hover:bg-black/85 hover:text-white"
                     aria-label={t("settings.profile.avatar.change")}
                   >
                     <Upload className="w-4 h-4" />
@@ -266,7 +433,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               </div>
 
               {/* Action row — justify-between, fills remaining width */}
-              <div className="flex-1 pl-4 gap-2 pt-4 flex items-center justify-between">
+              <div className="flex-1 pl-3 gap-2 pt-3 flex items-center justify-between">
                 {/* Left: avatar change button (edit mode only) */}
                 <div>
                   {isEditing && (
@@ -311,7 +478,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         variant="primary"
                         size="sm"
                         onClick={handleSave}
-                        disabled={isSaving}
+                        disabled={isSaving || !canSaveProfile}
                       >
                         <Save className="w-4 h-4 mr-1" />
                         {isSaving
@@ -325,7 +492,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             </div>
 
             {/* User Info */}
-            <div className="select-text flex flex-col gap-4">
+            <div className="select-text flex flex-col gap-3">
               <div className="flex flex-col gap-1">
                 {isEditing ? (
                   <Input
@@ -333,7 +500,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                     onChange={(e) => setEditDisplayName(e.target.value)}
                     placeholder={t("settings.profile.displayName.placeholder")}
                     maxLength={50}
-                    className="text-xl font-bold"
+                    className="text-base font-bold md:text-xl"
                     disabled={isSaving}
                   />
                 ) : (
@@ -349,7 +516,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                 </p>
               </div>
 
-              <div className="pb-4">
+              <div className="pb-3">
                 {isEditing ? (
                   <Textarea
                     value={editBio}
@@ -383,7 +550,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
         </div>
 
         {/* Posts Section */}
-        <div className="mb-4">
+        <div className="mb-3">
           <h2 className="text-xl font-bold text-foreground">
             {t("user.posts")}
           </h2>
@@ -433,6 +600,18 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           </div>
         )}
       </div>
+
+      {cropDialogOpen && cropImageSrc && pendingCropFile && (
+        <ImageCropDialog
+          open={cropDialogOpen}
+          onOpenChange={setCropDialogOpen}
+          imageSrc={cropImageSrc}
+          aspect={cropAspect}
+          title={cropTitle}
+          originalFile={pendingCropFile}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </PageContainer>
   );
 }

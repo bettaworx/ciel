@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Upload } from "lucide-react";
 import { SettingItem } from "@/components/settings/SettingItem";
+import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { useUpdateServerProfile, useUploadMedia } from "@/lib/hooks/use-queries";
 import { toast } from "sonner";
 import type { components } from "@/lib/api/api";
@@ -23,16 +24,32 @@ export function ServerProfileSection({ serverInfo }: ServerProfileSectionProps) 
   const [iconMediaId, setIconMediaId] = useState<string | null>(null);
   const [iconUrl, setIconUrl] = useState<string | null>(serverInfo.serverIconUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
 
   const uploadMediaMutation = useUploadMedia();
   const updateProfileMutation = useUpdateServerProfile();
 
-  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIconFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCropImageSrc(reader.result as string);
+      setPendingCropFile(file);
+      setCropDialogOpen(true);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
+  const handleIconCropComplete = async (croppedFile: File) => {
+    setCropDialogOpen(false);
+    setCropImageSrc(null);
+    setPendingCropFile(null);
     try {
-      const result = await uploadMediaMutation.mutateAsync(file);
+      const result = await uploadMediaMutation.mutateAsync(croppedFile);
       setIconMediaId(result.id);
       setIconUrl(result.url);
       toast.success(t("uploadSuccess"));
@@ -93,8 +110,8 @@ export function ServerProfileSection({ serverInfo }: ServerProfileSectionProps) 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="file"
-                onChange={handleIconUpload}
+                accept="image/*"
+                onChange={handleIconFileSelect}
                 className="hidden"
               />
               <Button
@@ -156,6 +173,18 @@ export function ServerProfileSection({ serverInfo }: ServerProfileSectionProps) 
           </div>
         )}
       </div>
+
+      {cropDialogOpen && cropImageSrc && pendingCropFile && (
+        <ImageCropDialog
+          open={cropDialogOpen}
+          onOpenChange={setCropDialogOpen}
+          imageSrc={cropImageSrc}
+          aspect={1}
+          title={t("cropTitle")}
+          originalFile={pendingCropFile}
+          onCropComplete={handleIconCropComplete}
+        />
+      )}
     </div>
   );
 }

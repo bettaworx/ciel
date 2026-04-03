@@ -233,7 +233,8 @@
         "uploading": "Uploading...",
         "updateSuccess": "Avatar updated successfully",
         "updateError": "Failed to update avatar",
-        "invalidFileType": "Please select an image file"
+        "invalidFileType": "Please select an image file",
+        "cropTitle": "Crop Avatar"
       },
       "banner": {
         "title": "Banner",
@@ -241,7 +242,8 @@
         "upload": "Upload Banner",
         "change": "Change Banner",
         "cancel": "Cancel",
-        "invalidFileType": "Please select an image file"
+        "invalidFileType": "Please select an image file",
+        "cropTitle": "Crop Banner"
       },
       "displayName": {
         "title": "Display Name",
@@ -268,6 +270,13 @@
     "notFound": "User not found",
     "noBio": "No bio yet",
     "editProfile": "Edit",
+    "shareProfile": "Share profile",
+    "shareSuccess": "Profile URL copied",
+    "shareError": "Failed to share profile URL",
+    "moreActions": "More actions",
+    "copyUserId": "Copy user ID",
+    "copyIdSuccess": "User ID copied",
+    "copyIdError": "Failed to copy user ID",
     "unknown": "Unknown User",
     "unknownUsername": "unknown"
   },
@@ -1054,7 +1063,8 @@
         "saving": "Saving...",
         "saveSuccess": "Server profile updated",
         "saveError": "Failed to update server profile",
-        "nameRequired": "Server name is required"
+        "nameRequired": "Server name is required",
+        "cropTitle": "Crop Server Icon"
       },
       "signup": {
         "title": "Account Creation Settings",
@@ -1092,5 +1102,10 @@
     "exitFullscreen": "Exit fullscreen",
     "doubleSpeed": "2×",
     "seekSeconds": "{seconds}s"
+  },
+  "imageCrop": {
+    "apply": "Crop & Apply",
+    "cancel": "Cancel",
+    "processing": "Processing..."
   }
 }

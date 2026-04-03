@@ -233,7 +233,8 @@
         "uploading": "アップロード中...",
         "updateSuccess": "アバターを更新しました",
         "updateError": "アバターの更新に失敗しました",
-        "invalidFileType": "画像ファイルを選択してください"
+        "invalidFileType": "画像ファイルを選択してください",
+        "cropTitle": "アバターをトリミング"
       },
       "banner": {
         "title": "バナー",
@@ -241,7 +242,8 @@
         "upload": "バナーをアップロード",
         "change": "バナーを変更",
         "cancel": "キャンセル",
-        "invalidFileType": "画像ファイルを選択してください"
+        "invalidFileType": "画像ファイルを選択してください",
+        "cropTitle": "バナーをトリミング"
       },
       "displayName": {
         "title": "表示名",
@@ -268,6 +270,13 @@
     "notFound": "ユーザーが見つかりません",
     "noBio": "自己紹介がありません",
     "editProfile": "編集",
+    "shareProfile": "プロフィールを共有",
+    "shareSuccess": "プロフィールURLをコピーしました",
+    "shareError": "プロフィールURLの共有に失敗しました",
+    "moreActions": "その他の操作",
+    "copyUserId": "ユーザーIDをコピー",
+    "copyIdSuccess": "ユーザーIDをコピーしました",
+    "copyIdError": "ユーザーIDのコピーに失敗しました",
     "unknown": "不明なユーザー",
     "unknownUsername": "不明"
   },
@@ -1054,7 +1063,8 @@
         "saving": "保存中...",
         "saveSuccess": "サーバープロフィールを更新しました",
         "saveError": "サーバープロフィールの更新に失敗しました",
-        "nameRequired": "サーバー名は必須です"
+        "nameRequired": "サーバー名は必須です",
+        "cropTitle": "サーバーアイコンをトリミング"
       },
       "signup": {
         "title": "アカウント作成設定",
@@ -1092,5 +1102,10 @@
     "exitFullscreen": "全画面終了",
     "doubleSpeed": "2×",
     "seekSeconds": "{seconds}秒"
+  },
+  "imageCrop": {
+    "apply": "トリミングして適用",
+    "cancel": "キャンセル",
+    "processing": "処理中..."
   }
 }

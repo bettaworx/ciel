@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../components/mfm/mfm.css";
+@import "react-image-crop/dist/ReactCrop.css";
 
 @theme {
     --radius: 0.625rem;
