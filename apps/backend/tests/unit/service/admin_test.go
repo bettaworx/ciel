@@ -98,8 +98,8 @@ func TestGetUserRoles(t *testing.T) {
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, sql.NullString{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Mock GetUserRoles
@@ -170,8 +170,8 @@ func TestUpdateUserRoles(t *testing.T) {
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, sql.NullString{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Mock transaction
@@ -216,8 +216,8 @@ func TestGetUserPermissionOverrides(t *testing.T) {
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, sql.NullString{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Mock GetUserPermissionOverrides
@@ -263,8 +263,8 @@ func TestUpdateUserPermissionOverrides(t *testing.T) {
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, sql.NullString{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Mock transaction
@@ -484,8 +484,8 @@ func TestBanUser(t *testing.T) {
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, sql.NullString{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Note: Testing Redis operations requires a running Redis instance or miniredis
@@ -523,8 +523,8 @@ func TestBanUser_InvalidTTL(t *testing.T) {
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, sql.NullString{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Test zero TTL
@@ -560,8 +560,8 @@ func TestBanUser_ExceedsMaxTTL(t *testing.T) {
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, sql.NullString{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Test TTL exceeding 1 year

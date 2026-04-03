@@ -78,11 +78,11 @@ func TestUsersService_UpdateUsername_Success(t *testing.T) {
 		WithArgs(userID, "newname").
 		WillReturnRows(
 			sqlmock.NewRows([]string{
-				"id", "username", "display_name", "bio", "avatar_media_id",
+				"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id",
 				"created_at", "terms_version", "privacy_version",
 				"terms_accepted_at", "privacy_accepted_at",
 			}).AddRow(
-				userID, "newname", sql.NullString{}, sql.NullString{}, uuid.NullUUID{},
+				userID, "newname", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{},
 				created, int32(1), int32(1), sql.NullTime{}, sql.NullTime{},
 			),
 		)
