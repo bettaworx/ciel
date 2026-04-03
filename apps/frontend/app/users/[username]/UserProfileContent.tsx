@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Pencil, User, X, Save, ImageIcon } from "lucide-react";
+import { Pencil, User, X, Save, Upload } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
@@ -168,7 +168,12 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
         {/* User Profile Header */}
         <div className="bg-card rounded-2xl overflow-hidden mb-8">
           {/* Banner */}
-          <div className="w-full aspect-[3/1] bg-muted relative">
+          <div
+            className={`w-full aspect-[3/1] bg-muted relative ${isEditing ? "cursor-pointer" : ""}`}
+            onClick={
+              isEditing ? () => bannerFileInputRef.current?.click() : undefined
+            }
+          >
             {(isEditing ? bannerPreview || user.bannerUrl : user.bannerUrl) && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -194,11 +199,13 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() => bannerFileInputRef.current?.click()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    bannerFileInputRef.current?.click();
+                  }}
                   disabled={isSaving}
-                  className="absolute top-2 right-2"
+                  className="absolute top-2 right-2 bg-background/50 hover:bg-background/60"
                 >
-                  <ImageIcon className="w-4 h-4 mr-1" />
                   {t("settings.profile.banner.change")}
                 </Button>
               </>
@@ -208,44 +215,70 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           <div className="px-4">
             {/* Avatar row + action buttons */}
             <div className="flex items-start h-12 sm:h-16 mb-4">
-              <Avatar className="h-24 w-24 sm:h-32 sm:w-32 -mt-12 sm:-mt-16 rounded-[24px] sm:rounded-[32px] ring-4 ring-card shrink-0">
-                <AvatarImage
-                  src={
-                    (isEditing
-                      ? avatarPreview || user.avatarUrl
-                      : user.avatarUrl) ?? undefined
+              <div className="relative shrink-0">
+                {isEditing && (
+                  <input
+                    ref={avatarFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarFileSelect}
+                    className="hidden"
+                  />
+                )}
+
+                <Avatar
+                  className={`h-24 w-24 sm:h-32 sm:w-32 -mt-12 sm:-mt-16 rounded-[24px] sm:rounded-[32px] ring-4 ring-card ${isEditing ? "cursor-pointer" : ""}`}
+                  onClick={
+                    isEditing
+                      ? () => avatarFileInputRef.current?.click()
+                      : undefined
                   }
-                  alt={user.username}
-                />
-                <AvatarFallback className="rounded-[24px] sm:rounded-[32px]">
-                  <User className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground" />
-                </AvatarFallback>
-              </Avatar>
+                >
+                  <AvatarImage
+                    src={
+                      (isEditing
+                        ? avatarPreview || user.avatarUrl
+                        : user.avatarUrl) ?? undefined
+                    }
+                    alt={user.username}
+                  />
+                  <AvatarFallback className="rounded-[24px] sm:rounded-[32px]">
+                    <User className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground" />
+                  </AvatarFallback>
+                </Avatar>
+
+                {isEditing && (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      avatarFileInputRef.current?.click();
+                    }}
+                    disabled={isSaving}
+                    className="absolute bottom-1 right-1 sm:hidden bg-background/50 hover:bg-background/60"
+                    aria-label={t("settings.profile.avatar.change")}
+                  >
+                    <Upload className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
 
               {/* Action row — justify-between, fills remaining width */}
               <div className="flex-1 pl-4 gap-2 pt-4 flex items-center justify-between">
                 {/* Left: avatar change button (edit mode only) */}
                 <div>
                   {isEditing && (
-                    <>
-                      <input
-                        ref={avatarFileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarFileSelect}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        onClick={() => avatarFileInputRef.current?.click()}
-                        disabled={isSaving}
-                      >
-                        <ImageIcon className="w-4 h-4 mr-1" />
-                        {t("settings.profile.avatar.change")}
-                      </Button>
-                    </>
+                    <Button
+                      type="button"
+                      variant="default"
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      disabled={isSaving}
+                      className="hidden sm:inline-flex"
+                    >
+                      {t("settings.profile.avatar.change")}
+                    </Button>
                   )}
                 </div>
 
