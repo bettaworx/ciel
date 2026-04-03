@@ -299,6 +299,57 @@ func (h API) PatchMeProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
+func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.PatchMeUsernameParams) {
+	if h.Users == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})
+		return
+	}
+	if h.Tokens == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "token manager not configured"})
+		return
+	}
+
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "username_change") {
+		return
+	}
+
+	var req api.UpdateUsernameRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "invalid json"})
+		return
+	}
+
+	if err := h.Users.UpdateUsername(r.Context(), user.ID, string(req.Username)); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	token, expiresIn, err := h.Tokens.Issue(auth.User{ID: user.ID, Username: string(updatedUser.Username)})
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	setAuthCookie(w, r, token, expiresIn)
+	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+		AccessToken:      token,
+		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		ExpiresInSeconds: expiresIn,
+		User:             updatedUser,
+	})
+}
+
 func (h API) PostMeAvatar(w http.ResponseWriter, r *http.Request) {
 	if h.Users == nil || h.Media == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users/media not configured"})
