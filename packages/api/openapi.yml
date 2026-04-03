@@ -3300,6 +3300,74 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /me/banner:
+    post:
+      tags: [Users]
+      summary: Update current user banner
+      description: |
+        Upload a profile banner image for the current user.
+
+        **Allowed formats:** PNG, JPG, JPEG, WebP, GIF  
+        **File size limit:** 15 MiB  
+        **Input dimension limits:** 16384x16384 pixels, 100 megapixels total  
+        **Output resolution:** 1500x500px (center-cropped)  
+        **Quality:** Configurable via `media.banner` in config.yaml
+
+        **Processing:**
+        - Images scaled to cover 1500x500
+        - Center-cropped to 3:1 aspect ratio
+        - Metadata stripped (EXIF/XMP/GPS)
+        - Converted to WebP format
+
+        **GIF handling:**
+        - Animated GIFs accepted as input
+        - Converted to animated WebP
+        - All frames preserved
+
+        **Auto-cleanup:**
+        - Previous banner automatically deleted after successful upload
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Banner image file (PNG/JPG/WebP/GIF)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '413':
+          description: Payload too large (>15 MiB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /me/agreements:
     post:
       tags: [Users]
@@ -3828,6 +3896,10 @@ components:
           maxLength: 200
           nullable: true
         avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        bannerUrl:
           type: string
           format: uri
           nullable: true
@@ -4471,6 +4543,7 @@ components:
         - allowedExtensions
         - post
         - avatar
+        - banner
         - serverIcon
         - video
       properties:
@@ -4488,6 +4561,8 @@ components:
           $ref: '#/components/schemas/MediaPostLimits'
         avatar:
           $ref: '#/components/schemas/MediaAvatarLimits'
+        banner:
+          $ref: '#/components/schemas/MediaBannerLimits'
         serverIcon:
           $ref: '#/components/schemas/MediaServerIconLimits'
         video:
@@ -4527,6 +4602,41 @@ components:
           type: integer
           description: Avatar output size in pixels (square, center-cropped)
           example: 400
+
+    MediaBannerLimits:
+      type: object
+      required:
+        - static
+        - gif
+      properties:
+        static:
+          type: object
+          required:
+            - width
+            - height
+          properties:
+            width:
+              type: integer
+              description: Banner output width in pixels (center-cropped)
+              example: 1500
+            height:
+              type: integer
+              description: Banner output height in pixels (center-cropped)
+              example: 500
+        gif:
+          type: object
+          required:
+            - width
+            - height
+          properties:
+            width:
+              type: integer
+              description: Animated banner output width in pixels (center-cropped)
+              example: 1500
+            height:
+              type: integer
+              description: Animated banner output height in pixels (center-cropped)
+              example: 500
 
     MediaServerIconLimits:
       type: object
