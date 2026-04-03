@@ -11,7 +11,7 @@ RETURNING id, name, created_at;
 -- name: CreateUser :one
 INSERT INTO users (username, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, username, display_name, bio, avatar_media_id, created_at, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at;
+RETURNING id, username, display_name, bio, avatar_media_id, banner_media_id, created_at, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at;
 
 -- name: GetUserByUsername :one
 SELECT
@@ -20,14 +20,17 @@ SELECT
 	u.display_name,
 	u.bio,
 	u.avatar_media_id,
+	u.banner_media_id,
 	u.created_at,
 	u.terms_version,
 	u.privacy_version,
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
-	m.ext AS avatar_ext
+	m.ext AS avatar_ext,
+	bm.ext AS banner_ext
 FROM users u
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN media bm ON bm.id = u.banner_media_id
 WHERE u.username = $1;
 
 -- name: GetUserByID :one
@@ -37,14 +40,17 @@ SELECT
 	u.display_name,
 	u.bio,
 	u.avatar_media_id,
+	u.banner_media_id,
 	u.created_at,
 	u.terms_version,
 	u.privacy_version,
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
-	m.ext AS avatar_ext
+	m.ext AS avatar_ext,
+	bm.ext AS banner_ext
 FROM users u
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN media bm ON bm.id = u.banner_media_id
 WHERE u.id = $1;
 
 -- name: ListUsers :many
@@ -62,6 +68,7 @@ RETURNING
 	display_name,
 	bio,
 	avatar_media_id,
+	banner_media_id,
 	created_at,
 	terms_version,
 	privacy_version,
@@ -79,6 +86,7 @@ RETURNING
 	display_name, 
 	bio, 
 	avatar_media_id, 
+	banner_media_id,
 	created_at,
 	terms_version,
 	privacy_version,
@@ -93,7 +101,7 @@ updated AS (
 	UPDATE users AS u
 	SET avatar_media_id = $2
 	WHERE u.id = $1
-	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at
+	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at
 )
 SELECT
 	updated.id,
@@ -101,15 +109,47 @@ SELECT
 	updated.display_name,
 	updated.bio,
 	updated.avatar_media_id,
+	updated.banner_media_id,
 	updated.created_at,
 	updated.terms_version,
 	updated.privacy_version,
 	updated.terms_accepted_at,
 	updated.privacy_accepted_at,
 	m.ext AS avatar_ext,
+	bm.ext AS banner_ext,
 	(SELECT avatar_media_id FROM prev) AS previous_avatar_media_id
 FROM updated
-LEFT JOIN media m ON m.id = updated.avatar_media_id;
+LEFT JOIN media m ON m.id = updated.avatar_media_id
+LEFT JOIN media bm ON bm.id = updated.banner_media_id;
+
+-- name: UpdateUserBanner :one
+WITH prev AS (
+	SELECT u.banner_media_id FROM users AS u WHERE u.id = $1
+),
+updated AS (
+	UPDATE users AS u
+	SET banner_media_id = $2
+	WHERE u.id = $1
+	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at
+)
+SELECT
+	updated.id,
+	updated.username,
+	updated.display_name,
+	updated.bio,
+	updated.avatar_media_id,
+	updated.banner_media_id,
+	updated.created_at,
+	updated.terms_version,
+	updated.privacy_version,
+	updated.terms_accepted_at,
+	updated.privacy_accepted_at,
+	m.ext AS avatar_ext,
+	bm.ext AS banner_ext,
+	(SELECT banner_media_id FROM prev) AS previous_banner_media_id
+FROM updated
+LEFT JOIN media m ON m.id = updated.avatar_media_id
+LEFT JOIN media bm ON bm.id = updated.banner_media_id;
 
 -- name: CreateAuthCredential :exec
 INSERT INTO auth_credentials (user_id, salt, iterations, stored_key, server_key)
@@ -122,12 +162,14 @@ SELECT
 	u.display_name,
 	u.bio,
 	u.avatar_media_id,
+	u.banner_media_id,
 	u.created_at,
 	u.terms_version,
 	u.privacy_version,
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
 	m.ext AS avatar_ext,
+	bm.ext AS banner_ext,
 	c.salt,
 	c.iterations,
 	c.stored_key,
@@ -135,6 +177,7 @@ SELECT
 FROM users u
 JOIN auth_credentials c ON c.user_id = u.id
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN media bm ON bm.id = u.banner_media_id
 WHERE u.username = $1;
 
 -- name: GetAuthByUserID :one
@@ -144,12 +187,14 @@ SELECT
 	u.display_name,
 	u.bio,
 	u.avatar_media_id,
+	u.banner_media_id,
 	u.created_at,
 	u.terms_version,
 	u.privacy_version,
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
 	m.ext AS avatar_ext,
+	bm.ext AS banner_ext,
 	c.salt,
 	c.iterations,
 	c.stored_key,
@@ -157,6 +202,7 @@ SELECT
 FROM users u
 JOIN auth_credentials c ON c.user_id = u.id
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN media bm ON bm.id = u.banner_media_id
 WHERE u.id = $1;
 
 -- name: UpdateAuthCredential :exec
@@ -239,6 +285,8 @@ SELECT (
 	EXISTS(SELECT 1 FROM post_media WHERE media_id = $1)
 	OR
 	EXISTS(SELECT 1 FROM users WHERE avatar_media_id = $1)
+	OR
+	EXISTS(SELECT 1 FROM users WHERE banner_media_id = $1)
 	OR
 	($1 = sqlc.narg('server_icon_media_id')::uuid)
 ) AS is_public;

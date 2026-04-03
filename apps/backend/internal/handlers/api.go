@@ -56,6 +56,7 @@ type API struct {
 
 type publicUserResponse struct {
 	AvatarUrl   *string            `json:"avatarUrl"`
+	BannerUrl   *string            `json:"bannerUrl"`
 	Bio         *string            `json:"bio"`
 	CreatedAt   time.Time          `json:"createdAt"`
 	DisplayName *string            `json:"displayName"`
@@ -67,6 +68,7 @@ type publicUserResponse struct {
 func toPublicUserResponse(user api.User) publicUserResponse {
 	return publicUserResponse{
 		AvatarUrl:   user.AvatarUrl,
+		BannerUrl:   user.BannerUrl,
 		Bio:         user.Bio,
 		CreatedAt:   user.CreatedAt,
 		DisplayName: user.DisplayName,
@@ -299,6 +301,57 @@ func (h API) PatchMeProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
+func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.PatchMeUsernameParams) {
+	if h.Users == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})
+		return
+	}
+	if h.Tokens == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "token manager not configured"})
+		return
+	}
+
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "username_change") {
+		return
+	}
+
+	var req api.UpdateUsernameRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "invalid json"})
+		return
+	}
+
+	if err := h.Users.UpdateUsername(r.Context(), user.ID, string(req.Username)); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	token, expiresIn, err := h.Tokens.Issue(auth.User{ID: user.ID, Username: string(updatedUser.Username)})
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	setAuthCookie(w, r, token, expiresIn)
+	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+		AccessToken:      token,
+		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		ExpiresInSeconds: expiresIn,
+		User:             updatedUser,
+	})
+}
+
 func (h API) PostMeAvatar(w http.ResponseWriter, r *http.Request) {
 	if h.Users == nil || h.Media == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users/media not configured"})
@@ -322,6 +375,34 @@ func (h API) PostMeAvatar(w http.ResponseWriter, r *http.Request) {
 	if previous != nil && *previous != media.Id {
 		if err := h.Media.DeleteMedia(r.Context(), user.ID, *previous); err != nil {
 			slog.Warn("failed to delete old avatar", "media_id", previous.String(), "error", err)
+		}
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (h API) PostMeBanner(w http.ResponseWriter, r *http.Request) {
+	if h.Users == nil || h.Media == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users/media not configured"})
+		return
+	}
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	media, err := h.Media.UploadBannerFromRequest(w, r, user)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	updated, previous, err := h.Users.UpdateBanner(r.Context(), user.ID, media.Id)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	if previous != nil && *previous != media.Id {
+		if err := h.Media.DeleteMedia(r.Context(), user.ID, *previous); err != nil {
+			slog.Warn("failed to delete old banner", "media_id", previous.String(), "error", err)
 		}
 	}
 	writeJSON(w, http.StatusOK, updated)
@@ -392,47 +473,6 @@ func (h API) DeleteMe(w http.ResponseWriter, r *http.Request, _ api.DeleteMePara
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.PatchMeUsernameParams) {
-	if h.Users == nil || h.Tokens == nil {
-		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})
-		return
-	}
-	user, ok := auth.UserFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
-		return
-	}
-	if !requireStepup(w, r, h.Tokens, h.Redis, user, "username_change") {
-		return
-	}
-	var req api.UpdateUsernameRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "invalid json"})
-		return
-	}
-	if err := h.Users.UpdateUsername(r.Context(), user.ID, string(req.Username)); err != nil {
-		writeServiceError(w, err)
-		return
-	}
-	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
-	if err != nil {
-		writeServiceError(w, err)
-		return
-	}
-	token, expiresIn, err := h.Tokens.Issue(auth.User{ID: user.ID, Username: string(req.Username)})
-	if err != nil {
-		writeServiceError(w, err)
-		return
-	}
-	setAuthCookie(w, r, token, expiresIn)
-	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
-		AccessToken:      token,
-		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
-		ExpiresInSeconds: expiresIn,
-		User:             updatedUser,
-	})
 }
 
 func (h API) GetUsersUsername(w http.ResponseWriter, r *http.Request, username api.Username) {

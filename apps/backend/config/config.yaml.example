@@ -77,6 +77,7 @@ media:
   encoding:
     post: true        # Encode post images to WebP (disable to save original format)
     avatar: true      # Encode avatars with crop+resize (REQUIRED for avatars)
+    banner: true      # Encode profile banners with crop+resize
     server_icon: true # Encode server icons with crop+resize (REQUIRED for icons)
     video: true       # Encode videos to MP4 H.264+AAC (false = stream-copy, no re-encoding)
   
@@ -120,6 +121,21 @@ media:
     # Static version: used for favicon (browser compatibility)
     gif:
       max_size: 512   # Maximum output size in pixels (longest edge, aspect ratio preserved)
+      quality: 50     # WebP quality (0-100)
+
+  # Profile banner settings
+  # Banners are center-cropped to a fixed 3:1 ratio
+  banner:
+    # Static images (PNG, JPG, WebP)
+    static:
+      width: 1500     # Output width in pixels
+      height: 500     # Output height in pixels
+      quality: 50     # WebP quality (0-100)
+
+    # Animated GIFs (converted to animated WebP, all frames preserved)
+    gif:
+      width: 1500     # Output width in pixels
+      height: 500     # Output height in pixels
       quality: 50     # WebP quality (0-100)
   
   # Video upload and encoding settings

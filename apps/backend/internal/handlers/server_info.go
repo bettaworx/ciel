@@ -46,6 +46,22 @@ func (h API) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 			Avatar: api.MediaAvatarLimits{
 				Size: cfg.Media.Avatar.Static.Size,
 			},
+			Banner: api.MediaBannerLimits{
+				Static: struct {
+					Height int `json:"height"`
+					Width  int `json:"width"`
+				}{
+					Width:  cfg.Media.Banner.Static.Width,
+					Height: cfg.Media.Banner.Static.Height,
+				},
+				Gif: struct {
+					Height int `json:"height"`
+					Width  int `json:"width"`
+				}{
+					Width:  cfg.Media.Banner.Gif.Width,
+					Height: cfg.Media.Banner.Gif.Height,
+				},
+			},
 			ServerIcon: api.MediaServerIconLimits{
 				Static: struct {
 					Size int `json:"size"`

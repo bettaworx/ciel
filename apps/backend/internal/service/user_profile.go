@@ -22,7 +22,7 @@ const (
 var profileTagPattern = regexp.MustCompile(`<[^>]*>`)
 var profileURLPattern = regexp.MustCompile(`(?i)\b(?:https?://|www\.)\S+`)
 
-func mapUserWithProfile(id uuid.UUID, username string, createdAt time.Time, displayName sql.NullString, bio sql.NullString, avatarMediaID uuid.NullUUID, avatarExt sql.NullString, termsVersion int32, privacyVersion int32, termsAcceptedAt sql.NullTime, privacyAcceptedAt sql.NullTime) api.User {
+func mapUserWithProfile(id uuid.UUID, username string, createdAt time.Time, displayName sql.NullString, bio sql.NullString, avatarMediaID uuid.NullUUID, avatarExt sql.NullString, bannerMediaID uuid.NullUUID, bannerExt sql.NullString, termsVersion int32, privacyVersion int32, termsAcceptedAt sql.NullTime, privacyAcceptedAt sql.NullTime) api.User {
 	user := api.User{Id: id, Username: username, CreatedAt: createdAt}
 	if displayName.Valid {
 		if v := strings.TrimSpace(displayName.String); v != "" {
@@ -41,6 +41,14 @@ func mapUserWithProfile(id uuid.UUID, username string, createdAt time.Time, disp
 		}
 		url := mediaImageURL(avatarMediaID.UUID, ext)
 		user.AvatarUrl = &url
+	}
+	if bannerMediaID.Valid {
+		ext := ""
+		if bannerExt.Valid {
+			ext = bannerExt.String
+		}
+		url := mediaImageURL(bannerMediaID.UUID, ext)
+		user.BannerUrl = &url
 	}
 	// Map agreement versions and acceptance timestamps
 	if termsVersion > 0 {

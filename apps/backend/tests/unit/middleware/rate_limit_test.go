@@ -236,6 +236,33 @@ func TestRateLimit_MediaUpload_Unauthed_FallsBackToIP(t *testing.T) {
 	}
 }
 
+func TestRateLimit_BannerUpload_PerUser_DailyLimit(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
+	now := time.Unix(1_700_000_000, 0)
+	mw := middleware.RateLimit(rdb, middleware.RateLimitOptions{Now: func() time.Time { return now }})
+	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	uid := uuid.New()
+	ctx := auth.WithUser(context.Background(), auth.User{ID: uid, Username: "u"})
+
+	key := rateLimitKey("banner_upload", "user:"+uid.String(), 24*time.Hour, now)
+	if err := rdb.Set(context.Background(), key, "20", 24*time.Hour).Err(); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/me/banner", nil).WithContext(ctx)
+	req.RemoteAddr = "1.2.3.4:1234"
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429, got %d", rr.Code)
+	}
+}
+
 func rateLimitKey(routeKey, subject string, window time.Duration, now time.Time) string {
 	windowSeconds := int64(window.Seconds())
 	start := (now.Unix() / windowSeconds) * windowSeconds

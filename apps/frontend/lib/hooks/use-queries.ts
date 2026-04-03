@@ -440,6 +440,28 @@ export function useUpdateAvatar() {
   });
 }
 
+// Update banner mutation
+export function useUpdateBanner() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const setAuth = useSetAtom(authAtom);
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const result = await api.updateBanner(file);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: async (updatedUser) => {
+      setAuth((prev) => ({
+        ...prev,
+        user: updatedUser,
+      }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+    },
+  });
+}
+
 // ==================== Admin Agreement Documents ====================
 
 // List agreement documents (admin only)

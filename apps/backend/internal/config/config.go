@@ -67,6 +67,7 @@ type SetupConfig struct {
 type MediaEncodingConfig struct {
 	Post       bool `yaml:"post"`        // Encode post images to WebP (default: true)
 	Avatar     bool `yaml:"avatar"`      // Encode avatars with crop+resize (default: true)
+	Banner     bool `yaml:"banner"`      // Encode banners with crop+resize (default: true)
 	ServerIcon bool `yaml:"server_icon"` // Encode server icons with crop+resize (default: true)
 	Video      bool `yaml:"video"`       // Encode videos to MP4 H.264+AAC (default: true)
 }
@@ -81,6 +82,7 @@ type MediaConfig struct {
 	Encoding          MediaEncodingConfig   `yaml:"encoding"`           // per-type encoding toggles
 	Post              MediaPostConfig       `yaml:"post"`
 	Avatar            MediaAvatarConfig     `yaml:"avatar"`
+	Banner            MediaBannerConfig     `yaml:"banner"`
 	ServerIcon        MediaServerIconConfig `yaml:"server_icon"`
 	Video             MediaVideoConfig      `yaml:"video"`
 }
@@ -95,6 +97,12 @@ type MediaPostConfig struct {
 type MediaAvatarConfig struct {
 	Static MediaAvatarStaticConfig `yaml:"static"`
 	Gif    MediaAvatarGifConfig    `yaml:"gif"`
+}
+
+// MediaBannerConfig holds settings for profile banner uploads.
+type MediaBannerConfig struct {
+	Static MediaBannerStaticConfig `yaml:"static"`
+	Gif    MediaBannerGifConfig    `yaml:"gif"`
 }
 
 // MediaStaticConfig holds settings for static image posts
@@ -118,6 +126,20 @@ type MediaAvatarStaticConfig struct {
 // MediaAvatarGifConfig holds settings for GIF avatars (first frame only)
 type MediaAvatarGifConfig struct {
 	Size    int `yaml:"size"`    // square output size in pixels (first frame only)
+	Quality int `yaml:"quality"` // WebP quality (0-100)
+}
+
+// MediaBannerStaticConfig holds settings for static banner images.
+type MediaBannerStaticConfig struct {
+	Width   int `yaml:"width"`   // output width in pixels
+	Height  int `yaml:"height"`  // output height in pixels
+	Quality int `yaml:"quality"` // WebP quality (0-100)
+}
+
+// MediaBannerGifConfig holds settings for animated banner images.
+type MediaBannerGifConfig struct {
+	Width   int `yaml:"width"`   // output width in pixels
+	Height  int `yaml:"height"`  // output height in pixels
 	Quality int `yaml:"quality"` // WebP quality (0-100)
 }
 
@@ -234,6 +256,8 @@ func (m *MediaConfig) ClampQuality() {
 	m.Post.Gif.Quality = clamp(m.Post.Gif.Quality, 0, 100)
 	m.Avatar.Static.Quality = clamp(m.Avatar.Static.Quality, 0, 100)
 	m.Avatar.Gif.Quality = clamp(m.Avatar.Gif.Quality, 0, 100)
+	m.Banner.Static.Quality = clamp(m.Banner.Static.Quality, 0, 100)
+	m.Banner.Gif.Quality = clamp(m.Banner.Gif.Quality, 0, 100)
 	m.ServerIcon.Static.Quality = clamp(m.ServerIcon.Static.Quality, 0, 100)
 	m.ServerIcon.Gif.Quality = clamp(m.ServerIcon.Gif.Quality, 0, 100)
 }
@@ -273,6 +297,20 @@ func (m *MediaConfig) Validate() error {
 	}
 	if m.Avatar.Gif.Size <= 0 {
 		return fmt.Errorf("media.avatar.gif.size must be positive, got %d", m.Avatar.Gif.Size)
+	}
+
+	// Validate banner settings
+	if m.Banner.Static.Width <= 0 {
+		return fmt.Errorf("media.banner.static.width must be positive, got %d", m.Banner.Static.Width)
+	}
+	if m.Banner.Static.Height <= 0 {
+		return fmt.Errorf("media.banner.static.height must be positive, got %d", m.Banner.Static.Height)
+	}
+	if m.Banner.Gif.Width <= 0 {
+		return fmt.Errorf("media.banner.gif.width must be positive, got %d", m.Banner.Gif.Width)
+	}
+	if m.Banner.Gif.Height <= 0 {
+		return fmt.Errorf("media.banner.gif.height must be positive, got %d", m.Banner.Gif.Height)
 	}
 
 	// Validate server icon settings
@@ -334,6 +372,18 @@ func (m *MediaConfig) LogClampedQuality(original *MediaConfig) {
 			"original", original.Avatar.Gif.Quality,
 			"clamped", m.Avatar.Gif.Quality)
 	}
+	if m.Banner.Static.Quality != original.Banner.Static.Quality {
+		slog.Warn("media config quality clamped to valid range",
+			"field", "banner.static.quality",
+			"original", original.Banner.Static.Quality,
+			"clamped", m.Banner.Static.Quality)
+	}
+	if m.Banner.Gif.Quality != original.Banner.Gif.Quality {
+		slog.Warn("media config quality clamped to valid range",
+			"field", "banner.gif.quality",
+			"original", original.Banner.Gif.Quality,
+			"clamped", m.Banner.Gif.Quality)
+	}
 	if m.ServerIcon.Static.Quality != original.ServerIcon.Static.Quality {
 		slog.Warn("media config quality clamped to valid range",
 			"field", "server_icon.static.quality",
@@ -384,6 +434,7 @@ func DefaultConfig() *Config {
 			Encoding: MediaEncodingConfig{
 				Post:       true,
 				Avatar:     true,
+				Banner:     true,
 				ServerIcon: true,
 				Video:      true,
 			},
@@ -404,6 +455,18 @@ func DefaultConfig() *Config {
 				},
 				Gif: MediaAvatarGifConfig{
 					Size:    400,
+					Quality: 50,
+				},
+			},
+			Banner: MediaBannerConfig{
+				Static: MediaBannerStaticConfig{
+					Width:   1500,
+					Height:  500,
+					Quality: 50,
+				},
+				Gif: MediaBannerGifConfig{
+					Width:   1500,
+					Height:  500,
 					Quality: 50,
 				},
 			},

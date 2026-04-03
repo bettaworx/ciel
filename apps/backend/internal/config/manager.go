@@ -118,7 +118,13 @@ func (m *Manager) load() error {
 		// "not set" (should default to true) from "explicitly set to false".
 		var presence struct {
 			Media struct {
-				Encoding *MediaEncodingConfig `yaml:"encoding"`
+				Encoding *struct {
+					Post       *bool `yaml:"post"`
+					Avatar     *bool `yaml:"avatar"`
+					Banner     *bool `yaml:"banner"`
+					ServerIcon *bool `yaml:"server_icon"`
+					Video      *bool `yaml:"video"`
+				} `yaml:"encoding"`
 			} `yaml:"media"`
 		}
 		if err := yaml.Unmarshal(data, &presence); err == nil {
@@ -126,6 +132,9 @@ func (m *Manager) load() error {
 				slog.Info("media encoding config not found, using defaults (all enabled)")
 				defaultCfg := DefaultConfig()
 				cfg.Media.Encoding = defaultCfg.Media.Encoding
+			} else if presence.Media.Encoding.Banner == nil {
+				slog.Info("media encoding.banner not found, defaulting to true")
+				cfg.Media.Encoding.Banner = true
 			}
 		}
 

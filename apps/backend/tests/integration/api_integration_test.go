@@ -369,6 +369,44 @@ func uploadAvatarMultipart(t *testing.T, client *http.Client, baseURL string, au
 	return resp
 }
 
+func uploadBannerMultipart(t *testing.T, client *http.Client, baseURL string, authz map[string]string, filename string, declaredContentType string, data []byte) *http.Response {
+	t.Helper()
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	if strings.TrimSpace(declaredContentType) == "" {
+		part, err := mw.CreateFormFile("file", filename)
+		if err != nil {
+			t.Fatalf("CreateFormFile: %v", err)
+		}
+		_, _ = part.Write(data)
+	} else {
+		h := make(textproto.MIMEHeader)
+		h.Set("Content-Disposition", `form-data; name="file"; filename="`+filename+`"`)
+		h.Set("Content-Type", declaredContentType)
+		part, err := mw.CreatePart(h)
+		if err != nil {
+			t.Fatalf("CreatePart: %v", err)
+		}
+		_, _ = part.Write(data)
+	}
+	_ = mw.Close()
+
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/api/v1/me/banner", &body)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	for k, v := range authz {
+		req.Header.Set(k, v)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("client.Do: %v", err)
+	}
+	return resp
+}
+
 func uploadMediaPNG(t *testing.T, client *http.Client, baseURL string, authz map[string]string) api.Media {
 	t.Helper()
 	resp := uploadMediaMultipart(t, client, baseURL, authz, "test.png", "", createPNGBytes(t, 32, 32))
@@ -385,6 +423,16 @@ func uploadAvatarPNG(t *testing.T, client *http.Client, baseURL string, authz ma
 	if resp.StatusCode != http.StatusOK {
 		errBody := decodeJSON[map[string]any](t, resp)
 		t.Fatalf("upload avatar: expected 200, got %d (%v)", resp.StatusCode, errBody)
+	}
+	return decodeJSON[api.User](t, resp)
+}
+
+func uploadBannerPNG(t *testing.T, client *http.Client, baseURL string, authz map[string]string) api.User {
+	t.Helper()
+	resp := uploadBannerMultipart(t, client, baseURL, authz, "banner.png", "", createPNGBytes(t, 2000, 1000))
+	if resp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, resp)
+		t.Fatalf("upload banner: expected 200, got %d (%v)", resp.StatusCode, errBody)
 	}
 	return decodeJSON[api.User](t, resp)
 }
@@ -1181,6 +1229,85 @@ func TestIntegration_Users_Avatar_Update_DeletesOld(t *testing.T) {
 	// This test verifies that avatar updates work correctly, which internally
 	// calls DeleteMedia with owner verification. The fact that we can successfully
 	// update the avatar twice proves the DeleteMedia owner check is working.
+}
+
+func TestIntegration_Users_Banner_Update(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u := registerUser(t, client, base, "banneruser", "password123")
+	a := issueBearer(t, app.TokenManager, u)
+
+	updated := uploadBannerPNG(t, client, base, a)
+	if updated.BannerUrl == nil || *updated.BannerUrl == "" {
+		t.Fatalf("expected bannerUrl")
+	}
+
+	parts := strings.Split(*updated.BannerUrl, "/media/")
+	if len(parts) != 2 {
+		t.Fatalf("unexpected banner url: %q", *updated.BannerUrl)
+	}
+	pathParts := strings.Split(parts[1], "/")
+	if len(pathParts) == 0 || pathParts[0] == "" {
+		t.Fatalf("unexpected banner url path: %q", *updated.BannerUrl)
+	}
+	bannerID := pathParts[0]
+	imgResp := get(t, client, base+"/media/"+bannerID+"/image.webp", nil)
+	if imgResp.StatusCode != http.StatusOK {
+		imgResp.Body.Close()
+		t.Fatalf("serve banner: expected 200, got %d", imgResp.StatusCode)
+	}
+	ct := imgResp.Header.Get("Content-Type")
+	imgResp.Body.Close()
+	if !strings.HasPrefix(ct, "image/webp") {
+		t.Fatalf("expected image/webp content-type, got %q", ct)
+	}
+}
+
+func TestIntegration_Users_Banner_Update_DeletesOld(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u := registerUser(t, client, base, "bannerdelete", "password123")
+	a := issueBearer(t, app.TokenManager, u)
+
+	updated1 := uploadBannerPNG(t, client, base, a)
+	if updated1.BannerUrl == nil || *updated1.BannerUrl == "" {
+		t.Fatalf("expected first bannerUrl")
+	}
+	firstBannerURL := *updated1.BannerUrl
+
+	updated2 := uploadBannerPNG(t, client, base, a)
+	if updated2.BannerUrl == nil || *updated2.BannerUrl == "" {
+		t.Fatalf("expected second bannerUrl")
+	}
+	secondBannerURL := *updated2.BannerUrl
+
+	if firstBannerURL == secondBannerURL {
+		t.Fatalf("expected different banner URLs, got same: %s", firstBannerURL)
+	}
+
+	parts := strings.Split(secondBannerURL, "/media/")
+	if len(parts) != 2 {
+		t.Fatalf("unexpected second banner url: %q", secondBannerURL)
+	}
+	pathParts := strings.Split(parts[1], "/")
+	if len(pathParts) == 0 || pathParts[0] == "" {
+		t.Fatalf("unexpected second banner url path: %q", secondBannerURL)
+	}
+	bannerID := pathParts[0]
+	imgResp := get(t, client, base+"/media/"+bannerID+"/image.webp", nil)
+	if imgResp.StatusCode != http.StatusOK {
+		imgResp.Body.Close()
+		t.Fatalf("serve second banner: expected 200, got %d", imgResp.StatusCode)
+	}
+	imgResp.Body.Close()
 }
 
 func TestIntegration_Users_Posts_List(t *testing.T) {
