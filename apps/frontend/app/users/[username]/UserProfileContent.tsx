@@ -58,38 +58,62 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   const posts = postsData?.pages.flatMap((page) => page.items ?? []) ?? [];
 
   return (
-    <PageContainer maxWidth="3xl">
+    <PageContainer maxWidth="2xl">
       <div>
         {/* User Profile Header */}
-        <div className="bg-card rounded-lg p-6 mb-8">
-          <div className="flex items-start gap-6">
-            {/* Avatar */}
-            <Avatar className="h-24 w-24">
-              <AvatarImage
-                src={user.avatarUrl ?? undefined}
-                alt={user.username}
+        <div className="bg-card rounded-2xl overflow-hidden mb-8">
+          {/* Banner */}
+          <div className="w-full aspect-[3/1] bg-muted">
+            {user.bannerUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.bannerUrl}
+                alt=""
+                className="w-full h-full object-cover"
               />
-              <AvatarFallback>
-                <User className="h-12 w-12 text-muted-foreground" />
-              </AvatarFallback>
-            </Avatar>
+            )}
+          </div>
+
+          <div className="px-4 pb-8">
+            {/* Avatar overlapping banner via negative top margin */}
+            <div className="-mt-12 sm:-mt-16 mb-4">
+              <Avatar className="h-24 w-24 sm:h-32 sm:w-32 rounded-[24px] sm:rounded-[32px] ring-4 ring-card shrink-0">
+                <AvatarImage
+                  src={user.avatarUrl ?? undefined}
+                  alt={user.username}
+                />
+                <AvatarFallback className="rounded-[24px] sm:rounded-[32px]">
+                  <User className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground" />
+                </AvatarFallback>
+              </Avatar>
+            </div>
 
             {/* User Info */}
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-foreground mb-1">
-                <MfmRenderer text={user.displayName || user.username} allowList={DISPLAY_NAME_ALLOW_LIST} />
-              </h1>
-              <p className="text-muted-foreground mb-3">@{user.username}</p>
-              {user.bio && (
-                <div className="text-foreground leading-relaxed">
-                  <MfmRenderer text={user.bio} allowList={BIO_ALLOW_LIST} />
-                </div>
-              )}
-              {!user.bio && (
-                <p className="text-muted-foreground italic">
-                  {t("user.noBio")}
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col">
+                <h1 className="text-xl font-bold text-foreground">
+                  <MfmRenderer
+                    text={user.displayName || user.username}
+                    allowList={DISPLAY_NAME_ALLOW_LIST}
+                  />
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  @{user.username}
                 </p>
-              )}
+              </div>
+
+              <div>
+                {user.bio && (
+                  <div className="text-sm text-foreground leading-relaxed">
+                    <MfmRenderer text={user.bio} allowList={BIO_ALLOW_LIST} />
+                  </div>
+                )}
+                {!user.bio && (
+                  <p className="text-muted-foreground italic">
+                    {t("user.noBio")}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

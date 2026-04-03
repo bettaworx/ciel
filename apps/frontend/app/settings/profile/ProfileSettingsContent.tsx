@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useUpdateProfile, useUpdateAvatar } from "@/lib/hooks/use-queries";
+import { useUpdateProfile, useUpdateAvatar, useUpdateBanner } from "@/lib/hooks/use-queries";
 import { toast } from "sonner";
 
 export function ProfileSettingsContent() {
@@ -27,12 +27,18 @@ export function ProfileSettingsContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Banner upload state
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [selectedBannerFile, setSelectedBannerFile] = useState<File | null>(null);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
+
   // Track if there are unsaved changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Mutations
   const updateProfile = useUpdateProfile();
   const updateAvatar = useUpdateAvatar();
+  const updateBanner = useUpdateBanner();
 
   // Generate initials for avatar fallback
   const initials = user?.displayName
@@ -49,9 +55,10 @@ export function ProfileSettingsContent() {
     const displayNameChanged = displayName !== (user?.displayName || "");
     const bioChanged = bio !== (user?.bio || "");
     const avatarChanged = selectedFile !== null;
+    const bannerChanged = selectedBannerFile !== null;
 
-    setHasUnsavedChanges(displayNameChanged || bioChanged || avatarChanged);
-  }, [displayName, bio, selectedFile, user]);
+    setHasUnsavedChanges(displayNameChanged || bioChanged || avatarChanged || bannerChanged);
+  }, [displayName, bio, selectedFile, selectedBannerFile, user]);
 
   // Browser navigation warning for unsaved changes
   useEffect(() => {
@@ -95,34 +102,59 @@ export function ProfileSettingsContent() {
   const handleAvatarCancel = () => {
     setSelectedFile(null);
     setAvatarPreview(null);
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  // Save all changes (displayName, bio, and avatar)
+  // Handle banner file selection (preview only)
+  const handleBannerFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error(t("settings.profile.banner.invalidFileType"));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setBannerPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    setSelectedBannerFile(file);
+  };
+
+  // Cancel banner preview
+  const handleBannerCancel = () => {
+    setSelectedBannerFile(null);
+    setBannerPreview(null);
+    if (bannerFileInputRef.current) {
+      bannerFileInputRef.current.value = "";
+    }
+  };
+
+  // Save all changes (displayName, bio, avatar, and banner)
   const handleSaveChanges = async () => {
     try {
-      // Upload avatar first if changed
       if (selectedFile) {
         await updateAvatar.mutateAsync(selectedFile);
+        setSelectedFile(null);
+        setAvatarPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
 
-      // Update profile fields
+      if (selectedBannerFile) {
+        await updateBanner.mutateAsync(selectedBannerFile);
+        setSelectedBannerFile(null);
+        setBannerPreview(null);
+        if (bannerFileInputRef.current) bannerFileInputRef.current.value = "";
+      }
+
       await updateProfile.mutateAsync({
         displayName: displayName.trim() || null,
         bio: bio.trim() || null,
       });
-
-      // Clear avatar preview state after successful save
-      if (selectedFile) {
-        setSelectedFile(null);
-        setAvatarPreview(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-      }
 
       toast.success(t("settings.profile.updateSuccess"));
     } catch {
@@ -139,7 +171,7 @@ export function ProfileSettingsContent() {
   }, [user, updateProfile.isPending, hasUnsavedChanges]);
 
   // Check if save is in progress
-  const isSaving = updateProfile.isPending || updateAvatar.isPending;
+  const isSaving = updateProfile.isPending || updateAvatar.isPending || updateBanner.isPending;
 
   return (
     <div className="space-y-3">
@@ -200,6 +232,67 @@ export function ProfileSettingsContent() {
               >
                 <X className="w-4 h-4 mr-2" />
                 {t("settings.profile.avatar.cancel")}
+              </Button>
+            )}
+          </div>
+        </div>
+      </SettingItem>
+
+      {/* Banner Upload Section */}
+      <SettingItem
+        title={t("settings.profile.banner.title")}
+        description={t("settings.profile.banner.description")}
+        align="start"
+      >
+        <div className="flex flex-col gap-4">
+          {/* Banner Preview */}
+          <div className="w-full aspect-[3/1] rounded-lg overflow-hidden bg-muted">
+            {(bannerPreview || user?.bannerUrl) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={bannerPreview || user?.bannerUrl || undefined}
+                alt="Banner preview"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Upload className="w-8 h-8 text-muted-foreground/40" />
+              </div>
+            )}
+          </div>
+
+          {/* Hidden file input */}
+          <input
+            ref={bannerFileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleBannerFileSelect}
+            className="hidden"
+          />
+
+          {/* Buttons */}
+          <div className="flex flex-col gap-2 w-full">
+            {!selectedBannerFile ? (
+              <Button
+                type="button"
+                variant="default"
+                onClick={() => bannerFileInputRef.current?.click()}
+                className="w-full transition-colors duration-160 ease"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {user?.bannerUrl
+                  ? t("settings.profile.banner.change")
+                  : t("settings.profile.banner.upload")}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleBannerCancel}
+                className="w-full transition-colors duration-160 ease"
+              >
+                <X className="w-4 h-4 mr-2" />
+                {t("settings.profile.banner.cancel")}
               </Button>
             )}
           </div>

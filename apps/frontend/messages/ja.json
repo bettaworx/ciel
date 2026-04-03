@@ -235,6 +235,14 @@
         "updateError": "アバターの更新に失敗しました",
         "invalidFileType": "画像ファイルを選択してください"
       },
+      "banner": {
+        "title": "バナー",
+        "description": "プロフィールのバナー画像（3:1比率）",
+        "upload": "バナーをアップロード",
+        "change": "バナーを変更",
+        "cancel": "キャンセル",
+        "invalidFileType": "画像ファイルを選択してください"
+      },
       "displayName": {
         "title": "表示名",
         "description": "プロフィールに表示される名前",

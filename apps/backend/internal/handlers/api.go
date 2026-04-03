@@ -56,6 +56,7 @@ type API struct {
 
 type publicUserResponse struct {
 	AvatarUrl   *string            `json:"avatarUrl"`
+	BannerUrl   *string            `json:"bannerUrl"`
 	Bio         *string            `json:"bio"`
 	CreatedAt   time.Time          `json:"createdAt"`
 	DisplayName *string            `json:"displayName"`
@@ -67,6 +68,7 @@ type publicUserResponse struct {
 func toPublicUserResponse(user api.User) publicUserResponse {
 	return publicUserResponse{
 		AvatarUrl:   user.AvatarUrl,
+		BannerUrl:   user.BannerUrl,
 		Bio:         user.Bio,
 		CreatedAt:   user.CreatedAt,
 		DisplayName: user.DisplayName,

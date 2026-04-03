@@ -235,6 +235,14 @@
         "updateError": "Failed to update avatar",
         "invalidFileType": "Please select an image file"
       },
+      "banner": {
+        "title": "Banner",
+        "description": "Your profile banner image (3:1 ratio)",
+        "upload": "Upload Banner",
+        "change": "Change Banner",
+        "cancel": "Cancel",
+        "invalidFileType": "Please select an image file"
+      },
       "displayName": {
         "title": "Display Name",
         "description": "Your name shown on your profile",

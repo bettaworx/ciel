@@ -380,6 +380,12 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			return requestForm<components['schemas']['User']>('POST', '/me/avatar', { form });
 		},
 
+		updateBanner: (file: File) => {
+			const form = new FormData();
+			form.set('file', file, file.name);
+			return requestForm<components['schemas']['User']>('POST', '/me/banner', { form });
+		},
+
 		// Setup endpoints
 		setupStatus: () =>
 			request<components['schemas']['SetupStatusResponse']>('GET', '/setup/status'),
