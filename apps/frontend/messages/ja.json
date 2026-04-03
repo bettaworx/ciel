@@ -16,7 +16,9 @@
     "categories": {
       "profile": "プロフィール",
       "general": "一般",
-      "appearance": "外観"
+      "appearance": "外観",
+      "account": "アカウント",
+      "security": "セキュリティ"
     },
     "general": {
       "title": "一般設定",
@@ -213,6 +215,12 @@
       "ja": "日本語",
       "en": "English"
     },
+    "account": {
+      "title": "アカウント"
+    },
+    "security": {
+      "title": "セキュリティ"
+    },
     "profile": {
       "title": "プロフィール設定",
       "avatar": {
@@ -370,6 +378,8 @@
       "settingsGeneral": "一般設定",
       "settingsProfile": "プロフィール設定",
       "settingsAppearance": "外観設定",
+      "settingsAccount": "アカウント",
+      "settingsSecurity": "セキュリティ",
       "setup": "プロフィール設定",
       "adminSetup": "サーバー初期設定"
     }

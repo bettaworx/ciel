@@ -16,7 +16,9 @@
     "categories": {
       "profile": "Profile",
       "general": "General",
-      "appearance": "Appearance"
+      "appearance": "Appearance",
+      "account": "Account",
+      "security": "Security"
     },
     "general": {
       "title": "General Settings",
@@ -213,6 +215,12 @@
       "ja": "日本語",
       "en": "English"
     },
+    "account": {
+      "title": "Account"
+    },
+    "security": {
+      "title": "Security"
+    },
     "profile": {
       "title": "Profile Settings",
       "avatar": {
@@ -370,6 +378,8 @@
       "settingsGeneral": "General Settings",
       "settingsProfile": "Profile Settings",
       "settingsAppearance": "Appearance Settings",
+      "settingsAccount": "Account",
+      "settingsSecurity": "Security",
       "setup": "Setup Profile",
       "adminSetup": "Server Setup"
     }
