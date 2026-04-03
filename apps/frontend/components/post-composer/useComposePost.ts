@@ -4,6 +4,7 @@ import {
   useState,
   useRef,
   useEffect,
+  useMemo,
   ChangeEvent,
   KeyboardEvent,
   ClipboardEvent,
@@ -12,8 +13,9 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreatePost, useUploadMedia, useMediaLimits } from "@/lib/hooks/use-queries";
 import { ApiHttpError } from "@/lib/api/client";
+import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import type { components } from "@/lib/api/api";
-import type { LocalImage, LocalVideo } from "./types";
+import type { LocalImage, LocalVideo, PreviewMediaItem } from "./types";
 import {
   MAX_CONTENT_LENGTH,
   MAX_IMAGES,
@@ -23,6 +25,9 @@ import {
   ACCEPTED_IMAGE_TYPES,
   ACCEPTED_VIDEO_TYPES,
 } from "./constants";
+
+/** Debounce delay (ms) for OGP URL extraction from content. */
+const OGP_DEBOUNCE_MS = 400;
 
 interface UseComposePostOptions {
   onSuccess?: () => void;
@@ -38,12 +43,42 @@ function isImageFile(file: File): boolean {
 }
 
 /**
+ * Load an image blob URL and return its natural dimensions.
+ */
+function getImageDimensions(blobUrl: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = reject;
+    img.src = blobUrl;
+  });
+}
+
+/**
+ * Load a video blob URL and return its native dimensions.
+ */
+function getVideoDimensions(blobUrl: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const vid = document.createElement("video");
+    vid.preload = "metadata";
+    vid.onloadedmetadata = () => {
+      resolve({ width: vid.videoWidth, height: vid.videoHeight });
+      // Clean up to release the blob reference held by the video element
+      vid.src = "";
+      vid.load();
+    };
+    vid.onerror = reject;
+    vid.src = blobUrl;
+  });
+}
+
+/**
  * Custom hook for post composition logic
  * Handles state management, file processing, and post submission
  *
  * Media rules:
  * - A post can contain either up to MAX_IMAGES images OR MAX_VIDEOS video, not both.
- * - Video files use URL.createObjectURL for preview (not Base64).
+ * - All local files use URL.createObjectURL for preview (blob: URLs).
  * - Video size limit is separate from image size limit (fetched from server).
  */
 export function useComposePost(options: UseComposePostOptions = {}) {
@@ -58,8 +93,12 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
+  // OGP: debounced URL extracted from content
+  const [ogpUrl, setOgpUrl] = useState<string | null>(null);
+
   // Refs
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounterRef = useRef(0);
 
@@ -80,11 +119,60 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     (hasVideo || images.length >= MAX_IMAGES) ||
     createPostMutation.isPending ||
     isUploading;
+  /** Image upload is disabled when a video is attached or max images reached */
+  const isImageUploadDisabled =
+    hasVideo || images.length >= MAX_IMAGES ||
+    createPostMutation.isPending ||
+    isUploading;
+  /** Video upload is disabled when images are attached or a video is already attached */
+  const isVideoUploadDisabled =
+    hasImages || hasVideo ||
+    createPostMutation.isPending ||
+    isUploading;
   const canPost =
     (hasContent || hasMedia) &&
     isContentValid &&
     !createPostMutation.isPending &&
     !isUploading;
+
+  // Build a unified PreviewMediaItem list for the shared PostMediaPreview component
+  const previewMedia: PreviewMediaItem[] = useMemo(() => {
+    if (video) {
+      return [
+        {
+          id: video.localId,
+          type: "video" as const,
+          url: video.previewUrl,
+          width: video.width,
+          height: video.height,
+          thumbnailUrl: null,
+        },
+      ];
+    }
+    return images.map((img) => ({
+      id: img.localId,
+      type: "image" as const,
+      url: img.previewUrl,
+      width: img.width,
+      height: img.height,
+    }));
+  }, [images, video]);
+
+  // OGP URL extraction with debounce
+  useEffect(() => {
+    // Only extract OGP URL when there is no media attached (same rule as PostCard)
+    if (hasMedia) {
+      setOgpUrl(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const url = content ? extractFirstUrl(content) : null;
+      setOgpUrl(url);
+    }, OGP_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [content, hasMedia]);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -93,7 +181,9 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    textarea.style.height = "auto";
+    // Override min-height to prevent CSS min-height from inflating scrollHeight
+    textarea.style.minHeight = "0";
+    textarea.style.height = "0";
     const newHeight = Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT);
     textarea.style.height = `${newHeight}px`;
   }, [content, autoResize]);
@@ -144,10 +234,24 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
       // Create preview via Object URL (efficient for large files)
       const previewUrl = URL.createObjectURL(videoFile);
+
+      // Extract video dimensions from metadata
+      let width = 1920;
+      let height = 1080;
+      try {
+        const dims = await getVideoDimensions(previewUrl);
+        width = dims.width;
+        height = dims.height;
+      } catch {
+        // Fall back to default dimensions if metadata cannot be read
+      }
+
       setVideo({
-        localId: `${Date.now()}-${Math.random()}`,
+        localId: crypto.randomUUID(),
         file: videoFile,
         previewUrl,
+        width,
+        height,
       });
       return;
     }
@@ -169,22 +273,30 @@ export function useComposePost(options: UseComposePostOptions = {}) {
           continue;
         }
 
-        // Convert to Base64 for preview
+        // Create preview via Object URL (blob:)
         try {
-          const previewUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
+          const previewUrl = URL.createObjectURL(file);
+
+          // Extract image dimensions
+          let width = 800;
+          let height = 800;
+          try {
+            const dims = await getImageDimensions(previewUrl);
+            width = dims.width;
+            height = dims.height;
+          } catch {
+            // Fall back to default dimensions
+          }
 
           newImages.push({
-            localId: `${Date.now()}-${Math.random()}`,
+            localId: crypto.randomUUID(),
             file,
             previewUrl,
+            width,
+            height,
           });
         } catch (error) {
-          console.error("Failed to read file:", error);
+          console.error("Failed to create preview URL:", error);
           toast.error(t("createPost.uploadError"));
         }
       }
@@ -215,15 +327,46 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
     await processFiles(files);
 
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    // Reset file inputs so the same file can be re-selected
+    if (imageFileInputRef.current) {
+      imageFileInputRef.current.value = "";
+    }
+    if (videoFileInputRef.current) {
+      videoFileInputRef.current.value = "";
     }
   };
 
   const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
     if (!items || items.length === 0) return;
+
+    // Check for URL paste while text is selected → auto-format as link
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const { selectionStart, selectionEnd, value } = textarea;
+      if (selectionStart !== selectionEnd) {
+        const pastedText = e.clipboardData?.getData("text/plain") ?? "";
+        if (pastedText && /^https?:\/\/\S+$/.test(pastedText.trim())) {
+          e.preventDefault();
+          const selected = value.slice(selectionStart, selectionEnd);
+          const url = pastedText.trim();
+          const linkSyntax = `[${selected}](${url})`;
+          const newValue =
+            value.slice(0, selectionStart) +
+            linkSyntax +
+            value.slice(selectionEnd);
+          setContent(newValue);
+          // Select the display text inside []
+          const cursorStart = selectionStart + 1;
+          const cursorEnd = selectionStart + 1 + selected.length;
+          requestAnimationFrame(() => {
+            textarea.focus();
+            textarea.setSelectionRange(cursorStart, cursorEnd);
+          });
+          return;
+        }
+      }
+    }
 
     const pastedFiles: File[] = [];
     for (const item of Array.from(items)) {
@@ -242,8 +385,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const handleRemoveImage = (localId: string) => {
     setImages((prev) => {
       const image = prev.find((img) => img.localId === localId);
-      // Revoke blob URL if it exists to free memory
-      if (image?.previewUrl.startsWith("blob:")) {
+      // Revoke blob URL to free memory
+      if (image) {
         URL.revokeObjectURL(image.previewUrl);
       }
       return prev.filter((img) => img.localId !== localId);
@@ -254,6 +397,15 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     if (video) {
       URL.revokeObjectURL(video.previewUrl);
       setVideo(null);
+    }
+  };
+
+  /** Generic remove handler for PostMediaPreview (dispatches by id). */
+  const handleRemoveMedia = (id: string) => {
+    if (video && video.localId === id) {
+      handleRemoveVideo();
+    } else {
+      handleRemoveImage(id);
     }
   };
 
@@ -416,12 +568,16 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
   const resetForm = () => {
     setContent("");
-    // Revoke video blob URL on reset
+    // Revoke all blob URLs on reset
+    for (const img of images) {
+      URL.revokeObjectURL(img.previewUrl);
+    }
     if (video) {
       URL.revokeObjectURL(video.previewUrl);
     }
     setImages([]);
     setVideo(null);
+    setOgpUrl(null);
     setIsUploading(false);
     setIsDragging(false);
     dragCounterRef.current = 0;
@@ -435,9 +591,14 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     video,
     isUploading,
     isDragging,
+    ogpUrl,
+
+    // Unified media list for PostMediaPreview
+    previewMedia,
 
     // Refs
-    fileInputRef,
+    imageFileInputRef,
+    videoFileInputRef,
     textareaRef,
 
     // Handlers
@@ -447,6 +608,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     handlePaste,
     handleRemoveImage,
     handleRemoveVideo,
+    handleRemoveMedia,
     handlePost,
     handleDragOver,
     handleDragEnter,
@@ -464,6 +626,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     hasVideo,
     hasMedia,
     isDropDisabled,
+    isImageUploadDisabled,
+    isVideoUploadDisabled,
 
     // Mutations
     createPostMutation,
@@ -473,3 +637,6 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     resetForm,
   };
 }
+
+/** Return type of the useComposePost hook */
+export type UseComposePostReturn = ReturnType<typeof useComposePost>;

@@ -24,7 +24,7 @@ describe('RateLimiter', () => {
 		// Dynamic import to get fresh module state isn't possible with singletons,
 		// but we can test with unique identifiers per test.
 		const { ogpRateLimiter } = await import('@/lib/ogp/rate-limit');
-		const id = `test-ogp-${Date.now()}-${Math.random()}`;
+		const id = `test-ogp-${crypto.randomUUID()}`;
 
 		for (let i = 0; i < 30; i++) {
 			expect(ogpRateLimiter.check(id)).toBe(true);
@@ -35,7 +35,7 @@ describe('RateLimiter', () => {
 
 	it('imageProxyRateLimiter allows up to 60 requests per minute', async () => {
 		const { imageProxyRateLimiter } = await import('@/lib/ogp/rate-limit');
-		const id = `test-img-${Date.now()}-${Math.random()}`;
+		const id = `test-img-${crypto.randomUUID()}`;
 
 		for (let i = 0; i < 60; i++) {
 			expect(imageProxyRateLimiter.check(id)).toBe(true);
@@ -46,7 +46,7 @@ describe('RateLimiter', () => {
 
 	it('resets after the window expires', async () => {
 		const { ogpRateLimiter } = await import('@/lib/ogp/rate-limit');
-		const id = `test-reset-${Date.now()}-${Math.random()}`;
+		const id = `test-reset-${crypto.randomUUID()}`;
 
 		// Exhaust the limit
 		for (let i = 0; i < 30; i++) {
@@ -63,8 +63,8 @@ describe('RateLimiter', () => {
 
 	it('tracks different identifiers independently', async () => {
 		const { ogpRateLimiter } = await import('@/lib/ogp/rate-limit');
-		const id1 = `test-a-${Date.now()}-${Math.random()}`;
-		const id2 = `test-b-${Date.now()}-${Math.random()}`;
+		const id1 = `test-a-${crypto.randomUUID()}`;
+		const id2 = `test-b-${crypto.randomUUID()}`;
 
 		// Exhaust id1
 		for (let i = 0; i < 30; i++) {

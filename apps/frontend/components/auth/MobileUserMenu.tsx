@@ -59,7 +59,7 @@ export function MobileUserMenu({
         <Button
           variant="ghost"
           className="w-12 h-12 rounded-full p-0 hover:bg-transparent"
-          aria-label="User menu"
+          aria-label={t("nav.openUserMenu")}
         >
           <Avatar className="w-10 h-10">
             {user.avatarUrl && (

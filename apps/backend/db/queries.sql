@@ -52,6 +52,22 @@ SELECT id, username, display_name, created_at
 FROM users
 ORDER BY created_at ASC;
 
+-- name: UpdateUsername :one
+UPDATE users
+SET username = $2
+WHERE id = $1
+RETURNING
+	id,
+	username,
+	display_name,
+	bio,
+	avatar_media_id,
+	created_at,
+	terms_version,
+	privacy_version,
+	terms_accepted_at,
+	privacy_accepted_at;
+
 -- name: UpdateUserProfile :one
 UPDATE users
 SET display_name = COALESCE(sqlc.narg('display_name'), display_name),
@@ -311,6 +327,39 @@ JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
 WHERE p.deleted_at IS NULL
 	AND u.username = $1
+	AND (
+		sqlc.narg('media_type')::text IS NULL
+		OR (
+			sqlc.narg('media_type')::text = 'image'
+			AND EXISTS (
+				SELECT 1
+				FROM post_media pm
+				JOIN media mm ON mm.id = pm.media_id
+				WHERE pm.post_id = p.id
+					AND mm.type = 'image'
+			)
+		)
+		OR (
+			sqlc.narg('media_type')::text = 'video'
+			AND EXISTS (
+				SELECT 1
+				FROM post_media pm
+				JOIN media mm ON mm.id = pm.media_id
+				WHERE pm.post_id = p.id
+					AND mm.type = 'video'
+			)
+		)
+		OR (
+			sqlc.narg('media_type')::text = 'media'
+			AND EXISTS (
+				SELECT 1
+				FROM post_media pm
+				JOIN media mm ON mm.id = pm.media_id
+				WHERE pm.post_id = p.id
+					AND mm.type IN ('image', 'video')
+			)
+		)
+	)
 	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
 		OR p.created_at < sqlc.narg('cursor_time')

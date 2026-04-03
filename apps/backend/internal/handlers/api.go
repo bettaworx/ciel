@@ -54,6 +54,28 @@ type API struct {
 	ModMedia         *moderation.MediaService
 }
 
+type publicUserResponse struct {
+	AvatarUrl   *string            `json:"avatarUrl"`
+	Bio         *string            `json:"bio"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	DisplayName *string            `json:"displayName"`
+	Id          openapi_types.UUID `json:"id"`
+	IsAdmin     *bool              `json:"isAdmin,omitempty"`
+	Username    api.Username       `json:"username"`
+}
+
+func toPublicUserResponse(user api.User) publicUserResponse {
+	return publicUserResponse{
+		AvatarUrl:   user.AvatarUrl,
+		Bio:         user.Bio,
+		CreatedAt:   user.CreatedAt,
+		DisplayName: user.DisplayName,
+		Id:          user.Id,
+		IsAdmin:     user.IsAdmin,
+		Username:    user.Username,
+	}
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -327,7 +349,29 @@ func (h API) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request, _ ap
 		writeServiceError(w, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	// Issue a new token so the current session remains valid after password change.
+	// Other sessions are already invalidated by ChangePassword via InvalidateUserTokens.
+	if h.Users == nil || h.Tokens == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
+	if err != nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	token, expiresIn, err := h.Tokens.Issue(auth.User{ID: user.ID, Username: user.Username})
+	if err != nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	setAuthCookie(w, r, token, expiresIn)
+	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+		AccessToken:      token,
+		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		ExpiresInSeconds: expiresIn,
+		User:             updatedUser,
+	})
 }
 
 func (h API) DeleteMe(w http.ResponseWriter, r *http.Request, _ api.DeleteMeParams) {
@@ -350,6 +394,47 @@ func (h API) DeleteMe(w http.ResponseWriter, r *http.Request, _ api.DeleteMePara
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.PatchMeUsernameParams) {
+	if h.Users == nil || h.Tokens == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})
+		return
+	}
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "username_change") {
+		return
+	}
+	var req api.UpdateUsernameRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "invalid json"})
+		return
+	}
+	if err := h.Users.UpdateUsername(r.Context(), user.ID, string(req.Username)); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	token, expiresIn, err := h.Tokens.Issue(auth.User{ID: user.ID, Username: string(req.Username)})
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	setAuthCookie(w, r, token, expiresIn)
+	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+		AccessToken:      token,
+		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		ExpiresInSeconds: expiresIn,
+		User:             updatedUser,
+	})
+}
+
 func (h API) GetUsersUsername(w http.ResponseWriter, r *http.Request, username api.Username) {
 	if h.Users == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})
@@ -360,7 +445,7 @@ func (h API) GetUsersUsername(w http.ResponseWriter, r *http.Request, username a
 		writeServiceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, u)
+	writeJSON(w, http.StatusOK, toPublicUserResponse(u))
 }
 
 func (h API) GetUsersUsernamePosts(w http.ResponseWriter, r *http.Request, username api.Username, params api.GetUsersUsernamePostsParams) {

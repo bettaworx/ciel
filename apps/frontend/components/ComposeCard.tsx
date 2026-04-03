@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { Image as ImageIcon, User as UserIcon } from "lucide-react";
+import { User as UserIcon } from "lucide-react";
 import { useAtomValue } from "jotai";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Popover,
@@ -14,14 +12,11 @@ import {
 } from "@/components/ui/popover";
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
-import { CharacterCounter } from "./post-composer/CharacterCounter";
-import { ImagePreview } from "./post-composer/ImagePreview";
-import { VideoPreview } from "./post-composer/VideoPreview";
-import { MAX_CONTENT_LENGTH } from "./post-composer/constants";
+import { PostComposerContent } from "./post-composer/PostComposerContent";
+
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { UserMenuContent } from "@/components/auth/UserMenuContent";
 import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
-import { ImageLightbox } from "@/components/ImageLightbox";
 
 /**
  * Inline compose card for creating posts
@@ -32,8 +27,6 @@ export function ComposeCard() {
   const tNav = useTranslations("nav");
   const user = useAtomValue(userAtom);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const composeCardRef = useRef<HTMLDivElement>(null);
 
@@ -57,42 +50,23 @@ export function ComposeCard() {
   } = useUserMenu();
 
   // Use shared composition logic
-  const {
-    content,
-    images,
-    video,
-    isUploading,
-    isDragging,
-    fileInputRef,
-    textareaRef,
-    handleContentChange,
-    handleKeyDown,
-    handlePaste,
-    handleImageSelect,
-    handleRemoveImage,
-    handleRemoveVideo,
-    handlePost,
-    handleDragOver,
-    handleDragEnter,
-    handleDragLeave,
-    handleDrop,
-    contentLength,
-    contentPercentage,
-    showCharacterCount,
-    canPost,
-    isDropDisabled,
-    createPostMutation,
-  } = useComposePost({
+  const compose = useComposePost({
     onSuccess: () => {
       setIsExpanded(false); // Collapse after successful post
     },
   });
+
+  // Destructure textareaRef so the linter recognises it as a stable ref identity
+  // (accessing compose.textareaRef triggers react-hooks/exhaustive-deps)
+  const { textareaRef } = compose;
 
   // Focus textarea when expanded
   useEffect(() => {
     if (isExpanded && textareaRef.current) {
       textareaRef.current.focus();
     }
+    // textareaRef is a stable React ref — safe to omit from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExpanded]);
 
   // Cleanup blur timeout on unmount
@@ -117,19 +91,30 @@ export function ComposeCard() {
       // Check if focus moved outside of ComposeCard
       const composeCard = composeCardRef.current;
       if (!composeCard) return;
-      
+
       // If user menu is open, don't collapse
       if (isMenuOpen) return;
-      
+
       // If focus is still within ComposeCard, don't collapse
       if (composeCard.contains(document.activeElement)) {
         return;
       }
 
+      // If focus moved to a portaled dropdown/popover (e.g. font picker), don't collapse
+      if (
+        document.activeElement?.closest(
+          "[data-radix-popper-content-wrapper]",
+        )
+      ) {
+        return;
+      }
+
       // Only collapse if content is empty AND no images
-      // Note: We check content.length, not trim().length, as per user request
-      // (spaces-only input should NOT be considered empty)
-      if (content.length === 0 && images.length === 0 && !video) {
+      if (
+        compose.content.length === 0 &&
+        compose.images.length === 0 &&
+        !compose.video
+      ) {
         setIsExpanded(false);
       }
     }, 200);
@@ -138,33 +123,62 @@ export function ComposeCard() {
   if (!user) return null;
 
   const initials = (user.displayName?.[0] || user.username[0]).toUpperCase();
-  const lightboxImages = images.map((image) => ({
-    src: image.previewUrl,
-    alt: "",
-  }));
+
+  // Avatar wrapped in Popover for user menu
+  const avatarElement = (
+    <Popover open={isMenuOpen} onOpenChange={handleMenuOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          onMouseDown={(e) => {
+            // Prevent focus change when clicking avatar
+            e.preventDefault();
+          }}
+          className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-full hover:opacity-80 transition-opacity"
+          aria-label={tNav("openUserMenu")}
+        >
+          <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
+            {user?.avatarUrl ? (
+              <AvatarImage src={user.avatarUrl} alt={user.username} />
+            ) : (
+              <AvatarFallback>
+                <UserIcon className="h-6 w-6" />
+              </AvatarFallback>
+            )}
+          </Avatar>
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent className="p-0 w-64" side="left" align="start">
+        <UserMenuContent
+          user={user}
+          initials={initials}
+          currentView={menuView}
+          onViewChange={setMenuView}
+          theme={theme}
+          onThemeChange={setTheme}
+          locale={locale}
+          onLanguageChange={handleLanguageChange}
+          onProfileClick={() => handleProfileClick(user.username)}
+          onSettingsClick={handleSettingsClick}
+          onLogoutClick={handleLogoutClick}
+          onUserInfoClick={() => handleUserInfoClick(user.username)}
+          onClose={() => handleMenuOpenChange(false)}
+          isMobile={false}
+        />
+      </PopoverContent>
+    </Popover>
+  );
 
   return (
     <>
       <div
         ref={composeCardRef}
         className="bg-card rounded-xl sm:rounded-2xl p-3 relative"
-        onDragOver={handleDragOver}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
+        onDragOver={compose.handleDragOver}
+        onDragEnter={compose.handleDragEnter}
+        onDragLeave={compose.handleDragLeave}
+        onDrop={compose.handleDrop}
       >
-        {/* Drag & Drop Overlay (only when expanded) */}
-        {isExpanded && isDragging && !isDropDisabled && (
-          <div className="absolute inset-0 z-10 bg-background/90 border-2 border-dashed border-c-1 rounded-xl flex items-center justify-center pointer-events-none">
-            <div className="text-center">
-              <ImageIcon className="w-12 h-12 mx-auto mb-2 text-c-1" />
-              <p className="text-lg font-medium text-foreground">
-                {t("createPost.dropMedia")}
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Collapsed State */}
         {!isExpanded && (
           <button
@@ -191,147 +205,12 @@ export function ComposeCard() {
 
         {/* Expanded State */}
         {isExpanded && (
-          <div className="space-y-3">
-            {/* Avatar + Textarea */}
-            <div className="flex gap-3">
-              <Popover open={isMenuOpen} onOpenChange={handleMenuOpenChange}>
-                <PopoverTrigger asChild>
-                  <button
-                    onMouseDown={(e) => {
-                      // Prevent focus change when clicking avatar
-                      // This ensures the textarea doesn't get focused when opening the menu
-                      e.preventDefault();
-                    }}
-                    className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-full hover:opacity-80 transition-opacity"
-                    aria-label={tNav("openUserMenu")}
-                  >
-                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
-                      {user?.avatarUrl ? (
-                        <AvatarImage src={user.avatarUrl} alt={user.username} />
-                      ) : (
-                        <AvatarFallback>
-                          <UserIcon className="h-6 w-6" />
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent className="p-0 w-64" side="left" align="start">
-                  <UserMenuContent
-                    user={user}
-                    initials={initials}
-                    currentView={menuView}
-                    onViewChange={setMenuView}
-                    theme={theme}
-                    onThemeChange={setTheme}
-                    locale={locale}
-                    onLanguageChange={handleLanguageChange}
-                    onProfileClick={() => handleProfileClick(user.username)}
-                    onSettingsClick={handleSettingsClick}
-                    onLogoutClick={handleLogoutClick}
-                    onUserInfoClick={() => handleUserInfoClick(user.username)}
-                    onClose={() => handleMenuOpenChange(false)}
-                    isMobile={false}
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <Textarea
-                ref={textareaRef}
-                value={content}
-                onChange={handleContentChange}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-                onBlur={handleBlur}
-                placeholder={t("createPost.placeholder")}
-                className="flex-1 min-h-[100px] max-h-[400px] mt-2 md:mt-3 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none"
-                maxLength={MAX_CONTENT_LENGTH}
-                disabled={createPostMutation.isPending || isUploading}
-              />
-            </div>
-
-            {/* Image Previews */}
-            {images.length > 0 && (
-              <div className="pl-[52px] sm:pl-[60px]">
-                <div className="flex gap-2 flex-wrap">
-                  {images.map((image) => (
-                    <ImagePreview
-                      key={image.localId}
-                      image={image}
-                      onRemove={handleRemoveImage}
-                      disabled={createPostMutation.isPending || isUploading}
-                      onPreview={() => {
-                        const index = images.findIndex(
-                          (candidate) => candidate.localId === image.localId,
-                        );
-                        setLightboxIndex(index === -1 ? 0 : index);
-                        setLightboxOpen(true);
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Video Preview */}
-            {video && (
-              <div className="pl-[52px] sm:pl-[60px]">
-                <VideoPreview
-                  video={video}
-                  onRemove={handleRemoveVideo}
-                  disabled={createPostMutation.isPending || isUploading}
-                />
-              </div>
-            )}
-
-            {/* Actions Bar */}
-            <div className="flex items-center justify-between pl-[52px] sm:pl-[60px]">
-              {/* Left: Media Upload Button */}
-              <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  multiple
-                  onChange={handleImageSelect}
-                  className="hidden"
-                  disabled={isDropDisabled}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isDropDisabled}
-                  aria-label={t("createPost.uploadMedia")}
-                  className="h-9 w-9"
-                >
-                  <ImageIcon className="w-5 h-5" />
-                </Button>
-              </div>
-
-              {/* Right: Character Counter + Post Button */}
-              <div className="flex items-center gap-3">
-                <CharacterCounter
-                  current={contentLength}
-                  max={MAX_CONTENT_LENGTH}
-                  percentage={contentPercentage}
-                  showCount={showCharacterCount}
-                />
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handlePost}
-                  disabled={!canPost}
-                  className="h-9 px-4"
-                >
-                  {createPostMutation.isPending
-                    ? t("createPost.posting")
-                    : t("createPost.post")}
-                </Button>
-              </div>
-            </div>
-          </div>
+          <PostComposerContent
+            layout="card"
+            compose={compose}
+            avatar={avatarElement}
+            onBlur={handleBlur}
+          />
         )}
       </div>
 
@@ -340,12 +219,6 @@ export function ComposeCard() {
         open={isLogoutOpen}
         onOpenChange={setIsLogoutOpen}
         onConfirm={handleLogoutConfirm}
-      />
-      <ImageLightbox
-        images={lightboxImages}
-        open={lightboxOpen}
-        onOpenChange={setLightboxOpen}
-        initialIndex={lightboxIndex}
       />
     </>
   );

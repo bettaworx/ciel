@@ -7,7 +7,6 @@ import { useMediaQuery } from '@/lib/hooks/use-media-query';
 import { isConcentratedMode } from '@/lib/utils/concentrated-mode';
 import { Sidebar } from '@/components/Sidebar';
 import { BottomNav } from '@/components/BottomNav';
-import { useEffect } from 'react';
 
 /**
  * 認証状態と集中モード判定に基づいてサイドバーを条件付きでレンダリング
@@ -24,15 +23,6 @@ export function ConditionalSidebar() {
 	
 	// サイドバーが表示されるかどうかを判定
 	const shouldShowSidebar = !isConcentrated && isAuthenticated;
-
-	// サイドバー表示状態をbodyに反映（CSSでレイアウト調整用）
-	useEffect(() => {
-		if (shouldShowSidebar) {
-			document.body.setAttribute('data-sidebar-visible', 'true');
-		} else {
-			document.body.removeAttribute('data-sidebar-visible');
-		}
-	}, [shouldShowSidebar]);
 
 	if (!shouldShowSidebar) {
 		return null;
