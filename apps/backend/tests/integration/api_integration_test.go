@@ -1222,6 +1222,37 @@ func TestIntegration_Users_GetByUsername_NotFound(t *testing.T) {
 	}
 }
 
+func TestIntegration_Users_GetByUsername_HidesAgreementFieldsEvenForSelf(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u := registerUser(t, client, base, "selflookup", "password123")
+	a := issueBearer(t, app.TokenManager, u)
+
+	resp := get(t, client, base+"/api/v1/users/"+string(u.Username), a)
+	if resp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, resp)
+		t.Fatalf("expected 200, got %d (%v)", resp.StatusCode, errBody)
+	}
+	got := decodeJSON[api.User](t, resp)
+	if got.TermsVersion != nil || got.PrivacyVersion != nil || got.TermsAcceptedAt != nil || got.PrivacyAcceptedAt != nil {
+		t.Fatalf("expected agreement fields hidden in users endpoint, got %+v", got)
+	}
+
+	meResp := get(t, client, base+"/api/v1/me", a)
+	if meResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, meResp)
+		t.Fatalf("expected 200 from /me, got %d (%v)", meResp.StatusCode, errBody)
+	}
+	me := decodeJSON[api.User](t, meResp)
+	if me.TermsVersion == nil || me.PrivacyVersion == nil || me.TermsAcceptedAt == nil || me.PrivacyAcceptedAt == nil {
+		t.Fatalf("expected agreement fields present in /me, got %+v", me)
+	}
+}
+
 func TestIntegration_Posts_Get_NotFound(t *testing.T) {
 	app := newTestApp(t)
 	defer app.Close()

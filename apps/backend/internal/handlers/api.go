@@ -423,6 +423,10 @@ func (h API) GetUsersUsername(w http.ResponseWriter, r *http.Request, username a
 		writeServiceError(w, err)
 		return
 	}
+	u.TermsVersion = nil
+	u.PrivacyVersion = nil
+	u.TermsAcceptedAt = nil
+	u.PrivacyAcceptedAt = nil
 	writeJSON(w, http.StatusOK, u)
 }
 
