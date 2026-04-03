@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,20 +41,15 @@ func (m *TokenManager) SetRedis(rdb *redis.Client) {
 	m.redis = rdb
 }
 
-// InvalidateUserTokens invalidates all tokens for a user by recording the revocation time in Redis
+// InvalidateUserTokens invalidates all tokens for a user by recording the revocation time in Redis.
+// The key expires after m.ttl: by then all pre-revocation tokens will have naturally expired.
 func (m *TokenManager) InvalidateUserTokens(ctx context.Context, userID string) error {
 	if m.redis == nil {
-		// If Redis is not available, we can't revoke tokens
-		// This is acceptable as tokens will expire naturally
 		return nil
 	}
-
 	key := "token:revoke:" + userID
-	now := time.Now().UTC().Format(time.RFC3339)
-
-	// Store revocation time indefinitely (or use a very long TTL)
-	// We don't set TTL here because we need to check against old tokens
-	return m.redis.Set(ctx, key, now, 0).Err()
+	ts := strconv.FormatInt(time.Now().UTC().Unix(), 10)
+	return m.redis.Set(ctx, key, ts, m.ttl).Err()
 }
 
 func (m *TokenManager) Issue(user User) (token string, expiresInSeconds int, err error) {
@@ -142,17 +138,14 @@ func (m *TokenManager) Parse(token string) (User, error) {
 		return User{}, ErrUnauthorized
 	}
 
-	// Check if the token has been revoked (if Redis is available)
+	// Check if the token has been revoked (if Redis is available).
+	// Fail open: if Redis is unavailable, allow the token through.
 	if m.redis != nil && claims.IssuedAt != nil {
-		ctx := context.Background()
 		key := "token:revoke:" + claims.UserID
-		revokedAfter, err := m.redis.Get(ctx, key).Result()
-		if err == nil && revokedAfter != "" {
-			// Parse the revocation time
-			revokedTime, err := time.Parse(time.RFC3339, revokedAfter)
-			if err == nil {
-				// If token was issued before the revocation time, reject it
-				if claims.IssuedAt.Time.Before(revokedTime) {
+		val, err := m.redis.Get(context.Background(), key).Result()
+		if err == nil {
+			if revokedAt, err := strconv.ParseInt(val, 10, 64); err == nil {
+				if claims.IssuedAt.Unix() < revokedAt {
 					return User{}, ErrUnauthorized
 				}
 			}
