@@ -328,6 +328,39 @@ LEFT JOIN media m ON m.id = u.avatar_media_id
 WHERE p.deleted_at IS NULL
 	AND u.username = $1
 	AND (
+		sqlc.narg('media_type')::text IS NULL
+		OR (
+			sqlc.narg('media_type')::text = 'image'
+			AND EXISTS (
+				SELECT 1
+				FROM post_media pm
+				JOIN media mm ON mm.id = pm.media_id
+				WHERE pm.post_id = p.id
+					AND mm.type = 'image'
+			)
+		)
+		OR (
+			sqlc.narg('media_type')::text = 'video'
+			AND EXISTS (
+				SELECT 1
+				FROM post_media pm
+				JOIN media mm ON mm.id = pm.media_id
+				WHERE pm.post_id = p.id
+					AND mm.type = 'video'
+			)
+		)
+		OR (
+			sqlc.narg('media_type')::text = 'media'
+			AND EXISTS (
+				SELECT 1
+				FROM post_media pm
+				JOIN media mm ON mm.id = pm.media_id
+				WHERE pm.post_id = p.id
+					AND mm.type IN ('image', 'video')
+			)
+		)
+	)
+	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
 		OR p.created_at < sqlc.narg('cursor_time')
 		OR (p.created_at = sqlc.narg('cursor_time') AND p.id < sqlc.narg('cursor_id'))

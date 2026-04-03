@@ -266,10 +266,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		userByUsername: (username: string) =>
 			request<components['schemas']['User']>('GET', `/users/${encodeURIComponent(username)}`),
 
-		userPosts: (username: string, params?: { limit?: number; cursor?: string | null }) => {
+		userPosts: (
+			username: string,
+			params?: { limit?: number; cursor?: string | null; mediaType?: 'image' | 'video' | 'media' }
+		) => {
 			const qs = new URLSearchParams();
 			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
 			if (params?.cursor) qs.set('cursor', params.cursor);
+			if (params?.mediaType) qs.set('mediaType', params.mediaType);
 			const suffix = qs.size ? `?${qs.toString()}` : '';
 			return request<components['schemas']['UserPostsPage']>('GET', `/users/${encodeURIComponent(username)}/posts${suffix}`);
 		},

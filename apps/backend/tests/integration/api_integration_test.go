@@ -36,6 +36,7 @@ import (
 	"backend/internal/service"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -396,6 +397,24 @@ func createPost(t *testing.T, client *http.Client, baseURL string, authz map[str
 		t.Fatalf("create post: expected 201, got %d (%v)", resp.StatusCode, errBody)
 	}
 	return decodeJSON[api.Post](t, resp)
+}
+
+func createVideoMediaRecord(t *testing.T, app *testApp, userID api.UserId) api.MediaId {
+	t.Helper()
+	q := sqlc.New(app.SQLDB)
+	row, err := q.CreateMedia(context.Background(), sqlc.CreateMediaParams{
+		ID:       uuid.New(),
+		UserID:   uuid.UUID(userID),
+		Type:     "video",
+		Ext:      "mp4",
+		Width:    1280,
+		Height:   720,
+		Duration: sql.NullFloat64{Float64: 12.5, Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("CreateMedia(video): %v", err)
+	}
+	return api.MediaId(row.ID)
 }
 
 func get(t *testing.T, client *http.Client, url string, headers map[string]string) *http.Response {
@@ -1205,6 +1224,113 @@ func TestIntegration_Users_Posts_List(t *testing.T) {
 	page2 := decodeJSON[api.UserPostsPage](t, resp2)
 	if len(page2.Items) != 1 || page2.Items[0].Id != p1.Id {
 		t.Fatalf("unexpected page2 items: %+v", page2.Items)
+	}
+}
+
+func TestIntegration_Users_Posts_List_FilterByMediaType(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u1 := registerUser(t, client, base, "listmedia1", "password123")
+	u2 := registerUser(t, client, base, "listmedia2", "password123")
+	a1 := issueBearer(t, app.TokenManager, u1)
+	a2 := issueBearer(t, app.TokenManager, u2)
+
+	textPost := createPost(t, client, base, a1, "text-only")
+	time.Sleep(3 * time.Millisecond)
+
+	imageMedia := uploadMediaPNG(t, client, base, a1)
+	imgResp := postJSON(t, client, base+"/api/v1/posts", map[string]any{
+		"content":  "image post",
+		"mediaIds": []string{imageMedia.Id.String()},
+	}, a1)
+	if imgResp.StatusCode != http.StatusCreated {
+		errBody := decodeJSON[map[string]any](t, imgResp)
+		t.Fatalf("create image post: expected 201, got %d (%v)", imgResp.StatusCode, errBody)
+	}
+	imagePost := decodeJSON[api.Post](t, imgResp)
+	time.Sleep(3 * time.Millisecond)
+
+	videoMediaID := createVideoMediaRecord(t, app, u1.Id)
+	vidResp := postJSON(t, client, base+"/api/v1/posts", map[string]any{
+		"content":  "video post",
+		"mediaIds": []string{videoMediaID.String()},
+	}, a1)
+	if vidResp.StatusCode != http.StatusCreated {
+		errBody := decodeJSON[map[string]any](t, vidResp)
+		t.Fatalf("create video post: expected 201, got %d (%v)", vidResp.StatusCode, errBody)
+	}
+	videoPost := decodeJSON[api.Post](t, vidResp)
+
+	otherImage := uploadMediaPNG(t, client, base, a2)
+	otherResp := postJSON(t, client, base+"/api/v1/posts", map[string]any{
+		"content":  "other user image",
+		"mediaIds": []string{otherImage.Id.String()},
+	}, a2)
+	if otherResp.StatusCode != http.StatusCreated {
+		errBody := decodeJSON[map[string]any](t, otherResp)
+		t.Fatalf("create other user post: expected 201, got %d (%v)", otherResp.StatusCode, errBody)
+	}
+	_ = decodeJSON[api.Post](t, otherResp)
+
+	imageListResp := get(t, client, base+"/api/v1/users/"+string(u1.Username)+"/posts?limit=10&mediaType=image", nil)
+	if imageListResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, imageListResp)
+		t.Fatalf("list image posts: expected 200, got %d (%v)", imageListResp.StatusCode, errBody)
+	}
+	imagePage := decodeJSON[api.UserPostsPage](t, imageListResp)
+	if len(imagePage.Items) != 1 || imagePage.Items[0].Id != imagePost.Id {
+		t.Fatalf("unexpected image filter result: %+v", imagePage.Items)
+	}
+
+	videoListResp := get(t, client, base+"/api/v1/users/"+string(u1.Username)+"/posts?limit=10&mediaType=video", nil)
+	if videoListResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, videoListResp)
+		t.Fatalf("list video posts: expected 200, got %d (%v)", videoListResp.StatusCode, errBody)
+	}
+	videoPage := decodeJSON[api.UserPostsPage](t, videoListResp)
+	if len(videoPage.Items) != 1 || videoPage.Items[0].Id != videoPost.Id {
+		t.Fatalf("unexpected video filter result: %+v", videoPage.Items)
+	}
+
+	mediaListResp := get(t, client, base+"/api/v1/users/"+string(u1.Username)+"/posts?limit=10&mediaType=media", nil)
+	if mediaListResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, mediaListResp)
+		t.Fatalf("list media posts: expected 200, got %d (%v)", mediaListResp.StatusCode, errBody)
+	}
+	mediaPage := decodeJSON[api.UserPostsPage](t, mediaListResp)
+	if len(mediaPage.Items) != 2 {
+		t.Fatalf("expected 2 media posts, got %d", len(mediaPage.Items))
+	}
+	if mediaPage.Items[0].Id != videoPost.Id || mediaPage.Items[1].Id != imagePost.Id {
+		t.Fatalf("unexpected media filter order/items: %+v", mediaPage.Items)
+	}
+
+	unfilteredResp := get(t, client, base+"/api/v1/users/"+string(u1.Username)+"/posts?limit=10", nil)
+	if unfilteredResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, unfilteredResp)
+		t.Fatalf("list unfiltered posts: expected 200, got %d (%v)", unfilteredResp.StatusCode, errBody)
+	}
+	unfilteredPage := decodeJSON[api.UserPostsPage](t, unfilteredResp)
+	if len(unfilteredPage.Items) != 3 {
+		t.Fatalf("expected 3 unfiltered posts, got %d", len(unfilteredPage.Items))
+	}
+
+	seen := map[api.PostId]struct{}{}
+	for _, it := range unfilteredPage.Items {
+		seen[it.Id] = struct{}{}
+	}
+	if _, ok := seen[textPost.Id]; !ok {
+		t.Fatalf("text-only post missing from unfiltered list")
+	}
+	if _, ok := seen[imagePost.Id]; !ok {
+		t.Fatalf("image post missing from unfiltered list")
+	}
+	if _, ok := seen[videoPost.Id]; !ok {
+		t.Fatalf("video post missing from unfiltered list")
 	}
 }
 

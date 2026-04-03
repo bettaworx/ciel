@@ -3372,6 +3372,12 @@ paths:
           schema:
             type: string
           description: Cursor returned by previous call.
+        - name: mediaType
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/PostMediaFilter'
+          description: Filter posts by attached media type.
       responses:
         '200':
           description: OK
@@ -3764,6 +3770,10 @@ components:
     MediaType:
       type: string
       enum: [image, video]
+
+    PostMediaFilter:
+      type: string
+      enum: [image, video, media]
 
     Media:
       type: object

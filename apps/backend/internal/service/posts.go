@@ -151,6 +151,16 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 
 	var cTime sql.NullTime
 	var cID uuid.NullUUID
+	var mediaType sql.NullString
+	if params.MediaType != nil {
+		mt := strings.TrimSpace(string(*params.MediaType))
+		switch mt {
+		case "image", "video", "media":
+			mediaType = sql.NullString{String: mt, Valid: true}
+		default:
+			return api.UserPostsPage{}, NewError(http.StatusBadRequest, "invalid_request", "mediaType must be image, video, or media")
+		}
+	}
 	if cursor != nil {
 		ct := time.UnixMilli(cursor.Score).UTC()
 		cTime = sql.NullTime{Time: ct, Valid: true}
@@ -162,6 +172,7 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 
 	rows, err := s.store.Q.ListPostsByUsername(ctx, sqlc.ListPostsByUsernameParams{
 		Username:   uname,
+		MediaType:  mediaType,
 		CursorTime: cTime,
 		CursorID:   cID,
 		Limit:      int32(limit),
