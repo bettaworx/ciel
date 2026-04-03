@@ -327,6 +327,34 @@ func (h API) PostMeAvatar(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
+func (h API) PostMeBanner(w http.ResponseWriter, r *http.Request) {
+	if h.Users == nil || h.Media == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users/media not configured"})
+		return
+	}
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	media, err := h.Media.UploadBannerFromRequest(w, r, user)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	updated, previous, err := h.Users.UpdateBanner(r.Context(), user.ID, media.Id)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	if previous != nil && *previous != media.Id {
+		if err := h.Media.DeleteMedia(r.Context(), user.ID, *previous); err != nil {
+			slog.Warn("failed to delete old banner", "media_id", previous.String(), "error", err)
+		}
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
 func (h API) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request, _ api.PostAuthPasswordChangeParams) {
 	if h.Auth == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "auth not configured"})

@@ -100,6 +100,10 @@ func (s *MediaService) UploadAvatarFromRequest(w http.ResponseWriter, r *http.Re
 	return s.uploadFromRequest(w, r, user, s.uploadAvatar)
 }
 
+func (s *MediaService) UploadBannerFromRequest(w http.ResponseWriter, r *http.Request, user auth.User) (api.Media, error) {
+	return s.uploadFromRequest(w, r, user, s.uploadBanner)
+}
+
 func (s *MediaService) UploadServerIconFromRequest(w http.ResponseWriter, r *http.Request, user auth.User) (api.Media, error) {
 	return s.uploadFromRequest(w, r, user, s.uploadServerIcon)
 }
@@ -712,6 +716,22 @@ func (s *MediaService) uploadAvatar(ctx context.Context, user auth.User, src mul
 	return s.uploadImageWithOptions(ctx, user, src, header, "avatar", s.convertToWebPAvatar, s.cfg.Avatar.Static.Size)
 }
 
+func (s *MediaService) uploadBanner(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
+	if !s.cfg.Encoding.Banner {
+		return api.Media{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "banner encoding is disabled")
+	}
+	if err := s.requireEncoding(); err != nil {
+		return api.Media{}, err
+	}
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if ext == ".gif" {
+		return s.uploadImageWithOptions(ctx, user, src, header, "banner", s.convertToWebPBannerAnimated, 0)
+	}
+
+	return s.uploadImageWithOptions(ctx, user, src, header, "banner", s.convertToWebPBanner, 0)
+}
+
 func (s *MediaService) uploadServerIcon(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader) (api.Media, error) {
 	// Server icons require encoding (crop + resize) — reject if disabled.
 	if !s.cfg.Encoding.ServerIcon {
@@ -1035,6 +1055,14 @@ func (s *MediaService) convertAndSaveImage(ctx context.Context, user auth.User, 
 	if expectedSize > 0 && (wOut != expectedSize || hOut != expectedSize) {
 		cleanupOut()
 		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "failed to convert image")
+	}
+	if mediaType == "banner" {
+		expectedW := s.cfg.Banner.Static.Width
+		expectedH := s.cfg.Banner.Static.Height
+		if wOut != expectedW || hOut != expectedH {
+			cleanupOut()
+			return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "failed to convert image")
+		}
 	}
 
 	// Create database record
@@ -1364,6 +1392,76 @@ func (s *MediaService) convertToWebPAvatarAnimated(ctx context.Context, inPath, 
 		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
 		slog.Error("ffmpeg animated avatar conversion failed", "error", err, "stderr", msg, "command", cmdStr)
 		return fmt.Errorf("animated avatar conversion failed")
+	}
+	return nil
+}
+
+func (s *MediaService) convertToWebPBanner(ctx context.Context, inPath, outPath string) error {
+	width := s.cfg.Banner.Static.Width
+	height := s.cfg.Banner.Static.Height
+	vf := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", width, height, width, height)
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", inPath,
+		"-frames:v", "1",
+		"-map_metadata", "-1",
+		"-map_chapters", "-1",
+		"-vf", vf,
+		"-f", "webp",
+		"-c:v", "libwebp",
+		"-q:v", strconv.Itoa(s.cfg.Banner.Static.Quality),
+		"-an",
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		msg = strings.ReplaceAll(msg, inPath, "<input>")
+		msg = strings.ReplaceAll(msg, outPath, "<output>")
+		slog.Error("ffmpeg banner conversion failed", "error", err, "stderr", msg)
+		return fmt.Errorf("banner conversion failed")
+	}
+	return nil
+}
+
+func (s *MediaService) convertToWebPBannerAnimated(ctx context.Context, inPath, outPath string) error {
+	width := s.cfg.Banner.Gif.Width
+	height := s.cfg.Banner.Gif.Height
+	vf := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", width, height, width, height)
+
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", inPath,
+		"-vf", vf,
+		"-f", "webp",
+		"-c:v", "libwebp",
+		"-pix_fmt", "yuva420p",
+		"-lossless", "0",
+		"-q:v", strconv.Itoa(s.cfg.Banner.Gif.Quality),
+		"-loop", "0",
+		"-preset", "default",
+		"-vsync", "0",
+		"-an",
+		"-map_metadata", "-1",
+		"-map_chapters", "-1",
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
+		slog.Error("ffmpeg animated banner conversion failed", "error", err, "stderr", msg, "command", cmdStr)
+		return fmt.Errorf("animated banner conversion failed")
 	}
 	return nil
 }

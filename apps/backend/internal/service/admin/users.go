@@ -33,7 +33,7 @@ type SearchUsersParams struct {
 
 // SearchUsersResult contains search results with pagination info
 type SearchUsersResult struct {
-	Users []sqlc.User
+	Users []sqlc.SearchUsersRow
 	Total int64
 }
 
