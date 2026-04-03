@@ -315,7 +315,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                     bannerFileInputRef.current?.click();
                   }}
                   disabled={isSaving}
-                  className="bg-black/60 text-white hover:bg-black/85 hover:text-white"
+                  className="bg-black/50 text-white hover:bg-black/85 hover:text-white"
                 >
                   {t("settings.profile.banner.change")}
                 </Button>
@@ -326,7 +326,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                       variant="secondary"
                       size="icon"
                       aria-label={t("user.moreActions")}
-                      className="bg-black/60 text-white hover:bg-black/85 hover:text-white"
+                      className="bg-black/50 text-white hover:bg-black/85 hover:text-white"
                     >
                       <MoreHorizontal className="w-3.5 h-3.5" />
                     </Button>
@@ -349,7 +349,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                       variant="secondary"
                       size="icon"
                       aria-label={t("user.moreActions")}
-                      className="bg-black/60 text-white hover:bg-black/85 hover:text-white"
+                      className="bg-black/50 text-white hover:bg-black/85 hover:text-white"
                     >
                       <MoreHorizontal className="w-3.5 h-3.5" />
                     </Button>
@@ -382,7 +382,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           <div className="px-3">
             {/* Avatar row + action buttons */}
             <div className="flex items-start h-12 sm:h-16 mb-3">
-              <div className="relative shrink-0 ml-1">
+              <div className="relative shrink-0">
                 {isEditing && (
                   <input
                     ref={avatarFileInputRef}
@@ -424,7 +424,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                       avatarFileInputRef.current?.click();
                     }}
                     disabled={isSaving}
-                    className="absolute bottom-1 right-1 sm:hidden bg-black/60 text-white hover:bg-black/85 hover:text-white"
+                    className="absolute bottom-1 right-1 sm:hidden bg-black/50 text-white hover:bg-black/85 hover:text-white"
                     aria-label={t("settings.profile.avatar.change")}
                   >
                     <Upload className="w-4 h-4" />
