@@ -21,7 +21,7 @@
       "security": "セキュリティ"
     },
     "general": {
-      "title": "一般設定",
+      "title": "一般",
       "language": {
         "title": "言語",
         "description": "表示言語を選ぶ",
@@ -29,7 +29,7 @@
       }
     },
     "appearance": {
-      "title": "外観設定",
+      "title": "外観",
       "theme": {
         "title": "テーマ",
         "description": "アプリのテーマを選ぶ",
@@ -222,7 +222,7 @@
       "title": "セキュリティ"
     },
     "profile": {
-      "title": "プロフィール設定",
+      "title": "プロフィール",
       "avatar": {
         "title": "アバター",
         "description": "プロフィール画像",
@@ -375,9 +375,9 @@
       "login": "ログイン",
       "signup": "新規登録",
       "settings": "設定",
-      "settingsGeneral": "一般設定",
-      "settingsProfile": "プロフィール設定",
-      "settingsAppearance": "外観設定",
+      "settingsGeneral": "一般",
+      "settingsProfile": "プロフィール",
+      "settingsAppearance": "外観",
       "settingsAccount": "アカウント",
       "settingsSecurity": "セキュリティ",
       "setup": "プロフィール設定",

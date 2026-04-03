@@ -21,7 +21,7 @@
       "security": "Security"
     },
     "general": {
-      "title": "General Settings",
+      "title": "General",
       "language": {
         "title": "Language",
         "description": "Choose your display language",
@@ -29,7 +29,7 @@
       }
     },
     "appearance": {
-      "title": "Appearance Settings",
+      "title": "Appearance",
       "theme": {
         "title": "Theme",
         "description": "Choose your app theme",
@@ -222,7 +222,7 @@
       "title": "Security"
     },
     "profile": {
-      "title": "Profile Settings",
+      "title": "Profile",
       "avatar": {
         "title": "Avatar",
         "description": "Your profile picture",
@@ -375,9 +375,9 @@
       "login": "Login",
       "signup": "Sign Up",
       "settings": "Settings",
-      "settingsGeneral": "General Settings",
-      "settingsProfile": "Profile Settings",
-      "settingsAppearance": "Appearance Settings",
+      "settingsGeneral": "General",
+      "settingsProfile": "Profile",
+      "settingsAppearance": "Appearance",
       "settingsAccount": "Account",
       "settingsSecurity": "Security",
       "setup": "Setup Profile",
