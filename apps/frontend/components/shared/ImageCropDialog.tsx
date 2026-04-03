@@ -188,6 +188,7 @@ export function ImageCropDialog({
         overlayClassName={cn("z-[60]", overlayClassName)}
         className={cn(
           `
+          z-[70]
           sm:max-w-xl
           gap-0
           p-0
