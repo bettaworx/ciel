@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   display_name TEXT,
   bio TEXT,
   avatar_media_id UUID,
+  banner_media_id UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   terms_version INT NOT NULL DEFAULT 0,
   privacy_version INT NOT NULL DEFAULT 0,
@@ -106,6 +107,24 @@ CREATE TABLE IF NOT EXISTS media (
   deletion_reason TEXT,
   phash TEXT
 );
+
+DO $$
+BEGIN
+  ALTER TABLE users
+    ADD CONSTRAINT users_avatar_media_fk
+    FOREIGN KEY (avatar_media_id) REFERENCES media(id) ON DELETE SET NULL;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE users
+    ADD CONSTRAINT users_banner_media_fk
+    FOREIGN KEY (banner_media_id) REFERENCES media(id) ON DELETE SET NULL;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Avatar foreign key (must be added after media table exists).
 -- Server icon foreign key (must be added after media table exists).
