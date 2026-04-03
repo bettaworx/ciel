@@ -3,10 +3,12 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useAtomValue } from "jotai";
 import { useUser, useUserPosts } from "@/lib/hooks/use-queries";
+import { userAtom } from "@/atoms/auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User } from "lucide-react";
+import { Pencil, User } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
@@ -20,6 +22,8 @@ type UserProfileContentProps = {
 export function UserProfileContent({ username }: UserProfileContentProps) {
   const t = useTranslations();
   const router = useRouter();
+  const authUser = useAtomValue(userAtom);
+  const isOwnProfile = authUser?.username === username;
 
   const {
     data: user,
@@ -75,9 +79,9 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           </div>
 
           <div className="px-4 pb-8">
-            {/* Avatar overlapping banner via negative top margin */}
-            <div className="-mt-12 sm:-mt-16 mb-4">
-              <Avatar className="h-24 w-24 sm:h-32 sm:w-32 rounded-[24px] sm:rounded-[32px] ring-4 ring-card shrink-0">
+            {/* Avatar row + action buttons — the space above User Info */}
+            <div className="flex justify-between items-start h-12 sm:h-16 mb-4">
+              <Avatar className="h-24 w-24 sm:h-32 sm:w-32 -mt-12 sm:-mt-16 rounded-[24px] sm:rounded-[32px] ring-4 ring-card shrink-0">
                 <AvatarImage
                   src={user.avatarUrl ?? undefined}
                   alt={user.username}
@@ -86,6 +90,19 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                   <User className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground" />
                 </AvatarFallback>
               </Avatar>
+
+              {/* Profile action buttons — edit, follow, moderation, etc. */}
+              <div className="pt-4 flex items-center gap-2">
+                {isOwnProfile && (
+                  <Button
+                    variant="default"
+                    size="icon"
+                    onClick={() => router.push("/settings/profile")}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* User Info */}
