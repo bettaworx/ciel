@@ -7,12 +7,10 @@ import (
 	"strings"
 
 	"backend/internal/api"
-	"backend/internal/auth"
 	"backend/internal/db/sqlc"
 	"backend/internal/repository"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type UsersService struct {
