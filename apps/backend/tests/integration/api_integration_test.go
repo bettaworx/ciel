@@ -1237,9 +1237,18 @@ func TestIntegration_Users_GetByUsername_HidesAgreementFieldsEvenForSelf(t *test
 		errBody := decodeJSON[map[string]any](t, resp)
 		t.Fatalf("expected 200, got %d (%v)", resp.StatusCode, errBody)
 	}
-	got := decodeJSON[api.User](t, resp)
-	if got.TermsVersion != nil || got.PrivacyVersion != nil || got.TermsAcceptedAt != nil || got.PrivacyAcceptedAt != nil {
-		t.Fatalf("expected agreement fields hidden in users endpoint, got %+v", got)
+	got := decodeJSON[map[string]any](t, resp)
+	if _, ok := got["termsVersion"]; ok {
+		t.Fatalf("expected termsVersion omitted, got %+v", got["termsVersion"])
+	}
+	if _, ok := got["privacyVersion"]; ok {
+		t.Fatalf("expected privacyVersion omitted, got %+v", got["privacyVersion"])
+	}
+	if _, ok := got["termsAcceptedAt"]; ok {
+		t.Fatalf("expected termsAcceptedAt omitted, got %+v", got["termsAcceptedAt"])
+	}
+	if _, ok := got["privacyAcceptedAt"]; ok {
+		t.Fatalf("expected privacyAcceptedAt omitted, got %+v", got["privacyAcceptedAt"])
 	}
 
 	meResp := get(t, client, base+"/api/v1/me", a)

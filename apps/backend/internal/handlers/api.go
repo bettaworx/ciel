@@ -54,6 +54,28 @@ type API struct {
 	ModMedia         *moderation.MediaService
 }
 
+type publicUserResponse struct {
+	AvatarUrl   *string            `json:"avatarUrl"`
+	Bio         *string            `json:"bio"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	DisplayName *string            `json:"displayName"`
+	Id          openapi_types.UUID `json:"id"`
+	IsAdmin     *bool              `json:"isAdmin,omitempty"`
+	Username    api.Username       `json:"username"`
+}
+
+func toPublicUserResponse(user api.User) publicUserResponse {
+	return publicUserResponse{
+		AvatarUrl:   user.AvatarUrl,
+		Bio:         user.Bio,
+		CreatedAt:   user.CreatedAt,
+		DisplayName: user.DisplayName,
+		Id:          user.Id,
+		IsAdmin:     user.IsAdmin,
+		Username:    user.Username,
+	}
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -423,11 +445,7 @@ func (h API) GetUsersUsername(w http.ResponseWriter, r *http.Request, username a
 		writeServiceError(w, err)
 		return
 	}
-	u.TermsVersion = nil
-	u.PrivacyVersion = nil
-	u.TermsAcceptedAt = nil
-	u.PrivacyAcceptedAt = nil
-	writeJSON(w, http.StatusOK, u)
+	writeJSON(w, http.StatusOK, toPublicUserResponse(u))
 }
 
 func (h API) GetUsersUsernamePosts(w http.ResponseWriter, r *http.Request, username api.Username, params api.GetUsersUsernamePostsParams) {
