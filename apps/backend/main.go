@@ -198,6 +198,7 @@ func main() {
 			slog.Warn("invalid STEPUP_TOKEN_TTL_SECONDS", "value", v)
 		}
 	}
+	r.Use(middleware.SecurityHeaders(isProduction))
 	r.Use(middleware.CORS())
 	r.Use(middleware.OptionalAuth(tokenManager))
 	r.Use(middleware.AccessLog(middleware.AccessLogOptions{TrustProxy: trustProxy}))
