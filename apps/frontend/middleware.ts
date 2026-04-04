@@ -7,7 +7,7 @@ function sanitize(value: string): string {
 
 function buildCsp(nonce: string): string {
   const d = (key: string, fallback: string) =>
-    sanitize(process.env[key] ?? fallback)
+    sanitize(process.env[key] || fallback)
 
   // Nonce is always injected into script-src automatically.
   // Do not include 'nonce-*' manually in CSP_SCRIPT_SRC.
