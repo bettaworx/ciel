@@ -1,23 +1,12 @@
-import fs from "fs";
 import path from "path";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
-import dotenv from "dotenv";
-
-const envRoot = path.resolve(process.cwd(), "..", "..");
-const envFiles = [".env", ".env.local"];
-for (const envFile of envFiles) {
-  const envPath = path.join(envRoot, envFile);
-  if (fs.existsSync(envPath)) {
-    dotenv.config({ path: envPath });
-  }
-}
 
 const withNextIntl = createNextIntlPlugin("./i18n/config.ts");
 
-// Parse NEXT_PUBLIC_API_BASE_URL to allow dynamic hostname configuration
+// Parse API_BASE_URL to allow dynamic hostname configuration
 const publicBaseUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:6137";
+  process.env.API_BASE_URL || "http://localhost:6137";
 const url = new URL(publicBaseUrl);
 const hostname = url.hostname;
 const port = url.port;
@@ -83,6 +72,21 @@ const nextConfig: NextConfig = {
           ]
         : []),
     ],
+  },
+
+  // Proxy API and WebSocket requests to the backend (runtime URL injection)
+  async rewrites() {
+    const backendUrl = process.env.API_BASE_URL || "http://localhost:6137";
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: `${backendUrl}/api/v1/:path*`,
+      },
+      {
+        source: "/ws/:path*",
+        destination: `${backendUrl}/ws/:path*`,
+      },
+    ];
   },
 
   // Redirect /favicon.ico to /icon for dynamic favicon

@@ -1,10 +1,6 @@
 pipeline {
   agent any
 
-  parameters {
-    string(name: 'NEXT_PUBLIC_API_BASE_URL', defaultValue: 'http://localhost:6137')
-  }
-
   environment {
     REGISTRY = 'ghcr.io'
     OWNER = 'bettaworx'
@@ -43,7 +39,7 @@ pipeline {
 
     stage('Build Frontend') {
       steps {
-        sh 'docker build -f Dockerfile.frontend --build-arg NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL -t $FRONTEND_IMAGE:$IMAGE_TAG .'
+        sh 'docker build -f Dockerfile.frontend -t $FRONTEND_IMAGE:$IMAGE_TAG .'
       }
     }
 

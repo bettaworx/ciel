@@ -17,8 +17,7 @@ export const revalidate = 300; // 5分キャッシュ
 export async function GET() {
 	try {
 		// 1. Fetch server info from backend
-		const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:6137';
-		const baseUrl = apiUrl.startsWith('/') ? `http://localhost:6137${apiUrl}` : apiUrl;
+		const baseUrl = process.env.API_BASE_URL || 'http://localhost:6137';
 		
 		const serverInfoRes = await fetch(`${baseUrl}/api/v1/server/info`, {
 			next: { revalidate: 300 }

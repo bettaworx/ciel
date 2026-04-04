@@ -42,8 +42,7 @@ export class ApiHttpError extends Error {
 const DEFAULT_BASE_URL = '/api/v1';
 
 function resolveBaseUrl(explicit?: string): string {
-	const fromEnv = process.env.NEXT_PUBLIC_API_BASE_URL as string | undefined;
-	const raw = (explicit ?? fromEnv ?? DEFAULT_BASE_URL).trim();
+	const raw = (explicit ?? DEFAULT_BASE_URL).trim();
 	if (!raw) return DEFAULT_BASE_URL;
 	const noTrailingSlash = raw.replace(/\/+$/, '');
 

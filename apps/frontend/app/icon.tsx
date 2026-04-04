@@ -8,8 +8,8 @@ const size = { width: 48, height: 48 };
 export { size };
 
 function resolveApiBaseUrl(): string {
-	const fromEnv = process.env.NEXT_PUBLIC_API_BASE_URL as string | undefined;
-	const DEFAULT_BASE_URL = '/api/v1';
+	const fromEnv = process.env.API_BASE_URL as string | undefined;
+	const DEFAULT_BASE_URL = 'http://localhost:6137/api/v1';
 	const raw = (fromEnv ?? DEFAULT_BASE_URL).trim();
 	if (!raw) return DEFAULT_BASE_URL;
 	const noTrailingSlash = raw.replace(/\/+$/, '');

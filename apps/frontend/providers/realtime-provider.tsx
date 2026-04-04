@@ -142,18 +142,9 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	const connect = useCallback(() => {
 		if (typeof window === 'undefined') return;
 
-		// Construct WebSocket URL
+		// Construct WebSocket URL (proxied via Next.js rewrites)
 		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-		const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-		let wsUrl: string;
-
-		if (baseUrl && baseUrl.startsWith('http')) {
-			// External API server - convert http(s):// to ws(s)://
-			wsUrl = baseUrl.replace(/^http(s?)/, 'ws$1') + '/ws/timeline';
-		} else {
-			// Same origin
-			wsUrl = `${protocol}//${window.location.host}/ws/timeline`;
-		}
+		const wsUrl = `${protocol}//${window.location.host}/ws/timeline`;
 
 		try {
 			// Note: WebSocket automatically sends cookies (including httpOnly cookies)
