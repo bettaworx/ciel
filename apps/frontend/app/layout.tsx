@@ -1,4 +1,5 @@
 import { IBM_Plex_Sans_JP } from "next/font/google";
+import { headers } from "next/headers";
 import { Toaster } from "@/components/ui/sonner";
 import { ConditionalSidebar } from "@/components/ConditionalSidebar";
 import { MainContent } from "@/components/MainContent";
@@ -18,11 +19,15 @@ const ibmPlexSansJP = IBM_Plex_Sans_JP({
   display: "swap",
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Reading headers opts into dynamic rendering per request, which is required
+  // for per-request nonces. Next.js uses the x-nonce header (set by middleware)
+  // to apply the nonce to its own generated script tags.
+  await headers();
   return (
     <html lang="ja" suppressHydrationWarning>
       <head>
