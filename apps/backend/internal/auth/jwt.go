@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -138,11 +139,17 @@ func (m *TokenManager) Parse(token string) (User, error) {
 		return User{}, ErrUnauthorized
 	}
 
-	// Check if the token has been revoked (if Redis is available).
-	// Fail open: if Redis is unavailable, allow the token through.
+	// Check if the token has been revoked via Redis.
+	// redis.Nil means no revocation record exists → allow.
+	// Any other error means Redis is unavailable → fail closed to prevent
+	// revoked tokens (e.g. after a password change) from being accepted.
 	if m.redis != nil && claims.IssuedAt != nil {
 		key := "token:revoke:" + claims.UserID
 		val, err := m.redis.Get(context.Background(), key).Result()
+		if err != nil && !errors.Is(err, redis.Nil) {
+			slog.Warn("redis unavailable for token revocation check; denying request", "user_id", claims.UserID, "error", err)
+			return User{}, ErrUnauthorized
+		}
 		if err == nil {
 			if revokedAt, err := strconv.ParseInt(val, 10, 64); err == nil {
 				if claims.IssuedAt.Unix() < revokedAt {
