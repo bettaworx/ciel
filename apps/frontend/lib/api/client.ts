@@ -84,6 +84,9 @@ type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export function createApiClient(options: ApiClientOptions = {}) {
 	const baseUrl = resolveBaseUrl(options.baseUrl);
 
+	// Shared promise to prevent multiple concurrent refresh attempts
+	let refreshPromise: Promise<boolean> | null = null;
+
 	/**
 	 * Before declaring the server offline, confirm by hitting the health endpoint.
 	 * A single network error (e.g. connection reset during a large upload) should
@@ -129,10 +132,28 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		}
 	}
 
+	async function attemptRefresh(): Promise<boolean> {
+		if (refreshPromise) return refreshPromise;
+		refreshPromise = (async () => {
+			try {
+				const res = await fetch(`${baseUrl}/auth/refresh`, {
+					method: 'POST',
+					credentials: 'include',
+				});
+				return res.ok;
+			} catch {
+				return false;
+			} finally {
+				refreshPromise = null;
+			}
+		})();
+		return refreshPromise;
+	}
+
 	async function request<T>(
 		method: HttpMethod,
 		path: string,
-		init?: { body?: unknown; token?: string | null; headers?: Record<string, string> }
+		init?: { body?: unknown; token?: string | null; headers?: Record<string, string>; _skipRefresh?: boolean }
 	): Promise<ApiResult<T>> {
 		const url = `${baseUrl}${path}`;
 
@@ -150,6 +171,16 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			});
 
 			if (!res.ok) {
+				// On 401, attempt a token refresh and retry the original request once
+				if (res.status === 401 && !init?._skipRefresh && path !== '/auth/refresh') {
+					const refreshed = await attemptRefresh();
+					if (refreshed) {
+						return request<T>(method, path, { ...init, _skipRefresh: true });
+					}
+					// Refresh failed — session has expired
+					options.onSessionExpired?.();
+				}
+
 				const { errorText, errorJson } = await readBody(res);
 				handleNonOkResponse(res, errorText, errorJson);
 				return { ok: false, status: res.status, errorText, errorJson, headers: res.headers };
@@ -243,6 +274,8 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		stepupFinish: (body: components['schemas']['StepupFinishRequest']) =>
 			request<components['schemas']['StepupFinishResponse']>('POST', '/auth/stepup/finish', { body }),
+
+		refresh: () => request<components['schemas']['RefreshResponse']>('POST', '/auth/refresh', { _skipRefresh: true }),
 
 		logout: () => request<void>('POST', '/auth/logout'),
 

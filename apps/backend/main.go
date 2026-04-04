@@ -190,7 +190,7 @@ func main() {
 
 	// JWT_SECRET is now validated above - no fallback to ephemeral secret
 	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
-	tokenManager := auth.NewTokenManager(jwtSecret, 1*time.Hour)
+	tokenManager := auth.NewTokenManager(jwtSecret, 15*time.Minute)
 	if v := os.Getenv("STEPUP_TOKEN_TTL_SECONDS"); v != "" {
 		if secs, err := strconv.Atoi(v); err == nil && secs > 0 {
 			tokenManager.SetStepupTTL(time.Duration(secs) * time.Second)
@@ -285,6 +285,19 @@ func main() {
 		StepupSessionStore: stepupSessionStore,
 	})
 	authSvc.SetConfigManager(configMgr)
+
+	// Periodically clean up expired refresh tokens from the database
+	if store != nil {
+		go func() {
+			ticker := time.NewTicker(24 * time.Hour)
+			defer ticker.Stop()
+			for range ticker.C {
+				if err := store.Q.DeleteExpiredRefreshTokens(context.Background()); err != nil {
+					slog.Warn("failed to delete expired refresh tokens", "error", err)
+				}
+			}
+		}()
+	}
 
 	// Initialize admin services
 	modLogsSvc := moderation.NewLogsService(store)

@@ -374,43 +374,88 @@ func (s *AuthService) LoginStart(ctx context.Context, req api.LoginStartRequest)
 	}, nil
 }
 
-func (s *AuthService) LoginFinish(ctx context.Context, req api.LoginFinishRequest) (api.LoginFinishResponse, error) {
+const refreshTokenTTL = 30 * 24 * time.Hour
+
+// IssueRefreshTokenForUser generates a new refresh token for an already-authenticated user.
+// Used by handlers that need to issue a refresh token outside of the login flow (e.g. after password change).
+func (s *AuthService) IssueRefreshTokenForUser(ctx context.Context, userID uuid.UUID) (string, error) {
 	if s.store == nil {
-		return api.LoginFinishResponse{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+		return "", NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	return s.issueRefreshToken(ctx, userID)
+}
+
+// RevokeAllRefreshTokens revokes all active refresh tokens for a user.
+// Called on logout to ensure stolen tokens cannot be reused after the user signs out.
+func (s *AuthService) RevokeAllRefreshTokens(ctx context.Context, userID uuid.UUID) error {
+	if s.store == nil {
+		return nil
+	}
+	return s.store.Q.RevokeAllUserRefreshTokens(ctx, userID)
+}
+
+// issueRefreshToken generates a new opaque refresh token, stores its hash in the DB,
+// and returns the raw token to be set as a cookie.
+func (s *AuthService) issueRefreshToken(ctx context.Context, userID uuid.UUID) (string, error) {
+	raw, err := auth.RandomToken(32)
+	if err != nil {
+		return "", err
+	}
+	hash := auth.HashRefreshToken(raw)
+	expiresAt := time.Now().UTC().Add(refreshTokenTTL)
+	_, err = s.store.Q.CreateRefreshToken(ctx, sqlc.CreateRefreshTokenParams{
+		UserID:    userID,
+		TokenHash: hash,
+		ExpiresAt: expiresAt,
+	})
+	if err != nil {
+		return "", err
+	}
+	return raw, nil
+}
+
+func (s *AuthService) LoginFinish(ctx context.Context, req api.LoginFinishRequest) (api.LoginFinishResponse, string, error) {
+	if s.store == nil {
+		return api.LoginFinishResponse{}, "", NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
 	if strings.TrimSpace(req.LoginSessionId) == "" || strings.TrimSpace(req.ClientFinalNonce) == "" || strings.TrimSpace(req.ClientProof) == "" {
-		return api.LoginFinishResponse{}, NewError(http.StatusBadRequest, "invalid_request", "missing fields")
+		return api.LoginFinishResponse{}, "", NewError(http.StatusBadRequest, "invalid_request", "missing fields")
 	}
 
 	sess, ok := s.sessions.Get(req.LoginSessionId)
 	// One-time use: delete regardless of outcome.
 	s.sessions.Delete(req.LoginSessionId)
 	if !ok {
-		return api.LoginFinishResponse{}, NewError(http.StatusUnauthorized, "unauthorized", "invalid or expired login session")
+		return api.LoginFinishResponse{}, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid or expired login session")
 	}
 
 	expectedFinalNonce := sess.ClientNonce + sess.ServerNonce
 	if req.ClientFinalNonce != expectedFinalNonce {
-		return api.LoginFinishResponse{}, NewError(http.StatusUnauthorized, "unauthorized", "invalid nonce")
+		return api.LoginFinishResponse{}, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid nonce")
 	}
 
 	row, err := s.store.Q.GetAuthByUsername(ctx, sess.Username)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return api.LoginFinishResponse{}, NewError(http.StatusUnauthorized, "unauthorized", "invalid credentials")
+			return api.LoginFinishResponse{}, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid credentials")
 		}
-		return api.LoginFinishResponse{}, err
+		return api.LoginFinishResponse{}, "", err
 	}
 
 	authMessage := auth.BuildAuthMessage(sess.Username, sess.ClientNonce, sess.ServerNonce, sess.SaltB64, sess.Iterations, req.ClientFinalNonce)
 	okProof, err := auth.VerifyClientProof(row.StoredKey, authMessage, req.ClientProof)
 	if err != nil || !okProof {
-		return api.LoginFinishResponse{}, NewError(http.StatusUnauthorized, "unauthorized", "invalid proof")
+		return api.LoginFinishResponse{}, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid proof")
 	}
 
 	token, expiresIn, err := s.tokens.Issue(auth.User{ID: row.UserID, Username: row.Username})
 	if err != nil {
-		return api.LoginFinishResponse{}, err
+		return api.LoginFinishResponse{}, "", err
+	}
+
+	rawRefreshToken, err := s.issueRefreshToken(ctx, row.UserID)
+	if err != nil {
+		return api.LoginFinishResponse{}, "", err
 	}
 
 	return api.LoginFinishResponse{
@@ -418,7 +463,44 @@ func (s *AuthService) LoginFinish(ctx context.Context, req api.LoginFinishReques
 		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
 		ExpiresInSeconds: expiresIn,
 		User:             mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt),
-	}, nil
+	}, rawRefreshToken, nil
+}
+
+// RefreshSession validates a raw refresh token, rotates it, and issues a new access token.
+func (s *AuthService) RefreshSession(ctx context.Context, rawRefreshToken string) (accessToken string, expiresInSeconds int, newRawRefreshToken string, err error) {
+	if s.store == nil {
+		return "", 0, "", NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	if rawRefreshToken == "" {
+		return "", 0, "", NewError(http.StatusUnauthorized, "unauthorized", "missing refresh token")
+	}
+
+	hash := auth.HashRefreshToken(rawRefreshToken)
+
+	// Atomically mark the token as revoked and retrieve it in one query.
+	// This prevents the TOCTOU race condition where two concurrent requests
+	// could both pass a separate lookup before either revokes the token.
+	row, err := s.store.Q.ConsumeRefreshToken(ctx, hash)
+	if err != nil {
+		return "", 0, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid or expired refresh token")
+	}
+
+	userRow, err := s.store.Q.GetUserByID(ctx, row.UserID)
+	if err != nil {
+		return "", 0, "", err
+	}
+
+	accessToken, expiresInSeconds, err = s.tokens.Issue(auth.User{ID: row.UserID, Username: userRow.Username})
+	if err != nil {
+		return "", 0, "", err
+	}
+
+	newRawRefreshToken, err = s.issueRefreshToken(ctx, row.UserID)
+	if err != nil {
+		return "", 0, "", err
+	}
+
+	return accessToken, expiresInSeconds, newRawRefreshToken, nil
 }
 
 func (s *AuthService) StepUpStart(ctx context.Context, user auth.User, req api.StepupStartRequest) (api.StepupStartResponse, error) {
@@ -572,10 +654,16 @@ func (s *AuthService) ChangePassword(ctx context.Context, user auth.User, req ap
 		return err
 	}
 
-	// Invalidate all existing tokens for this user
+	// Invalidate all existing JWT tokens for this user
 	if err := s.tokens.InvalidateUserTokens(ctx, user.ID.String()); err != nil {
 		slog.Warn("failed to invalidate user tokens after password change", "error", err, "user_id", user.ID.String())
 		// Don't fail the password change if token invalidation fails
+	}
+
+	// Revoke all refresh tokens for this user
+	if err := s.store.Q.RevokeAllUserRefreshTokens(ctx, user.ID); err != nil {
+		slog.Warn("failed to revoke refresh tokens after password change", "error", err, "user_id", user.ID.String())
+		// Don't fail the password change if refresh token revocation fails
 	}
 
 	return nil
@@ -589,10 +677,15 @@ func (s *AuthService) DeleteAccount(ctx context.Context, user auth.User) error {
 		return NewError(http.StatusUnauthorized, "unauthorized", "unauthorized")
 	}
 
-	// Invalidate all existing tokens before deleting the account
+	// Invalidate all existing JWT tokens before deleting the account
 	if err := s.tokens.InvalidateUserTokens(ctx, user.ID.String()); err != nil {
 		slog.Warn("failed to invalidate user tokens before account deletion", "error", err, "user_id", user.ID.String())
 		// Continue with account deletion even if token invalidation fails
+	}
+
+	// Revoke all refresh tokens (ON DELETE CASCADE also handles this, but explicit revocation is belt-and-suspenders)
+	if err := s.store.Q.RevokeAllUserRefreshTokens(ctx, user.ID); err != nil {
+		slog.Warn("failed to revoke refresh tokens before account deletion", "error", err, "user_id", user.ID.String())
 	}
 
 	return s.store.Q.DeleteUserByID(ctx, user.ID)

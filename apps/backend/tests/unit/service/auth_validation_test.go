@@ -165,7 +165,7 @@ func TestAuthService_LoginFinish_MissingFields(t *testing.T) {
 	svc, cleanup := newAuthServiceWithMockStore(t)
 	defer cleanup()
 
-	_, err := svc.LoginFinish(context.Background(), api.LoginFinishRequest{})
+	_, _, err := svc.LoginFinish(context.Background(), api.LoginFinishRequest{})
 	assertServiceError(t, err, http.StatusBadRequest, "invalid_request")
 }
 
@@ -173,7 +173,7 @@ func TestAuthService_LoginFinish_InvalidSession(t *testing.T) {
 	svc, cleanup := newAuthServiceWithMockStore(t)
 	defer cleanup()
 
-	_, err := svc.LoginFinish(context.Background(), api.LoginFinishRequest{
+	_, _, err := svc.LoginFinish(context.Background(), api.LoginFinishRequest{
 		LoginSessionId:   "missing",
 		ClientFinalNonce: "cnonce+snonce",
 		ClientProof:      "proof",

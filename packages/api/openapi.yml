@@ -2201,6 +2201,28 @@ paths:
         '204':
           description: Logged out
 
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      description: |
+        Consumes the `ciel_refresh` HttpOnly cookie and issues a new access token
+        cookie (`ciel_auth`) and a rotated refresh token cookie (`ciel_refresh`).
+        Both cookies are set in the response. The refresh token is rotated on every use.
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '401':
+          description: Missing, invalid, or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /auth/password/change:
     post:
       tags: [Auth]
@@ -4114,6 +4136,15 @@ components:
           minimum: 1
         user:
           $ref: '#/components/schemas/User'
+
+    RefreshResponse:
+      type: object
+      required: [expiresInSeconds]
+      properties:
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+          description: Lifetime of the newly issued access token in seconds.
 
     StepupStartRequest:
       type: object

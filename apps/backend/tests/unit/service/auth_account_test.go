@@ -43,6 +43,10 @@ func TestAuthService_ChangePassword_Success(t *testing.T) {
 		WithArgs(userID, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
+	mock.ExpectExec(`UPDATE refresh_tokens`).
+		WithArgs(userID).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
 	err = svc.ChangePassword(context.Background(), auth.User{ID: userID, Username: "alice"}, api.PasswordChangeRequest{
 		NewPassword: "NewPassword123!",
 	})
@@ -107,6 +111,10 @@ func TestAuthService_DeleteAccount_Success(t *testing.T) {
 	svc := service.NewAuthService(store, tm)
 
 	userID := uuid.New()
+
+	mock.ExpectExec(`UPDATE refresh_tokens`).
+		WithArgs(userID).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	mock.ExpectExec(`DELETE FROM users`).
 		WithArgs(userID).
