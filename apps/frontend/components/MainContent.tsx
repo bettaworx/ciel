@@ -28,7 +28,7 @@ export function MainContent({ children }: MainContentProps) {
   return (
     <div
       className={cn(
-        "pb-20 sm:pb-0",
+        "pb-16 sm:pb-0",
         shouldApplySidebarOffset &&
           (isSidebarExpanded
             ? "sm:pl-[72px] sm:pr-0 xl:pl-[248px] xl:pr-[248px]"
