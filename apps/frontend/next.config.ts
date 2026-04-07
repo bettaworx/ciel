@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
 
+  // Allow dev HMR requests from other origins (e.g. Tailscale IPs, LAN access).
+  // Set NEXT_DEV_ORIGINS as a comma-separated list in .env to add origins.
+  allowedDevOrigins: process.env.NEXT_DEV_ORIGINS
+    ? process.env.NEXT_DEV_ORIGINS.split(",").map((s) => s.trim())
+    : [],
+
   // Packages that must not be bundled – they need to run as native Node.js
   // modules in API routes (e.g. undici uses native net/tls bindings).
   serverExternalPackages: ["undici"],
