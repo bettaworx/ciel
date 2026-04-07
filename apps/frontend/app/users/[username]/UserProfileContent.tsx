@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
@@ -272,7 +273,17 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   const posts = postsData?.pages.flatMap((page) => page.items ?? []) ?? [];
 
   return (
-    <PageContainer maxWidth="2xl">
+    <PageContainer
+      maxWidth="2xl"
+      header={
+        <PageHeader>
+          <MfmRenderer
+            text={user.displayName || user.username}
+            allowList={DISPLAY_NAME_ALLOW_LIST}
+          />
+        </PageHeader>
+      }
+    >
       <div>
         {/* User Profile Header */}
         <div className="select-none bg-card rounded-2xl overflow-hidden mb-8">

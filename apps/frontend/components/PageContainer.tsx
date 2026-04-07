@@ -21,6 +21,10 @@ interface PageContainerProps {
    * @default "main"
    */
   as?: "main" | "div" | "section";
+  /**
+   * ページ上部に表示するヘッダー。指定した場合、上部のパディングは付与されません。
+   */
+  header?: React.ReactNode;
 }
 
 const maxWidthClasses = {
@@ -32,9 +36,9 @@ const maxWidthClasses = {
   full: "max-w-full",
 };
 
-const paddingClasses = {
-  default: "px-3 sm:pl-0 sm:pr-3 py-3",
-  compact: "px-3 sm:pl-0 sm:pr-3 py-3",
+const horizontalPaddingClasses = {
+  default: "px-3 sm:pl-0 sm:pr-3",
+  compact: "px-3 sm:pl-0 sm:pr-3",
   none: "",
 };
 
@@ -69,16 +73,22 @@ export function PageContainer({
   padding = "default",
   className,
   as: Component = "main",
+  header,
 }: PageContainerProps) {
+  const hasPadding = padding !== "none";
+
   return (
     <Component
       className={cn(
         "ciel-page-container container mx-auto",
         maxWidthClasses[maxWidth],
-        paddingClasses[padding],
+        hasPadding && horizontalPaddingClasses[padding],
+        hasPadding && !header && "pt-3",
+        hasPadding && "pb-3",
         className,
       )}
     >
+      {header}
       {children}
     </Component>
   );
