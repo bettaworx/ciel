@@ -41,6 +41,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/Spinner";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { toast } from "sonner";
@@ -67,6 +68,13 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     fetchNextPage,
     hasNextPage,
   } = useUserPosts(username);
+  const {
+    data: mediaData,
+    isLoading: mediaLoading,
+    error: mediaError,
+    fetchNextPage: fetchNextMediaPage,
+    hasNextPage: hasNextMediaPage,
+  } = useUserPosts(username, { mediaType: "media" });
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -271,6 +279,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   }
 
   const posts = postsData?.pages.flatMap((page) => page.items ?? []) ?? [];
+  const media = mediaData?.pages.flatMap((page) => page.items ?? []) ?? [];
 
   return (
     <PageContainer
@@ -286,7 +295,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     >
       <div>
         {/* User Profile Header */}
-        <div className="select-none bg-card rounded-2xl overflow-hidden mb-8">
+        <div className="select-none bg-card rounded-2xl overflow-hidden mb-3">
           {/* Banner */}
           <div
             className={`w-full aspect-[3/1] bg-muted relative ${isEditing ? "cursor-pointer" : ""}`}
@@ -560,56 +569,105 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           </div>
         </div>
 
-        {/* Posts Section */}
-        <div className="mb-3">
-          <h2 className="text-xl font-bold text-foreground">
-            {t("user.posts")}
-          </h2>
-        </div>
+        {/* Posts / Media Tabs */}
+        <Tabs defaultValue="posts">
+          <TabsList className="mb-3 w-full">
+            <TabsTrigger value="posts">{t("user.posts")}</TabsTrigger>
+            <TabsTrigger value="media">{t("user.media")}</TabsTrigger>
+          </TabsList>
 
-        {postsLoading && posts.length === 0 && (
-          <div className="flex items-center justify-center py-12">
-            <Spinner variant="theme" label={t("loading")} />
-          </div>
-        )}
+          <TabsContent value="posts">
+            {postsLoading && posts.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <Spinner variant="theme" label={t("loading")} />
+              </div>
+            )}
 
-        {postsError && (
-          <div className="flex items-center justify-center py-12">
-            <p className="text-destructive">
-              {t("error.title")}: {postsError.message}
-            </p>
-          </div>
-        )}
+            {postsError && (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-destructive">
+                  {t("error.title")}: {postsError.message}
+                </p>
+              </div>
+            )}
 
-        {!postsLoading && !postsError && posts.length === 0 && (
-          <div className="flex items-center justify-center py-12">
-            <p className="text-muted-foreground">{t("user.noPosts")}</p>
-          </div>
-        )}
+            {!postsLoading && !postsError && posts.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-muted-foreground">{t("user.noPosts")}</p>
+              </div>
+            )}
 
-        {posts.length > 0 && (
-          <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-            {posts.map((post, index) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onUserClick={(username) => router.push(`/users/${username}`)}
-                isLast={index === posts.length - 1}
-              />
-            ))}
-          </div>
-        )}
+            {posts.length > 0 && (
+              <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
+                {posts.map((post, index) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onUserClick={(username) => router.push(`/users/${username}`)}
+                    isLast={index === posts.length - 1}
+                  />
+                ))}
+              </div>
+            )}
 
-        {hasNextPage && (
-          <div className="mt-8 text-center">
-            <Button
-              onClick={() => fetchNextPage()}
-              className="transition-colors duration-160 ease"
-            >
-              {t("timeline.loadMore")}
-            </Button>
-          </div>
-        )}
+            {hasNextPage && (
+              <div className="mt-8 text-center">
+                <Button
+                  onClick={() => fetchNextPage()}
+                  className="transition-colors duration-160 ease"
+                >
+                  {t("timeline.loadMore")}
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="media">
+            {mediaLoading && media.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <Spinner variant="theme" label={t("loading")} />
+              </div>
+            )}
+
+            {mediaError && (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-destructive">
+                  {t("error.title")}: {mediaError.message}
+                </p>
+              </div>
+            )}
+
+            {!mediaLoading && !mediaError && media.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-muted-foreground">{t("user.noMedia")}</p>
+              </div>
+            )}
+
+            {media.length > 0 && (
+              <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
+                {media.map((post, index) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onUserClick={(username) => router.push(`/users/${username}`)}
+                    isLast={index === media.length - 1}
+                  />
+                ))}
+              </div>
+            )}
+
+            {hasNextMediaPage && (
+              <div className="mt-8 text-center">
+                <Button
+                  onClick={() => fetchNextMediaPage()}
+                  className="transition-colors duration-160 ease"
+                >
+                  {t("timeline.loadMore")}
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {cropDialogOpen && cropImageSrc && pendingCropFile && (

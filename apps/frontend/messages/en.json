@@ -267,6 +267,8 @@
     "anonymous": "Anonymous",
     "posts": "Posts",
     "noPosts": "No posts yet",
+    "media": "Media",
+    "noMedia": "No media yet",
     "notFound": "User not found",
     "noBio": "No bio yet",
     "editProfile": "Edit",

@@ -173,7 +173,7 @@ export function useUser(username: string | undefined) {
 // User posts with infinite scroll
 export function useUserPosts(
   username: string | undefined,
-  params?: { limit?: number },
+  params?: { limit?: number; mediaType?: "image" | "video" | "media" },
 ) {
   const api = useApi();
 
@@ -186,6 +186,7 @@ export function useUserPosts(
       const result = await api.userPosts(username, {
         limit: params?.limit ?? 30,
         cursor: pageParam ?? null,
+        mediaType: params?.mediaType,
       });
       if (!result.ok) throw new Error(result.errorText);
       return result.data;

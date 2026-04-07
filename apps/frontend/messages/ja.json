@@ -267,6 +267,8 @@
     "anonymous": "匿名",
     "posts": "投稿",
     "noPosts": "投稿がありません",
+    "media": "メディア",
+    "noMedia": "メディアはまだありません",
     "notFound": "ユーザーが見つかりません",
     "noBio": "自己紹介がありません",
     "editProfile": "編集",
