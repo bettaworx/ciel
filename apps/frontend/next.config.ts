@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
 
+  // Inject build version info (defaults to "dev" for local development)
+  env: {
+    NEXT_PUBLIC_BUILD_COMMIT: process.env.BUILD_COMMIT || "dev",
+    NEXT_PUBLIC_BUILD_BRANCH: process.env.BUILD_BRANCH || "dev",
+  },
+
   // Allow dev HMR requests from other origins (e.g. Tailscale IPs, LAN access).
   // Set NEXT_DEV_ORIGINS as a comma-separated list in .env to add origins.
   allowedDevOrigins: process.env.NEXT_DEV_ORIGINS

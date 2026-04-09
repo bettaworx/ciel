@@ -33,13 +33,19 @@ pipeline {
 
     stage('Build Backend') {
       steps {
-        sh 'docker build -f Dockerfile.backend -t $BACKEND_IMAGE:$IMAGE_TAG .'
+        sh """docker build -f Dockerfile.backend \
+          --build-arg BUILD_COMMIT=${env.GIT_COMMIT[0..6]} \
+          --build-arg BUILD_BRANCH=${env.GIT_BRANCH.replaceAll('origin/', '')} \
+          -t \$BACKEND_IMAGE:\$IMAGE_TAG ."""
       }
     }
 
     stage('Build Frontend') {
       steps {
-        sh 'docker build -f Dockerfile.frontend -t $FRONTEND_IMAGE:$IMAGE_TAG .'
+        sh """docker build -f Dockerfile.frontend \
+          --build-arg BUILD_COMMIT=${env.GIT_COMMIT[0..6]} \
+          --build-arg BUILD_BRANCH=${env.GIT_BRANCH.replaceAll('origin/', '')} \
+          -t \$FRONTEND_IMAGE:\$IMAGE_TAG ."""
       }
     }
 

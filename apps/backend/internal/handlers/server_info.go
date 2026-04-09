@@ -6,6 +6,7 @@ import (
 	"backend/internal/api"
 	"backend/internal/config"
 	"backend/internal/service"
+	"backend/internal/version"
 )
 
 // GetServerInfo returns public server information (name, description, icon, signup status)
@@ -22,11 +23,15 @@ func (h API) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build response
+	versionStr := version.CommitOrDev()
+	branchStr := version.BranchOrDev()
 	response := api.ServerInfo{
 		ServerName:        stringPtr(cfg.Server.Name),
 		ServerDescription: stringPtr(cfg.Server.Description),
 		ServerIconUrl:     nil, // Will be set below if icon exists
 		SignupEnabled:     !cfg.Auth.InviteOnly,
+		Version:           &versionStr,
+		Branch:            &branchStr,
 		ConfigVersion:     cfg.Server.LastUpdatedAt,
 		MediaLimits: api.MediaLimits{
 			MaxUploadSizeMB:   cfg.Media.MaxUploadSize,
