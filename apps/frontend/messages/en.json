@@ -3,7 +3,8 @@
   "welcome": {
     "title": "Welcome to {serverName}!",
     "description": "{serverDescription}",
-    "descriptionFallback": "Explore our platform and start sharing your thoughts."
+    "descriptionFallback": "Explore our platform and start sharing your thoughts.",
+    "aboutServer": "About this server"
   },
   "username": "Username",
   "password": "Password",

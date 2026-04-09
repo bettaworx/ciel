@@ -3,7 +3,8 @@
   "welcome": {
     "title": "{serverName}へようこそ！",
     "description": "{serverDescription}",
-    "descriptionFallback": "プラットフォームを探索して、あなたの考えをシェアしましょう"
+    "descriptionFallback": "プラットフォームを探索して、あなたの考えをシェアしましょう",
+    "aboutServer": "サーバーについて"
   },
   "username": "ユーザー名",
   "password": "パスワード",
