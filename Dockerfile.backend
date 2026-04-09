@@ -15,12 +15,12 @@ RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
 COPY packages/api /packages/api
 COPY apps/backend ./
 
-ARG BUILD_COMMIT=dev
-ARG BUILD_BRANCH=dev
-
 ENV CGO_ENABLED=0
 RUN go generate ./internal/db/sqlc
 RUN go generate ./internal/api
+
+ARG BUILD_COMMIT=dev
+ARG BUILD_BRANCH=dev
 RUN go build -trimpath \
   -ldflags="-s -w -X backend/internal/version.Commit=${BUILD_COMMIT} -X backend/internal/version.Branch=${BUILD_BRANCH}" \
   -o /out/backend .
