@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "gen:openapi": "openapi-typescript ../../packages/api/openapi.yml -o lib/api/api.d.ts",
+    "gen:licenses": "node scripts/generate-licenses.cjs",
+    "prebuild": "node scripts/generate-licenses.cjs",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
@@ -71,6 +73,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
+    "license-checker-rseidelsohn": "^4.4.2",
     "openapi-typescript": "^7.10.1",
     "postcss": "^8.5.6",
     "storybook": "10.2.17",

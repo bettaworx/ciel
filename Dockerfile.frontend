@@ -26,6 +26,7 @@ COPY apps/frontend ./
 COPY packages/api /app/packages/api
 
 RUN corepack enable pnpm && pnpm run gen:openapi
+RUN corepack enable pnpm && pnpm run gen:licenses
 RUN corepack enable pnpm && pnpm run build
 
 # Remove source maps from the build output to avoid exposing source structure
