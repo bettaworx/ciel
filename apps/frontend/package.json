@@ -11,6 +11,8 @@
     "test:watch": "vitest",
     "gen:openapi": "openapi-typescript ../../packages/api/openapi.yml -o lib/api/api.d.ts",
     "gen:licenses": "node scripts/generate-licenses.cjs",
+    "predev": "pnpm run gen:licenses",
+    "prebuild": "pnpm run gen:licenses",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
