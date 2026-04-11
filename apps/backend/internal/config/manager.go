@@ -107,46 +107,27 @@ func (m *Manager) load() error {
 		return fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// If media config is missing, use defaults
-	if cfg.Media.MaxUploadSize == 0 {
-		slog.Info("media config not found in config file, using defaults")
-		defaultCfg := DefaultConfig()
-		cfg.Media = defaultCfg.Media
-	} else {
-		// Apply encoding defaults if the encoding section is absent from YAML.
-		// Because bool zero value is false, we need a presence check to distinguish
-		// "not set" (should default to true) from "explicitly set to false".
-		var presence struct {
-			Media struct {
-				Encoding *struct {
-					Post       *bool `yaml:"post"`
-					Avatar     *bool `yaml:"avatar"`
-					Banner     *bool `yaml:"banner"`
-					ServerIcon *bool `yaml:"server_icon"`
-					Video      *bool `yaml:"video"`
-				} `yaml:"encoding"`
-			} `yaml:"media"`
+	// 不足フィールドをデフォルト値で補完し、変更があればファイルに書き戻す
+	if repairedFields := repairDefaults(&cfg, data); len(repairedFields) > 0 {
+		for _, field := range repairedFields {
+			slog.Info("config field repaired with default value", "field", field)
 		}
-		if err := yaml.Unmarshal(data, &presence); err == nil {
-			if presence.Media.Encoding == nil {
-				slog.Info("media encoding config not found, using defaults (all enabled)")
-				defaultCfg := DefaultConfig()
-				cfg.Media.Encoding = defaultCfg.Media.Encoding
-			} else if presence.Media.Encoding.Banner == nil {
-				slog.Info("media encoding.banner not found, defaulting to true")
-				cfg.Media.Encoding.Banner = true
-			}
+		if err := m.writeConfig(&cfg); err != nil {
+			// 書き戻し失敗は致命的ではない (インメモリは修復済み)
+			slog.Warn("failed to write repaired config to disk", "error", err)
+		} else {
+			slog.Info("repaired config written to disk", "fields_repaired", len(repairedFields))
 		}
+	}
 
-		// Clamp quality values to 0-100 range and log warnings
-		original := cfg.Media
-		cfg.Media.ClampQuality()
-		cfg.Media.LogClampedQuality(&original)
+	// Clamp quality values to 0-100 range and log warnings
+	original := cfg.Media
+	cfg.Media.ClampQuality()
+	cfg.Media.LogClampedQuality(&original)
 
-		// Validate media configuration
-		if err := cfg.Media.Validate(); err != nil {
-			return fmt.Errorf("invalid media configuration: %w", err)
-		}
+	// Validate media configuration
+	if err := cfg.Media.Validate(); err != nil {
+		return fmt.Errorf("invalid media configuration: %w", err)
 	}
 
 	m.config = &cfg
