@@ -25,13 +25,15 @@ func (h API) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 	// Build response
 	versionStr := version.CommitOrDev()
 	branchStr := version.BranchOrDev()
+	semVer := version.Version
 	response := api.ServerInfo{
 		ServerName:        stringPtr(cfg.Server.Name),
 		ServerDescription: stringPtr(cfg.Server.Description),
 		ServerIconUrl:     nil, // Will be set below if icon exists
 		SignupEnabled:     !cfg.Auth.InviteOnly,
-		Version:           &versionStr,
+		Commit:            &versionStr,
 		Branch:            &branchStr,
+		Version:           &semVer,
 		ConfigVersion:     cfg.Server.LastUpdatedAt,
 		MediaLimits: api.MediaLimits{
 			MaxUploadSizeMB:   cfg.Media.MaxUploadSize,

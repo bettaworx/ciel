@@ -4560,7 +4560,7 @@ components:
         signupEnabled:
           type: boolean
           description: Whether new user signups are currently allowed
-        version:
+        commit:
           type: string
           description: Build version identifier (commit hash or "dev")
           example: "a1b2c3d"
@@ -4568,6 +4568,10 @@ components:
           type: string
           description: Git branch name (or "dev" in development)
           example: "main"
+        version:
+          type: string
+          description: Semantic version of the server (e.g. "0.1.0")
+          example: "0.1.0"
         configVersion:
           type: integer
           format: int64
