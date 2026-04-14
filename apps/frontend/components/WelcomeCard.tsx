@@ -39,8 +39,8 @@ export function WelcomeCard() {
 
   return (
     <div className="bg-card rounded-xl sm:rounded-2xl flex flex-col justify-between p-6 gap-6 aspect-square sm:aspect-auto">
-      <div className="flex flex-row justify-start items-start gap-6">
-        <div className="flex flex-col text-left justify-center items-left grow py-6">
+      <div className="flex flex-row justify-start items-start gap-6 h-fit grow">
+        <div className="h-full flex flex-col text-left justify-center items-left grow py-6">
           {/* Server icon: アイコンがあれば画像表示、なければbg-primaryの角丸プレースホルダー */}
           {serverInfo?.serverIconUrl ? (
             <Image
