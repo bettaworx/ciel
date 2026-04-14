@@ -2,7 +2,10 @@ name: ciel
 
 services:
   backend:
-    image: ghcr.io/bettaworx/ciel-backend:latest
+    # チャンネルに応じてタグを変更してください:
+    #   stable版: ghcr.io/bettaworx/ciel-backend:stable
+    #   canary版: ghcr.io/bettaworx/ciel-backend:canary
+    image: ghcr.io/bettaworx/ciel-backend:stable
     container_name: ciel-backend
     depends_on:
       db:
@@ -36,7 +39,10 @@ services:
       - ./apps/backend/config:/app/config
 
   frontend:
-    image: ghcr.io/bettaworx/ciel-frontend:latest
+    # チャンネルに応じてタグを変更してください:
+    #   stable版: ghcr.io/bettaworx/ciel-frontend:stable
+    #   canary版: ghcr.io/bettaworx/ciel-frontend:canary
+    image: ghcr.io/bettaworx/ciel-frontend:stable
     container_name: ciel-frontend
     depends_on:
       backend:

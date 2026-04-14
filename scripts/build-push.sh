@@ -77,6 +77,27 @@ echo ""
 printf "タグ [デフォルト: %s]: " "${TAG}"; read -r TAG_INPUT
 TAG="${TAG_INPUT:-$TAG}"
 
+# 4. チャンネル選択
+echo ""
+echo "デプロイチャンネルを選択してください:"
+echo "  1) stable  (→ :stable + :latest を更新)"
+echo "  2) canary  (→ :canary を更新)"
+echo "  3) none    (チャンネルタグなし)"
+echo ""
+printf "選択 [1-3, デフォルト: 2]: "; read -r CHANNEL_INPUT
+CHANNEL_INPUT="${CHANNEL_INPUT:-2}"
+
+case "$CHANNEL_INPUT" in
+  1) CHANNEL="stable" ;;
+  2) CHANNEL="canary" ;;
+  3) CHANNEL="none" ;;
+  stable|canary|none) CHANNEL="$CHANNEL_INPUT" ;;
+  *)
+    warn "無効な選択です。canary を使用します。"
+    CHANNEL="canary"
+    ;;
+esac
+
 # ─── 確認 ─────────────────────────────────────────────────────
 echo ""
 echo "────────────────────────────────────"
@@ -84,6 +105,7 @@ info "ビルド設定:"
 echo "  対象コンテナ : ${BUILD_TARGET}"
 echo "  プラットフォーム: ${PLATFORM}"
 echo "  タグ         : ${TAG}"
+echo "  チャンネル   : ${CHANNEL}"
 echo "  コミット     : ${BUILD_COMMIT} (${BUILD_BRANCH})"
 echo "────────────────────────────────────"
 echo ""
@@ -97,31 +119,43 @@ fi
 
 # ─── ビルド関数 ───────────────────────────────────────────────
 
-build_backend() {
-  info "Building backend: ${BACKEND_IMAGE}:${TAG} [${PLATFORM}]"
+# チャンネルに応じた追加タグを配列で返す
+# 使い方: build_image <image_name> <dockerfile>
+build_image() {
+  local IMAGE="$1"
+  local DOCKERFILE="$2"
+
+  local EXTRA_TAGS=()
+  case "$CHANNEL" in
+    stable)
+      EXTRA_TAGS+=("--tag" "${IMAGE}:stable" "--tag" "${IMAGE}:latest")
+      ;;
+    canary)
+      EXTRA_TAGS+=("--tag" "${IMAGE}:canary")
+      ;;
+    none) ;;
+  esac
+
   docker buildx build \
     --platform "${PLATFORM}" \
-    --file Dockerfile.backend \
+    --file "${DOCKERFILE}" \
     --build-arg BUILD_COMMIT="${BUILD_COMMIT}" \
     --build-arg BUILD_BRANCH="${BUILD_BRANCH}" \
-    --tag "${BACKEND_IMAGE}:${TAG}" \
-    --tag "${BACKEND_IMAGE}:latest" \
+    --tag "${IMAGE}:${TAG}" \
+    "${EXTRA_TAGS[@]}" \
     --push \
     .
+}
+
+build_backend() {
+  info "Building backend: ${BACKEND_IMAGE}:${TAG} [${PLATFORM}]"
+  build_image "${BACKEND_IMAGE}" "Dockerfile.backend"
   info "Backend pushed: ${BACKEND_IMAGE}:${TAG}"
 }
 
 build_frontend() {
   info "Building frontend: ${FRONTEND_IMAGE}:${TAG} [${PLATFORM}]"
-  docker buildx build \
-    --platform "${PLATFORM}" \
-    --file Dockerfile.frontend \
-    --build-arg BUILD_COMMIT="${BUILD_COMMIT}" \
-    --build-arg BUILD_BRANCH="${BUILD_BRANCH}" \
-    --tag "${FRONTEND_IMAGE}:${TAG}" \
-    --tag "${FRONTEND_IMAGE}:latest" \
-    --push \
-    .
+  build_image "${FRONTEND_IMAGE}" "Dockerfile.frontend"
   info "Frontend pushed: ${FRONTEND_IMAGE}:${TAG}"
 }
 
@@ -143,11 +177,12 @@ esac
 
 echo ""
 info "Done! Pushed:"
-if [[ "$BUILD_TARGET" == "backend" || "$BUILD_TARGET" == "both" ]]; then
-  echo "    ${BACKEND_IMAGE}:${TAG}"
-  echo "    ${BACKEND_IMAGE}:latest"
-fi
-if [[ "$BUILD_TARGET" == "frontend" || "$BUILD_TARGET" == "both" ]]; then
-  echo "    ${FRONTEND_IMAGE}:${TAG}"
-  echo "    ${FRONTEND_IMAGE}:latest"
-fi
+for IMAGE in \
+  $([[ "$BUILD_TARGET" == "backend"  || "$BUILD_TARGET" == "both" ]] && echo "${BACKEND_IMAGE}") \
+  $([[ "$BUILD_TARGET" == "frontend" || "$BUILD_TARGET" == "both" ]] && echo "${FRONTEND_IMAGE}"); do
+  echo "    ${IMAGE}:${TAG}"
+  case "$CHANNEL" in
+    stable) echo "    ${IMAGE}:stable"; echo "    ${IMAGE}:latest" ;;
+    canary) echo "    ${IMAGE}:canary" ;;
+  esac
+done
