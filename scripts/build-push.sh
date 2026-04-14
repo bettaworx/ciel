@@ -35,7 +35,7 @@ echo "  1) frontend"
 echo "  2) backend"
 echo "  3) both (frontend + backend)"
 echo ""
-read -rp "選択 [1-3, デフォルト: 3]: " TARGET_INPUT
+printf "選択 [1-3, デフォルト: 3]: "; read -r TARGET_INPUT
 TARGET_INPUT="${TARGET_INPUT:-3}"
 
 case "$TARGET_INPUT" in
@@ -56,7 +56,7 @@ echo "  1) linux/amd64"
 echo "  2) linux/arm64"
 echo "  3) both (linux/amd64,linux/arm64)"
 echo ""
-read -rp "選択 [1-3, デフォルト: 2]: " PLATFORM_INPUT
+printf "選択 [1-3, デフォルト: 2]: "; read -r PLATFORM_INPUT
 PLATFORM_INPUT="${PLATFORM_INPUT:-2}"
 
 case "$PLATFORM_INPUT" in
@@ -74,7 +74,7 @@ esac
 
 # 3. タグ確認
 echo ""
-read -rp "タグ [デフォルト: ${TAG}]: " TAG_INPUT
+printf "タグ [デフォルト: %s]: " "${TAG}"; read -r TAG_INPUT
 TAG="${TAG_INPUT:-$TAG}"
 
 # ─── 確認 ─────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ echo "  タグ         : ${TAG}"
 echo "  コミット     : ${BUILD_COMMIT} (${BUILD_BRANCH})"
 echo "────────────────────────────────────"
 echo ""
-read -rp "この設定でビルド・プッシュを開始しますか? [y/N]: " CONFIRM
+printf "この設定でビルド・プッシュを開始しますか? [y/N]: "; read -r CONFIRM
 CONFIRM="${CONFIRM:-N}"
 
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
