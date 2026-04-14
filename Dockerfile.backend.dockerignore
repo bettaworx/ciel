@@ -13,7 +13,13 @@
 **/.turbo
 **/coverage
 
-# Not needed in any Docker build
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Not needed for backend build
+apps/frontend
 nginx
 scripts
 README.md
@@ -21,14 +27,9 @@ AGENTS.md
 Jenkinsfile
 docker-compose*.yml*
 run.sh
-
-# Secrets and environment files
-.env
-.env.*
-!.env.example
-
-# Backend config (mounted at runtime via volume)
-apps/backend/config/config.yaml
+pnpm-lock.yaml
+pnpm-workspace.yaml
+package.json
 
 # Secret key/cert files
 **/*.pem

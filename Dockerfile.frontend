@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm-slim AS base
+FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS base
 
 FROM base AS deps
 WORKDIR /app/apps/frontend
@@ -8,7 +8,8 @@ WORKDIR /app/apps/frontend
 COPY .npmrc /app/.npmrc
 COPY apps/frontend/package.json apps/frontend/pnpm-lock.yaml apps/frontend/pnpm-workspace.yaml ./
 
-RUN corepack enable pnpm && pnpm install --no-frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    corepack enable pnpm && pnpm install --no-frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app/apps/frontend
@@ -25,14 +26,15 @@ COPY --from=deps /app/apps/frontend/node_modules ./node_modules
 COPY apps/frontend ./
 COPY packages/api /app/packages/api
 
-RUN corepack enable pnpm && pnpm run gen:openapi
-RUN corepack enable pnpm && pnpm run gen:licenses
-RUN corepack enable pnpm && pnpm run build
+RUN corepack enable pnpm
+RUN pnpm run gen:openapi
+RUN pnpm run gen:licenses
+RUN pnpm run build
 
 # Remove source maps from the build output to avoid exposing source structure
 RUN find .next -name "*.map" -delete
 
-FROM base AS runner
+FROM node:20-bookworm-slim AS runner
 WORKDIR /app/apps/frontend
 
 ENV NODE_ENV=production

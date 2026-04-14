@@ -141,6 +141,9 @@ build_image() {
     --file "${DOCKERFILE}" \
     --build-arg BUILD_COMMIT="${BUILD_COMMIT}" \
     --build-arg BUILD_BRANCH="${BUILD_BRANCH}" \
+    --cache-from "type=registry,ref=${IMAGE}:canary" \
+    --cache-from "type=registry,ref=${IMAGE}:latest" \
+    --cache-to "type=inline" \
     --tag "${IMAGE}:${TAG}" \
     "${EXTRA_TAGS[@]}" \
     --push \
