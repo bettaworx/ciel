@@ -189,3 +189,13 @@ for IMAGE in \
     canary) echo "    ${IMAGE}:canary" ;;
   esac
 done
+
+# ─── BuildKit キャッシュのプルーニング ──────────────────────────
+# ビルドのたびに中間レイヤーが蓄積しディスクを圧迫するため、
+# 上限 (BUILDKIT_CACHE_KEEP) を超えた分を自動削除する。
+# デフォルト 10gb。ゼロにするとスキップ。
+BUILDKIT_CACHE_KEEP="${BUILDKIT_CACHE_KEEP:-10gb}"
+if [[ "${BUILDKIT_CACHE_KEEP}" != "0" ]]; then
+  info "Pruning BuildKit cache (keeping ${BUILDKIT_CACHE_KEEP})..."
+  docker buildx prune --keep-storage="${BUILDKIT_CACHE_KEEP}" --force
+fi
