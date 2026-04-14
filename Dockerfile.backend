@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.25-bookworm AS build
+FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS build
 WORKDIR /src
 
 RUN apt-get update \
@@ -8,9 +8,11 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY apps/backend/go.mod apps/backend/go.sum ./
-RUN go mod download
+RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
+    go mod download
 
-RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
+RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
+    go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
 
 COPY packages/api /packages/api
 COPY apps/backend ./
@@ -19,11 +21,14 @@ ENV CGO_ENABLED=0
 RUN go generate ./internal/db/sqlc
 RUN go generate ./internal/api
 
+ARG TARGETARCH
 ARG BUILD_COMMIT=dev
 ARG BUILD_BRANCH=dev
-RUN go build -trimpath \
-  -ldflags="-s -w -X backend/internal/version.Commit=${BUILD_COMMIT} -X backend/internal/version.Branch=${BUILD_BRANCH}" \
-  -o /out/backend .
+RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
+    --mount=type=cache,id=go-build,target=/root/.cache/go-build \
+    GOOS=linux GOARCH=${TARGETARCH} go build -trimpath \
+    -ldflags="-s -w -X backend/internal/version.Commit=${BUILD_COMMIT} -X backend/internal/version.Branch=${BUILD_BRANCH}" \
+    -o /out/backend .
 
 FROM debian:bookworm-slim
 RUN apt-get update \
