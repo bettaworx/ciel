@@ -54,6 +54,30 @@ type API struct {
 	ModMedia         *moderation.MediaService
 }
 
+type publicUserResponse struct {
+	AvatarUrl   *string            `json:"avatarUrl"`
+	BannerUrl   *string            `json:"bannerUrl"`
+	Bio         *string            `json:"bio"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	DisplayName *string            `json:"displayName"`
+	Id          openapi_types.UUID `json:"id"`
+	IsAdmin     *bool              `json:"isAdmin,omitempty"`
+	Username    api.Username       `json:"username"`
+}
+
+func toPublicUserResponse(user api.User) publicUserResponse {
+	return publicUserResponse{
+		AvatarUrl:   user.AvatarUrl,
+		BannerUrl:   user.BannerUrl,
+		Bio:         user.Bio,
+		CreatedAt:   user.CreatedAt,
+		DisplayName: user.DisplayName,
+		Id:          user.Id,
+		IsAdmin:     user.IsAdmin,
+		Username:    user.Username,
+	}
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -135,14 +159,14 @@ func (h API) PostAuthLoginFinish(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "invalid json"})
 		return
 	}
-	resp, err := h.Auth.LoginFinish(r.Context(), req)
+	resp, rawRefreshToken, err := h.Auth.LoginFinish(r.Context(), req)
 	if err != nil {
 		writeServiceError(w, err)
 		return
 	}
 
-	// Set HttpOnly cookie for secure authentication
 	setAuthCookie(w, r, resp.AccessToken, resp.ExpiresInSeconds)
+	setRefreshCookie(w, r, rawRefreshToken, 30*24*60*60)
 
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -206,19 +230,39 @@ func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 	// Clear the auth cookie
 	// CRITICAL: All attributes (Domain, Path, Secure, SameSite) must match the original cookie
 	// for the deletion to work properly
-	cookie := &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:     "ciel_auth",
 		Value:    "",
 		Path:     "/",
-		Domain:   cookieDomain, // CRITICAL: Must match COOKIE_DOMAIN to delete the cookie
-		MaxAge:   -1,           // Delete cookie immediately
+		Domain:   cookieDomain,
+		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   isSecure,
 		SameSite: http.SameSiteStrictMode,
-	}
-	http.SetCookie(w, cookie)
+	})
 
-	// Stateless logout for JWT; kept for future token revocation.
+	// Clear the refresh cookie (path must match the path used when setting it)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "ciel_refresh",
+		Value:    "",
+		Path:     "/api/v1/auth/refresh",
+		Domain:   cookieDomain,
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   isSecure,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	// Revoke refresh tokens in the database so a stolen token cannot be reused after logout.
+	// Best-effort: cookie clearing is the primary mechanism; DB revocation is defence-in-depth.
+	if h.Auth != nil {
+		if user, ok := auth.UserFromContext(r.Context()); ok {
+			if err := h.Auth.RevokeAllRefreshTokens(r.Context(), user.ID); err != nil {
+				slog.Warn("failed to revoke refresh tokens on logout", "error", err, "user_id", user.ID)
+			}
+		}
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -277,6 +321,57 @@ func (h API) PatchMeProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
+func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.PatchMeUsernameParams) {
+	if h.Users == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})
+		return
+	}
+	if h.Tokens == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "token manager not configured"})
+		return
+	}
+
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "username_change") {
+		return
+	}
+
+	var req api.UpdateUsernameRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "invalid json"})
+		return
+	}
+
+	if err := h.Users.UpdateUsername(r.Context(), user.ID, string(req.Username)); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	token, expiresIn, err := h.Tokens.Issue(auth.User{ID: user.ID, Username: string(updatedUser.Username)})
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	setAuthCookie(w, r, token, expiresIn)
+	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+		AccessToken:      token,
+		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		ExpiresInSeconds: expiresIn,
+		User:             updatedUser,
+	})
+}
+
 func (h API) PostMeAvatar(w http.ResponseWriter, r *http.Request) {
 	if h.Users == nil || h.Media == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users/media not configured"})
@@ -305,6 +400,34 @@ func (h API) PostMeAvatar(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
+func (h API) PostMeBanner(w http.ResponseWriter, r *http.Request) {
+	if h.Users == nil || h.Media == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users/media not configured"})
+		return
+	}
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	media, err := h.Media.UploadBannerFromRequest(w, r, user)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	updated, previous, err := h.Users.UpdateBanner(r.Context(), user.ID, media.Id)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	if previous != nil && *previous != media.Id {
+		if err := h.Media.DeleteMedia(r.Context(), user.ID, *previous); err != nil {
+			slog.Warn("failed to delete old banner", "media_id", previous.String(), "error", err)
+		}
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
 func (h API) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request, _ api.PostAuthPasswordChangeParams) {
 	if h.Auth == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "auth not configured"})
@@ -327,7 +450,37 @@ func (h API) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request, _ ap
 		writeServiceError(w, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	// Issue a new token so the current session remains valid after password change.
+	// Other sessions are already invalidated by ChangePassword via InvalidateUserTokens.
+	if h.Users == nil || h.Tokens == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
+	if err != nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	token, expiresIn, err := h.Tokens.Issue(auth.User{ID: user.ID, Username: user.Username})
+	if err != nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	rawRefreshToken, err := h.Auth.IssueRefreshTokenForUser(r.Context(), user.ID)
+	if err != nil {
+		// Don't fail password change if refresh token issuance fails
+		slog.Warn("failed to issue refresh token after password change", "error", err, "user_id", user.ID)
+	}
+	setAuthCookie(w, r, token, expiresIn)
+	if rawRefreshToken != "" {
+		setRefreshCookie(w, r, rawRefreshToken, 30*24*60*60)
+	}
+	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+		AccessToken:      token,
+		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		ExpiresInSeconds: expiresIn,
+		User:             updatedUser,
+	})
 }
 
 func (h API) DeleteMe(w http.ResponseWriter, r *http.Request, _ api.DeleteMeParams) {
@@ -360,7 +513,7 @@ func (h API) GetUsersUsername(w http.ResponseWriter, r *http.Request, username a
 		writeServiceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, u)
+	writeJSON(w, http.StatusOK, toPublicUserResponse(u))
 }
 
 func (h API) GetUsersUsernamePosts(w http.ResponseWriter, r *http.Request, username api.Username, params api.GetUsersUsernamePostsParams) {
@@ -1194,6 +1347,50 @@ func (h API) PostSetupCreateInvite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, response)
+}
+
+// PostAuthRefresh handles POST /auth/refresh.
+// It reads the ciel_refresh HttpOnly cookie, validates and rotates the refresh token,
+// and issues a new access token cookie.
+func (h API) PostAuthRefresh(w http.ResponseWriter, r *http.Request) {
+	if h.Auth == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "auth not configured"})
+		return
+	}
+	cookie, err := r.Cookie("ciel_refresh")
+	if err != nil || cookie.Value == "" {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "missing refresh token"})
+		return
+	}
+
+	accessToken, expiresIn, newRawRefreshToken, err := h.Auth.RefreshSession(r.Context(), cookie.Value)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	setAuthCookie(w, r, accessToken, expiresIn)
+	setRefreshCookie(w, r, newRawRefreshToken, 30*24*60*60)
+	writeJSON(w, http.StatusOK, api.RefreshResponse{ExpiresInSeconds: expiresIn})
+}
+
+// setRefreshCookie sets the HttpOnly refresh token cookie, scoped to the refresh endpoint only.
+func setRefreshCookie(w http.ResponseWriter, r *http.Request, token string, maxAge int) {
+	isSecure := r.TLS != nil ||
+		r.Header.Get("X-Forwarded-Proto") == "https" ||
+		r.Header.Get("X-Forwarded-Ssl") == "on" ||
+		r.Header.Get("X-Forwarded-Scheme") == "https"
+	cookieDomain := os.Getenv("COOKIE_DOMAIN")
+	http.SetCookie(w, &http.Cookie{
+		Name:     "ciel_refresh",
+		Value:    token,
+		Path:     "/api/v1/auth/refresh",
+		Domain:   cookieDomain,
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   isSecure,
+		SameSite: http.SameSiteStrictMode,
+	})
 }
 
 // setAuthCookie creates and sets a secure authentication cookie with proper security attributes

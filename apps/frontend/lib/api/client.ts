@@ -14,11 +14,35 @@ export type ApiClientOptions = {
 	onServerOffline?: () => void;
 };
 
+/**
+ * Custom error class for API errors that includes status code and headers.
+ * This allows callers to distinguish between different HTTP error types
+ * (e.g., 429 rate limit vs 500 server error).
+ */
+export class ApiHttpError extends Error {
+	readonly status: number;
+	readonly headers: Headers;
+
+	constructor(message: string, status: number, headers: Headers) {
+		super(message);
+		this.name = 'ApiHttpError';
+		this.status = status;
+		this.headers = headers;
+	}
+
+	/** Returns the Retry-After header value in seconds, or null if not present. */
+	get retryAfterSeconds(): number | null {
+		const value = this.headers.get('retry-after');
+		if (value === null) return null;
+		const seconds = Number(value);
+		return Number.isFinite(seconds) ? seconds : null;
+	}
+}
+
 const DEFAULT_BASE_URL = '/api/v1';
 
 function resolveBaseUrl(explicit?: string): string {
-	const fromEnv = process.env.NEXT_PUBLIC_API_BASE_URL as string | undefined;
-	const raw = (explicit ?? fromEnv ?? DEFAULT_BASE_URL).trim();
+	const raw = (explicit ?? DEFAULT_BASE_URL).trim();
 	if (!raw) return DEFAULT_BASE_URL;
 	const noTrailingSlash = raw.replace(/\/+$/, '');
 
@@ -60,10 +84,76 @@ type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export function createApiClient(options: ApiClientOptions = {}) {
 	const baseUrl = resolveBaseUrl(options.baseUrl);
 
+	// Shared promise to prevent multiple concurrent refresh attempts
+	let refreshPromise: Promise<boolean> | null = null;
+
+	/**
+	 * Before declaring the server offline, confirm by hitting the health endpoint.
+	 * A single network error (e.g. connection reset during a large upload) should
+	 * NOT redirect to /offline if the server is actually still reachable.
+	 */
+	async function confirmOffline(): Promise<void> {
+		try {
+			const res = await fetch(`${baseUrl}/health`, {
+				method: 'GET',
+				credentials: 'include',
+				// Short timeout — we just want to know if the server is alive
+				signal: AbortSignal.timeout(5000),
+			});
+			if (res.ok) {
+				// Server is alive — do NOT declare offline
+				console.log('[API Client] Health check passed — server is reachable, not declaring offline');
+				return;
+			}
+			// Non-OK response (5xx etc.) — server is unhealthy
+			console.error('[API Client] Health check returned non-OK status:', res.status);
+		} catch {
+			// Health check also failed — server really is offline
+			console.error('[API Client] Health check failed — server appears offline');
+		}
+		options.onServerOffline?.();
+	}
+
+	function handleNonOkResponse(res: Response, errorText: string, errorJson?: unknown): void {
+		// Check for server errors (5xx) - confirm offline
+		if (res.status >= 500) {
+			console.error('[API Client] Server error detected:', res.status);
+			confirmOffline();
+		}
+
+		// Check for agreement_required error (403)
+		if (res.status === 403 && errorJson && typeof errorJson === 'object') {
+			const error = errorJson as ApiError;
+			if (error.code === 'agreement_required') {
+				if (typeof window !== 'undefined') {
+					window.location.href = '/agreements';
+				}
+			}
+		}
+	}
+
+	async function attemptRefresh(): Promise<boolean> {
+		if (refreshPromise) return refreshPromise;
+		refreshPromise = (async () => {
+			try {
+				const res = await fetch(`${baseUrl}/auth/refresh`, {
+					method: 'POST',
+					credentials: 'include',
+				});
+				return res.ok;
+			} catch {
+				return false;
+			} finally {
+				refreshPromise = null;
+			}
+		})();
+		return refreshPromise;
+	}
+
 	async function request<T>(
 		method: HttpMethod,
 		path: string,
-		init?: { body?: unknown; token?: string | null; headers?: Record<string, string> }
+		init?: { body?: unknown; token?: string | null; headers?: Record<string, string>; _skipRefresh?: boolean }
 	): Promise<ApiResult<T>> {
 		const url = `${baseUrl}${path}`;
 
@@ -81,19 +171,18 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			});
 
 			if (!res.ok) {
-				const { errorText, errorJson } = await readBody(res);
-				
-				// Check for agreement_required error (403)
-				if (res.status === 403 && errorJson && typeof errorJson === 'object') {
-					const error = errorJson as ApiError;
-					if (error.code === 'agreement_required') {
-						// Redirect to agreements page
-						if (typeof window !== 'undefined') {
-							window.location.href = '/agreements';
-						}
+				// On 401, attempt a token refresh and retry the original request once
+				if (res.status === 401 && !init?._skipRefresh && path !== '/auth/refresh') {
+					const refreshed = await attemptRefresh();
+					if (refreshed) {
+						return request<T>(method, path, { ...init, _skipRefresh: true });
 					}
+					// Refresh failed — session has expired
+					options.onSessionExpired?.();
 				}
-				
+
+				const { errorText, errorJson } = await readBody(res);
+				handleNonOkResponse(res, errorText, errorJson);
 				return { ok: false, status: res.status, errorText, errorJson, headers: res.headers };
 			}
 
@@ -104,10 +193,10 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			const data = await parseJsonIfAny<T>(res);
 			return { ok: true, status: res.status, data: data as T, headers: res.headers };
 		} catch (error) {
-			// Network error - likely server is offline
+			// Network error — verify with a health check before declaring offline
 			if (error instanceof TypeError) {
-				console.error('[API Client] Network error detected, server may be offline:', error);
-				options.onServerOffline?.();
+				console.error('[API Client] Network error detected, checking if server is offline:', error);
+				confirmOffline();
 			}
 			throw error;
 		}
@@ -135,28 +224,17 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 			if (!res.ok) {
 				const { errorText, errorJson } = await readBody(res);
-				
-				// Check for agreement_required error (403)
-				if (res.status === 403 && errorJson && typeof errorJson === 'object') {
-					const error = errorJson as ApiError;
-					if (error.code === 'agreement_required') {
-						// Redirect to agreements page
-						if (typeof window !== 'undefined') {
-							window.location.href = '/agreements';
-						}
-					}
-				}
-				
+				handleNonOkResponse(res, errorText, errorJson);
 				return { ok: false, status: res.status, errorText, errorJson, headers: res.headers };
 			}
 
 			const data = await parseJsonIfAny<T>(res);
 			return { ok: true, status: res.status, data: data as T, headers: res.headers };
 		} catch (error) {
-			// Network error - likely server is offline
+			// Network error — verify with a health check before declaring offline
 			if (error instanceof TypeError) {
-				console.error('[API Client] Network error detected, server may be offline:', error);
-				options.onServerOffline?.();
+				console.error('[API Client] Network error detected, checking if server is offline:', error);
+				confirmOffline();
 			}
 			throw error;
 		}
@@ -197,6 +275,8 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		stepupFinish: (body: components['schemas']['StepupFinishRequest']) =>
 			request<components['schemas']['StepupFinishResponse']>('POST', '/auth/stepup/finish', { body }),
 
+		refresh: () => request<components['schemas']['RefreshResponse']>('POST', '/auth/refresh', { _skipRefresh: true }),
+
 		logout: () => request<void>('POST', '/auth/logout'),
 
 		passwordChange: (
@@ -218,10 +298,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		userByUsername: (username: string) =>
 			request<components['schemas']['User']>('GET', `/users/${encodeURIComponent(username)}`),
 
-		userPosts: (username: string, params?: { limit?: number; cursor?: string | null }) => {
+		userPosts: (
+			username: string,
+			params?: { limit?: number; cursor?: string | null; mediaType?: 'image' | 'video' | 'media' }
+		) => {
 			const qs = new URLSearchParams();
 			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
 			if (params?.cursor) qs.set('cursor', params.cursor);
+			if (params?.mediaType) qs.set('mediaType', params.mediaType);
 			const suffix = qs.size ? `?${qs.toString()}` : '';
 			return request<components['schemas']['UserPostsPage']>('GET', `/users/${encodeURIComponent(username)}/posts${suffix}`);
 		},
@@ -326,6 +410,12 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			const form = new FormData();
 			form.set('file', file, file.name);
 			return requestForm<components['schemas']['User']>('POST', '/me/avatar', { form });
+		},
+
+		updateBanner: (file: File) => {
+			const form = new FormData();
+			form.set('file', file, file.name);
+			return requestForm<components['schemas']['User']>('POST', '/me/banner', { form });
 		},
 
 		// Setup endpoints

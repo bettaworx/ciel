@@ -7,24 +7,25 @@ import { createApiClient } from '@/lib/api/client';
 
 /**
  * Refresh interval in milliseconds.
- * Set to 5 minutes (300,000ms) to refresh the session before token expiration.
- * 
- * Token lifetime: 1 hour (3600 seconds)
- * Refresh frequency: 5 minutes (300 seconds)
- * Number of refresh opportunities: 12 per hour
+ * Set to 13 minutes to proactively refresh before the 15-minute access token expires.
+ * The API client's 401-retry logic provides a fallback for cases where the token
+ * expires before the scheduled refresh fires.
+ *
+ * Token lifetime: 15 minutes (900 seconds)
+ * Refresh frequency: 13 minutes (780 seconds) — 2-minute buffer before expiry
  */
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const REFRESH_INTERVAL_MS = 13 * 60 * 1000; // 13 minutes
 
 const api = createApiClient();
 
 /**
- * Hook to automatically refresh user session by periodically calling /me endpoint.
- * 
+ * Hook to automatically refresh the access token by periodically calling /auth/refresh.
+ *
  * - Only runs when user is authenticated
- * - Calls /me endpoint every 5 minutes
- * - Backend middleware automatically refreshes the cookie on each request
- * - This ensures active users maintain their session indefinitely
- * 
+ * - Calls /auth/refresh every 13 minutes (access token TTL is 15 minutes)
+ * - The refresh endpoint rotates the refresh token and issues a new access token cookie
+ * - The API client's 401 intercept acts as a second-layer fallback
+ *
  * @example
  * function App() {
  *   useSessionRefresh();
@@ -47,12 +48,12 @@ export function useSessionRefresh() {
 			return;
 		}
 
-		// Set up periodic session refresh
+		// Set up periodic token refresh
 		intervalRef.current = setInterval(async () => {
 			try {
-				await api.me();
-			} catch (error) {
-				// Network error or other issue - continue trying
+				await api.refresh();
+			} catch {
+				// Network error or other issue - the 401 intercept will handle expiry
 			}
 		}, REFRESH_INTERVAL_MS);
 

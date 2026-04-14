@@ -13,15 +13,24 @@ RUN corepack enable pnpm && pnpm install --no-frozen-lockfile
 FROM base AS builder
 WORKDIR /app/apps/frontend
 
-ARG NEXT_PUBLIC_API_BASE_URL
-ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+# Disable Next.js telemetry during build
+ENV NEXT_TELEMETRY_DISABLED=1
+
+ARG BUILD_COMMIT=dev
+ARG BUILD_BRANCH=dev
+ENV BUILD_COMMIT=${BUILD_COMMIT}
+ENV BUILD_BRANCH=${BUILD_BRANCH}
 
 COPY --from=deps /app/apps/frontend/node_modules ./node_modules
 COPY apps/frontend ./
 COPY packages/api /app/packages/api
 
 RUN corepack enable pnpm && pnpm run gen:openapi
+RUN corepack enable pnpm && pnpm run gen:licenses
 RUN corepack enable pnpm && pnpm run build
+
+# Remove source maps from the build output to avoid exposing source structure
+RUN find .next -name "*.map" -delete
 
 FROM base AS runner
 WORKDIR /app/apps/frontend

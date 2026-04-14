@@ -10,3 +10,19 @@
 **/*.test
 **/*.prof
 **/.vscode
+
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Backend config (mounted at runtime via volume)
+apps/backend/config/config.yaml
+
+# Secret key/cert files
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.crt
+**/*.cer

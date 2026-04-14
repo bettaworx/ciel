@@ -24,6 +24,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useSlideAnimation } from "@/lib/hooks/use-slide-animation";
+import { MfmRenderer } from "@/components/mfm/MfmRenderer";
+import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import { cn } from "@/lib/utils";
 
 type MenuView = "main" | "theme" | "language";
@@ -83,8 +85,8 @@ export function UserMenuContent({
     <div
       ref={containerRef}
       className={cn(
-        "relative overflow-hidden [transform:translateZ(0)] [backface-visibility:hidden] [perspective:1000px]", 
-        isMobile ? "w-full" : "w-64"
+        "relative overflow-hidden [transform:translateZ(0)] [backface-visibility:hidden] [perspective:1000px]",
+        isMobile ? "w-full" : "w-64",
       )}
     >
       {/* ====== メイン画面 ====== */}
@@ -115,12 +117,23 @@ export function UserMenuContent({
             </AvatarFallback>
           </Avatar>
           <div className="text-center">
-            <div className="font-semibold">
-              {user.displayName || user.username}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              @{user.username}
-            </div>
+            {user.displayName ? (
+              <>
+                <div className="text-sm font-semibold">
+                  <MfmRenderer
+                    text={user.displayName}
+                    allowList={DISPLAY_NAME_ALLOW_LIST}
+                  />
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  @{user.username}
+                </div>
+              </>
+            ) : (
+              <div className="font-semibold">
+                @{user.username}
+              </div>
+            )}
           </div>
 
           {/* Xボタン（デスクトップのみ） */}

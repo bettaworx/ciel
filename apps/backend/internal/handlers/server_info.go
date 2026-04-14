@@ -6,6 +6,7 @@ import (
 	"backend/internal/api"
 	"backend/internal/config"
 	"backend/internal/service"
+	"backend/internal/version"
 )
 
 // GetServerInfo returns public server information (name, description, icon, signup status)
@@ -22,12 +23,70 @@ func (h API) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build response
+	versionStr := version.CommitOrDev()
+	branchStr := version.BranchOrDev()
+	semVer := version.Version
 	response := api.ServerInfo{
 		ServerName:        stringPtr(cfg.Server.Name),
 		ServerDescription: stringPtr(cfg.Server.Description),
 		ServerIconUrl:     nil, // Will be set below if icon exists
 		SignupEnabled:     !cfg.Auth.InviteOnly,
+		Commit:            &versionStr,
+		Branch:            &branchStr,
+		Version:           &semVer,
 		ConfigVersion:     cfg.Server.LastUpdatedAt,
+		MediaLimits: api.MediaLimits{
+			MaxUploadSizeMB:   cfg.Media.MaxUploadSize,
+			AllowedExtensions: cfg.Media.AllowedExtensions,
+			Post: api.MediaPostLimits{
+				Static: struct {
+					MaxSize int `json:"maxSize"`
+				}{
+					MaxSize: cfg.Media.Post.Static.MaxSize,
+				},
+				Gif: struct {
+					MaxSize int `json:"maxSize"`
+				}{
+					MaxSize: cfg.Media.Post.Gif.MaxSize,
+				},
+			},
+			Avatar: api.MediaAvatarLimits{
+				Size: cfg.Media.Avatar.Static.Size,
+			},
+			Banner: api.MediaBannerLimits{
+				Static: struct {
+					Height int `json:"height"`
+					Width  int `json:"width"`
+				}{
+					Width:  cfg.Media.Banner.Static.Width,
+					Height: cfg.Media.Banner.Static.Height,
+				},
+				Gif: struct {
+					Height int `json:"height"`
+					Width  int `json:"width"`
+				}{
+					Width:  cfg.Media.Banner.Gif.Width,
+					Height: cfg.Media.Banner.Gif.Height,
+				},
+			},
+			ServerIcon: api.MediaServerIconLimits{
+				Static: struct {
+					Size int `json:"size"`
+				}{
+					Size: cfg.Media.ServerIcon.Static.Size,
+				},
+				Gif: struct {
+					MaxSize int `json:"maxSize"`
+				}{
+					MaxSize: cfg.Media.ServerIcon.Gif.MaxSize,
+				},
+			},
+			Video: api.MediaVideoLimits{
+				MaxUploadSizeMB:    cfg.Media.Video.MaxUploadSize,
+				MaxDurationSeconds: cfg.Media.Video.MaxDuration,
+				MaxSize:            cfg.Media.Video.MaxSize,
+			},
+		},
 	}
 
 	// If server has an icon, resolve the URL

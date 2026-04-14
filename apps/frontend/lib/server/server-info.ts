@@ -14,7 +14,7 @@ type ServerInfo = {
  */
 export const getServerInfo = cache(async (): Promise<ServerInfo | null> => {
 	try {
-		const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:6137';
+		const apiUrl = process.env.API_BASE_URL || 'http://localhost:6137';
 		
 		// タイムアウト付きでfetch（ビルド時の遅延を防ぐ）
 		const controller = new AbortController();

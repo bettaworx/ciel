@@ -63,6 +63,9 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		// Avatar upload: per-user, modest limits.
 		{routeKey: "avatar_upload", limit: 5, window: 10 * time.Minute, subject: subjectUser},
 		{routeKey: "avatar_upload", limit: 20, window: 24 * time.Hour, subject: subjectUser},
+		// Banner upload: per-user, modest limits.
+		{routeKey: "banner_upload", limit: 5, window: 10 * time.Minute, subject: subjectUser},
+		{routeKey: "banner_upload", limit: 20, window: 24 * time.Hour, subject: subjectUser},
 		// Profile updates: per-user.
 		{routeKey: "profile_update", limit: 20, window: 1 * time.Hour, subject: subjectUser},
 		// Post creation: per-user.
@@ -264,6 +267,10 @@ func classifyProfileRoute(method, path string) string {
 	case "/api/v1/me/avatar":
 		if method == http.MethodPost {
 			return "avatar_upload"
+		}
+	case "/api/v1/me/banner":
+		if method == http.MethodPost {
+			return "banner_upload"
 		}
 	}
 	return ""

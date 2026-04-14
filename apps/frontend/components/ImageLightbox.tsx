@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export interface LightboxImage {
@@ -105,7 +105,8 @@ export function ImageLightbox({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="!fixed !inset-0 !h-screen !w-screen !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-transparent !p-0 [&>button]:hidden">
-        <div className="relative h-full w-full bg-black/25">
+        <DialogTitle className="sr-only">{t("title")}</DialogTitle>
+        <div className="relative h-full w-full bg-black/60">
           <DialogClose asChild>
             <Button
               variant="ghost"
@@ -147,10 +148,16 @@ export function ImageLightbox({
           <div
             ref={scrollRef}
             className="absolute inset-0 overflow-auto touch-pan-x touch-pan-y overscroll-contain"
+            onClick={(e) => {
+              // Close lightbox when clicking the background (not the image)
+              if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('lightbox-background')) {
+                onOpenChange(false);
+              }
+            }}
           >
             <div
               className={cn(
-                "min-h-full min-w-full p-6 flex items-center justify-center",
+                "lightbox-background min-h-full min-w-full p-6 flex items-center justify-center",
                 isZoomed
                   ? "min-h-[200%] min-w-[200%] cursor-grab active:cursor-grabbing"
                   : "cursor-zoom-in",
@@ -159,7 +166,10 @@ export function ImageLightbox({
               {currentImage && (
                 <button
                   type="button"
-                  onClick={() => setIsZoomed((prev) => !prev)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsZoomed((prev) => !prev);
+                  }}
                   className="outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   aria-label={isZoomed ? t("zoomOut") : t("zoomIn")}
                 >

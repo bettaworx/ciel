@@ -190,7 +190,7 @@ func main() {
 
 	// JWT_SECRET is now validated above - no fallback to ephemeral secret
 	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
-	tokenManager := auth.NewTokenManager(jwtSecret, 1*time.Hour)
+	tokenManager := auth.NewTokenManager(jwtSecret, 15*time.Minute)
 	if v := os.Getenv("STEPUP_TOKEN_TTL_SECONDS"); v != "" {
 		if secs, err := strconv.Atoi(v); err == nil && secs > 0 {
 			tokenManager.SetStepupTTL(time.Duration(secs) * time.Second)
@@ -198,6 +198,7 @@ func main() {
 			slog.Warn("invalid STEPUP_TOKEN_TTL_SECONDS", "value", v)
 		}
 	}
+	r.Use(middleware.SecurityHeaders(isProduction))
 	r.Use(middleware.CORS())
 	r.Use(middleware.OptionalAuth(tokenManager))
 	r.Use(middleware.AccessLog(middleware.AccessLogOptions{TrustProxy: trustProxy}))
@@ -285,6 +286,19 @@ func main() {
 	})
 	authSvc.SetConfigManager(configMgr)
 
+	// Periodically clean up expired refresh tokens from the database
+	if store != nil {
+		go func() {
+			ticker := time.NewTicker(24 * time.Hour)
+			defer ticker.Stop()
+			for range ticker.C {
+				if err := store.Q.DeleteExpiredRefreshTokens(context.Background()); err != nil {
+					slog.Warn("failed to delete expired refresh tokens", "error", err)
+				}
+			}
+		}()
+	}
+
 	// Initialize admin services
 	modLogsSvc := moderation.NewLogsService(store)
 	adminInvitesSvc := admin.NewInvitesService(store)
@@ -348,11 +362,20 @@ func main() {
 		slog.Info("media directory initialized", "path", absMediaDir)
 	}
 
-	mediaSvc := service.NewMediaService(store, absMediaDir, mediaInitErr)
+	mediaSvc := service.NewMediaService(store, absMediaDir, configMgr.Get().Media, mediaInitErr)
 
 	// Public media routes (authentication bypassed in OptionalAuth middleware)
 	r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image.webp", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image.jpg", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image.jpeg", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image.gif", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
+
+	// Video and thumbnail routes
+	r.Get("/media/{mediaId}/video.mp4", mediaSvc.ServeVideo)
+	r.Get("/media/{mediaId}/thumbnail.webp", mediaSvc.ServeThumbnail)
 
 	apiServer := handlers.API{
 		Auth:       authSvc,
@@ -406,12 +429,15 @@ func main() {
 	server := &http.Server{
 		Addr:    ":" + port,
 		Handler: r,
-		// ReadTimeout covers the time from connection accept to request body fully read
-		// Set to 30s to allow large file uploads (12MB over slower connections)
-		ReadTimeout: 30 * time.Second,
-		// WriteTimeout covers the time from end of request read to end of response write
-		// Set to 60s to allow image processing time (large images may take several seconds)
-		WriteTimeout: 60 * time.Second,
+		// ReadTimeout covers the time from connection accept to request body fully read.
+		// Must accommodate large video uploads (up to 100 MiB) which can take
+		// several minutes on slower connections or when a reverse proxy streams
+		// the body without buffering.
+		ReadTimeout: 5 * time.Minute,
+		// WriteTimeout covers the time from end of request read to end of response write.
+		// Must accommodate video processing (ffmpeg encode + thumbnail generation)
+		// which can take several minutes for large files.
+		WriteTimeout: 10 * time.Minute,
 		// IdleTimeout limits keep-alive connections
 		IdleTimeout: 120 * time.Second,
 		// ReadHeaderTimeout prevents slowloris attacks (slow header sends)

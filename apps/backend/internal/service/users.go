@@ -7,10 +7,12 @@ import (
 	"strings"
 
 	"backend/internal/api"
+	"backend/internal/auth"
 	"backend/internal/db/sqlc"
 	"backend/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type UsersService struct {
@@ -36,7 +38,7 @@ func (s *UsersService) GetByUsername(ctx context.Context, username api.Username)
 		}
 		return api.User{}, err
 	}
-	return mapUserWithProfile(user.ID, user.Username, user.CreatedAt, user.DisplayName, user.Bio, user.AvatarMediaID, user.AvatarExt, user.TermsVersion, user.PrivacyVersion, user.TermsAcceptedAt, user.PrivacyAcceptedAt), nil
+	return mapUserWithProfile(user.ID, user.Username, user.CreatedAt, user.DisplayName, user.Bio, user.AvatarMediaID, user.AvatarExt, user.BannerMediaID, user.BannerExt, user.TermsVersion, user.PrivacyVersion, user.TermsAcceptedAt, user.PrivacyAcceptedAt), nil
 }
 
 func (s *UsersService) GetByID(ctx context.Context, userID uuid.UUID) (api.User, error) {
@@ -50,7 +52,7 @@ func (s *UsersService) GetByID(ctx context.Context, userID uuid.UUID) (api.User,
 		}
 		return api.User{}, err
 	}
-	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt), nil
+	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt), nil
 }
 
 func (s *UsersService) UpdateProfile(ctx context.Context, userID uuid.UUID, displayName *string, bio *string) (api.User, error) {
@@ -84,7 +86,7 @@ func (s *UsersService) UpdateProfile(ctx context.Context, userID uuid.UUID, disp
 		}
 		return api.User{}, err
 	}
-	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, sql.NullString{}, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt), nil
+	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, sql.NullString{}, row.BannerMediaID, sql.NullString{}, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt), nil
 }
 
 func (s *UsersService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarMediaID uuid.UUID) (api.User, *uuid.UUID, error) {
@@ -107,6 +109,54 @@ func (s *UsersService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avata
 		id := row.PreviousAvatarMediaID.UUID
 		previous = &id
 	}
-	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt)
+	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt)
 	return user, previous, nil
+}
+
+func (s *UsersService) UpdateBanner(ctx context.Context, userID uuid.UUID, bannerMediaID uuid.UUID) (api.User, *uuid.UUID, error) {
+	if s.store == nil {
+		return api.User{}, nil, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	row, err := s.store.Q.UpdateUserBanner(ctx, sqlc.UpdateUserBannerParams{
+		ID:            userID,
+		BannerMediaID: uuid.NullUUID{UUID: bannerMediaID, Valid: true},
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return api.User{}, nil, NewError(http.StatusNotFound, "not_found", "user not found")
+		}
+		return api.User{}, nil, err
+	}
+
+	var previous *uuid.UUID
+	if row.PreviousBannerMediaID.Valid {
+		id := row.PreviousBannerMediaID.UUID
+		previous = &id
+	}
+	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt)
+	return user, previous, nil
+}
+
+func (s *UsersService) UpdateUsername(ctx context.Context, userID uuid.UUID, newUsername string) error {
+	if s.store == nil {
+		return NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	if err := auth.ValidateUsername(newUsername); err != nil {
+		return NewError(http.StatusBadRequest, "invalid_request", err.Error())
+	}
+	_, err := s.store.Q.UpdateUsername(ctx, sqlc.UpdateUsernameParams{
+		ID:       userID,
+		Username: newUsername,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewError(http.StatusNotFound, "not_found", "user not found")
+		}
+		var pgErr *pgconn.PgError
+		if errorsAsImpl(err, &pgErr) && pgErr.Code == "23505" {
+			return NewError(http.StatusConflict, "username_taken", "username already taken")
+		}
+		return err
+	}
+	return nil
 }

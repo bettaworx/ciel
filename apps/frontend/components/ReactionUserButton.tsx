@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { MfmRenderer } from "@/components/mfm/MfmRenderer";
+import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import type { components } from "@/lib/api/api";
 
 type User = components["schemas"]["User"];
@@ -42,7 +44,9 @@ export function ReactionUserButton({
           <AvatarImage src={user.avatarUrl || undefined} alt={displayName} />
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>
-        <span className="text-sm font-medium truncate">{displayName}</span>
+        <span className="text-sm font-medium truncate">
+          <MfmRenderer text={displayName} allowList={DISPLAY_NAME_ALLOW_LIST} />
+        </span>
       </Link>
     </Button>
   );

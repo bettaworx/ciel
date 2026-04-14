@@ -27,6 +27,7 @@ import (
 
 	"backend/internal/api"
 	"backend/internal/auth"
+	"backend/internal/config"
 	"backend/internal/db"
 	"backend/internal/db/sqlc"
 	"backend/internal/handlers"
@@ -35,6 +36,7 @@ import (
 	"backend/internal/service"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -108,10 +110,13 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 		mediaDir = t.TempDir()
 	}
 
-	mediaSvc := service.NewMediaService(store, mediaDir, nil)
+	mediaCfg := config.DefaultConfig().Media
+	mediaSvc := service.NewMediaService(store, mediaDir, mediaCfg, nil)
 
 	r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image.webp", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
+	r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
 
 	apiServer := handlers.API{
 		Items:     service.NewItemsService(repository.NewItemsRepository(sqlDB)),
@@ -364,6 +369,44 @@ func uploadAvatarMultipart(t *testing.T, client *http.Client, baseURL string, au
 	return resp
 }
 
+func uploadBannerMultipart(t *testing.T, client *http.Client, baseURL string, authz map[string]string, filename string, declaredContentType string, data []byte) *http.Response {
+	t.Helper()
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	if strings.TrimSpace(declaredContentType) == "" {
+		part, err := mw.CreateFormFile("file", filename)
+		if err != nil {
+			t.Fatalf("CreateFormFile: %v", err)
+		}
+		_, _ = part.Write(data)
+	} else {
+		h := make(textproto.MIMEHeader)
+		h.Set("Content-Disposition", `form-data; name="file"; filename="`+filename+`"`)
+		h.Set("Content-Type", declaredContentType)
+		part, err := mw.CreatePart(h)
+		if err != nil {
+			t.Fatalf("CreatePart: %v", err)
+		}
+		_, _ = part.Write(data)
+	}
+	_ = mw.Close()
+
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/api/v1/me/banner", &body)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	for k, v := range authz {
+		req.Header.Set(k, v)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("client.Do: %v", err)
+	}
+	return resp
+}
+
 func uploadMediaPNG(t *testing.T, client *http.Client, baseURL string, authz map[string]string) api.Media {
 	t.Helper()
 	resp := uploadMediaMultipart(t, client, baseURL, authz, "test.png", "", createPNGBytes(t, 32, 32))
@@ -384,6 +427,16 @@ func uploadAvatarPNG(t *testing.T, client *http.Client, baseURL string, authz ma
 	return decodeJSON[api.User](t, resp)
 }
 
+func uploadBannerPNG(t *testing.T, client *http.Client, baseURL string, authz map[string]string) api.User {
+	t.Helper()
+	resp := uploadBannerMultipart(t, client, baseURL, authz, "banner.png", "", createPNGBytes(t, 2000, 1000))
+	if resp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, resp)
+		t.Fatalf("upload banner: expected 200, got %d (%v)", resp.StatusCode, errBody)
+	}
+	return decodeJSON[api.User](t, resp)
+}
+
 func createPost(t *testing.T, client *http.Client, baseURL string, authz map[string]string, content string) api.Post {
 	t.Helper()
 	resp := postJSON(t, client, baseURL+"/api/v1/posts", map[string]any{"content": content}, authz)
@@ -392,6 +445,24 @@ func createPost(t *testing.T, client *http.Client, baseURL string, authz map[str
 		t.Fatalf("create post: expected 201, got %d (%v)", resp.StatusCode, errBody)
 	}
 	return decodeJSON[api.Post](t, resp)
+}
+
+func createVideoMediaRecord(t *testing.T, app *testApp, userID api.UserId) api.MediaId {
+	t.Helper()
+	q := sqlc.New(app.SQLDB)
+	row, err := q.CreateMedia(context.Background(), sqlc.CreateMediaParams{
+		ID:       uuid.New(),
+		UserID:   uuid.UUID(userID),
+		Type:     "video",
+		Ext:      "mp4",
+		Width:    1280,
+		Height:   720,
+		Duration: sql.NullFloat64{Float64: 12.5, Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("CreateMedia(video): %v", err)
+	}
+	return api.MediaId(row.ID)
 }
 
 func get(t *testing.T, client *http.Client, url string, headers map[string]string) *http.Response {
@@ -1160,6 +1231,85 @@ func TestIntegration_Users_Avatar_Update_DeletesOld(t *testing.T) {
 	// update the avatar twice proves the DeleteMedia owner check is working.
 }
 
+func TestIntegration_Users_Banner_Update(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u := registerUser(t, client, base, "banneruser", "password123")
+	a := issueBearer(t, app.TokenManager, u)
+
+	updated := uploadBannerPNG(t, client, base, a)
+	if updated.BannerUrl == nil || *updated.BannerUrl == "" {
+		t.Fatalf("expected bannerUrl")
+	}
+
+	parts := strings.Split(*updated.BannerUrl, "/media/")
+	if len(parts) != 2 {
+		t.Fatalf("unexpected banner url: %q", *updated.BannerUrl)
+	}
+	pathParts := strings.Split(parts[1], "/")
+	if len(pathParts) == 0 || pathParts[0] == "" {
+		t.Fatalf("unexpected banner url path: %q", *updated.BannerUrl)
+	}
+	bannerID := pathParts[0]
+	imgResp := get(t, client, base+"/media/"+bannerID+"/image.webp", nil)
+	if imgResp.StatusCode != http.StatusOK {
+		imgResp.Body.Close()
+		t.Fatalf("serve banner: expected 200, got %d", imgResp.StatusCode)
+	}
+	ct := imgResp.Header.Get("Content-Type")
+	imgResp.Body.Close()
+	if !strings.HasPrefix(ct, "image/webp") {
+		t.Fatalf("expected image/webp content-type, got %q", ct)
+	}
+}
+
+func TestIntegration_Users_Banner_Update_DeletesOld(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u := registerUser(t, client, base, "bannerdelete", "password123")
+	a := issueBearer(t, app.TokenManager, u)
+
+	updated1 := uploadBannerPNG(t, client, base, a)
+	if updated1.BannerUrl == nil || *updated1.BannerUrl == "" {
+		t.Fatalf("expected first bannerUrl")
+	}
+	firstBannerURL := *updated1.BannerUrl
+
+	updated2 := uploadBannerPNG(t, client, base, a)
+	if updated2.BannerUrl == nil || *updated2.BannerUrl == "" {
+		t.Fatalf("expected second bannerUrl")
+	}
+	secondBannerURL := *updated2.BannerUrl
+
+	if firstBannerURL == secondBannerURL {
+		t.Fatalf("expected different banner URLs, got same: %s", firstBannerURL)
+	}
+
+	parts := strings.Split(secondBannerURL, "/media/")
+	if len(parts) != 2 {
+		t.Fatalf("unexpected second banner url: %q", secondBannerURL)
+	}
+	pathParts := strings.Split(parts[1], "/")
+	if len(pathParts) == 0 || pathParts[0] == "" {
+		t.Fatalf("unexpected second banner url path: %q", secondBannerURL)
+	}
+	bannerID := pathParts[0]
+	imgResp := get(t, client, base+"/media/"+bannerID+"/image.webp", nil)
+	if imgResp.StatusCode != http.StatusOK {
+		imgResp.Body.Close()
+		t.Fatalf("serve second banner: expected 200, got %d", imgResp.StatusCode)
+	}
+	imgResp.Body.Close()
+}
+
 func TestIntegration_Users_Posts_List(t *testing.T) {
 	app := newTestApp(t)
 	defer app.Close()
@@ -1204,6 +1354,113 @@ func TestIntegration_Users_Posts_List(t *testing.T) {
 	}
 }
 
+func TestIntegration_Users_Posts_List_FilterByMediaType(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u1 := registerUser(t, client, base, "listmedia1", "password123")
+	u2 := registerUser(t, client, base, "listmedia2", "password123")
+	a1 := issueBearer(t, app.TokenManager, u1)
+	a2 := issueBearer(t, app.TokenManager, u2)
+
+	textPost := createPost(t, client, base, a1, "text-only")
+	time.Sleep(3 * time.Millisecond)
+
+	imageMedia := uploadMediaPNG(t, client, base, a1)
+	imgResp := postJSON(t, client, base+"/api/v1/posts", map[string]any{
+		"content":  "image post",
+		"mediaIds": []string{imageMedia.Id.String()},
+	}, a1)
+	if imgResp.StatusCode != http.StatusCreated {
+		errBody := decodeJSON[map[string]any](t, imgResp)
+		t.Fatalf("create image post: expected 201, got %d (%v)", imgResp.StatusCode, errBody)
+	}
+	imagePost := decodeJSON[api.Post](t, imgResp)
+	time.Sleep(3 * time.Millisecond)
+
+	videoMediaID := createVideoMediaRecord(t, app, u1.Id)
+	vidResp := postJSON(t, client, base+"/api/v1/posts", map[string]any{
+		"content":  "video post",
+		"mediaIds": []string{videoMediaID.String()},
+	}, a1)
+	if vidResp.StatusCode != http.StatusCreated {
+		errBody := decodeJSON[map[string]any](t, vidResp)
+		t.Fatalf("create video post: expected 201, got %d (%v)", vidResp.StatusCode, errBody)
+	}
+	videoPost := decodeJSON[api.Post](t, vidResp)
+
+	otherImage := uploadMediaPNG(t, client, base, a2)
+	otherResp := postJSON(t, client, base+"/api/v1/posts", map[string]any{
+		"content":  "other user image",
+		"mediaIds": []string{otherImage.Id.String()},
+	}, a2)
+	if otherResp.StatusCode != http.StatusCreated {
+		errBody := decodeJSON[map[string]any](t, otherResp)
+		t.Fatalf("create other user post: expected 201, got %d (%v)", otherResp.StatusCode, errBody)
+	}
+	_ = decodeJSON[api.Post](t, otherResp)
+
+	imageListResp := get(t, client, base+"/api/v1/users/"+string(u1.Username)+"/posts?limit=10&mediaType=image", nil)
+	if imageListResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, imageListResp)
+		t.Fatalf("list image posts: expected 200, got %d (%v)", imageListResp.StatusCode, errBody)
+	}
+	imagePage := decodeJSON[api.UserPostsPage](t, imageListResp)
+	if len(imagePage.Items) != 1 || imagePage.Items[0].Id != imagePost.Id {
+		t.Fatalf("unexpected image filter result: %+v", imagePage.Items)
+	}
+
+	videoListResp := get(t, client, base+"/api/v1/users/"+string(u1.Username)+"/posts?limit=10&mediaType=video", nil)
+	if videoListResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, videoListResp)
+		t.Fatalf("list video posts: expected 200, got %d (%v)", videoListResp.StatusCode, errBody)
+	}
+	videoPage := decodeJSON[api.UserPostsPage](t, videoListResp)
+	if len(videoPage.Items) != 1 || videoPage.Items[0].Id != videoPost.Id {
+		t.Fatalf("unexpected video filter result: %+v", videoPage.Items)
+	}
+
+	mediaListResp := get(t, client, base+"/api/v1/users/"+string(u1.Username)+"/posts?limit=10&mediaType=media", nil)
+	if mediaListResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, mediaListResp)
+		t.Fatalf("list media posts: expected 200, got %d (%v)", mediaListResp.StatusCode, errBody)
+	}
+	mediaPage := decodeJSON[api.UserPostsPage](t, mediaListResp)
+	if len(mediaPage.Items) != 2 {
+		t.Fatalf("expected 2 media posts, got %d", len(mediaPage.Items))
+	}
+	if mediaPage.Items[0].Id != videoPost.Id || mediaPage.Items[1].Id != imagePost.Id {
+		t.Fatalf("unexpected media filter order/items: %+v", mediaPage.Items)
+	}
+
+	unfilteredResp := get(t, client, base+"/api/v1/users/"+string(u1.Username)+"/posts?limit=10", nil)
+	if unfilteredResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, unfilteredResp)
+		t.Fatalf("list unfiltered posts: expected 200, got %d (%v)", unfilteredResp.StatusCode, errBody)
+	}
+	unfilteredPage := decodeJSON[api.UserPostsPage](t, unfilteredResp)
+	if len(unfilteredPage.Items) != 3 {
+		t.Fatalf("expected 3 unfiltered posts, got %d", len(unfilteredPage.Items))
+	}
+
+	seen := map[api.PostId]struct{}{}
+	for _, it := range unfilteredPage.Items {
+		seen[it.Id] = struct{}{}
+	}
+	if _, ok := seen[textPost.Id]; !ok {
+		t.Fatalf("text-only post missing from unfiltered list")
+	}
+	if _, ok := seen[imagePost.Id]; !ok {
+		t.Fatalf("image post missing from unfiltered list")
+	}
+	if _, ok := seen[videoPost.Id]; !ok {
+		t.Fatalf("video post missing from unfiltered list")
+	}
+}
+
 func TestIntegration_Users_GetByUsername_NotFound(t *testing.T) {
 	app := newTestApp(t)
 	defer app.Close()
@@ -1215,6 +1472,46 @@ func TestIntegration_Users_GetByUsername_NotFound(t *testing.T) {
 	if resp.StatusCode != http.StatusNotFound {
 		errBody := decodeJSON[map[string]any](t, resp)
 		t.Fatalf("expected 404, got %d (%v)", resp.StatusCode, errBody)
+	}
+}
+
+func TestIntegration_Users_GetByUsername_HidesAgreementFieldsEvenForSelf(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u := registerUser(t, client, base, "selflookup", "password123")
+	a := issueBearer(t, app.TokenManager, u)
+
+	resp := get(t, client, base+"/api/v1/users/"+string(u.Username), a)
+	if resp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, resp)
+		t.Fatalf("expected 200, got %d (%v)", resp.StatusCode, errBody)
+	}
+	got := decodeJSON[map[string]any](t, resp)
+	if _, ok := got["termsVersion"]; ok {
+		t.Fatalf("expected termsVersion omitted, got %+v", got["termsVersion"])
+	}
+	if _, ok := got["privacyVersion"]; ok {
+		t.Fatalf("expected privacyVersion omitted, got %+v", got["privacyVersion"])
+	}
+	if _, ok := got["termsAcceptedAt"]; ok {
+		t.Fatalf("expected termsAcceptedAt omitted, got %+v", got["termsAcceptedAt"])
+	}
+	if _, ok := got["privacyAcceptedAt"]; ok {
+		t.Fatalf("expected privacyAcceptedAt omitted, got %+v", got["privacyAcceptedAt"])
+	}
+
+	meResp := get(t, client, base+"/api/v1/me", a)
+	if meResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, meResp)
+		t.Fatalf("expected 200 from /me, got %d (%v)", meResp.StatusCode, errBody)
+	}
+	me := decodeJSON[api.User](t, meResp)
+	if me.TermsVersion == nil || me.PrivacyVersion == nil || me.TermsAcceptedAt == nil || me.PrivacyAcceptedAt == nil {
+		t.Fatalf("expected agreement fields present in /me, got %+v", me)
 	}
 }
 
@@ -1377,7 +1674,7 @@ func TestIntegration_Media_ServeImage_NotFound(t *testing.T) {
 }
 
 // TestIntegration_Media_Upload_LargeImage_AutoResize tests that images larger than
-// the old limits (4096x4096, 12MP) are now accepted and automatically resized to 1920px.
+// the old limits (4096x4096, 12MP) are now accepted and automatically resized to 2048px.
 // This verifies the automatic resizing feature while preventing resource exhaustion attacks.
 func TestIntegration_Media_Upload_LargeImage_AutoResize(t *testing.T) {
 	app := newTestApp(t)
@@ -1403,11 +1700,11 @@ func TestIntegration_Media_Upload_LargeImage_AutoResize(t *testing.T) {
 	}
 	media := decodeJSON[api.Media](t, resp)
 
-	// Verify the image was resized to maxOutputEdgePx (1920px)
+	// Verify the image was resized to maxOutputEdgePx (2048px)
 	// Original: 6000x4000 (aspect ratio 1.5)
-	// Expected: 1920x1280 (maintains aspect ratio, longest edge = 1920)
-	if media.Width > 1920 || media.Height > 1920 {
-		t.Fatalf("expected image resized to max 1920px edge, got %dx%d", media.Width, media.Height)
+	// Expected: 2048x1365 (maintains aspect ratio, longest edge = 2048)
+	if media.Width > 2048 || media.Height > 2048 {
+		t.Fatalf("expected image resized to max 2048px edge, got %dx%d", media.Width, media.Height)
 	}
 
 	// Verify aspect ratio is preserved (within floating point tolerance)

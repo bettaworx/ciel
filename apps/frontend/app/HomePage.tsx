@@ -10,6 +10,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
 import { WelcomeCard } from "@/components/WelcomeCard";
 import { ComposeCard } from "@/components/ComposeCard";
+import { Spinner } from "@/components/Spinner";
 
 export function HomePage() {
   const t = useTranslations();
@@ -17,32 +18,24 @@ export function HomePage() {
   const auth = useAtomValue(authAtom);
   const { data, isLoading, error, fetchNextPage, hasNextPage } = useTimeline();
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>{t("loading")}</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-destructive">
-          {t("error.title")}: {error.message}
-        </p>
-      </div>
-    );
-  }
-
   const posts = data?.pages.flatMap((page) => page.items ?? []) ?? [];
 
   return (
-    <PageContainer maxWidth="3xl">
+    <PageContainer maxWidth="2xl">
       <div className="space-y-3">
         {auth.user ? <ComposeCard /> : <WelcomeCard />}
         <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-          {posts.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Spinner variant="theme" label={t("loading")} />
+            </div>
+          ) : error ? (
+            <div className="p-6 text-center">
+              <p className="text-destructive">
+                {t("error.title")}: {error.message}
+              </p>
+            </div>
+          ) : posts.length === 0 ? (
             <p className="text-muted-foreground p-3">{t("timeline.noPosts")}</p>
           ) : (
             posts.map((post, index) => (

@@ -18,7 +18,12 @@ COPY apps/backend ./
 ENV CGO_ENABLED=0
 RUN go generate ./internal/db/sqlc
 RUN go generate ./internal/api
-RUN go build -trimpath -ldflags="-s -w" -o /out/backend .
+
+ARG BUILD_COMMIT=dev
+ARG BUILD_BRANCH=dev
+RUN go build -trimpath \
+  -ldflags="-s -w -X backend/internal/version.Commit=${BUILD_COMMIT} -X backend/internal/version.Branch=${BUILD_BRANCH}" \
+  -o /out/backend .
 
 FROM debian:bookworm-slim
 RUN apt-get update \
