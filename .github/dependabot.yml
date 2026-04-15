@@ -38,6 +38,9 @@ updates:
           - "tailwind-merge"
           - "autoprefixer"
           - "postcss"
+      others:
+        patterns:
+          - "*"
 
   - package-ecosystem: gomod
     directory: /apps/backend
