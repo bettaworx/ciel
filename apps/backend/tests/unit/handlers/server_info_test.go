@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -69,6 +70,41 @@ func TestAPI_GetServerInfo_WithoutIcon(t *testing.T) {
 	if body.SignupEnabled != true {
 		t.Errorf("expected signupEnabled true, got %v", body.SignupEnabled)
 	}
+
+	// Verify media limits from config
+	if body.MediaLimits.MaxUploadSizeMB != 15 {
+		t.Errorf("expected maxUploadSizeMB 15, got %d", body.MediaLimits.MaxUploadSizeMB)
+	}
+	if body.MediaLimits.Post.Static.MaxSize != 2048 {
+		t.Errorf("expected post.static.maxSize 2048, got %d", body.MediaLimits.Post.Static.MaxSize)
+	}
+	if body.MediaLimits.Post.Gif.MaxSize != 1024 {
+		t.Errorf("expected post.gif.maxSize 1024, got %d", body.MediaLimits.Post.Gif.MaxSize)
+	}
+	if body.MediaLimits.Avatar.Size != 400 {
+		t.Errorf("expected avatar.size 400, got %d", body.MediaLimits.Avatar.Size)
+	}
+	if body.MediaLimits.Banner.Static.Width != 1500 {
+		t.Errorf("expected banner.static.width 1500, got %d", body.MediaLimits.Banner.Static.Width)
+	}
+	if body.MediaLimits.Banner.Static.Height != 500 {
+		t.Errorf("expected banner.static.height 500, got %d", body.MediaLimits.Banner.Static.Height)
+	}
+	if body.MediaLimits.Banner.Gif.Width != 1500 {
+		t.Errorf("expected banner.gif.width 1500, got %d", body.MediaLimits.Banner.Gif.Width)
+	}
+	if body.MediaLimits.Banner.Gif.Height != 500 {
+		t.Errorf("expected banner.gif.height 500, got %d", body.MediaLimits.Banner.Gif.Height)
+	}
+	if body.MediaLimits.ServerIcon.Static.Size != 512 {
+		t.Errorf("expected serverIcon.static.size 512, got %d", body.MediaLimits.ServerIcon.Static.Size)
+	}
+	if body.MediaLimits.ServerIcon.Gif.MaxSize != 512 {
+		t.Errorf("expected serverIcon.gif.maxSize 512, got %d", body.MediaLimits.ServerIcon.Gif.MaxSize)
+	}
+	if len(body.MediaLimits.AllowedExtensions) == 0 {
+		t.Error("expected allowedExtensions to be populated")
+	}
 }
 
 func TestAPI_GetServerInfo_WithIcon(t *testing.T) {
@@ -96,8 +132,8 @@ func TestAPI_GetServerInfo_WithIcon(t *testing.T) {
 
 	// Mock the GetMediaByID query
 	createdAt := time.Date(2026, 1, 22, 0, 0, 0, 0, time.UTC)
-	rows := sqlmock.NewRows([]string{"id", "user_id", "type", "ext", "width", "height", "created_at"}).
-		AddRow(iconMediaID, uuid.New(), "image", "webp", int32(400), int32(400), createdAt)
+	rows := sqlmock.NewRows([]string{"id", "user_id", "type", "ext", "width", "height", "duration", "created_at"}).
+		AddRow(iconMediaID, uuid.New(), "image", "webp", int32(400), int32(400), sql.NullFloat64{}, createdAt)
 	mock.ExpectQuery(`-- name: GetMediaByID`).
 		WithArgs(iconMediaID).
 		WillReturnRows(rows)

@@ -1,20 +1,29 @@
 "use client";
 
-import Image from "next/image";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
 import { ReactionUsersDialog } from "@/components/ReactionUsersDialog";
 import { ReactionPicker } from "@/components/ReactionPicker";
 import { formatTimeAgo } from "@/lib/utils/format-time";
+import { MfmRenderer } from "@/components/mfm/MfmRenderer";
+import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import { useReactions } from "@/lib/hooks/use-reactions";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
-import { Eye, MoreHorizontal, Trash2, Clipboard } from "lucide-react";
+import {
+  Eye,
+  MoreHorizontal,
+  Trash2,
+  Clipboard,
+  ClipboardCopy,
+} from "lucide-react";
 import { useDeletePost } from "@/lib/hooks/use-queries";
+import { OgpCard } from "@/components/OgpCard";
+import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { authAtom } from "@/atoms/auth";
 import {
@@ -26,6 +35,10 @@ import {
 import {
   Drawer,
   DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import {
@@ -40,9 +53,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { components } from "@/lib/api/api";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { PostMediaPreview } from "@/components/PostMediaPreview";
+import type { PreviewMediaItem } from "@/components/post-composer/types";
 
 type Post = components["schemas"]["Post"];
-type Media = components["schemas"]["Media"];
 
 export interface PostCardProps {
   post: Post;
@@ -61,7 +75,6 @@ export function PostCard({
   const t = useTranslations("postCard");
   const tReactions = useTranslations("reactions");
   const tUser = useTranslations("user");
-  const tLightbox = useTranslations("lightbox");
   const { reactions, toggleReaction, isPending } = useReactions(post.id);
   const auth = useAtomValue(authAtom);
   const deletePost = useDeletePost();
@@ -71,9 +84,20 @@ export function PostCard({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [reactionDialogOpen, setReactionDialogOpen] = useState(false);
-  const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(null);
+  const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(
+    null,
+  );
+  const [isContentExpanded, setIsContentExpanded] = useState(false);
+  const [isContentOverflowing, setIsContentOverflowing] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const isOwner = auth.user?.id === post.author?.id;
   const hasReactions = reactions.length > 0;
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    setIsContentOverflowing(el.scrollHeight > 128);
+  }, [post.content]);
 
   const handleToggleReaction = useCallback(
     (emoji: string) => {
@@ -87,7 +111,7 @@ export function PostCard({
         },
       });
     },
-    [toggleReaction, tReactions]
+    [toggleReaction, tReactions],
   );
 
   const handleCopyUserId = useCallback(async () => {
@@ -103,6 +127,20 @@ export function PostCard({
     }
     setMenuOpen(false);
   }, [post.author?.id, t]);
+
+  const handleCopyText = useCallback(async () => {
+    if (!post.content) {
+      toast.error(t("copyTextError"));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(post.content);
+      toast.success(t("copyTextSuccess"));
+    } catch {
+      toast.error(t("copyTextError"));
+    }
+    setMenuOpen(false);
+  }, [post.content, t]);
 
   const handleOpenDelete = useCallback(() => {
     setMenuOpen(false);
@@ -134,8 +172,29 @@ export function PostCard({
   const avatarUrl = post.author?.avatarUrl;
   const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
   const timeAgo = formatTimeAgo(createdAt, locale);
-  const media = post.media || [];
+  const media = useMemo(() => post.media || [], [post.media]);
   const hasAuthorId = Boolean(post.author?.id);
+
+  // Convert API Media[] to PreviewMediaItem[] for the shared component
+  const previewMedia: PreviewMediaItem[] = useMemo(
+    () =>
+      media.map((m) => ({
+        id: m.id,
+        type: m.type as "image" | "video",
+        url: m.url,
+        width: m.width,
+        height: m.height,
+        thumbnailUrl: m.thumbnailUrl,
+      })),
+    [media],
+  );
+
+  // OGP: Extract the first URL from post content, but only if no media is attached.
+  const ogpUrl = useMemo(
+    () =>
+      media.length === 0 && post.content ? extractFirstUrl(post.content) : null,
+    [media.length, post.content],
+  );
 
   // Generate initials for avatar fallback
   const initials = displayName
@@ -145,21 +204,19 @@ export function PostCard({
     .toUpperCase()
     .slice(0, 2);
 
+  // Lightbox images (only non-video media)
   const lightboxImages = useMemo(
-    () => media.map((item) => ({ src: item.url, alt: "" })),
+    () =>
+      media
+        .filter((m) => m.type !== "video")
+        .map((item) => ({ src: item.url, alt: "" })),
     [media],
   );
 
-  // Calculate aspect ratio for single image with constraints (16:9 to 9:16)
-  const calculateSingleImageAspect = (m: Media): string => {
-    const ratio = m.width / m.height;
-    const maxRatio = 16 / 9; // 1.778
-    const minRatio = 9 / 16; // 0.5625
-
-    if (ratio >= maxRatio) return "16 / 9";
-    if (ratio <= minRatio) return "9 / 16";
-    return `${m.width} / ${m.height}`;
-  };
+  const handleLightboxOpen = useCallback((index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  }, []);
 
   return (
     <article
@@ -193,7 +250,10 @@ export function PostCard({
                 onClick={handleUserClick}
                 className="font-semibold text-sm sm:text-base text-foreground hover:underline focus:underline focus:outline-none truncate"
               >
-                {displayName}
+                <MfmRenderer
+                  text={displayName}
+                  allowList={DISPLAY_NAME_ALLOW_LIST}
+                />
               </button>
               {hasDisplayName && (
                 <span className="text-muted-foreground text-xs sm:text-sm truncate">
@@ -211,236 +271,41 @@ export function PostCard({
 
           {/* Post Content */}
           {post.content && (
-            <p className="text-foreground whitespace-pre-wrap break-words mb-3">
-              {post.content}
-            </p>
-          )}
-
-          {/* Media Images */}
-          {media.length > 0 && (
-            <>
-              {/* 1 image: Dynamic aspect ratio with constraints */}
-              {media.length === 1 && (
-                <div className="mb-3">
-                  <div
-                    className="relative bg-muted overflow-hidden rounded-xl"
-                    style={{
-                      // Use CSS variable for dynamic aspect ratio - CSP compliant
-                      ['--aspect-ratio' as string]: calculateSingleImageAspect(media[0]),
-                      aspectRatio: 'var(--aspect-ratio)',
-                    }}
+            <div className="mb-3">
+              <div
+                ref={contentRef}
+                className={cn(
+                  "text-foreground whitespace-pre-wrap break-words text-sm sm:text-base",
+                  !isContentExpanded &&
+                    isContentOverflowing &&
+                    "max-h-32 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_50%,transparent_100%)]",
+                )}
+              >
+                <MfmRenderer text={post.content} />
+              </div>
+              {isContentOverflowing && (
+                <div className="flex justify-start mt-1">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-muted-foreground"
+                    onClick={() => setIsContentExpanded((v) => !v)}
                   >
-                    <Image
-                      src={media[0].url}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover cursor-zoom-in"
-                      sizes="(max-width: 600px) 100vw, 600px"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxIndex(0);
-                        setLightboxOpen(true);
-                      }}
-                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      aria-label={tLightbox("open")}
-                    />
-                  </div>
+                    {isContentExpanded ? t("showLess") : t("showMore")}
+                  </Button>
                 </div>
               )}
-
-              {/* 2 images: 8:9 aspect ratio, side by side */}
-              {media.length === 2 && (
-                <div className="grid grid-cols-2 gap-1 mb-3">
-                  <div className="relative bg-muted aspect-[8/9] overflow-hidden">
-                    <Image
-                      src={media[0].url}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover rounded-l-xl cursor-zoom-in"
-                      sizes="(max-width: 600px) 50vw, 300px"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxIndex(0);
-                        setLightboxOpen(true);
-                      }}
-                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      aria-label={tLightbox("open")}
-                    />
-                  </div>
-                  <div className="relative bg-muted aspect-[8/9] overflow-hidden">
-                    <Image
-                      src={media[1].url}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover rounded-r-xl cursor-zoom-in"
-                      sizes="(max-width: 600px) 50vw, 300px"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxIndex(1);
-                        setLightboxOpen(true);
-                      }}
-                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      aria-label={tLightbox("open")}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* 3 images: Left auto-height, Right top/bottom 16:9 */}
-              {media.length === 3 && (
-                <div className="grid grid-cols-2 gap-1 mb-3">
-                  <div className="relative bg-muted row-span-2 overflow-hidden">
-                    <Image
-                      src={media[0].url}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover rounded-l-xl cursor-zoom-in"
-                      sizes="(max-width: 600px) 50vw, 300px"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxIndex(0);
-                        setLightboxOpen(true);
-                      }}
-                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      aria-label={tLightbox("open")}
-                    />
-                  </div>
-                  <div className="relative bg-muted aspect-video overflow-hidden">
-                    <Image
-                      src={media[1].url}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover rounded-tr-xl cursor-zoom-in"
-                      sizes="(max-width: 600px) 50vw, 300px"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxIndex(1);
-                        setLightboxOpen(true);
-                      }}
-                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      aria-label={tLightbox("open")}
-                    />
-                  </div>
-                  <div className="relative bg-muted aspect-video overflow-hidden">
-                    <Image
-                      src={media[2].url}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover rounded-br-xl cursor-zoom-in"
-                      sizes="(max-width: 600px) 50vw, 300px"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxIndex(2);
-                        setLightboxOpen(true);
-                      }}
-                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      aria-label={tLightbox("open")}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* 4 images: 2x2 grid, all 16:9 */}
-              {media.length === 4 && (
-                <div className="grid grid-cols-2 gap-1 mb-3">
-                  <div className="relative bg-muted aspect-video overflow-hidden">
-                    <Image
-                      src={media[0].url}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover rounded-tl-xl cursor-zoom-in"
-                      sizes="(max-width: 600px) 50vw, 300px"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxIndex(0);
-                        setLightboxOpen(true);
-                      }}
-                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      aria-label={tLightbox("open")}
-                    />
-                  </div>
-                  <div className="relative bg-muted aspect-video overflow-hidden">
-                    <Image
-                      src={media[1].url}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover rounded-tr-xl cursor-zoom-in"
-                      sizes="(max-width: 600px) 50vw, 300px"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxIndex(1);
-                        setLightboxOpen(true);
-                      }}
-                      className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      aria-label={tLightbox("open")}
-                    />
-                  </div>
-                  <div className="relative bg-muted aspect-video overflow-hidden">
-                    <Image
-                      src={media[2].url}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover rounded-bl-xl cursor-zoom-in"
-                      sizes="(max-width: 600px) 50vw, 300px"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxIndex(2);
-                        setLightboxOpen(true);
-                      }}
-                      className="absolute inset-0"
-                      aria-label={tLightbox("open")}
-                    />
-                  </div>
-                  <div className="relative bg-muted aspect-video overflow-hidden">
-                    <Image
-                      src={media[3].url}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover rounded-br-xl cursor-zoom-in"
-                      sizes="(max-width: 600px) 50vw, 300px"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxIndex(3);
-                        setLightboxOpen(true);
-                      }}
-                      className="absolute inset-0"
-                      aria-label={tLightbox("open")}
-                    />
-                  </div>
-                </div>
-              )}
-            </>
+            </div>
           )}
+
+          {/* OGP Link Preview – only when no media is attached */}
+          {ogpUrl && <OgpCard url={ogpUrl} />}
+
+          {/* Media: Images / Video via shared component */}
+          <PostMediaPreview
+            media={previewMedia}
+            onLightboxOpen={handleLightboxOpen}
+          />
 
           {/* Reactions */}
           {reactions.length > 0 && (
@@ -503,6 +368,12 @@ export function PostCard({
                       {t("actions.viewReactions")}
                     </DropdownMenuItem>
                   )}
+                  {post.content && (
+                    <DropdownMenuItem onSelect={handleCopyText}>
+                      <ClipboardCopy className="h-4 w-4" />
+                      {t("actions.copyText")}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onSelect={handleCopyUserId}
                     disabled={!hasAuthorId}
@@ -534,7 +405,7 @@ export function PostCard({
                   </Button>
                 </DrawerTrigger>
                 <DrawerContent>
-                  <div className="flex flex-col gap-2 p-4">
+                  <div className="flex flex-col gap-2 p-2 pb-4">
                     {hasReactions && (
                       <Button
                         variant="ghost"
@@ -547,6 +418,16 @@ export function PostCard({
                       >
                         <Eye className="h-4 w-4" />
                         {t("actions.viewReactions")}
+                      </Button>
+                    )}
+                    {post.content && (
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-2"
+                        onClick={handleCopyText}
+                      >
+                        <ClipboardCopy className="h-4 w-4" />
+                        {t("actions.copyText")}
                       </Button>
                     )}
                     <Button
@@ -581,28 +462,61 @@ export function PostCard({
         onOpenChange={setLightboxOpen}
         initialIndex={lightboxIndex}
       />
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("deleteConfirmDescription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePost.isPending}>
-              {t("deleteCancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={deletePost.isPending}
-              variant="destructive"
-            >
-              {deletePost.isPending ? t("deleteDeleting") : t("deleteConfirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {isDesktop ? (
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("deleteConfirmTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("deleteConfirmDescription")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletePost.isPending}>
+                {t("deleteCancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                disabled={deletePost.isPending}
+                variant="destructive"
+              >
+                {deletePost.isPending
+                  ? t("deleteDeleting")
+                  : t("deleteConfirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : (
+        <Drawer open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>{t("deleteConfirmTitle")}</DrawerTitle>
+              <DrawerDescription>
+                {t("deleteConfirmDescription")}
+              </DrawerDescription>
+            </DrawerHeader>
+            <DrawerFooter>
+              <Button
+                variant="destructive"
+                onClick={handleConfirmDelete}
+                disabled={deletePost.isPending}
+              >
+                {deletePost.isPending
+                  ? t("deleteDeleting")
+                  : t("deleteConfirm")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setConfirmOpen(false)}
+                disabled={deletePost.isPending}
+              >
+                {t("deleteCancel")}
+              </Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      )}
     </article>
   );
 }

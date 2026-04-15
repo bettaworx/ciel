@@ -13,6 +13,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, Search, ExternalLink, Users } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { MfmRenderer } from '@/components/mfm/MfmRenderer';
+import { DISPLAY_NAME_ALLOW_LIST } from '@/lib/mfm/parse';
 import type { components } from '@/lib/api/api';
 
 type SortOption = 'created_desc' | 'created_asc' | 'username_asc' | 'username_desc';
@@ -171,8 +173,8 @@ export default function UsersPage() {
 													{user.username}
 												</Link>
 											</td>
-											<td className="py-4 text-muted-foreground">
-												{user.displayName || '-'}
+										<td className="py-4 text-muted-foreground">
+												{user.displayName ? <MfmRenderer text={user.displayName} allowList={DISPLAY_NAME_ALLOW_LIST} /> : '-'}
 											</td>
 											<td className="py-4">
 												<div className="flex flex-wrap gap-1">

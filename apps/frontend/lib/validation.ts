@@ -52,9 +52,7 @@ export function validateUsername(username: string): string | null {
  * Validates password according to backend rules:
  * - At least 9 characters
  * - Maximum 256 characters (OpenAPI limit, added for safety)
- * 
- * Note: Backend also requires uppercase, lowercase, and numbers,
- * but we don't validate this on the client side - let the server handle it.
+ * - Contains uppercase, lowercase, and numbers
  * 
  * @param password - The password to validate
  * @returns Translation key for error message, or null if valid
@@ -70,6 +68,13 @@ export function validatePassword(password: string): string | null {
   
   if (password.length > PASSWORD_MAX_LENGTH) {
     return 'validation.password.tooLong';
+  }
+
+  const hasUpper = /\p{Lu}/u.test(password);
+  const hasLower = /\p{Ll}/u.test(password);
+  const hasNumber = /\p{N}/u.test(password);
+  if (!hasUpper || !hasLower || !hasNumber) {
+    return 'validation.password.missingRequirements';
   }
   
   return null;

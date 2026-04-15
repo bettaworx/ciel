@@ -107,6 +107,29 @@ func (m *Manager) load() error {
 		return fmt.Errorf("failed to parse config file: %w", err)
 	}
 
+	// 不足フィールドをデフォルト値で補完し、変更があればファイルに書き戻す
+	if repairedFields := repairDefaults(&cfg, data); len(repairedFields) > 0 {
+		for _, field := range repairedFields {
+			slog.Info("config field repaired with default value", "field", field)
+		}
+		if err := m.writeConfig(&cfg); err != nil {
+			// 書き戻し失敗は致命的ではない (インメモリは修復済み)
+			slog.Warn("failed to write repaired config to disk", "error", err)
+		} else {
+			slog.Info("repaired config written to disk", "fields_repaired", len(repairedFields))
+		}
+	}
+
+	// Clamp quality values to 0-100 range and log warnings
+	original := cfg.Media
+	cfg.Media.ClampQuality()
+	cfg.Media.LogClampedQuality(&original)
+
+	// Validate media configuration
+	if err := cfg.Media.Validate(); err != nil {
+		return fmt.Errorf("invalid media configuration: %w", err)
+	}
+
 	m.config = &cfg
 	return nil
 }

@@ -41,5 +41,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# storybook
+storybook-static/
+
 # OpenAPI generated types
 /lib/api/api.d.ts
+
+# Generated license manifest (regenerated at build time)
+/public/licenses.json

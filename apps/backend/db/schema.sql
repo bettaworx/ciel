@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   display_name TEXT,
   bio TEXT,
   avatar_media_id UUID,
+  banner_media_id UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   terms_version INT NOT NULL DEFAULT 0,
   privacy_version INT NOT NULL DEFAULT 0,
@@ -91,7 +92,7 @@ CREATE TABLE IF NOT EXISTS posts (
   CHECK (visibility IN ('public', 'hidden', 'deleted'))
 );
 
--- Uploaded media (currently images only). Stored on disk as WebP.
+-- Uploaded media (images and videos). Images stored as WebP, videos as MP4.
 CREATE TABLE IF NOT EXISTS media (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -99,12 +100,31 @@ CREATE TABLE IF NOT EXISTS media (
   ext TEXT NOT NULL DEFAULT 'webp',
   width INT NOT NULL,
   height INT NOT NULL,
+  duration REAL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ,
   deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
   deletion_reason TEXT,
   phash TEXT
 );
+
+DO $$
+BEGIN
+  ALTER TABLE users
+    ADD CONSTRAINT users_avatar_media_fk
+    FOREIGN KEY (avatar_media_id) REFERENCES media(id) ON DELETE SET NULL;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE users
+    ADD CONSTRAINT users_banner_media_fk
+    FOREIGN KEY (banner_media_id) REFERENCES media(id) ON DELETE SET NULL;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Avatar foreign key (must be added after media table exists).
 -- Server icon foreign key (must be added after media table exists).
@@ -269,6 +289,22 @@ CREATE TABLE IF NOT EXISTS agreement_documents (
   changelog TEXT,
   UNIQUE(document_type, version, language)
 );
+
+-- Refresh tokens for persistent session management (30-day TTL, rotate on use)
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash  BYTEA       NOT NULL UNIQUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at  TIMESTAMPTZ NOT NULL,
+  revoked_at  TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id
+  ON refresh_tokens (user_id) WHERE revoked_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires
+  ON refresh_tokens (expires_at) WHERE revoked_at IS NULL;
 
 -- ============================================================================
 -- INITIAL DATA

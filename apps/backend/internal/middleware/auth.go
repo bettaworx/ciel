@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"os"
 	"strings"
 
 	"backend/internal/auth"
@@ -54,11 +53,6 @@ func OptionalAuth(tokenManager *auth.TokenManager) func(http.Handler) http.Handl
 				logUnauthorized(r, "token_parse_failed", authSource, err)
 				writeUnauthorized(w)
 				return
-			}
-
-			// Refresh cookie to extend session (only for cookie-based auth)
-			if isCookieAuth {
-				refreshAuthCookie(w, r, user, tokenManager)
 			}
 
 			r = r.WithContext(auth.WithUser(r.Context(), user))
@@ -124,11 +118,6 @@ func RequireAuth(tokenManager *auth.TokenManager) func(http.Handler) http.Handle
 				return
 			}
 
-			// Refresh cookie to extend session (only for cookie-based auth)
-			if isCookieAuth {
-				refreshAuthCookie(w, r, user, tokenManager)
-			}
-
 			r = r.WithContext(auth.WithUser(r.Context(), user))
 			next.ServeHTTP(w, r)
 		})
@@ -163,49 +152,3 @@ func logUnauthorized(r *http.Request, reason string, authSource string, err erro
 	slog.Warn("unauthorized request", attrs...)
 }
 
-// refreshAuthCookie generates a new JWT token and updates the authentication cookie
-// This extends the user's session automatically on each authenticated request
-func refreshAuthCookie(w http.ResponseWriter, r *http.Request, user auth.User, tokenManager *auth.TokenManager) {
-	// Skip cookie refresh for logout endpoint to prevent re-issuing auth cookie
-	if r.URL.Path == "/api/v1/auth/logout" {
-		return
-	}
-
-	// Generate new access token with extended expiration
-	newToken, expiresInSeconds, err := tokenManager.Issue(user)
-	if err != nil {
-		// Log error but don't fail the request
-		// The old token is still valid
-		return
-	}
-
-	// Set new cookie with updated token
-	setAuthCookie(w, r, newToken, expiresInSeconds)
-}
-
-// setAuthCookie creates and sets a secure authentication cookie with proper security attributes
-func setAuthCookie(w http.ResponseWriter, r *http.Request, token string, maxAge int) {
-	// Determine if connection is secure
-	// Check multiple headers for HTTPS detection behind reverse proxies
-	isSecure := r.TLS != nil ||
-		r.Header.Get("X-Forwarded-Proto") == "https" ||
-		r.Header.Get("X-Forwarded-Ssl") == "on" ||
-		r.Header.Get("X-Forwarded-Scheme") == "https"
-
-	// Get cookie domain from environment (should be set in production)
-	// Examples: "example.com" or ".example.com" (with dot for subdomains)
-	cookieDomain := os.Getenv("COOKIE_DOMAIN")
-
-	cookie := &http.Cookie{
-		Name:     "ciel_auth",
-		Value:    token,
-		Path:     "/",
-		Domain:   cookieDomain,
-		MaxAge:   maxAge,
-		HttpOnly: true,                    // Prevent JavaScript access
-		Secure:   isSecure,                // Only send over HTTPS
-		SameSite: http.SameSiteStrictMode, // CSRF protection
-	}
-
-	http.SetCookie(w, cookie)
-}

@@ -10,3 +10,30 @@
 **/*.test
 **/*.prof
 **/.vscode
+**/.turbo
+**/coverage
+
+# Not needed in any Docker build
+nginx
+scripts
+README.md
+AGENTS.md
+Jenkinsfile
+docker-compose*.yml*
+run.sh
+
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Backend config (mounted at runtime via volume)
+apps/backend/config/config.yaml
+
+# Secret key/cert files
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.crt
+**/*.cer

@@ -236,14 +236,30 @@ func (s *TimelineService) attachMediaToPosts(ctx context.Context, posts []api.Po
 		if counts[row.PostID] >= 4 {
 			continue
 		}
-		posts[pi].Media = append(posts[pi].Media, api.Media{
+
+		media := api.Media{
 			Id:        row.MediaID,
-			Type:      api.MediaType("image"),
-			Url:       mediaImageURL(row.MediaID, row.Ext),
+			Type:      api.MediaType(row.Type),
 			Width:     int(row.Width),
 			Height:    int(row.Height),
 			CreatedAt: row.CreatedAt,
-		})
+		}
+
+		// Set URL based on media type
+		if row.Type == "video" {
+			media.Url = mediaVideoURL(row.MediaID, row.Ext)
+			// Add duration and thumbnail for videos
+			if row.Duration.Valid {
+				f32 := float32(row.Duration.Float64)
+				media.Duration = &f32
+			}
+			thumbnailURL := mediaThumbnailURL(row.MediaID)
+			media.ThumbnailUrl = &thumbnailURL
+		} else {
+			media.Url = mediaImageURL(row.MediaID, row.Ext)
+		}
+
+		posts[pi].Media = append(posts[pi].Media, media)
 		counts[row.PostID]++
 	}
 	return nil
@@ -283,7 +299,7 @@ func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 		CreatedAt: row.CreatedAt,
 		DeletedAt: nil,
 		// Note: Timeline post author doesn't include agreement fields (not needed for display)
-		Author: mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author: mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
 	}
 }
 
@@ -295,6 +311,6 @@ func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 		CreatedAt: row.CreatedAt,
 		DeletedAt: nil,
 		// Note: Post author doesn't include agreement fields (not needed for display)
-		Author: mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author: mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
 	}
 }

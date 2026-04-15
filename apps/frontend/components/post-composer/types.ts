@@ -1,9 +1,45 @@
+import type { Crop } from "react-image-crop";
+
 /**
  * Types for post composition
  */
 
 export interface LocalImage {
   localId: string;
+  originalFile: File;
+  originalPreviewUrl: string; // Object URL (blob:) for original file
+  croppedFile: File | null;
+  croppedPreviewUrl: string | null; // Object URL (blob:) for current cropped file
+  crop: Crop | null;
   file: File;
-  previewUrl: string; // Base64 data URL
+  previewUrl: string; // Object URL (blob:)
+  isAnimated: boolean; // true for GIF and other animated image formats
+  width: number;
+  height: number;
+}
+
+export interface LocalVideo {
+  localId: string;
+  file: File;
+  previewUrl: string; // Object URL (blob:)
+  width: number;
+  height: number;
+}
+
+export type LocalMedia =
+  | { kind: "image"; data: LocalImage }
+  | { kind: "video"; data: LocalVideo };
+
+/**
+ * Unified media item type used by the shared PostMediaPreview component.
+ * Works for both local (blob://) and remote (https://) media.
+ */
+export interface PreviewMediaItem {
+  id: string;
+  type: "image" | "video";
+  url: string;
+  isAnimated?: boolean;
+  width: number;
+  height: number;
+  thumbnailUrl?: string | null;
 }

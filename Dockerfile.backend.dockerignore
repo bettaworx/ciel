@@ -1,0 +1,40 @@
+.git
+**/.DS_Store
+**/*.log
+**/tmp
+**/node_modules
+**/.next
+**/dist
+**/out
+**/*.exe
+**/*.test
+**/*.prof
+**/.vscode
+**/.turbo
+**/coverage
+
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Not needed for backend build
+apps/frontend
+nginx
+scripts
+README.md
+AGENTS.md
+Jenkinsfile
+docker-compose*.yml*
+run.sh
+pnpm-lock.yaml
+pnpm-workspace.yaml
+package.json
+
+# Secret key/cert files
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.crt
+**/*.cer

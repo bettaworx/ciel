@@ -151,6 +151,16 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 
 	var cTime sql.NullTime
 	var cID uuid.NullUUID
+	var mediaType sql.NullString
+	if params.MediaType != nil {
+		mt := strings.TrimSpace(string(*params.MediaType))
+		switch mt {
+		case "image", "video", "media":
+			mediaType = sql.NullString{String: mt, Valid: true}
+		default:
+			return api.UserPostsPage{}, NewError(http.StatusBadRequest, "invalid_request", "mediaType must be image, video, or media")
+		}
+	}
 	if cursor != nil {
 		ct := time.UnixMilli(cursor.Score).UTC()
 		cTime = sql.NullTime{Time: ct, Valid: true}
@@ -162,6 +172,7 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 
 	rows, err := s.store.Q.ListPostsByUsername(ctx, sqlc.ListPostsByUsernameParams{
 		Username:   uname,
+		MediaType:  mediaType,
 		CursorTime: cTime,
 		CursorID:   cID,
 		Limit:      int32(limit),
@@ -206,14 +217,29 @@ func (s *PostsService) attachMediaToPost(ctx context.Context, post *api.Post) er
 	}
 	post.Media = make([]api.Media, 0, len(rows))
 	for _, row := range rows {
-		post.Media = append(post.Media, api.Media{
+		media := api.Media{
 			Id:        row.MediaID,
-			Type:      api.MediaType("image"),
-			Url:       mediaImageURL(row.MediaID, row.Ext),
+			Type:      api.MediaType(row.Type),
 			Width:     int(row.Width),
 			Height:    int(row.Height),
 			CreatedAt: row.CreatedAt,
-		})
+		}
+
+		// Set URL based on media type
+		if row.Type == "video" {
+			media.Url = mediaVideoURL(row.MediaID, row.Ext)
+			// Add duration and thumbnail for videos
+			if row.Duration.Valid {
+				f32 := float32(row.Duration.Float64)
+				media.Duration = &f32
+			}
+			thumbnailURL := mediaThumbnailURL(row.MediaID)
+			media.ThumbnailUrl = &thumbnailURL
+		} else {
+			media.Url = mediaImageURL(row.MediaID, row.Ext)
+		}
+
+		post.Media = append(post.Media, media)
 	}
 	return nil
 }
@@ -242,14 +268,30 @@ func (s *PostsService) attachMediaToPosts(ctx context.Context, posts []api.Post)
 		if counts[row.PostID] >= 4 {
 			continue
 		}
-		posts[pi].Media = append(posts[pi].Media, api.Media{
+
+		media := api.Media{
 			Id:        row.MediaID,
-			Type:      api.MediaType("image"),
-			Url:       mediaImageURL(row.MediaID, row.Ext),
+			Type:      api.MediaType(row.Type),
 			Width:     int(row.Width),
 			Height:    int(row.Height),
 			CreatedAt: row.CreatedAt,
-		})
+		}
+
+		// Set URL based on media type
+		if row.Type == "video" {
+			media.Url = mediaVideoURL(row.MediaID, row.Ext)
+			// Add duration and thumbnail for videos
+			if row.Duration.Valid {
+				f32 := float32(row.Duration.Float64)
+				media.Duration = &f32
+			}
+			thumbnailURL := mediaThumbnailURL(row.MediaID)
+			media.ThumbnailUrl = &thumbnailURL
+		} else {
+			media.Url = mediaImageURL(row.MediaID, row.Ext)
+		}
+
+		posts[pi].Media = append(posts[pi].Media, media)
 		counts[row.PostID]++
 	}
 	return nil

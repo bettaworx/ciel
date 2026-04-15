@@ -1,19 +1,285 @@
 {
   "hello": "こんにちは",
-  "welcome": "ようこそ",
+  "welcome": {
+    "title": "{serverName}へようこそ！",
+    "description": "{serverDescription}",
+    "descriptionFallback": "プラットフォームを探索して、あなたの考えをシェアしましょう",
+    "aboutServer": "サーバーについて"
+  },
   "username": "ユーザー名",
   "password": "パスワード",
   "passwordRequirements": "パスワードは9文字以上で、大文字、小文字、数字を含む必要があります。",
   "post": "投稿",
   "profile": "プロフィール",
-  "settings": "設定",
+  "settings": {
+    "title": "設定",
+    "backToSettings": "設定に戻る",
+    "categories": {
+      "profile": "プロフィール",
+      "general": "一般",
+      "appearance": "外観",
+      "account": "アカウント",
+      "security": "セキュリティ"
+    },
+    "general": {
+      "title": "一般",
+      "language": {
+        "title": "言語",
+        "description": "表示言語を選ぶ",
+        "placeholder": "言語を選択"
+      }
+    },
+    "appearance": {
+      "title": "外観",
+      "theme": {
+        "title": "テーマ",
+        "description": "アプリのテーマを選ぶ",
+        "light": "ライト",
+        "dark": "ダーク",
+        "system": "システム",
+        "systemDescription": "OSの設定に従うようになります"
+      },
+      "mfm": {
+        "title": "MFM (テキスト装飾)",
+        "description": "投稿やプロフィールのテキスト装飾・アニメーション表示を制御する",
+        "enabled": {
+          "title": "MFMを有効",
+          "description": "有効にするとMFMを使用した装飾が表示されます"
+        },
+        "mention": {
+          "title": "メンション",
+          "description": "@ユーザー形式のメンション表示"
+        },
+        "hashtag": {
+          "title": "ハッシュタグ",
+          "description": "#タグ形式のハッシュタグ表示"
+        },
+        "url": {
+          "title": "URL",
+          "description": "URLの自動リンク表示"
+        },
+        "link": {
+          "title": "リンク",
+          "description": "テキストリンクの表示"
+        },
+        "emojiCode": {
+          "title": "カスタム絵文字",
+          "description": ":name: 形式のカスタム絵文字表示"
+        },
+        "bold": {
+          "title": "太字",
+          "description": "太字テキストの表示"
+        },
+        "italic": {
+          "title": "斜体",
+          "description": "斜体テキストの表示"
+        },
+        "strike": {
+          "title": "取り消し線",
+          "description": "取り消し線テキストの表示"
+        },
+        "small": {
+          "title": "小さい文字",
+          "description": "縮小テキストの表示"
+        },
+        "quote": {
+          "title": "引用",
+          "description": "引用ブロックの表示"
+        },
+        "center": {
+          "title": "中央揃え",
+          "description": "テキストの中央揃え表示"
+        },
+        "ruby": {
+          "title": "ルビ（読み仮名）",
+          "description": "テキスト上の読み仮名表示"
+        },
+        "code": {
+          "title": "コード",
+          "description": "コードの表示",
+          "inline": {
+            "title": "インライン",
+            "description": "インラインコードの表示"
+          },
+          "block": {
+            "title": "ブロック",
+            "description": "コードブロックの表示"
+          }
+        },
+        "flip": {
+          "title": "反転",
+          "description": "テキストの水平・垂直反転"
+        },
+        "font": {
+          "title": "フォント",
+          "description": "フォントファミリーの変更",
+          "serif": {
+            "title": "セリフ体",
+            "description": "セリフ体フォントの表示"
+          },
+          "monospace": {
+            "title": "等幅",
+            "description": "等幅フォントの表示"
+          },
+          "cursive": {
+            "title": "筆記体",
+            "description": "筆記体フォントの表示"
+          },
+          "fantasy": {
+            "title": "ファンタジー",
+            "description": "ファンタジーフォントの表示"
+          }
+        },
+        "blur": {
+          "title": "ぼかし",
+          "description": "テキストのぼかし効果"
+        },
+        "search": {
+          "title": "検索ボックス",
+          "description": "検索ブロックの表示"
+        },
+        "bg": {
+          "title": "背景色",
+          "description": "テキスト背景色の表示"
+        },
+        "fg": {
+          "title": "文字色",
+          "description": "テキスト色の変更表示"
+        },
+        "border": {
+          "title": "枠線",
+          "description": "テキスト周囲の枠線表示"
+        },
+        "rotate": {
+          "title": "回転",
+          "description": "テキストの回転表示"
+        },
+        "position": {
+          "title": "位置変更",
+          "description": "テキストの位置移動"
+        },
+        "scale": {
+          "title": "拡大縮小",
+          "description": "テキストの拡大・縮小表示"
+        },
+        "expand": {
+          "title": "サイズ拡大",
+          "description": "テキストサイズの拡大表示",
+          "allowLargerThanX2": {
+            "title": "3倍/4倍を許可",
+            "description": "無効時は2倍に制限されます"
+          }
+        },
+        "animation": {
+          "title": "アニメーション",
+          "description": "テキストアニメーション効果",
+          "jelly": {
+            "title": "ゼリー",
+            "description": "ゼリーアニメーション"
+          },
+          "tada": {
+            "title": "じゃじゃーん",
+            "description": "じゃじゃーんアニメーション"
+          },
+          "jump": {
+            "title": "ジャンプ",
+            "description": "ジャンプアニメーション"
+          },
+          "bounce": {
+            "title": "バウンス",
+            "description": "跳ね返るアニメーション"
+          },
+          "spin": {
+            "title": "回転",
+            "description": "スピンアニメーション"
+          },
+          "shake": {
+            "title": "振動",
+            "description": "振動させるアニメーション"
+          },
+          "twitch": {
+            "title": "痙攣",
+            "description": "痙攣させるアニメーション"
+          }
+        },
+        "rainbow": {
+          "title": "レインボー",
+          "description": "虹色に変化するアニメーション"
+        },
+        "sparkle": {
+          "title": "キラキラ",
+          "description": "キラキラ輝くアニメーション"
+        }
+      }
+    },
+    "language": {
+      "ja": "日本語",
+      "en": "English"
+    },
+    "account": {
+      "title": "アカウント"
+    },
+    "security": {
+      "title": "セキュリティ"
+    },
+    "profile": {
+      "title": "プロフィール",
+      "avatar": {
+        "title": "アバター",
+        "description": "プロフィール画像",
+        "upload": "アバターをアップロード",
+        "change": "アバターを変更",
+        "uploadButton": "アップロード",
+        "cancel": "キャンセル",
+        "uploading": "アップロード中...",
+        "updateSuccess": "アバターを更新しました",
+        "updateError": "アバターの更新に失敗しました",
+        "invalidFileType": "画像ファイルを選択してください",
+        "cropTitle": "アバターをトリミング"
+      },
+      "banner": {
+        "title": "バナー",
+        "description": "プロフィールのバナー画像（3:1比率）",
+        "upload": "バナーをアップロード",
+        "change": "バナーを変更",
+        "cancel": "キャンセル",
+        "invalidFileType": "画像ファイルを選択してください",
+        "cropTitle": "バナーをトリミング"
+      },
+      "displayName": {
+        "title": "表示名",
+        "description": "プロフィールに表示される名前",
+        "placeholder": "表示名を入力してください"
+      },
+      "bio": {
+        "title": "自己紹介",
+        "description": "あなたについての短い説明",
+        "placeholder": "自己紹介を入力してください..."
+      },
+      "saveChanges": "変更を保存",
+      "saving": "保存中...",
+      "updateSuccess": "プロフィールを更新しました",
+      "updateError": "プロフィールの更新に失敗しました",
+      "unsavedChanges": "未保存の変更があります"
+    }
+  },
   "loading": "読み込み中...",
   "user": {
     "anonymous": "匿名",
     "posts": "投稿",
     "noPosts": "投稿がありません",
+    "media": "メディア",
+    "noMedia": "メディアはまだありません",
     "notFound": "ユーザーが見つかりません",
     "noBio": "自己紹介がありません",
+    "editProfile": "編集",
+    "shareProfile": "プロフィールを共有",
+    "shareSuccess": "プロフィールURLをコピーしました",
+    "shareError": "プロフィールURLの共有に失敗しました",
+    "moreActions": "その他の操作",
+    "copyUserId": "ユーザーIDをコピー",
+    "copyIdSuccess": "ユーザーIDをコピーしました",
+    "copyIdError": "ユーザーIDのコピーに失敗しました",
     "unknown": "不明なユーザー",
     "unknownUsername": "不明"
   },
@@ -105,7 +371,8 @@
     "password": {
       "required": "パスワードは必須です",
       "tooShort": "パスワードは9文字以上で入力してください",
-      "tooLong": "パスワードは256文字以下で入力してください"
+      "tooLong": "パスワードは256文字以下で入力してください",
+      "missingRequirements": "パスワードは大文字・小文字・数字をすべて含めてください"
     }
   },
   "error": {
@@ -129,9 +396,11 @@
       "login": "ログイン",
       "signup": "新規登録",
       "settings": "設定",
-      "settingsGeneral": "一般設定",
-      "settingsProfile": "プロフィール設定",
-      "settingsAppearance": "外観設定",
+      "settingsGeneral": "一般",
+      "settingsProfile": "プロフィール",
+      "settingsAppearance": "外観",
+      "settingsAccount": "アカウント",
+      "settingsSecurity": "セキュリティ",
       "setup": "プロフィール設定",
       "adminSetup": "サーバー初期設定"
     }
@@ -146,21 +415,42 @@
     "placeholder": "いまどうしてる?",
     "post": "投稿",
     "posting": "投稿中...",
+    "formatBold": "太字",
+    "formatItalic": "斜体",
+    "formatCenter": "中央揃え",
+    "formatFont": "書体",
+    "formatCode": "コード",
+    "formatSize": "文字サイズ",
+    "formatLink": "リンク",
     "uploadImage": "画像をアップロード",
+    "uploadVideo": "動画をアップロード",
+    "uploadMedia": "画像・動画をアップロード",
+    "cropTitle": "画像をトリミング",
+    "cropImage": "画像をトリミング",
     "removeImage": "画像を削除",
+    "removeVideo": "動画を削除",
     "maxImages": "最大4枚まで",
     "maxLength": "最大300文字まで",
     "contentTooLong": "投稿内容は300文字以内で入力してください",
     "characterCount": "{current}/{max}",
     "success": "投稿しました",
     "error": "投稿に失敗しました",
-    "uploadError": "画像のアップロードに失敗しました",
-    "invalidFileType": "画像ファイルを選択してください (PNG, JPG, JPEG, WebP)",
+    "uploadError": "メディアのアップロードに失敗しました",
+    "videoUploadError": "動画のアップロードに失敗しました",
+    "invalidFileType": "サポートされていないファイル形式です。画像または動画ファイルを選択してください",
     "tooManyFiles": "一度にアップロードできる画像は4枚までです",
-    "fileTooLarge": "ファイルサイズが大きすぎます（最大10MB）",
-    "dropImages": "画像をドロップ"
+    "tooManyVideos": "動画は1投稿につき1つまでです",
+    "cannotMixMediaTypes": "画像と動画を同じ投稿に混在させることはできません",
+    "fileTooLarge": "画像ファイルが大きすぎます",
+    "videoTooLarge": "動画ファイルが大きすぎます（最大{maxSize}MB）",
+    "dropImages": "画像をドロップ",
+    "dropMedia": "ファイルをドロップ",
+    "rateLimited": "アップロードの回数制限に達しました。しばらくしてからお試しください",
+    "rateLimitedWithRetry": "アップロードの回数制限に達しました。{seconds}秒後にお試しください",
+    "uploadNetworkError": "アップロードに失敗しました。ファイルが大きすぎるか、接続が中断された可能性があります"
   },
   "lightbox": {
+    "title": "画像ビューア",
     "open": "画像を拡大",
     "close": "閉じる",
     "previous": "前の画像",
@@ -181,68 +471,6 @@
     "light": "ライトモードに切り替え",
     "dark": "ダークモードに切り替え"
   },
-  "settings": {
-    "title": "設定",
-    "backToSettings": "設定に戻る",
-    "categories": {
-      "profile": "プロフィール",
-      "general": "一般",
-      "appearance": "外観"
-    },
-    "general": {
-      "title": "一般設定",
-      "language": {
-        "title": "言語",
-        "description": "表示言語を選ぶ",
-        "placeholder": "言語を選択"
-      }
-    },
-    "appearance": {
-      "title": "外観設定",
-      "theme": {
-        "title": "テーマ",
-        "description": "アプリのテーマを選ぶ",
-        "light": "ライト",
-        "dark": "ダーク",
-        "system": "システム",
-        "systemDescription": "OSの設定に従うようになります"
-      }
-    },
-    "language": {
-      "ja": "日本語",
-      "en": "English"
-    },
-    "profile": {
-      "title": "プロフィール設定",
-      "avatar": {
-        "title": "アバター",
-        "description": "プロフィール画像",
-        "upload": "アバターをアップロード",
-        "change": "アバターを変更",
-        "uploadButton": "アップロード",
-        "cancel": "キャンセル",
-        "uploading": "アップロード中...",
-        "updateSuccess": "アバターを更新しました",
-        "updateError": "アバターの更新に失敗しました",
-        "invalidFileType": "画像ファイルを選択してください"
-      },
-      "displayName": {
-        "title": "表示名",
-        "description": "プロフィールに表示される名前",
-        "placeholder": "表示名を入力してください"
-      },
-      "bio": {
-        "title": "自己紹介",
-        "description": "あなたについての短い説明",
-        "placeholder": "自己紹介を入力してください..."
-      },
-      "saveChanges": "変更を保存",
-      "saving": "保存中...",
-      "updateSuccess": "プロフィールを更新しました",
-      "updateError": "プロフィールの更新に失敗しました",
-      "unsavedChanges": "未保存の変更があります"
-    }
-  },
   "userMenu": {
     "viewProfile": "プロフィール",
     "theme": "テーマ",
@@ -255,7 +483,17 @@
   },
   "nav": {
     "home": "ホーム",
-    "openUserMenu": "ユーザーメニュー"
+    "openUserMenu": "ユーザーメニュー",
+    "pinSidebar": "サイドバーを固定",
+    "unpinSidebar": "サイドバーのピンを解除"
+  },
+  "videoPlayer": {
+    "play": "再生",
+    "pause": "一時停止",
+    "mute": "ミュート",
+    "unmute": "ミュート解除",
+    "fullscreen": "全画面",
+    "exitFullscreen": "全画面を終了"
   },
   "reactions": {
     "label": "{emoji} {count}件のリアクション",
@@ -328,7 +566,8 @@
       "more": "その他の操作",
       "viewReactions": "リアクションを見る",
       "delete": "投稿を削除",
-      "copyUserId": "ユーザーIDをコピー"
+      "copyUserId": "ユーザーIDをコピー",
+      "copyText": "テキストをコピー"
     },
     "deleteConfirmTitle": "投稿を削除しますか？",
     "deleteConfirmDescription": "この操作は取り消せません。投稿はタイムラインから削除されます。",
@@ -338,12 +577,11 @@
     "deleteSuccess": "投稿を削除しました",
     "deleteError": "投稿の削除に失敗しました",
     "copySuccess": "ユーザーIDをコピーしました",
-    "copyError": "ユーザーIDのコピーに失敗しました"
-  },
-  "welcome": {
-    "title": "{serverName}へようこそ！",
-    "description": "{serverDescription}",
-    "descriptionFallback": "プラットフォームを探索して、あなたの考えをシェアしましょう"
+    "copyError": "ユーザーIDのコピーに失敗しました",
+    "copyTextSuccess": "テキストをコピーしました",
+    "copyTextError": "テキストのコピーに失敗しました",
+    "showMore": "もっと見る",
+    "showLess": "閉じる"
   },
   "adminSetup": {
     "title": "サーバー初期設定",
@@ -352,7 +590,17 @@
     "back": "戻る",
     "next": "次へ",
     "skip": "スキップ",
-    "complete": "完了",
+    "complete": {
+      "title": "セットアップ完了！",
+      "description": "サーバーの初期設定が完了しました。ホームページに移動してCielを始めましょう。",
+      "goToHome": "ホームに移動",
+      "setupSummary": "セットアップ内容",
+      "adminAccount": "管理者アカウント: {username}",
+      "serverName": "サーバー名: {name}",
+      "inviteOnly": "招待制: {enabled}",
+      "enabled": "有効",
+      "disabled": "無効"
+    },
     "saving": "保存中...",
     "welcome": {
       "title": "Cielサーバーへようこそ",
@@ -439,17 +687,6 @@
       "codeCopied": "コピーしました",
       "copyError": "コードのコピーに失敗しました"
     },
-    "complete": {
-      "title": "セットアップ完了！",
-      "description": "サーバーの初期設定が完了しました。ホームページに移動してCielを始めましょう。",
-      "goToHome": "ホームに移動",
-      "setupSummary": "セットアップ内容",
-      "adminAccount": "管理者アカウント: {username}",
-      "serverName": "サーバー名: {name}",
-      "inviteOnly": "招待制: {enabled}",
-      "enabled": "有効",
-      "disabled": "無効"
-    },
     "error": {
       "setupFailed": "セットアップに失敗しました",
       "verifyPasswordFailed": "パスワード確認に失敗しました",
@@ -460,14 +697,14 @@
   "websocket": {
     "inactivity": {
       "title": "接続が一時停止されました",
-      "description": "サーバー負荷軽減のため、5分間の無操作により接続が一時停止されました。",
+      "description": "サーバー負荷軽減のため、接続が一時停止されました。",
       "reconnect": "再接続",
       "dismiss": "OK"
     }
   },
   "offline": {
     "title": "オフラインです",
-    "description": "おっと、サーバーがオフラインのようです。時間を置いてアクセスしてみてください。",
+    "description": "おっと、サーバーがオフラインのようです。\n時間を置いてアクセスしてみてください。",
     "reload": "リロード"
   },
   "admin": {
@@ -831,7 +1068,8 @@
         "saving": "保存中...",
         "saveSuccess": "サーバープロフィールを更新しました",
         "saveError": "サーバープロフィールの更新に失敗しました",
-        "nameRequired": "サーバー名は必須です"
+        "nameRequired": "サーバー名は必須です",
+        "cropTitle": "サーバーアイコンをトリミング"
       },
       "signup": {
         "title": "アカウント作成設定",
@@ -859,5 +1097,20 @@
       "search": "検索",
       "filter": "フィルター"
     }
+  },
+  "videoPlayer": {
+    "play": "再生",
+    "pause": "一時停止",
+    "mute": "ミュート",
+    "unmute": "ミュート解除",
+    "fullscreen": "全画面",
+    "exitFullscreen": "全画面終了",
+    "doubleSpeed": "2×",
+    "seekSeconds": "{seconds}秒"
+  },
+  "imageCrop": {
+    "apply": "トリミングして適用",
+    "cancel": "キャンセル",
+    "processing": "処理中..."
   }
 }

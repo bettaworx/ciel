@@ -8,8 +8,8 @@ const size = { width: 48, height: 48 };
 export { size };
 
 function resolveApiBaseUrl(): string {
-	const fromEnv = process.env.NEXT_PUBLIC_API_BASE_URL as string | undefined;
-	const DEFAULT_BASE_URL = '/api/v1';
+	const fromEnv = process.env.API_BASE_URL as string | undefined;
+	const DEFAULT_BASE_URL = 'http://localhost:6137/api/v1';
 	const raw = (fromEnv ?? DEFAULT_BASE_URL).trim();
 	if (!raw) return DEFAULT_BASE_URL;
 	const noTrailingSlash = raw.replace(/\/+$/, '');
@@ -51,7 +51,22 @@ async function fetchServerIcon(): Promise<ArrayBuffer | null> {
 			return null;
 		}
 
-		// Fetch the actual icon image
+		// For animated server icons (GIFs converted to WebP), try to fetch the static version first
+		// The static version (first frame only) is better for favicons
+		const staticIconUrl = iconUrl.replace('/image.webp', '/image_static.webp').replace('/image.png', '/image_static.png');
+		
+		// Try static version first
+		if (staticIconUrl !== iconUrl) {
+			const staticIconResponse = await fetch(staticIconUrl, {
+				next: { revalidate: 30 },
+			});
+
+			if (staticIconResponse.ok) {
+				return await staticIconResponse.arrayBuffer();
+			}
+		}
+
+		// Fetch the actual icon image (fallback to animated version if static doesn't exist)
 		const iconResponse = await fetch(iconUrl, {
 			next: { revalidate: 30 },
 		});

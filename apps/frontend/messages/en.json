@@ -1,19 +1,285 @@
 {
   "hello": "Hello",
-  "welcome": "Welcome",
+  "welcome": {
+    "title": "Welcome to {serverName}!",
+    "description": "{serverDescription}",
+    "descriptionFallback": "Explore our platform and start sharing your thoughts.",
+    "aboutServer": "About this server"
+  },
   "username": "Username",
   "password": "Password",
   "passwordRequirements": "Password must be at least 9 characters long and contain uppercase, lowercase, and numbers.",
   "post": "Post",
   "profile": "Profile",
-  "settings": "Settings",
+  "settings": {
+    "title": "Settings",
+    "backToSettings": "Back to settings",
+    "categories": {
+      "profile": "Profile",
+      "general": "General",
+      "appearance": "Appearance",
+      "account": "Account",
+      "security": "Security"
+    },
+    "general": {
+      "title": "General",
+      "language": {
+        "title": "Language",
+        "description": "Choose your display language",
+        "placeholder": "Select language"
+      }
+    },
+    "appearance": {
+      "title": "Appearance",
+      "theme": {
+        "title": "Theme",
+        "description": "Choose your app theme",
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System",
+        "systemDescription": "Follow system settings"
+      },
+      "mfm": {
+        "title": "MFM (Text Decoration)",
+        "description": "Control text decoration and animation display in posts and profiles",
+        "enabled": {
+          "title": "Enable MFM",
+          "description": "When disabled, only emoji will be displayed"
+        },
+        "mention": {
+          "title": "Mentions",
+          "description": "Display @user mentions"
+        },
+        "hashtag": {
+          "title": "Hashtags",
+          "description": "Display #tag hashtags"
+        },
+        "url": {
+          "title": "URLs",
+          "description": "Auto-link URL display"
+        },
+        "link": {
+          "title": "Links",
+          "description": "Display text links"
+        },
+        "emojiCode": {
+          "title": "Custom Emoji",
+          "description": "Display :name: custom emoji"
+        },
+        "bold": {
+          "title": "Bold",
+          "description": "Display bold text"
+        },
+        "italic": {
+          "title": "Italic",
+          "description": "Display italic text"
+        },
+        "strike": {
+          "title": "Strikethrough",
+          "description": "Display strikethrough text"
+        },
+        "small": {
+          "title": "Small Text",
+          "description": "Display shrunk text"
+        },
+        "quote": {
+          "title": "Quote",
+          "description": "Display quote blocks"
+        },
+        "center": {
+          "title": "Center Align",
+          "description": "Display centered text"
+        },
+        "ruby": {
+          "title": "Ruby (Reading Aid)",
+          "description": "Display reading annotations above text"
+        },
+        "code": {
+          "title": "Code",
+          "description": "Display code elements",
+          "inline": {
+            "title": "Inline",
+            "description": "Display inline code"
+          },
+          "block": {
+            "title": "Block",
+            "description": "Display code blocks"
+          }
+        },
+        "flip": {
+          "title": "Flip",
+          "description": "Horizontal/vertical text flipping"
+        },
+        "font": {
+          "title": "Font",
+          "description": "Font family changes",
+          "serif": {
+            "title": "Serif",
+            "description": "Display serif font"
+          },
+          "monospace": {
+            "title": "Monospace",
+            "description": "Display monospace font"
+          },
+          "cursive": {
+            "title": "Cursive",
+            "description": "Display cursive font"
+          },
+          "fantasy": {
+            "title": "Fantasy",
+            "description": "Display fantasy font"
+          }
+        },
+        "blur": {
+          "title": "Blur",
+          "description": "Text blur effect"
+        },
+        "search": {
+          "title": "Search Box",
+          "description": "Display search blocks"
+        },
+        "bg": {
+          "title": "Background Color",
+          "description": "Display text background color"
+        },
+        "fg": {
+          "title": "Text Color",
+          "description": "Display text color changes"
+        },
+        "border": {
+          "title": "Border",
+          "description": "Display borders around text"
+        },
+        "rotate": {
+          "title": "Rotate",
+          "description": "Display rotated text"
+        },
+        "position": {
+          "title": "Position Shift",
+          "description": "Display shifted text position"
+        },
+        "scale": {
+          "title": "Scale",
+          "description": "Display scaled text"
+        },
+        "expand": {
+          "title": "Size Expansion",
+          "description": "Display enlarged text sizes",
+          "allowLargerThanX2": {
+            "title": "Allow x3/x4",
+            "description": "When disabled, capped at x2"
+          }
+        },
+        "animation": {
+          "title": "Animations",
+          "description": "Text animation effects",
+          "jelly": {
+            "title": "Jelly",
+            "description": "Bouncy jelly animation"
+          },
+          "tada": {
+            "title": "TaDa",
+            "description": "Attention-grabbing TaDa animation"
+          },
+          "jump": {
+            "title": "Jump",
+            "description": "Jumping animation"
+          },
+          "bounce": {
+            "title": "Bounce",
+            "description": "Drop and bounce animation"
+          },
+          "spin": {
+            "title": "Spin",
+            "description": "Spinning animation"
+          },
+          "shake": {
+            "title": "Shake",
+            "description": "Shaking animation"
+          },
+          "twitch": {
+            "title": "Twitch",
+            "description": "Twitching animation"
+          }
+        },
+        "rainbow": {
+          "title": "Rainbow",
+          "description": "Rainbow color animation"
+        },
+        "sparkle": {
+          "title": "Sparkle",
+          "description": "Sparkling animation"
+        }
+      }
+    },
+    "language": {
+      "ja": "日本語",
+      "en": "English"
+    },
+    "account": {
+      "title": "Account"
+    },
+    "security": {
+      "title": "Security"
+    },
+    "profile": {
+      "title": "Profile",
+      "avatar": {
+        "title": "Avatar",
+        "description": "Your profile picture",
+        "upload": "Upload Avatar",
+        "change": "Change Avatar",
+        "uploadButton": "Upload",
+        "cancel": "Cancel",
+        "uploading": "Uploading...",
+        "updateSuccess": "Avatar updated successfully",
+        "updateError": "Failed to update avatar",
+        "invalidFileType": "Please select an image file",
+        "cropTitle": "Crop Avatar"
+      },
+      "banner": {
+        "title": "Banner",
+        "description": "Your profile banner image (3:1 ratio)",
+        "upload": "Upload Banner",
+        "change": "Change Banner",
+        "cancel": "Cancel",
+        "invalidFileType": "Please select an image file",
+        "cropTitle": "Crop Banner"
+      },
+      "displayName": {
+        "title": "Display Name",
+        "description": "Your name shown on your profile",
+        "placeholder": "Enter your display name"
+      },
+      "bio": {
+        "title": "Bio",
+        "description": "A short description about yourself",
+        "placeholder": "Tell us about yourself..."
+      },
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "updateSuccess": "Profile updated successfully",
+      "updateError": "Failed to update profile",
+      "unsavedChanges": "You have unsaved changes"
+    }
+  },
   "loading": "Loading...",
   "user": {
     "anonymous": "Anonymous",
     "posts": "Posts",
     "noPosts": "No posts yet",
+    "media": "Media",
+    "noMedia": "No media yet",
     "notFound": "User not found",
     "noBio": "No bio yet",
+    "editProfile": "Edit",
+    "shareProfile": "Share profile",
+    "shareSuccess": "Profile URL copied",
+    "shareError": "Failed to share profile URL",
+    "moreActions": "More actions",
+    "copyUserId": "Copy user ID",
+    "copyIdSuccess": "User ID copied",
+    "copyIdError": "Failed to copy user ID",
     "unknown": "Unknown User",
     "unknownUsername": "unknown"
   },
@@ -105,7 +371,8 @@
     "password": {
       "required": "Password is required",
       "tooShort": "Password must be at least 9 characters long",
-      "tooLong": "Password must be no more than 256 characters long"
+      "tooLong": "Password must be no more than 256 characters long",
+      "missingRequirements": "Password must include uppercase, lowercase, and numbers"
     }
   },
   "error": {
@@ -129,9 +396,11 @@
       "login": "Login",
       "signup": "Sign Up",
       "settings": "Settings",
-      "settingsGeneral": "General Settings",
-      "settingsProfile": "Profile Settings",
-      "settingsAppearance": "Appearance Settings",
+      "settingsGeneral": "General",
+      "settingsProfile": "Profile",
+      "settingsAppearance": "Appearance",
+      "settingsAccount": "Account",
+      "settingsSecurity": "Security",
       "setup": "Setup Profile",
       "adminSetup": "Server Setup"
     }
@@ -146,21 +415,42 @@
     "placeholder": "What's happening?",
     "post": "Post",
     "posting": "Posting...",
+    "formatBold": "Bold",
+    "formatItalic": "Italic",
+    "formatCenter": "Center",
+    "formatFont": "Font",
+    "formatCode": "Code",
+    "formatSize": "Text size",
+    "formatLink": "Link",
     "uploadImage": "Upload Image",
+    "uploadVideo": "Upload Video",
+    "uploadMedia": "Upload Image or Video",
+    "cropTitle": "Crop Image",
+    "cropImage": "Crop Image",
     "removeImage": "Remove Image",
+    "removeVideo": "Remove Video",
     "maxImages": "Maximum 4 images",
     "maxLength": "Maximum 300 characters",
     "contentTooLong": "Post content must be 300 characters or less",
     "characterCount": "{current}/{max}",
     "success": "Posted successfully",
     "error": "Failed to post",
-    "uploadError": "Failed to upload image",
-    "invalidFileType": "Please select an image file (PNG, JPG, JPEG, WebP)",
+    "uploadError": "Failed to upload media",
+    "videoUploadError": "Failed to upload video",
+    "invalidFileType": "Unsupported file type. Please select an image or video file",
     "tooManyFiles": "You can upload up to 4 images at once",
-    "fileTooLarge": "File size is too large (maximum 10MB)",
-    "dropImages": "Drop images here"
+    "tooManyVideos": "You can upload up to 1 video per post",
+    "cannotMixMediaTypes": "You cannot mix images and videos in the same post",
+    "fileTooLarge": "Image file is too large",
+    "videoTooLarge": "Video file is too large (maximum {maxSize}MB)",
+    "dropImages": "Drop images here",
+    "dropMedia": "Drop files here",
+    "rateLimited": "Upload rate limit reached. Please wait and try again",
+    "rateLimitedWithRetry": "Upload rate limit reached. Please try again in {seconds} seconds",
+    "uploadNetworkError": "Upload failed. The file may be too large or the connection was interrupted"
   },
   "lightbox": {
+    "title": "Image viewer",
     "open": "Open image",
     "close": "Close",
     "previous": "Previous image",
@@ -181,68 +471,6 @@
     "light": "Switch to light mode",
     "dark": "Switch to dark mode"
   },
-  "settings": {
-    "title": "Settings",
-    "backToSettings": "Back to settings",
-    "categories": {
-      "profile": "Profile",
-      "general": "General",
-      "appearance": "Appearance"
-    },
-    "general": {
-      "title": "General Settings",
-      "language": {
-        "title": "Language",
-        "description": "Choose your display language",
-        "placeholder": "Select language"
-      }
-    },
-    "appearance": {
-      "title": "Appearance Settings",
-      "theme": {
-        "title": "Theme",
-        "description": "Choose your app theme",
-        "light": "Light",
-        "dark": "Dark",
-        "system": "System",
-        "systemDescription": "Follow system settings"
-      }
-    },
-    "language": {
-      "ja": "日本語",
-      "en": "English"
-    },
-    "profile": {
-      "title": "Profile Settings",
-      "avatar": {
-        "title": "Avatar",
-        "description": "Your profile picture",
-        "upload": "Upload Avatar",
-        "change": "Change Avatar",
-        "uploadButton": "Upload",
-        "cancel": "Cancel",
-        "uploading": "Uploading...",
-        "updateSuccess": "Avatar updated successfully",
-        "updateError": "Failed to update avatar",
-        "invalidFileType": "Please select an image file"
-      },
-      "displayName": {
-        "title": "Display Name",
-        "description": "Your name shown on your profile",
-        "placeholder": "Enter your display name"
-      },
-      "bio": {
-        "title": "Bio",
-        "description": "A short description about yourself",
-        "placeholder": "Tell us about yourself..."
-      },
-      "saveChanges": "Save Changes",
-      "saving": "Saving...",
-      "updateSuccess": "Profile updated successfully",
-      "updateError": "Failed to update profile",
-      "unsavedChanges": "You have unsaved changes"
-    }
-  },
   "userMenu": {
     "viewProfile": "Profile",
     "theme": "Theme",
@@ -255,7 +483,17 @@
   },
   "nav": {
     "home": "Home",
-    "openUserMenu": "User menu"
+    "openUserMenu": "User menu",
+    "pinSidebar": "Pin sidebar",
+    "unpinSidebar": "Unpin sidebar"
+  },
+  "videoPlayer": {
+    "play": "Play",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen"
   },
   "reactions": {
     "label": "{emoji} {count} reactions",
@@ -328,7 +566,8 @@
       "more": "More actions",
       "viewReactions": "View reactions",
       "delete": "Delete post",
-      "copyUserId": "Copy user ID"
+      "copyUserId": "Copy user ID",
+      "copyText": "Copy text"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
@@ -338,12 +577,11 @@
     "deleteSuccess": "Post deleted",
     "deleteError": "Failed to delete post",
     "copySuccess": "User ID copied",
-    "copyError": "Failed to copy user ID"
-  },
-  "welcome": {
-    "title": "Welcome to {serverName}!",
-    "description": "{serverDescription}",
-    "descriptionFallback": "Explore our platform and start sharing your thoughts."
+    "copyError": "Failed to copy user ID",
+    "copyTextSuccess": "Text copied",
+    "copyTextError": "Failed to copy text",
+    "showMore": "Show more",
+    "showLess": "Show less"
   },
   "adminSetup": {
     "title": "Server Initial Setup",
@@ -352,7 +590,17 @@
     "back": "Back",
     "next": "Next",
     "skip": "Skip",
-    "complete": "Complete",
+    "complete": {
+      "title": "Setup Complete!",
+      "description": "Server setup is complete. Head to the home page and start using Ciel.",
+      "goToHome": "Go to Home",
+      "setupSummary": "Setup Summary",
+      "adminAccount": "Admin Account: {username}",
+      "serverName": "Server Name: {name}",
+      "inviteOnly": "Invite Only: {enabled}",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
     "saving": "Saving...",
     "welcome": {
       "title": "Welcome to Ciel Server",
@@ -439,17 +687,6 @@
       "codeCopied": "Copied",
       "copyError": "Failed to copy code"
     },
-    "complete": {
-      "title": "Setup Complete!",
-      "description": "Server setup is complete. Head to the home page and start using Ciel.",
-      "goToHome": "Go to Home",
-      "setupSummary": "Setup Summary",
-      "adminAccount": "Admin Account: {username}",
-      "serverName": "Server Name: {name}",
-      "inviteOnly": "Invite Only: {enabled}",
-      "enabled": "Enabled",
-      "disabled": "Disabled"
-    },
     "error": {
       "setupFailed": "Setup failed",
       "verifyPasswordFailed": "Failed to verify password",
@@ -460,7 +697,7 @@
   "websocket": {
     "inactivity": {
       "title": "Connection Paused",
-      "description": "Your connection was paused due to 5 minutes of inactivity to reduce server load.",
+      "description": "Your connection was paused to reduce server load.",
       "reconnect": "Reconnect",
       "dismiss": "OK"
     }
@@ -831,7 +1068,8 @@
         "saving": "Saving...",
         "saveSuccess": "Server profile updated",
         "saveError": "Failed to update server profile",
-        "nameRequired": "Server name is required"
+        "nameRequired": "Server name is required",
+        "cropTitle": "Crop Server Icon"
       },
       "signup": {
         "title": "Account Creation Settings",
@@ -859,5 +1097,20 @@
       "search": "Search",
       "filter": "Filter"
     }
+  },
+  "videoPlayer": {
+    "play": "Play",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "doubleSpeed": "2×",
+    "seekSeconds": "{seconds}s"
+  },
+  "imageCrop": {
+    "apply": "Crop & Apply",
+    "cancel": "Cancel",
+    "processing": "Processing..."
   }
 }

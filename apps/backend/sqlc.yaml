@@ -3,7 +3,9 @@ sql:
   - engine: "postgresql"
     schema:
       - "db/schema.sql"
-    queries: "db/queries.sql"
+    queries:
+      - "db/queries.sql"
+      - "db/queries_refresh_tokens.sql"
     gen:
       go:
         package: "sqlc"
