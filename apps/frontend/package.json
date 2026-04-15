@@ -43,7 +43,7 @@
     "framer-motion": "^12.7.5",
     "frimousse": "^0.3.0",
     "jotai": "^2.16.2",
-    "lucide-react": "^0.562.0",
+    "lucide-react": "^1.8.0",
     "mfm-js": "^0.25.0",
     "next": "16.2.3",
     "next-intl": "^4.7.0",
