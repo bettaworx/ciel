@@ -190,7 +190,7 @@ func main() {
 
 	// JWT_SECRET is now validated above - no fallback to ephemeral secret
 	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
-	tokenManager := auth.NewTokenManager(jwtSecret, 15*time.Minute)
+	tokenManager := auth.NewTokenManager(jwtSecret, 60*time.Minute)
 	if v := os.Getenv("STEPUP_TOKEN_TTL_SECONDS"); v != "" {
 		if secs, err := strconv.Atoi(v); err == nil && secs > 0 {
 			tokenManager.SetStepupTTL(time.Duration(secs) * time.Second)
