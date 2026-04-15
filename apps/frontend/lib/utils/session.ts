@@ -12,7 +12,7 @@ const SAFETY_MARGIN_MS = 30 * 1000; // 30 seconds
  * Threshold in milliseconds before expiration to trigger token refresh.
  * Refresh when there's less than 5 minutes remaining.
  */
-const REFRESH_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const REFRESH_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Calculate server time offset from Date header in response.
