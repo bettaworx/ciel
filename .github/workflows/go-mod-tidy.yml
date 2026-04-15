@@ -1,0 +1,31 @@
+name: go mod tidy check
+
+on:
+  pull_request:
+    paths:
+      - 'apps/backend/go.mod'
+      - 'apps/backend/go.sum'
+      - 'apps/backend/**/*.go'
+
+jobs:
+  tidy:
+    name: Check go mod tidy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - name: Run go mod tidy
+        working-directory: apps/backend
+        run: go mod tidy
+
+      - name: Check for uncommitted changes
+        run: |
+          if ! git diff --exit-code apps/backend/go.mod apps/backend/go.sum; then
+            echo "::error::go.mod or go.sum is not up to date. Please run 'go mod tidy' in apps/backend and commit the result."
+            exit 1
+          fi
