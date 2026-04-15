@@ -20,7 +20,7 @@ function buildCsp(nonce: string): string {
     `img-src ${d('CSP_IMG_SRC', "'self' data: blob:")}`,
     `font-src ${d('CSP_FONT_SRC', "'self' data:")}`,
     `connect-src ${d('CSP_CONNECT_SRC', "'self'")}`,
-    `media-src ${d('CSP_MEDIA_SRC', "'self'")}`,
+    `media-src ${d('CSP_MEDIA_SRC', "'self' blob:")}`,
     `object-src ${d('CSP_OBJECT_SRC', "'none'")}`,
     `base-uri ${d('CSP_BASE_URI', "'self'")}`,
     `form-action ${d('CSP_FORM_ACTION', "'self'")}`,
