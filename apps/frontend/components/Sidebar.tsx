@@ -1,12 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAtomValue, useAtom } from "jotai";
-import { Home, SquarePen, Pin, PinOff } from "lucide-react";
+import { Home, SquarePen, Pin, PinOff, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SidebarAvatar } from "@/components/SidebarAvatar";
 import { SidebarActionButton } from "@/components/SidebarActionButton";
 import { CreatePostDialog } from "@/components/CreatePostDialog";
@@ -92,27 +97,36 @@ export function Sidebar() {
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex items-center h-12 gap-3">
-          <Link href="/" aria-label={tNav("home")}>
-            <div
-              className={cn(
-                "flex items-center justify-center w-[48px] h-[48px] rounded-2xl cursor-pointer shrink-0 overflow-hidden",
-                hoverBg,
-              )}
-            >
-              {serverInfo?.serverIconUrl ? (
-                <Image
-                  src={serverInfo.serverIconUrl}
-                  alt="Server icon"
-                  width={48}
-                  height={48}
-                  unoptimized
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-primary rounded-2xl" />
-              )}
-            </div>
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div
+                className={cn(
+                  "flex items-center justify-center w-[48px] h-[48px] rounded-2xl cursor-pointer shrink-0 overflow-hidden",
+                  hoverBg,
+                )}
+                aria-label={tNav("serverInfo")}
+              >
+                {serverInfo?.serverIconUrl ? (
+                  <Image
+                    src={serverInfo.serverIconUrl}
+                    alt="Server icon"
+                    width={48}
+                    height={48}
+                    unoptimized
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-primary rounded-2xl" />
+                )}
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start">
+              <DropdownMenuItem onClick={() => router.push("/version")}>
+                <Info className="w-4 h-4" />
+                {tNav("serverInfo")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <motion.div
             animate={{ opacity: isTopControlsVisible ? 1 : 0 }}

@@ -485,7 +485,8 @@
     "home": "ホーム",
     "openUserMenu": "ユーザーメニュー",
     "pinSidebar": "サイドバーを固定",
-    "unpinSidebar": "サイドバーのピンを解除"
+    "unpinSidebar": "サイドバーのピンを解除",
+    "serverInfo": "サーバーについて"
   },
   "videoPlayer": {
     "play": "再生",
@@ -1112,5 +1113,23 @@
     "apply": "トリミングして適用",
     "cancel": "キャンセル",
     "processing": "処理中..."
+  },
+  "about": {
+    "title": "このシステムについて",
+    "version": "バージョン",
+    "commit": "コミット",
+    "branch": "ブランチ",
+    "tabs": {
+      "server": "サーバー",
+      "app": "アプリ"
+    },
+    "appVersion": "バージョン",
+    "appCommit": "コミット",
+    "appBranch": "ブランチ",
+    "licenses": {
+      "title": "ライセンス",
+      "linkLabel": "ライセンス"
+    },
+    "sourceCode": "ソースコード"
   }
 }

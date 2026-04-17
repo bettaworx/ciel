@@ -74,7 +74,7 @@ export function WelcomeCard() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => router.push("/about")}>
+                <DropdownMenuItem onClick={() => router.push("/version")}>
                   <Info className="w-4 h-4" />
                   {t("welcome.aboutServer")}
                 </DropdownMenuItem>
@@ -92,7 +92,7 @@ export function WelcomeCard() {
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-2"
-                    onClick={() => router.push("/about")}
+                    onClick={() => router.push("/version")}
                   >
                     <Info className="w-4 h-4" />
                     {t("welcome.aboutServer")}

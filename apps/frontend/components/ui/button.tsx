@@ -14,6 +14,7 @@ const buttonVariants = cva(
         primary_disabled: "bg-c-1/80 text-c-foreground/80 hover:bg-c-2",
         sidebar: "rounded-2xl transition-colors",
         sidebar_primary: "bg-c-1 text-c-foreground hover:bg-c-2 rounded-2xl transition-colors",
+        list_row: "flex w-full justify-between font-normal text-foreground hover:bg-sidebar-hover/40 !rounded-xl",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
@@ -28,6 +29,7 @@ const buttonVariants = cva(
         lg: "h-10 rounded-md px-8",
         icon: "h-9 w-9",
         sidebar: "px-0 py-0",
+        list: "h-auto px-4 py-3",
       },
       rounded: {
         default: "rounded-full",

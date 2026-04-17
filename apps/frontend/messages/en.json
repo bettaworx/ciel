@@ -485,7 +485,8 @@
     "home": "Home",
     "openUserMenu": "User menu",
     "pinSidebar": "Pin sidebar",
-    "unpinSidebar": "Unpin sidebar"
+    "unpinSidebar": "Unpin sidebar",
+    "serverInfo": "About this server"
   },
   "videoPlayer": {
     "play": "Play",
@@ -1112,5 +1113,23 @@
     "apply": "Crop & Apply",
     "cancel": "Cancel",
     "processing": "Processing..."
+  },
+  "about": {
+    "title": "About this server",
+    "version": "Version",
+    "commit": "Commit",
+    "branch": "Branch",
+    "tabs": {
+      "server": "Server",
+      "app": "App"
+    },
+    "appVersion": "Version",
+    "appCommit": "Commit",
+    "appBranch": "Branch",
+    "licenses": {
+      "title": "Licenses",
+      "linkLabel": "Licenses"
+    },
+    "sourceCode": "Source code"
   }
 }
