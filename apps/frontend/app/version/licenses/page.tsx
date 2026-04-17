@@ -5,6 +5,7 @@ import { ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { DynamicTitle } from "@/components/DynamicTitle";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
@@ -32,6 +33,7 @@ export default function LicensesPage() {
       maxWidth="2xl"
       header={<PageHeader>{t("title")}</PageHeader>}
     >
+      <DynamicTitle title={t("title")} />
       <div className="bg-card rounded-2xl p-1 flex flex-col gap-1">
         {licenses.map((entry, index) => {
           const key = `${entry.name}@${entry.version}`;

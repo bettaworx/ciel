@@ -1121,7 +1121,7 @@
     "branch": "ブランチ",
     "tabs": {
       "server": "サーバー",
-      "app": "アプリ"
+      "frontend": "フロントエンド"
     },
     "appVersion": "バージョン",
     "appCommit": "コミット",

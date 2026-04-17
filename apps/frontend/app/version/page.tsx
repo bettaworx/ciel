@@ -6,6 +6,7 @@ import { ChevronRight, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { DynamicTitle } from "@/components/DynamicTitle";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -34,6 +35,7 @@ export default function VersionPage() {
       header={<PageHeader>{t("title")}</PageHeader>}
       className="flex flex-col gap-3"
     >
+      <DynamicTitle title={t("title")} />
       {/* Card 1: logo + name + version */}
       <div className="bg-card rounded-2xl p-8 flex flex-col items-center">
         <div className="mb-6">
@@ -63,7 +65,7 @@ export default function VersionPage() {
       <Tabs defaultValue="server">
         <TabsList className="w-full">
           <TabsTrigger value="server">{t("tabs.server")}</TabsTrigger>
-          <TabsTrigger value="app">{t("tabs.app")}</TabsTrigger>
+          <TabsTrigger value="app">{t("tabs.frontend")}</TabsTrigger>
         </TabsList>
 
         {/* Server tab */}

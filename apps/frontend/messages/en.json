@@ -1121,7 +1121,7 @@
     "branch": "Branch",
     "tabs": {
       "server": "Server",
-      "app": "App"
+      "frontend": "Frontend"
     },
     "appVersion": "Version",
     "appCommit": "Commit",
