@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useAtomValue } from "jotai";
 import { Home, SquarePen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,18 @@ export function BottomNav() {
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const isAuthenticated = useAtomValue(isAuthenticatedAtom);
   const [isMounted, setIsMounted] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
   const tNav = useTranslations("nav");
   const tCreatePost = useTranslations("createPost");
+
+  const handleHomeClick = () => {
+    if (pathname === "/") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      router.push("/");
+    }
+  };
 
   // Prevent hydration mismatch by only rendering auth-dependent UI after mount
   useEffect(() => {
@@ -30,11 +40,15 @@ export function BottomNav() {
     <>
       <div className="fixed bottom-0 left-0 right-0 h-16 bg-background-1 flex items-center justify-between px-8 z-40 border-t border-border">
         {/* ホームボタン */}
-        <Link href="/" aria-label={tNav("home")}>
-          <Button variant="ghost" rounded="lg" className="w-12 h-12">
-            <Home className="w-6 h-6" />
-          </Button>
-        </Link>
+        <Button
+          variant="ghost"
+          rounded="lg"
+          className="w-12 h-12"
+          onClick={handleHomeClick}
+          aria-label={tNav("home")}
+        >
+          <Home className="w-6 h-6" />
+        </Button>
 
         {/* 投稿ボタン */}
         {isMounted && isAuthenticated && (

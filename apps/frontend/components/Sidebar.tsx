@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAtomValue, useAtom } from "jotai";
 import { Home, SquarePen, Pin, PinOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ export function Sidebar() {
   const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
   const isAuthenticated = useAtomValue(isAuthenticatedAtom);
+  const router = useRouter();
   const [isPinned, setIsPinned] = useAtom(sidebarPinnedAtom);
   const [, setIsExpanded] = useAtom(sidebarExpandedAtom);
   const isMenuOpen = useAtomValue(sidebarMenuOpenAtom);
@@ -52,6 +53,14 @@ export function Sidebar() {
 
   const [pinIconRef, animatePinIcon] = useAnimate();
   const hoverBg = "hover:bg-sidebar-hover";
+
+  const handleHomeClick = () => {
+    if (pathname === "/") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      router.push("/");
+    }
+  };
 
   const handlePinToggle = () => {
     const y = isPinned ? -3 : 3;
@@ -140,7 +149,7 @@ export function Sidebar() {
 
         <div className="flex flex-col gap-3 grow">
           <SidebarActionButton
-            href="/"
+            onClick={handleHomeClick}
             icon={<Home className="w-5 h-5 shrink-0" />}
             label={tNav("home")}
             isActive={pathname === "/"}
