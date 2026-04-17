@@ -9,7 +9,7 @@ import (
 	"backend/internal/version"
 )
 
-// GetServerInfo returns public server information (name, description, icon, signup status)
+// GetServerInfo returns public server information (name, description, icon, version, stats).
 // This is a public endpoint that does not require authentication.
 func (h API) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 	// Get current config
@@ -30,79 +30,33 @@ func (h API) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 		ServerName:        stringPtr(cfg.Server.Name),
 		ServerDescription: stringPtr(cfg.Server.Description),
 		ServerIconUrl:     nil, // Will be set below if icon exists
-		SignupEnabled:     !cfg.Auth.InviteOnly,
 		Commit:            &versionStr,
 		Branch:            &branchStr,
 		Version:           &semVer,
-		ConfigVersion:     cfg.Server.LastUpdatedAt,
-		MediaLimits: api.MediaLimits{
-			MaxUploadSizeMB:   cfg.Media.MaxUploadSize,
-			AllowedExtensions: cfg.Media.AllowedExtensions,
-			Post: api.MediaPostLimits{
-				Static: struct {
-					MaxSize int `json:"maxSize"`
-				}{
-					MaxSize: cfg.Media.Post.Static.MaxSize,
-				},
-				Gif: struct {
-					MaxSize int `json:"maxSize"`
-				}{
-					MaxSize: cfg.Media.Post.Gif.MaxSize,
-				},
-			},
-			Avatar: api.MediaAvatarLimits{
-				Size: cfg.Media.Avatar.Static.Size,
-			},
-			Banner: api.MediaBannerLimits{
-				Static: struct {
-					Height int `json:"height"`
-					Width  int `json:"width"`
-				}{
-					Width:  cfg.Media.Banner.Static.Width,
-					Height: cfg.Media.Banner.Static.Height,
-				},
-				Gif: struct {
-					Height int `json:"height"`
-					Width  int `json:"width"`
-				}{
-					Width:  cfg.Media.Banner.Gif.Width,
-					Height: cfg.Media.Banner.Gif.Height,
-				},
-			},
-			ServerIcon: api.MediaServerIconLimits{
-				Static: struct {
-					Size int `json:"size"`
-				}{
-					Size: cfg.Media.ServerIcon.Static.Size,
-				},
-				Gif: struct {
-					MaxSize int `json:"maxSize"`
-				}{
-					MaxSize: cfg.Media.ServerIcon.Gif.MaxSize,
-				},
-			},
-			Video: api.MediaVideoLimits{
-				MaxUploadSizeMB:    cfg.Media.Video.MaxUploadSize,
-				MaxDurationSeconds: cfg.Media.Video.MaxDuration,
-				MaxSize:            cfg.Media.Video.MaxSize,
-			},
-		},
+		Stats:             api.ServerStats{},
 	}
 
-	// If server has an icon, resolve the URL
-	if cfg.Server.IconMediaID != nil && h.Setup != nil {
-		mediaID := *cfg.Server.IconMediaID
-
-		// Query media from database to get the extension
+	// If server has an icon or stats are needed, access the store
+	if h.Setup != nil {
 		store := h.Setup.GetStore()
 		if store != nil {
-			media, err := store.Q.GetMediaByID(r.Context(), mediaID)
+			// Fetch stats
+			stats, err := store.Q.GetDashboardStats(r.Context())
 			if err == nil {
-				// Build the public URL for the icon
-				iconURL := service.MediaImageURL(mediaID, media.Ext)
-				response.ServerIconUrl = &iconURL
+				response.Stats = api.ServerStats{
+					UserCount: stats.TotalUsers,
+					PostCount: stats.TotalPosts,
+				}
 			}
-			// If media not found or error, just leave icon as nil
+
+			// Resolve server icon URL
+			if cfg.Server.IconMediaID != nil {
+				media, err := store.Q.GetMediaByID(r.Context(), *cfg.Server.IconMediaID)
+				if err == nil {
+					iconURL := service.MediaImageURL(*cfg.Server.IconMediaID, media.Ext)
+					response.ServerIconUrl = &iconURL
+				}
+			}
 		}
 	}
 

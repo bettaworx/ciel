@@ -4,8 +4,6 @@ type ServerInfo = {
 	serverName: string;
 	serverDescription: string | null;
 	serverIconUrl: string | null;
-	configVersion: number;
-	inviteOnly: boolean;
 };
 
 /**

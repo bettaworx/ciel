@@ -18,6 +18,7 @@ import type { OgpApiResponse } from "@/lib/ogp/types";
 export const queryKeys = {
   me: ["me"] as const,
   serverInfo: ["serverInfo"] as const,
+  serverConfig: ["serverConfig"] as const,
   adminSettings: ["adminSettings"] as const,
   timeline: ["timeline"] as const,
   post: (id: string) => ["post", id] as const,
@@ -84,36 +85,52 @@ export function useServerInfo() {
   });
 }
 
-// Media limits from server info
+// Server configuration (public endpoint)
+export function useServerConfig() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.serverConfig,
+    queryFn: async () => {
+      const result = await api.serverConfig();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    staleTime: 1000 * 30, // 30秒
+    refetchInterval: 1000 * 30, // 30秒ごとにポーリング
+  });
+}
+
+// Media limits from server config
 export function useMediaLimits() {
-  const { data: serverInfo } = useServerInfo();
+  const { data: serverConfig } = useServerConfig();
 
   return {
-    maxUploadSizeMB: serverInfo?.mediaLimits?.maxUploadSizeMB ?? 15,
+    maxUploadSizeMB: serverConfig?.mediaLimits?.maxUploadSizeMB ?? 15,
     maxUploadSizeBytes:
-      (serverInfo?.mediaLimits?.maxUploadSizeMB ?? 15) * 1024 * 1024,
-    allowedExtensions: serverInfo?.mediaLimits?.allowedExtensions ?? [
+      (serverConfig?.mediaLimits?.maxUploadSizeMB ?? 15) * 1024 * 1024,
+    allowedExtensions: serverConfig?.mediaLimits?.allowedExtensions ?? [
       "png",
       "jpg",
       "jpeg",
       "webp",
       "gif",
     ],
-    postStaticMaxSize: serverInfo?.mediaLimits?.post?.static?.maxSize ?? 2048,
-    postGifMaxSize: serverInfo?.mediaLimits?.post?.gif?.maxSize ?? 1024,
-    avatarSize: serverInfo?.mediaLimits?.avatar?.size ?? 400,
+    postStaticMaxSize: serverConfig?.mediaLimits?.post?.static?.maxSize ?? 2048,
+    postGifMaxSize: serverConfig?.mediaLimits?.post?.gif?.maxSize ?? 1024,
+    avatarSize: serverConfig?.mediaLimits?.avatar?.size ?? 400,
     serverIconStaticSize:
-      serverInfo?.mediaLimits?.serverIcon?.static?.size ?? 512,
+      serverConfig?.mediaLimits?.serverIcon?.static?.size ?? 512,
     serverIconGifMaxSize:
-      serverInfo?.mediaLimits?.serverIcon?.gif?.maxSize ?? 512,
+      serverConfig?.mediaLimits?.serverIcon?.gif?.maxSize ?? 512,
     // Video limits
     videoMaxUploadSizeMB:
-      serverInfo?.mediaLimits?.video?.maxUploadSizeMB ?? 100,
+      serverConfig?.mediaLimits?.video?.maxUploadSizeMB ?? 100,
     videoMaxUploadSizeBytes:
-      (serverInfo?.mediaLimits?.video?.maxUploadSizeMB ?? 100) * 1024 * 1024,
+      (serverConfig?.mediaLimits?.video?.maxUploadSizeMB ?? 100) * 1024 * 1024,
     videoMaxDurationSeconds:
-      serverInfo?.mediaLimits?.video?.maxDurationSeconds ?? 300,
-    videoMaxSize: serverInfo?.mediaLimits?.video?.maxSize ?? 1920,
+      serverConfig?.mediaLimits?.video?.maxDurationSeconds ?? 300,
+    videoMaxSize: serverConfig?.mediaLimits?.video?.maxSize ?? 1920,
   };
 }
 

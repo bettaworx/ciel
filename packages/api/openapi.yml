@@ -42,7 +42,7 @@ paths:
       tags: [Server]
       summary: Get public server information
       description: |
-        Public endpoint to retrieve server metadata including name, description, and icon.
+        Public endpoint to retrieve server metadata including name, description, icon, and stats.
         No authentication required.
       operationId: getServerInfo
       responses:
@@ -52,6 +52,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerInfo'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /server/config:
+    get:
+      tags: [Server]
+      summary: Get public server configuration
+      description: |
+        Public endpoint to retrieve server configuration including signup settings and media limits.
+        No authentication required.
+      operationId: getServerConfig
+      responses:
+        '200':
+          description: Server configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerConfig'
         '500':
           description: Internal server error
           content:
@@ -4540,9 +4562,7 @@ components:
     ServerInfo:
       type: object
       required:
-        - signupEnabled
-        - configVersion
-        - mediaLimits
+        - stats
       properties:
         serverName:
           type: string
@@ -4557,9 +4577,6 @@ components:
           format: uri
           nullable: true
           description: Public URL of the server icon/logo
-        signupEnabled:
-          type: boolean
-          description: Whether new user signups are currently allowed
         commit:
           type: string
           description: Build version identifier (commit hash or "dev")
@@ -4572,6 +4589,34 @@ components:
           type: string
           description: Semantic version of the server (e.g. "0.1.0")
           example: "0.1.0"
+        stats:
+          $ref: '#/components/schemas/ServerStats'
+
+    ServerStats:
+      type: object
+      required:
+        - userCount
+        - postCount
+      properties:
+        userCount:
+          type: integer
+          format: int64
+          description: Total number of registered users
+        postCount:
+          type: integer
+          format: int64
+          description: Total number of active (non-deleted) posts
+
+    ServerConfig:
+      type: object
+      required:
+        - signupEnabled
+        - configVersion
+        - mediaLimits
+      properties:
+        signupEnabled:
+          type: boolean
+          description: Whether new user signups are currently allowed
         configVersion:
           type: integer
           format: int64

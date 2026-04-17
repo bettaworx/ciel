@@ -259,6 +259,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		// Server information (public endpoint)
 		serverInfo: () => request<components['schemas']['ServerInfo']>('GET', '/server/info'),
+		serverConfig: () => request<components['schemas']['ServerConfig']>('GET', '/server/config'),
 
 		register: (body: components['schemas']['RegisterRequest']) =>
 			request<components['schemas']['User']>('POST', '/auth/register', { body }),

@@ -35,11 +35,16 @@ func TestAPI_GetServerInfo_WithoutIcon(t *testing.T) {
 	os.Setenv("PUBLIC_BASE_URL", "http://localhost:6137")
 	defer os.Unsetenv("PUBLIC_BASE_URL")
 
-	db, _, err := sqlmock.New()
+	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
 	defer db.Close()
+
+	// Mock GetDashboardStats
+	statsRows := sqlmock.NewRows([]string{"total_users", "total_posts", "total_media"}).
+		AddRow(int64(42), int64(100), int64(200))
+	mock.ExpectQuery(`-- name: GetDashboardStats`).WillReturnRows(statsRows)
 
 	apiHandler := handlers.API{
 		Setup: service.NewSetupService(repository.NewStore(db), nil, nil, nil),
@@ -67,43 +72,15 @@ func TestAPI_GetServerInfo_WithoutIcon(t *testing.T) {
 	if body.ServerIconUrl != nil {
 		t.Errorf("expected nil serverIconUrl, got %v", body.ServerIconUrl)
 	}
-	if body.SignupEnabled != true {
-		t.Errorf("expected signupEnabled true, got %v", body.SignupEnabled)
+	if body.Stats.UserCount != 42 {
+		t.Errorf("expected userCount 42, got %d", body.Stats.UserCount)
+	}
+	if body.Stats.PostCount != 100 {
+		t.Errorf("expected postCount 100, got %d", body.Stats.PostCount)
 	}
 
-	// Verify media limits from config
-	if body.MediaLimits.MaxUploadSizeMB != 15 {
-		t.Errorf("expected maxUploadSizeMB 15, got %d", body.MediaLimits.MaxUploadSizeMB)
-	}
-	if body.MediaLimits.Post.Static.MaxSize != 2048 {
-		t.Errorf("expected post.static.maxSize 2048, got %d", body.MediaLimits.Post.Static.MaxSize)
-	}
-	if body.MediaLimits.Post.Gif.MaxSize != 1024 {
-		t.Errorf("expected post.gif.maxSize 1024, got %d", body.MediaLimits.Post.Gif.MaxSize)
-	}
-	if body.MediaLimits.Avatar.Size != 400 {
-		t.Errorf("expected avatar.size 400, got %d", body.MediaLimits.Avatar.Size)
-	}
-	if body.MediaLimits.Banner.Static.Width != 1500 {
-		t.Errorf("expected banner.static.width 1500, got %d", body.MediaLimits.Banner.Static.Width)
-	}
-	if body.MediaLimits.Banner.Static.Height != 500 {
-		t.Errorf("expected banner.static.height 500, got %d", body.MediaLimits.Banner.Static.Height)
-	}
-	if body.MediaLimits.Banner.Gif.Width != 1500 {
-		t.Errorf("expected banner.gif.width 1500, got %d", body.MediaLimits.Banner.Gif.Width)
-	}
-	if body.MediaLimits.Banner.Gif.Height != 500 {
-		t.Errorf("expected banner.gif.height 500, got %d", body.MediaLimits.Banner.Gif.Height)
-	}
-	if body.MediaLimits.ServerIcon.Static.Size != 512 {
-		t.Errorf("expected serverIcon.static.size 512, got %d", body.MediaLimits.ServerIcon.Static.Size)
-	}
-	if body.MediaLimits.ServerIcon.Gif.MaxSize != 512 {
-		t.Errorf("expected serverIcon.gif.maxSize 512, got %d", body.MediaLimits.ServerIcon.Gif.MaxSize)
-	}
-	if len(body.MediaLimits.AllowedExtensions) == 0 {
-		t.Error("expected allowedExtensions to be populated")
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
 	}
 }
 
@@ -130,7 +107,12 @@ func TestAPI_GetServerInfo_WithIcon(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Mock the GetMediaByID query
+	// Mock GetDashboardStats (called first)
+	statsRows := sqlmock.NewRows([]string{"total_users", "total_posts", "total_media"}).
+		AddRow(int64(10), int64(50), int64(80))
+	mock.ExpectQuery(`-- name: GetDashboardStats`).WillReturnRows(statsRows)
+
+	// Mock the GetMediaByID query (called after stats)
 	createdAt := time.Date(2026, 1, 22, 0, 0, 0, 0, time.UTC)
 	rows := sqlmock.NewRows([]string{"id", "user_id", "type", "ext", "width", "height", "duration", "created_at"}).
 		AddRow(iconMediaID, uuid.New(), "image", "webp", int32(400), int32(400), sql.NullFloat64{}, createdAt)
@@ -168,8 +150,11 @@ func TestAPI_GetServerInfo_WithIcon(t *testing.T) {
 			t.Errorf("expected serverIconUrl %q, got %q", expectedURL, *body.ServerIconUrl)
 		}
 	}
-	if body.SignupEnabled != false {
-		t.Errorf("expected signupEnabled false (invite-only), got %v", body.SignupEnabled)
+	if body.Stats.UserCount != 10 {
+		t.Errorf("expected userCount 10, got %d", body.Stats.UserCount)
+	}
+	if body.Stats.PostCount != 50 {
+		t.Errorf("expected postCount 50, got %d", body.Stats.PostCount)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -187,11 +172,16 @@ func TestAPI_GetServerInfo_EmptyName(t *testing.T) {
 	testConfig.Server.Description = ""
 	config.SetGlobalConfig(testConfig)
 
-	db, _, err := sqlmock.New()
+	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
 	defer db.Close()
+
+	// Mock GetDashboardStats
+	statsRows := sqlmock.NewRows([]string{"total_users", "total_posts", "total_media"}).
+		AddRow(int64(0), int64(0), int64(0))
+	mock.ExpectQuery(`-- name: GetDashboardStats`).WillReturnRows(statsRows)
 
 	apiHandler := handlers.API{
 		Setup: service.NewSetupService(repository.NewStore(db), nil, nil, nil),
@@ -215,5 +205,9 @@ func TestAPI_GetServerInfo_EmptyName(t *testing.T) {
 	}
 	if body.ServerDescription != nil {
 		t.Errorf("expected nil serverDescription for empty string, got %v", body.ServerDescription)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
 	}
 }
