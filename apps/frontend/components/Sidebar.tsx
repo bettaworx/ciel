@@ -121,9 +121,13 @@ export function Sidebar() {
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="start">
-              <DropdownMenuItem onClick={() => router.push("/version")}>
+              <DropdownMenuItem onClick={() => router.push("/about")}>
                 <Info className="w-4 h-4" />
                 {tNav("serverInfo")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/version")}>
+                <Info className="w-4 h-4" />
+                {tNav("versionInfo")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

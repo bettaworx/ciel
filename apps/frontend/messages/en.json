@@ -486,7 +486,8 @@
     "openUserMenu": "User menu",
     "pinSidebar": "Pin sidebar",
     "unpinSidebar": "Unpin sidebar",
-    "serverInfo": "About this server"
+    "serverInfo": "About this server",
+    "versionInfo": "App information"
   },
   "videoPlayer": {
     "play": "Play",
@@ -1130,6 +1131,7 @@
       "title": "Licenses",
       "linkLabel": "Licenses"
     },
-    "sourceCode": "Source code"
+    "sourceCode": "Source code",
+    "versionInfo": "Version info"
   }
 }

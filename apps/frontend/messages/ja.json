@@ -486,7 +486,8 @@
     "openUserMenu": "ユーザーメニュー",
     "pinSidebar": "サイドバーを固定",
     "unpinSidebar": "サイドバーのピンを解除",
-    "serverInfo": "サーバーについて"
+    "serverInfo": "サーバーについて",
+    "versionInfo": "アプリ情報"
   },
   "videoPlayer": {
     "play": "再生",
@@ -1130,6 +1131,7 @@
       "title": "ライセンス",
       "linkLabel": "ライセンス"
     },
-    "sourceCode": "ソースコード"
+    "sourceCode": "ソースコード",
+    "versionInfo": "バージョン情報"
   }
 }

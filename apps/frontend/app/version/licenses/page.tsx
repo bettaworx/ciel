@@ -34,7 +34,7 @@ export default function LicensesPage() {
       header={<PageHeader>{t("title")}</PageHeader>}
     >
       <DynamicTitle title={t("title")} />
-      <div className="bg-card rounded-2xl p-1 flex flex-col gap-1">
+      <div className="bg-card rounded-2xl flex flex-col overflow-hidden">
         {licenses.map((entry, index) => {
           const key = `${entry.name}@${entry.version}`;
           const label = (
