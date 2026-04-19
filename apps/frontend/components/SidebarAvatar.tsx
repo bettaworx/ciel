@@ -82,7 +82,6 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
         onSettingsClick={handleSettingsClick}
         onUserInfoClick={() => handleUserInfoClick(user.username)}
         isExpanded={isExpanded}
-        isPinned={isPinned}
         canAnimate={canAnimate}
       />
     );
