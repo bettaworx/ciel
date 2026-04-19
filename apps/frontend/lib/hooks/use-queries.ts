@@ -131,6 +131,8 @@ export function useMediaLimits() {
     videoMaxDurationSeconds:
       serverConfig?.mediaLimits?.video?.maxDurationSeconds ?? 300,
     videoMaxSize: serverConfig?.mediaLimits?.video?.maxSize ?? 1920,
+    // Post content limits
+    maxPostContentLength: serverConfig?.maxPostContentLength ?? 1000,
   };
 }
 

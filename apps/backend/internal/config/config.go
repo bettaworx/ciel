@@ -35,6 +35,23 @@ type Config struct {
 	Auth   AuthConfig   `yaml:"auth"`
 	Setup  SetupConfig  `yaml:"setup"`
 	Media  MediaConfig  `yaml:"media"`
+	Post   PostConfig   `yaml:"post"`
+}
+
+// PostConfig holds post content settings
+type PostConfig struct {
+	MaxContentLength int `yaml:"max_content_length"` // maximum Unicode characters per post
+}
+
+// Validate checks if the post configuration is valid
+func (p *PostConfig) Validate() error {
+	if p.MaxContentLength <= 0 {
+		return fmt.Errorf("post.max_content_length must be positive, got %d", p.MaxContentLength)
+	}
+	if p.MaxContentLength > 10000 {
+		return fmt.Errorf("post.max_content_length must be <= 10000, got %d", p.MaxContentLength)
+	}
+	return nil
 }
 
 // ServerConfig holds server metadata settings
@@ -424,6 +441,9 @@ func DefaultConfig() *Config {
 		Setup: SetupConfig{
 			Completed:    false,
 			PasswordUsed: false,
+		},
+		Post: PostConfig{
+			MaxContentLength: 1000,
 		},
 		Media: MediaConfig{
 			MaxUploadSize:     15,

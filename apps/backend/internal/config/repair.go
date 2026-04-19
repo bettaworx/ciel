@@ -176,6 +176,12 @@ func repairDefaults(cfg *Config, rawData []byte) []string {
 		repaired = append(repaired, "media.server_icon.gif.quality")
 	}
 
+	// post.max_content_length
+	if cfg.Post.MaxContentLength == 0 {
+		cfg.Post.MaxContentLength = defaults.Post.MaxContentLength
+		repaired = append(repaired, "post.max_content_length")
+	}
+
 	// media.video.*
 	// 注意: media.video.crf のデフォルトは 23。CRF=0 は技術的に有効(ロスレス)だが、
 	// 実運用で意図的に設定されることは稀なため、0 は未設定として扱う。

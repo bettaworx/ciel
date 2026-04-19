@@ -33,6 +33,12 @@ setup:
   # (vs. being the first user to register)
   password_used: false
 
+# Post content settings
+post:
+  # Maximum number of Unicode characters (not bytes) allowed in a post
+  # Valid range: 1-10000
+  max_content_length: 1000
+
 # Media upload and processing configuration
 media:
   # Maximum image file upload size in MiB (1-100)

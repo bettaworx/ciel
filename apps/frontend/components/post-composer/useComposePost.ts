@@ -18,7 +18,6 @@ import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import type { components } from "@/lib/api/api";
 import type { LocalImage, LocalVideo, PreviewMediaItem } from "./types";
 import {
-  MAX_CONTENT_LENGTH,
   MAX_IMAGES,
   MAX_VIDEOS,
   MAX_TEXTAREA_HEIGHT,
@@ -128,14 +127,15 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const uploadMediaMutation = useUploadMedia();
 
   // Computed values
+  const maxContentLength = mediaLimits.maxPostContentLength;
   const contentLength = content.length;
-  const contentPercentage = (contentLength / MAX_CONTENT_LENGTH) * 100;
+  const contentPercentage = (contentLength / maxContentLength) * 100;
   const showCharacterCount = contentPercentage >= CHARACTER_COUNT_THRESHOLD;
   const hasContent = content.trim().length > 0;
   const hasImages = images.length > 0;
   const hasVideo = video !== null;
   const hasMedia = hasImages || hasVideo;
-  const isContentValid = contentLength <= MAX_CONTENT_LENGTH;
+  const isContentValid = contentLength <= maxContentLength;
   const isDropDisabled =
     (hasVideo || images.length >= MAX_IMAGES) ||
     createPostMutation.isPending ||
@@ -758,6 +758,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     handleDrop,
 
     // Computed
+    maxContentLength,
     contentLength,
     contentPercentage,
     showCharacterCount,

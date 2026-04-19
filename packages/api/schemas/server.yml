@@ -72,6 +72,7 @@ components:
       - signupEnabled
       - configVersion
       - mediaLimits
+      - maxPostContentLength
       properties:
         signupEnabled:
           type: boolean
@@ -82,3 +83,7 @@ components:
           description: Unix timestamp of last config update (for cache busting)
         mediaLimits:
           $ref: ./media.yml#/components/schemas/MediaLimits
+        maxPostContentLength:
+          type: integer
+          description: Maximum number of Unicode characters allowed in a post
+          example: 1000

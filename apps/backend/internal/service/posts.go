@@ -12,6 +12,7 @@ import (
 	"backend/internal/api"
 	"backend/internal/auth"
 	"backend/internal/cache"
+	"backend/internal/config"
 	"backend/internal/db/sqlc"
 	"backend/internal/realtime"
 	"backend/internal/repository"
@@ -20,7 +21,7 @@ import (
 )
 
 const (
-	maxPostContentRunes = 300
+	defaultMaxPostContentRunes = 1000
 )
 
 type PostsService struct {
@@ -55,8 +56,12 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 	}
 
 	// Check content length (Unicode characters, not bytes)
-	if content != "" && utf8.RuneCountInString(content) > maxPostContentRunes {
-		return api.Post{}, NewError(http.StatusBadRequest, "invalid_request", fmt.Sprintf("content exceeds maximum length of %d characters", maxPostContentRunes))
+	maxRunes := defaultMaxPostContentRunes
+	if cfg := config.GetGlobalConfig(); cfg != nil {
+		maxRunes = cfg.Post.MaxContentLength
+	}
+	if content != "" && utf8.RuneCountInString(content) > maxRunes {
+		return api.Post{}, NewError(http.StatusBadRequest, "invalid_request", fmt.Sprintf("content exceeds maximum length of %d characters", maxRunes))
 	}
 
 	var created sqlc.CreatePostRow

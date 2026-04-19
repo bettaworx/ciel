@@ -20,8 +20,9 @@ func (h API) GetServerConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := api.ServerConfig{
-		SignupEnabled: !cfg.Auth.InviteOnly,
-		ConfigVersion: cfg.Server.LastUpdatedAt,
+		SignupEnabled:        !cfg.Auth.InviteOnly,
+		ConfigVersion:        cfg.Server.LastUpdatedAt,
+		MaxPostContentLength: cfg.Post.MaxContentLength,
 		MediaLimits: api.MediaLimits{
 			MaxUploadSizeMB:   cfg.Media.MaxUploadSize,
 			AllowedExtensions: cfg.Media.AllowedExtensions,

@@ -2,7 +2,7 @@
  * Constants for post composition
  */
 
-export const MAX_CONTENT_LENGTH = 300;
+export const MAX_CONTENT_LENGTH = 1000;
 export const MAX_IMAGES = 4;
 export const MAX_VIDEOS = 1;
 
