@@ -10,7 +10,7 @@ export const MAX_VIDEOS = 1;
 // See useMediaLimits() hook in @/lib/hooks/use-queries
 
 export const MAX_TEXTAREA_HEIGHT = 400; // px
-export const CHARACTER_COUNT_THRESHOLD = 75; // Show count at 75%
+export const CHARACTER_COUNT_THRESHOLD = 50; // Show count at 50%
 export const WARNING_THRESHOLD = 90; // Yellow at 90%
 
 export const ACCEPTED_IMAGE_TYPES = [
