@@ -170,7 +170,7 @@ importers:
         version: 4.1.4(vitest@4.1.4)
       autoprefixer:
         specifier: ^10.4.24
-        version: 10.5.0(postcss@8.5.9)
+        version: 10.5.0(postcss@8.5.10)
       babel-plugin-react-compiler:
         specifier: 1.0.0
         version: 1.0.0
@@ -188,7 +188,7 @@ importers:
         version: 7.13.0(typescript@6.0.2)
       postcss:
         specifier: ^8.5.6
-        version: 8.5.9
+        version: 8.5.10
       storybook:
         specifier: 10.3.5
         version: 10.3.5(@testing-library/dom@10.4.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -5015,10 +5015,6 @@ packages:
     resolution: {integrity: sha512-pMMHxBOZKFU6HgAZ4eyGnwXF/EvPGGqUr0MnZ5+99485wwW41kW91A4LOGxSHhgugZmSChL5AlElNdwlNgcnLQ==}
     engines: {node: ^10 || ^12 || >=14}
 
-  postcss@8.5.9:
-    resolution: {integrity: sha512-7a70Nsot+EMX9fFU3064K/kdHWZqGVY+BADLyXc8Dfv+mTLLVl6JzJpPaCZ2kQL9gIJvKXSLMHhqdRRjwQeFtw==}
-    engines: {node: ^10 || ^12 || >=14}
-
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
@@ -8005,8 +8001,8 @@ snapshots:
       loader-utils: 3.3.1
       next: 16.2.4(@babel/core@7.29.0)(@playwright/test@1.57.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       node-polyfill-webpack-plugin: 2.0.1(webpack@5.106.1)
-      postcss: 8.5.9
-      postcss-loader: 8.2.1(postcss@8.5.9)(typescript@6.0.2)(webpack@5.106.1)
+      postcss: 8.5.10
+      postcss-loader: 8.2.1(postcss@8.5.10)(typescript@6.0.2)(webpack@5.106.1)
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
       react-refresh: 0.14.2
@@ -8232,7 +8228,7 @@ snapshots:
       '@alloc/quick-lru': 5.2.0
       '@tailwindcss/node': 4.2.2
       '@tailwindcss/oxide': 4.2.2
-      postcss: 8.5.9
+      postcss: 8.5.10
       tailwindcss: 4.2.2
 
   '@tanstack/query-core@5.99.0': {}
@@ -8853,13 +8849,13 @@ snapshots:
 
   async-function@1.0.0: {}
 
-  autoprefixer@10.5.0(postcss@8.5.9):
+  autoprefixer@10.5.0(postcss@8.5.10):
     dependencies:
       browserslist: 4.28.2
       caniuse-lite: 1.0.30001788
       fraction.js: 5.3.4
       picocolors: 1.1.1
-      postcss: 8.5.9
+      postcss: 8.5.10
       postcss-value-parser: 4.2.0
 
   available-typed-arrays@1.0.7:
@@ -11436,11 +11432,11 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
-  postcss-loader@8.2.1(postcss@8.5.9)(typescript@6.0.2)(webpack@5.106.1):
+  postcss-loader@8.2.1(postcss@8.5.10)(typescript@6.0.2)(webpack@5.106.1):
     dependencies:
       cosmiconfig: 9.0.1(typescript@6.0.2)
       jiti: 2.6.1
-      postcss: 8.5.9
+      postcss: 8.5.10
       semver: 7.7.4
     optionalDependencies:
       webpack: 5.106.1
@@ -11482,12 +11478,6 @@ snapshots:
       source-map-js: 1.2.1
 
   postcss@8.5.10:
-    dependencies:
-      nanoid: 3.3.11
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
-
-  postcss@8.5.9:
     dependencies:
       nanoid: 3.3.11
       picocolors: 1.1.1
