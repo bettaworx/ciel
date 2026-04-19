@@ -1,0 +1,136 @@
+/admin/reports:
+  get:
+    tags:
+    - Admin
+    summary: List all reports
+    description: List all reports with optional filters
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    - name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    - name: status
+      in: query
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/ReportStatus
+      description: Filter by report status
+    - name: targetType
+      in: query
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/ReportTargetType
+      description: Filter by target type
+    responses:
+      '200':
+        description: List of reports
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/reports.yml#/components/schemas/ReportPage
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_reports_read permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/reports/{reportId}:
+  get:
+    tags:
+    - Admin
+    summary: Get specific report
+    description: Retrieve details of a specific report
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: reportId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '200':
+        description: Report details
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/reports.yml#/components/schemas/Report
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_reports_read permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Report not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  patch:
+    tags:
+    - Admin
+    summary: Update report status
+    description: Review, resolve, or dismiss a report
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: reportId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/reports.yml#/components/schemas/UpdateReportRequest
+    responses:
+      '200':
+        description: Report updated
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/reports.yml#/components/schemas/Report
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_reports_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Report not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error

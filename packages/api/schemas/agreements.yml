@@ -1,0 +1,173 @@
+components:
+  schemas:
+    AgreementVersions:
+      type: object
+      required:
+      - termsVersion
+      - privacyVersion
+      properties:
+        termsVersion:
+          type: integer
+          minimum: 1
+          description: Current version of Terms of Service
+        privacyVersion:
+          type: integer
+          minimum: 1
+          description: Current version of Privacy Policy
+    AcceptAgreementsRequest:
+      type: object
+      properties:
+        termsVersion:
+          type: integer
+          minimum: 1
+          description: Version of Terms of Service being accepted
+        privacyVersion:
+          type: integer
+          minimum: 1
+          description: Version of Privacy Policy being accepted
+    UpdateAgreementVersionsRequest:
+      type: object
+      properties:
+        termsVersion:
+          type: integer
+          minimum: 1
+          description: New version of Terms of Service (must be >= 1)
+        privacyVersion:
+          type: integer
+          minimum: 1
+          description: New version of Privacy Policy (must be >= 1)
+    AgreementDocument:
+      type: object
+      required:
+      - id
+      - type
+      - language
+      - version
+      - status
+      - title
+      - content
+      - createdBy
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Agreement document ID
+        type:
+          $ref: ./enums.yml#/components/schemas/AgreementType
+        language:
+          $ref: ./enums.yml#/components/schemas/AgreementLanguage
+        version:
+          type: integer
+          description: Version number
+        status:
+          $ref: ./enums.yml#/components/schemas/AgreementDocumentStatus
+        title:
+          type: string
+          description: Document title
+        content:
+          type: string
+          description: Document content (markdown format)
+        createdBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this document
+        publishedBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: Admin user ID who published this document
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the document was published
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AgreementDocumentPage:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgreementDocument'
+        total:
+          type: integer
+          description: Total number of documents matching the filters
+    CreateAgreementDocumentRequest:
+      type: object
+      required:
+      - type
+      - language
+      - version
+      - title
+      - content
+      properties:
+        type:
+          $ref: ./enums.yml#/components/schemas/AgreementType
+        language:
+          $ref: ./enums.yml#/components/schemas/AgreementLanguage
+        version:
+          type: integer
+          minimum: 1
+          description: Version number
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Document title
+        content:
+          type: string
+          minLength: 1
+          maxLength: 100000
+          description: Document content (markdown format)
+    UpdateAgreementDocumentRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          nullable: true
+          description: Updated document title
+        content:
+          type: string
+          minLength: 1
+          maxLength: 100000
+          nullable: true
+          description: Updated document content (markdown format)
+    PublicAgreementContent:
+      type: object
+      required:
+      - type
+      - language
+      - version
+      - title
+      - content
+      - publishedAt
+      properties:
+        type:
+          $ref: ./enums.yml#/components/schemas/AgreementType
+        language:
+          $ref: ./enums.yml#/components/schemas/AgreementLanguage
+        version:
+          type: integer
+          description: Version number
+        title:
+          type: string
+          description: Document title
+        content:
+          type: string
+          description: Document content (markdown format)
+        publishedAt:
+          type: string
+          format: date-time
+          description: When the document was published

@@ -1,0 +1,81 @@
+components:
+  schemas:
+    SetupStatusResponse:
+      type: object
+      required:
+      - setupCompleted
+      - adminExists
+      properties:
+        setupCompleted:
+          type: boolean
+          description: Whether the server setup has been completed
+        adminExists:
+          type: boolean
+          description: Whether an admin account has been created
+    VerifySetupPasswordRequest:
+      type: object
+      required:
+      - password
+      properties:
+        password:
+          type: string
+    VerifySetupPasswordResponse:
+      type: object
+      required:
+      - valid
+      properties:
+        valid:
+          type: boolean
+          description: Whether the password is valid
+        setupToken:
+          type: string
+          description: Temporary token for admin creation (valid for 10 minutes)
+    CreateAdminRequest:
+      type: object
+      required:
+      - setupToken
+      - username
+      - password
+      properties:
+        setupToken:
+          type: string
+          description: Temporary token obtained from verify-password endpoint
+        username:
+          type: string
+        password:
+          type: string
+    CreateAdminResponse:
+      type: object
+      required:
+      - user
+      - token
+      properties:
+        user:
+          $ref: ./user.yml#/components/schemas/User
+        token:
+          type: string
+    ServerSetupRequest:
+      type: object
+      properties:
+        serverName:
+          type: string
+          nullable: true
+        serverDescription:
+          type: string
+          nullable: true
+        serverIconMediaId:
+          type: string
+          format: uuid
+          nullable: true
+        inviteOnly:
+          type: boolean
+        inviteCode:
+          type: string
+          nullable: true
+    ServerSetupResponse:
+      type: object
+      required:
+      - success
+      properties:
+        success:
+          type: boolean

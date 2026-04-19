@@ -1,0 +1,48 @@
+/server/info:
+  get:
+    tags:
+    - Server
+    summary: Get public server information
+    description: 'Public endpoint to retrieve server metadata including name, description, icon, and stats.
+
+      No authentication required.
+
+      '
+    operationId: getServerInfo
+    responses:
+      '200':
+        description: Server information
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/server.yml#/components/schemas/ServerInfo
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/server/config:
+  get:
+    tags:
+    - Server
+    summary: Get public server configuration
+    description: 'Public endpoint to retrieve server configuration including signup settings and media limits.
+
+      No authentication required.
+
+      '
+    operationId: getServerConfig
+    responses:
+      '200':
+        description: Server configuration
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/server.yml#/components/schemas/ServerConfig
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

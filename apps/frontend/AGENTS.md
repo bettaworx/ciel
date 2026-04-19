@@ -246,9 +246,9 @@ Next.js **App Router** with file-based routing:
 
 **Location**: `lib/api/api.d.ts` (~2000 lines)
 
-- Auto-generated from OpenAPI spec
+- Auto-generated from the multi-file OpenAPI spec (`packages/api/openapi.yml` + `paths/` + `schemas/`)
 - Full TypeScript types for all operations
-- Regenerate: `pnpm run gen:openapi`
+- Regenerate: `pnpm run gen:openapi:ts` (frontend only) or `pnpm run gen:openapi` (backend Go + bundle step)
 
 ### API Client
 

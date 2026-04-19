@@ -1,0 +1,54 @@
+components:
+  schemas:
+    ReactionCount:
+      type: object
+      required:
+      - emoji
+      - count
+      - reactedByCurrentUser
+      properties:
+        emoji:
+          $ref: ./common.yml#/components/schemas/Emoji
+        count:
+          type: integer
+          minimum: 0
+        reactedByCurrentUser:
+          type: boolean
+          description: Whether the authenticated user has reacted with this emoji (false for anonymous users)
+    ReactionCounts:
+      type: object
+      required:
+      - postId
+      - reactions
+      properties:
+        postId:
+          $ref: ./common.yml#/components/schemas/PostId
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionCount'
+    ReactionUsersPage:
+      type: object
+      required:
+      - postId
+      - emoji
+      - users
+      properties:
+        postId:
+          $ref: ./common.yml#/components/schemas/PostId
+        emoji:
+          $ref: ./common.yml#/components/schemas/Emoji
+        users:
+          type: array
+          items:
+            $ref: ./user.yml#/components/schemas/User
+        nextCursor:
+          type: string
+          nullable: true
+    ReactRequest:
+      type: object
+      required:
+      - emoji
+      properties:
+        emoji:
+          $ref: ./common.yml#/components/schemas/Emoji

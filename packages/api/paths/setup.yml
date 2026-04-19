@@ -1,0 +1,147 @@
+/setup/status:
+  get:
+    tags:
+    - Setup
+    summary: Get server setup status
+    description: Check if the initial server setup has been completed
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/setup.yml#/components/schemas/SetupStatusResponse
+/setup/verify-password:
+  post:
+    tags:
+    - Setup
+    summary: Verify setup password
+    description: Verify the initial setup password from environment variable
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/setup.yml#/components/schemas/VerifySetupPasswordRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/setup.yml#/components/schemas/VerifySetupPasswordResponse
+      '403':
+        description: Setup already completed or password already used
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/setup/create-admin:
+  post:
+    tags:
+    - Setup
+    summary: Create admin account
+    description: Create the initial admin account during server setup
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/setup.yml#/components/schemas/CreateAdminRequest
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/setup.yml#/components/schemas/CreateAdminResponse
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '403':
+        description: Invalid setup password or setup already completed
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/setup/complete:
+  patch:
+    tags:
+    - Setup
+    summary: Complete server setup
+    description: Finalize server setup with configuration
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/setup.yml#/components/schemas/ServerSetupRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/setup.yml#/components/schemas/ServerSetupResponse
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '403':
+        description: Forbidden - not admin or setup already completed
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/setup/create-invite:
+  post:
+    tags:
+    - Setup
+    summary: Create invite code during setup
+    description: Create the initial invite code during admin setup wizard
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/invites.yml#/components/schemas/CreateInviteCodeRequest
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/invites.yml#/components/schemas/InviteCode
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '403':
+        description: Forbidden - not admin
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

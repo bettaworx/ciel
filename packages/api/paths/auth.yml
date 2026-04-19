@@ -1,0 +1,238 @@
+/auth/register:
+  post:
+    tags:
+    - Auth
+    summary: Register a new user
+    description: 'Minimal registration. In production, require HTTPS.
+
+
+      The server will generate `salt` and `iterations` and store verifier keys
+
+      derived from the password (SCRAM-style storedKey/serverKey).
+
+      '
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/RegisterRequest
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/User
+      '403':
+        description: Signup disabled
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '409':
+        description: Username already exists
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/login/start:
+  post:
+    tags:
+    - Auth
+    summary: Start challenge-response login
+    description: 'Starts a SCRAM-like login flow.
+
+
+      Client generates `clientNonce` and sends it.
+
+      Server responds with per-user salt/iterations and `serverNonce`.
+
+      Client then computes `clientProof` and calls /auth/login/finish.
+
+      '
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/LoginStartRequest
+    responses:
+      '200':
+        description: Challenge issued
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/LoginStartResponse
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/login/finish:
+  post:
+    tags:
+    - Auth
+    summary: Finish challenge-response login
+    description: 'Verifies `clientProof` for the one-time challenge.
+
+      On success returns an access token.
+
+      '
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/LoginFinishRequest
+    responses:
+      '200':
+        description: Logged in
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/LoginFinishResponse
+      '401':
+        description: Invalid proof / expired challenge
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/stepup/start:
+  post:
+    tags:
+    - Auth
+    summary: Start step-up authentication
+    description: 'Starts a SCRAM-like step-up flow bound to the authenticated user.
+
+      '
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/StepupStartRequest
+    responses:
+      '200':
+        description: Step-up challenge issued
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/StepupStartResponse
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+/auth/stepup/finish:
+  post:
+    tags:
+    - Auth
+    summary: Finish step-up authentication
+    description: 'Verifies `clientProof` for the step-up challenge and returns a short-lived token.
+
+      '
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/StepupFinishRequest
+    responses:
+      '200':
+        description: Step-up token issued
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/StepupFinishResponse
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+/auth/logout:
+  post:
+    tags:
+    - Auth
+    summary: Logout
+    description: 'Stateless JWT logout is typically handled on the client.
+
+      If you later add token revocation/blacklist, implement it here.
+
+      '
+    security:
+    - bearerAuth: []
+    responses:
+      '204':
+        description: Logged out
+/auth/refresh:
+  post:
+    tags:
+    - Auth
+    summary: Refresh access token
+    description: 'Consumes the `ciel_refresh` HttpOnly cookie and issues a new access token
+
+      cookie (`ciel_auth`) and a rotated refresh token cookie (`ciel_refresh`).
+
+      Both cookies are set in the response. The refresh token is rotated on every use.
+
+      '
+    responses:
+      '200':
+        description: Token refreshed successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/RefreshResponse
+      '401':
+        description: Missing, invalid, or expired refresh token
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/password/change:
+  post:
+    tags:
+    - Auth
+    summary: Change password (step-up required)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Short-lived step-up token.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/PasswordChangeRequest
+    responses:
+      '200':
+        description: Password updated. Returns a new access token.
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/LoginFinishResponse
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized / step-up required

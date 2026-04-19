@@ -1,0 +1,344 @@
+/admin/agreements/documents:
+  get:
+    tags:
+    - Admin
+    summary: List agreement documents
+    description: List all agreement documents (drafts and published) with filters
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    - name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    - name: status
+      in: query
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/AgreementDocumentStatus
+      description: Filter by publication status
+    - name: language
+      in: query
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/AgreementLanguage
+      description: Filter by language
+    - name: type
+      in: query
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/AgreementType
+      description: Filter by agreement type
+    responses:
+      '200':
+        description: List of agreement documents
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/agreements.yml#/components/schemas/AgreementDocumentPage
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_agreements_read permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  post:
+    tags:
+    - Admin
+    summary: Create agreement document draft
+    description: Create a new agreement document draft
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/agreements.yml#/components/schemas/CreateAgreementDocumentRequest
+    responses:
+      '201':
+        description: Agreement document created
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/agreements.yml#/components/schemas/AgreementDocument
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_agreements_create permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/agreements/documents/{documentId}:
+  get:
+    tags:
+    - Admin
+    summary: Get agreement document
+    description: Retrieve a specific agreement document
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '200':
+        description: Agreement document
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/agreements.yml#/components/schemas/AgreementDocument
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_agreements_read permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Document not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  patch:
+    tags:
+    - Admin
+    summary: Update agreement document draft
+    description: Update a draft agreement document (published documents cannot be edited)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/agreements.yml#/components/schemas/UpdateAgreementDocumentRequest
+    responses:
+      '200':
+        description: Agreement document updated
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/agreements.yml#/components/schemas/AgreementDocument
+      '400':
+        description: Bad request (document is published, not a draft)
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_agreements_update permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Document not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  delete:
+    tags:
+    - Admin
+    summary: Delete agreement document draft
+    description: Delete a draft agreement document (published documents cannot be deleted)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Document deleted
+      '400':
+        description: Bad request (document is published, not a draft)
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_agreements_delete permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Document not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/agreements/documents/{documentId}/publish:
+  post:
+    tags:
+    - Admin
+    summary: Publish agreement document
+    description: Publish a draft agreement document (makes it immutable and public)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '200':
+        description: Agreement document published
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/agreements.yml#/components/schemas/AgreementDocument
+      '400':
+        description: Bad request (document is already published or invalid)
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_agreements_publish permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Document not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/agreements/documents/{documentId}/duplicate:
+  post:
+    tags:
+    - Admin
+    summary: Duplicate agreement document
+    description: Create a new draft by duplicating an existing document
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - newVersion
+            properties:
+              newVersion:
+                type: integer
+                description: Version number for the new document
+    responses:
+      '201':
+        description: Document duplicated
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/agreements.yml#/components/schemas/AgreementDocument
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_agreements_create permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Document not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/agreements/documents/history:
+  get:
+    tags:
+    - Admin
+    summary: Get agreement version history
+    description: Get all published versions of an agreement type and language
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: type
+      in: query
+      required: true
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/AgreementType
+    - name: language
+      in: query
+      required: true
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/AgreementLanguage
+    responses:
+      '200':
+        description: List of published versions
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../../schemas/agreements.yml#/components/schemas/AgreementDocument
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_agreements_read permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error

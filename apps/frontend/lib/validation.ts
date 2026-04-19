@@ -3,7 +3,8 @@
  * 
  * These validation rules must match the backend validation in:
  * - apps/backend/internal/auth/validation.go
- * - packages/api/openapi.yml
+ * - packages/api/schemas/auth.yml (auth-related schemas)
+ * - packages/api/schemas/common.yml (username/password constraints)
  * 
  * IMPORTANT: Client-side validation is for UX only.
  * Always rely on server-side validation for security.

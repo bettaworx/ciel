@@ -1,0 +1,774 @@
+/admin/users/{userId}/mutes:
+  get:
+    tags:
+    - Admin
+    summary: List user mutes
+    description: List all active mutes for a user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '200':
+        description: List of user mutes
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../../schemas/admin.yml#/components/schemas/UserMute
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_users_mute permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  post:
+    tags:
+    - Admin
+    summary: Create user mute
+    description: Create a new mute for a user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/admin.yml#/components/schemas/CreateUserMuteRequest
+    responses:
+      '201':
+        description: Mute created
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/UserMute
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_users_mute permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  delete:
+    tags:
+    - Admin
+    summary: Remove all user mutes
+    description: Remove all active mutes for a user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Mutes removed
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_users_mute permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/mutes/{muteType}:
+  delete:
+    tags:
+    - Admin
+    summary: Remove specific user mute type
+    description: Remove a specific mute type for a user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: muteType
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/MuteType
+    responses:
+      '204':
+        description: Mute removed
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_users_mute permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Report not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/banned-words:
+  get:
+    tags:
+    - Admin
+    summary: List banned words
+    description: List all banned word patterns
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: appliesTo
+      in: query
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/BannedWordAppliesTo
+      description: Filter by where the pattern applies
+    responses:
+      '200':
+        description: List of banned words
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../../schemas/admin.yml#/components/schemas/BannedWord
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_banned_words_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  post:
+    tags:
+    - Admin
+    summary: Add banned word pattern
+    description: Create a new banned word pattern
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/admin.yml#/components/schemas/CreateBannedWordRequest
+    responses:
+      '201':
+        description: Banned word created
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/BannedWord
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_banned_words_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/banned-words/{wordId}:
+  get:
+    tags:
+    - Admin
+    summary: Get banned word
+    description: Retrieve a specific banned word pattern
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: wordId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '200':
+        description: Banned word details
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/BannedWord
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_banned_words_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Banned word not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  delete:
+    tags:
+    - Admin
+    summary: Delete banned word
+    description: Remove a banned word pattern
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: wordId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Banned word deleted
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_banned_words_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Banned word not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/banned-images:
+  get:
+    tags:
+    - Admin
+    summary: List banned image hashes
+    description: List all banned image hashes
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: List of banned image hashes
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../../schemas/admin.yml#/components/schemas/BannedImageHash
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_banned_images_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  post:
+    tags:
+    - Admin
+    summary: Add banned image hash
+    description: Create a new banned image hash
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/admin.yml#/components/schemas/CreateBannedImageHashRequest
+    responses:
+      '201':
+        description: Banned image hash created
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/BannedImageHash
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_banned_images_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/banned-images/{hashId}:
+  get:
+    tags:
+    - Admin
+    summary: Get banned image hash
+    description: Retrieve a specific banned image hash
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: hashId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '200':
+        description: Banned image hash details
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/BannedImageHash
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_banned_images_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Banned image hash not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  delete:
+    tags:
+    - Admin
+    summary: Delete banned image hash
+    description: Remove a banned image hash
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: hashId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Banned image hash deleted
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_banned_images_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Banned image hash not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/ip-bans:
+  get:
+    tags:
+    - Admin
+    summary: List IP bans
+    description: List all active IP bans
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    - name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    responses:
+      '200':
+        description: List of IP bans
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/IPBanPage
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_ip_bans_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  post:
+    tags:
+    - Admin
+    summary: Create IP ban
+    description: Ban an IP address
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/admin.yml#/components/schemas/CreateIPBanRequest
+    responses:
+      '201':
+        description: IP ban created
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/IPBan
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_ip_bans_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  delete:
+    tags:
+    - Admin
+    summary: Delete IP ban by address
+    description: Remove an IP ban by IP address (query parameter)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: ipAddress
+      in: query
+      required: true
+      schema:
+        type: string
+      description: IP address to unban
+    responses:
+      '204':
+        description: IP ban deleted
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_ip_bans_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/ip-bans/{banId}:
+  delete:
+    tags:
+    - Admin
+    summary: Delete IP ban by ID
+    description: Remove an IP ban by its ID
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: banId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: IP ban deleted
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_ip_bans_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: IP ban not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/moderation-logs:
+  get:
+    tags:
+    - Admin
+    summary: List moderation logs
+    description: List all moderation logs with optional filters
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    - name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    - name: adminUserId
+      in: query
+      schema:
+        type: string
+        format: uuid
+      description: Filter by admin user ID
+    - name: action
+      in: query
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/ModerationAction
+      description: Filter by action type
+    - name: targetType
+      in: query
+      schema:
+        $ref: ../../schemas/enums.yml#/components/schemas/ModerationTargetType
+      description: Filter by target type
+    - name: targetId
+      in: query
+      schema:
+        type: string
+      description: Filter by target ID
+    responses:
+      '200':
+        description: List of moderation logs
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/ModerationLogPage
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_moderation_logs_read permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/moderation-logs:
+  get:
+    tags:
+    - Admin
+    summary: Get moderation logs for specific user
+    description: Retrieve moderation logs where the user is the target
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    - name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    responses:
+      '200':
+        description: List of moderation logs
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../../schemas/admin.yml#/components/schemas/ModerationLog
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_moderation_logs_read permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/note:
+  get:
+    tags:
+    - Admin
+    summary: Get admin note for user
+    description: Retrieve admin notes for a specific user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '200':
+        description: Admin note
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/AdminUserNote
+      '404':
+        description: Note not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_users_notes permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  put:
+    tags:
+    - Admin
+    summary: Create or update admin note for user
+    description: Create or update admin notes for a specific user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/admin.yml#/components/schemas/CreateAdminUserNoteRequest
+    responses:
+      '200':
+        description: Note created or updated
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/AdminUserNote
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_users_notes permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  delete:
+    tags:
+    - Admin
+    summary: Delete admin note for user
+    description: Delete admin notes for a specific user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Note deleted
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_users_notes permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Note not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error

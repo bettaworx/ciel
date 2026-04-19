@@ -1,0 +1,52 @@
+/media:
+  post:
+    tags:
+    - Media
+    summary: Upload media (image, animated GIF, or video)
+    description: "Upload an image, animated GIF, or video and store it with optimized encoding.\n\n**Image formats:** PNG, JPG, JPEG, WebP, GIF  \n**Video formats:** MP4, WebM, MOV, AVI, MKV, M4V, 3GP, OGV\n\n**File size limits:**\n- **Images:** 15 MiB (default)\n- **Videos:** 100 MiB (default)\n\n**Input dimension limits:** 16384x16384 pixels, 100 megapixels total  \n**Video duration limit:** 300 seconds (5 minutes, default)\n\n**Output specifications:**\n\n**Images:**\n- **Animated GIF → Animated WebP:** Max 1024px (longest edge), all frames preserved\n- **Static images (PNG/JPG/WebP) → Static WebP:** Max 2048px (longest edge)\n- **Aspect ratio:** Always preserved (no upscaling)\n- **Quality:** 50 (optimized for file size)\n\n**Videos:**\n- **All formats → MP4 (H.264 + AAC):** Max 1920px (longest edge)\n- **Codec:** H.264 video, AAC audio\n- **Quality:** CRF 23 (balanced quality/size)\n- **Audio:** Preserved and converted to AAC\n- **Thumbnail:** Automatically generated from first frame as WebP\n\n**Security features:**\n- MIME type validation (content sniffing + ffprobe format verification)\n- Metadata stripping (EXIF/XMP/GPS)\n- Automatic format conversion\n- DoS protection via size, dimension, and duration limits\n\n**Conversion examples:**\n- 6000x4000px PNG → 2048x1365px WebP\n- 800x600px JPEG → 800x600px WebP (no upscaling)\n- 2000x1500px GIF (50 frames) → 1024x768px Animated WebP (50 frames)\n- 1920x1080 MOV (60s) → 1920x1080 MP4 (60s, H.264+AAC)\n- 3840x2160 MKV (120s) → 1920x1080 MP4 (120s, H.264+AAC)\n"
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+            - file
+            properties:
+              file:
+                type: string
+                format: binary
+                description: Image file (PNG/JPG/WebP/GIF) or video file (MP4/WebM/MOV/AVI/MKV/M4V/3GP/OGV)
+    responses:
+      '201':
+        description: Media created successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/media.yml#/components/schemas/Media
+      '400':
+        description: Bad request (invalid file format, corrupted GIF, etc.)
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '413':
+        description: Payload too large (>15 MiB for images, >100 MiB for videos)
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '415':
+        description: Unsupported media type
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

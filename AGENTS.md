@@ -49,7 +49,20 @@ ciel/
 │       └── AGENTS.md     # Frontend-specific guidelines
 ├── packages/
 │   └── api/
-│       └── openapi.yml   # OpenAPI specification (source of truth)
+│       ├── openapi.yml        # OpenAPI entry point (info, tags, securitySchemes, paths $refs)
+│       ├── paths/             # Path-item files grouped by domain
+│       │   ├── auth.yml
+│       │   ├── users.yml
+│       │   ├── posts.yml
+│       │   ├── ...
+│       │   └── admin/         # Admin-only endpoints
+│       │       ├── users.yml
+│       │       ├── roles.yml
+│       │       └── ...
+│       └── schemas/           # Schema definitions grouped by domain
+│           ├── common.yml     # Shared primitives (Error, ids, …)
+│           ├── enums.yml      # All enum types
+│           └── ...
 └── pnpm-workspace.yaml   # Workspace configuration
 ```
 

@@ -545,8 +545,14 @@ go list -m -u all
 ### New API Endpoint
 
 **Steps**:
-1. Add endpoint to `packages/api/openapi.yml`
-2. Run `pnpm run gen:openapi` to generate types
+1. Add path-item to the appropriate domain file in `packages/api/paths/` (e.g. `paths/posts.yml` for a posts endpoint, `paths/admin/users.yml` for admin user management). If no suitable file exists, create one under `paths/` or `paths/admin/`.
+2. Add the new path entry to `packages/api/openapi.yml` under `paths:`, pointing to your new path-item file:
+   ```yaml
+   /posts/{postId}/like:
+     $ref: ./paths/posts.yml#/~1posts~1{postId}~1like
+   ```
+3. If you need new schema types, add them to the appropriate file in `packages/api/schemas/` (e.g. `schemas/post.yml` for post-related types, `schemas/common.yml` for shared types). Reference them from path files using relative paths: `$ref: ../schemas/post.yml#/components/schemas/MyNewType`
+4. Run `pnpm run gen:openapi` to bundle the spec and regenerate Go types
 3. Implement handler in `internal/handlers/api.go`
 4. Add business logic in `internal/service/*.go`
 5. Add queries to `db/queries.sql` if needed

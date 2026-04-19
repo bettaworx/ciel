@@ -1,0 +1,420 @@
+/admin/users:
+  get:
+    tags:
+    - Admin
+    summary: Search users
+    description: Search and list users with filters, pagination, and stats
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    - name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    - name: search
+      in: query
+      schema:
+        type: string
+      description: Search by username or display name
+    - name: sort
+      in: query
+      schema:
+        type: string
+        enum:
+        - created_asc
+        - created_desc
+        - username_asc
+        - username_desc
+        default: created_desc
+      description: Sort order
+    responses:
+      '200':
+        description: List of users with stats
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/AdminUserPage
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_access permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/stats:
+  get:
+    tags:
+    - Admin
+    summary: Get user statistics
+    description: Retrieve detailed statistics for a specific user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '200':
+        description: User statistics
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/UserStats
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_access permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/avatar:
+  delete:
+    tags:
+    - Admin
+    summary: Delete user avatar
+    description: Remove user's avatar image
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Avatar deleted
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_profile_delete permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/display-name:
+  delete:
+    tags:
+    - Admin
+    summary: Delete user display name
+    description: Remove user's display name
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Display name deleted
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_profile_delete permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/bio:
+  delete:
+    tags:
+    - Admin
+    summary: Delete user bio
+    description: Remove user's bio
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Bio deleted
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_profile_delete permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/roles:
+  get:
+    tags:
+    - Admin
+    summary: Get user roles
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/UserId
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/RoleList
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  put:
+    tags:
+    - Admin
+    summary: Replace user roles
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/UserId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/roles.yml#/components/schemas/UserRolesUpdateRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/RoleList
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/permissions:
+  get:
+    tags:
+    - Admin
+    summary: Get user permission overrides
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/UserId
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/UserPermissionOverrides
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  put:
+    tags:
+    - Admin
+    summary: Replace user permission overrides
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/UserId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/roles.yml#/components/schemas/UserPermissionOverrides
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/UserPermissionOverrides
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/ban:
+  post:
+    tags:
+    - Admin
+    summary: Ban user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/UserId
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/roles.yml#/components/schemas/BanUserRequest
+    responses:
+      '204':
+        description: Banned
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  delete:
+    tags:
+    - Admin
+    summary: Unban user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/UserId
+    responses:
+      '204':
+        description: Unbanned
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error

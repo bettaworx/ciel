@@ -1,0 +1,24 @@
+/admin/dashboard/stats:
+  get:
+    tags:
+    - Admin
+    summary: Get dashboard statistics
+    description: Retrieve system-wide statistics for the admin dashboard
+    operationId: getAdminDashboardStats
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: Dashboard statistics
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/DashboardStats
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_access permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error

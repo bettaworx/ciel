@@ -1,0 +1,125 @@
+components:
+  schemas:
+    MediaType:
+      type: string
+      enum:
+      - image
+      - video
+    PostMediaFilter:
+      type: string
+      enum:
+      - image
+      - video
+      - media
+    PermissionEffect:
+      type: string
+      enum:
+      - allow
+      - deny
+    PermissionScope:
+      type: string
+    MuteType:
+      type: string
+      enum:
+      - posts_create
+      - media_upload
+      - reactions_add
+      - all
+      description: Type of user mute restriction
+    ReportStatus:
+      type: string
+      enum:
+      - pending
+      - reviewing
+      - resolved
+      - dismissed
+      description: Status of a user report
+    ReportTargetType:
+      type: string
+      enum:
+      - user
+      - post
+      - media
+      description: Type of target being reported
+    BannedWordAppliesTo:
+      type: string
+      enum:
+      - posts
+      - profiles
+      - all
+      description: Where the banned word pattern applies
+    BannedWordSeverity:
+      type: string
+      enum:
+      - flag
+      - auto_delete
+      description: Action to take when banned word is detected
+    ImageHashType:
+      type: string
+      enum:
+      - phash
+      - md5
+      description: Type of image hash algorithm used
+    PostVisibility:
+      type: string
+      enum:
+      - public
+      - hidden
+      - deleted
+      description: Visibility state of a post
+    ModerationAction:
+      type: string
+      enum:
+      - ban_user
+      - unban_user
+      - mute_user
+      - unmute_user
+      - delete_post
+      - hide_post
+      - unhide_post
+      - delete_media
+      - delete_user_avatar
+      - delete_user_display_name
+      - delete_user_bio
+      - create_banned_word
+      - delete_banned_word
+      - create_banned_image
+      - delete_banned_image
+      - create_ip_ban
+      - delete_ip_ban
+      - resolve_report
+      - dismiss_report
+      - publish_agreement
+      - other
+      description: Type of moderation action performed
+    ModerationTargetType:
+      type: string
+      enum:
+      - user
+      - post
+      - media
+      - report
+      - ip
+      - word
+      - image
+      - agreement
+      - other
+      description: Type of target for moderation action
+    AgreementType:
+      type: string
+      enum:
+      - terms
+      - privacy
+      description: Type of agreement document
+    AgreementLanguage:
+      type: string
+      enum:
+      - en
+      - ja
+      description: Language of agreement document
+    AgreementDocumentStatus:
+      type: string
+      enum:
+      - draft
+      - published
+      description: Publication status of agreement document

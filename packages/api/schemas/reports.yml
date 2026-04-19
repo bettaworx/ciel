@@ -1,0 +1,118 @@
+components:
+  schemas:
+    Report:
+      type: object
+      required:
+      - id
+      - reporterUserId
+      - targetType
+      - targetId
+      - reason
+      - status
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        reporterUserId:
+          type: string
+          format: uuid
+          description: User who submitted the report
+        reporterUsername:
+          type: string
+          nullable: true
+          description: Username of reporter
+        reporterDisplayName:
+          type: string
+          nullable: true
+          description: Display name of reporter
+        targetType:
+          $ref: ./enums.yml#/components/schemas/ReportTargetType
+        targetId:
+          type: string
+          description: ID of the reported item
+        reason:
+          type: string
+          description: Predefined reason category
+        details:
+          type: string
+          nullable: true
+          description: Additional details provided by reporter
+        status:
+          $ref: ./enums.yml#/components/schemas/ReportStatus
+        reviewedBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: Admin user ID who reviewed this report
+        reviewerUsername:
+          type: string
+          nullable: true
+          description: Username of reviewer
+        reviewerDisplayName:
+          type: string
+          nullable: true
+          description: Display name of reviewer
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the report was reviewed
+        resolution:
+          type: string
+          nullable: true
+          description: Admin's resolution notes
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ReportPage:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Report'
+        total:
+          type: integer
+          description: Total number of reports matching the filters
+    CreateReportRequest:
+      type: object
+      required:
+      - targetType
+      - targetId
+      - reason
+      properties:
+        targetType:
+          $ref: ./enums.yml#/components/schemas/ReportTargetType
+        targetId:
+          type: string
+          description: ID of the item being reported
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Predefined reason category (e.g., spam, harassment, inappropriate)
+        details:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Additional details about the report
+    UpdateReportRequest:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          $ref: ./enums.yml#/components/schemas/ReportStatus
+        resolution:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Admin's resolution notes
