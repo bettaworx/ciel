@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { parse as parseTwemoji } from "@twemoji/parser";
 import { Twemoji } from "@/components/Twemoji";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -50,15 +51,21 @@ function resolveEmoji(entry: EmojiEntry, tone: number): string {
   return skin?.emoji ?? entry.emoji;
 }
 
+interface GroupedEmoji {
+  label: string;
+  emojis: EmojiEntry[];
+}
+
 export default function EmojiTestPage() {
-  const [emojis, setEmojis] = useState<EmojiEntry[]>([]);
-  const [groups, setGroups] = useState<GroupMessage[]>([]);
+  const [grouped, setGrouped] = useState<GroupedEmoji[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [tone, setTone] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
+
     Promise.all([
       fetch(`${EMOJIBASE_CDN}/en/data.json`, { signal: controller.signal }).then(
         (r) => r.json() as Promise<EmojiEntry[]>,
@@ -68,8 +75,36 @@ export default function EmojiTestPage() {
       }).then((r) => r.json() as Promise<EmojibaseMessages>),
     ])
       .then(([data, messages]) => {
-        setEmojis(data.filter((e) => "group" in e));
-        setGroups(messages.groups.sort((a, b) => a.order - b.order));
+        // Find the "component" group (skin tone swatches etc.) to exclude.
+        const componentGroupOrder = messages.groups.find(
+          (g) => g.key === "component",
+        )?.order;
+
+        // Constrain to twemoji 16.x: only keep emoji that @twemoji/parser@16.0.0
+        // recognises as a single unit. This filters out:
+        //  - ZWJ sequences not yet in the 16.x regex (would render as doubles)
+        //  - Unicode 17+ emoji the parser doesn't know about
+        //  - Standalone component/modifier characters
+        const valid = data.filter((e) => {
+          if (!("group" in e)) return false;
+          if (componentGroupOrder !== undefined && e.group === componentGroupOrder)
+            return false;
+          return parseTwemoji(e.emoji).length === 1;
+        });
+
+        const sortedGroups = messages.groups
+          .filter((g) => g.key !== "component")
+          .sort((a, b) => a.order - b.order);
+
+        setGrouped(
+          sortedGroups
+            .map((g) => ({
+              label: g.message,
+              emojis: valid.filter((e) => e.group === g.order),
+            }))
+            .filter((g) => g.emojis.length > 0),
+        );
+        setTotalCount(valid.length);
         setLoading(false);
       })
       .catch((err) => {
@@ -78,17 +113,9 @@ export default function EmojiTestPage() {
           setLoading(false);
         }
       });
+
     return () => controller.abort();
   }, []);
-
-  const grouped = groups
-    .map((g) => ({
-      label: g.message,
-      emojis: emojis.filter((e) => e.group === g.order),
-    }))
-    .filter((g) => g.emojis.length > 0);
-
-  const totalCount = emojis.length;
 
   return (
     <PageContainer
@@ -98,10 +125,14 @@ export default function EmojiTestPage() {
       {/* Controls bar */}
       <div className="flex items-center justify-between gap-4 mb-6 pt-2">
         <p className="text-sm text-muted-foreground">
-          {loading ? "読み込み中…" : `${totalCount} 個の絵文字`}
+          {loading
+            ? "読み込み中…"
+            : `${totalCount} 個の絵文字 (twemoji 16.x 対応)`}
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground whitespace-nowrap">肌の色</span>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            肌の色
+          </span>
           <Select
             value={String(tone)}
             onValueChange={(v) => setTone(Number(v))}
@@ -138,7 +169,10 @@ export default function EmojiTestPage() {
               <div className="h-5 w-32 bg-muted rounded mb-3 animate-pulse" />
               <div className="flex flex-wrap gap-1">
                 {Array.from({ length: 24 }).map((_, j) => (
-                  <div key={j} className="w-9 h-9 bg-muted rounded animate-pulse" />
+                  <div
+                    key={j}
+                    className="w-9 h-9 bg-muted rounded animate-pulse"
+                  />
                 ))}
               </div>
             </div>
