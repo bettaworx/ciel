@@ -30,7 +30,7 @@ components:
           type: string
           enum: [post_created]
         post:
-          $ref: ./posts.yml#/components/schemas/Post
+          $ref: ./post.yml#/components/schemas/Post
 
     PostDeletedEvent:
       type: object
@@ -42,7 +42,7 @@ components:
           type: string
           enum: [post_deleted]
         postId:
-          $ref: ./posts.yml#/components/schemas/PostId
+          $ref: ./common.yml#/components/schemas/PostId
 
     ReactionUpdatedEvent:
       type: object
