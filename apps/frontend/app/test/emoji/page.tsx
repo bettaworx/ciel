@@ -48,7 +48,12 @@ function resolveEmoji(entry: EmojiEntry, tone: number): string {
   const skin = entry.skins.find((s) =>
     Array.isArray(s.tone) ? s.tone[0] === tone : s.tone === tone,
   );
-  return skin?.emoji ?? entry.emoji;
+  if (!skin) return entry.emoji;
+  // Validate that the skin variant is recognised as a single unit by the parser.
+  // Multi-person emojis (👯, 🤼 etc.) don't accept a lone skin modifier —
+  // the parser would decompose "👯🏻" into 2 entries, causing broken display.
+  // In such cases fall back to the unmodified base emoji.
+  return parseTwemoji(skin.emoji).length === 1 ? skin.emoji : entry.emoji;
 }
 
 interface GroupedEmoji {
