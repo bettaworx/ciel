@@ -27,7 +27,7 @@ func TestListRoles(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	mock.ExpectQuery(`SELECT id FROM roles`).
 		WillReturnRows(
@@ -59,7 +59,7 @@ func TestListPermissions(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	mock.ExpectQuery(`SELECT id FROM permissions`).
 		WillReturnRows(
@@ -91,7 +91,7 @@ func TestGetUserRoles(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	userID := uuid.New()
 
@@ -132,7 +132,7 @@ func TestGetUserRoles_UserNotFound(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	userID := uuid.New()
 
@@ -162,7 +162,7 @@ func TestUpdateUserRoles(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	userID := uuid.New()
 	newRoles := []api.RoleId{"admin", "moderator"}
@@ -209,7 +209,7 @@ func TestGetUserPermissionOverrides(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	userID := uuid.New()
 
@@ -253,7 +253,7 @@ func TestUpdateUserPermissionOverrides(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	userID := uuid.New()
 	overrides := []api.PermissionOverride{
@@ -298,7 +298,7 @@ func TestGetServerSettings(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	// Mock EnsureServerSettings
 	mock.ExpectExec(`INSERT INTO server_settings`).
@@ -339,7 +339,7 @@ func TestUpdateSignupEnabled(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	// Mock EnsureServerSettings
 	mock.ExpectExec(`INSERT INTO server_settings`).
@@ -374,7 +374,7 @@ func TestUpdateAgreementVersions(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	termsVersion := 2
 	privacyVersion := 3
@@ -417,7 +417,7 @@ func TestUpdateAgreementVersions_ValidationErrors(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	tests := []struct {
 		name    string
@@ -477,7 +477,7 @@ func TestBanUser(t *testing.T) {
 	cacheImpl := cache.NewRedisCache(rdb)
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, cacheImpl, nil)
+	svc := service.NewAdminService(store, cacheImpl, nil, nil)
 
 	userID := uuid.New()
 
@@ -516,7 +516,7 @@ func TestBanUser_InvalidTTL(t *testing.T) {
 	rdb := redis.NewClient(&redis.Options{})
 	cacheImpl := cache.NewRedisCache(rdb)
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, cacheImpl, nil)
+	svc := service.NewAdminService(store, cacheImpl, nil, nil)
 
 	userID := uuid.New()
 
@@ -553,7 +553,7 @@ func TestBanUser_ExceedsMaxTTL(t *testing.T) {
 	rdb := redis.NewClient(&redis.Options{})
 	cacheImpl := cache.NewRedisCache(rdb)
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, cacheImpl, nil)
+	svc := service.NewAdminService(store, cacheImpl, nil, nil)
 
 	userID := uuid.New()
 
@@ -588,7 +588,7 @@ func TestGetDashboardStats(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	// Mock GetDashboardStats query
 	mock.ExpectQuery(`-- name: GetDashboardStats`).

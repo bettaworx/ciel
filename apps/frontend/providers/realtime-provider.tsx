@@ -12,11 +12,17 @@ import type { components } from '@/lib/api/api';
 type Post = components['schemas']['Post'];
 type PostId = components['schemas']['PostId'];
 type ReactionCounts = components['schemas']['ReactionCounts'];
+type ServerInfo = components['schemas']['ServerInfo'];
+type ServerConfig = components['schemas']['ServerConfig'];
 
 type RealtimeEvent =
 	| { type: 'post_created'; post: Post }
 	| { type: 'post_deleted'; postId: PostId }
-	| { type: 'reaction_updated'; reactionCounts: ReactionCounts };
+	| { type: 'reaction_updated'; reactionCounts: ReactionCounts }
+	| { type: 'user_registered' }
+	| { type: 'user_deleted' }
+	| { type: 'server_info_updated'; serverInfo: ServerInfo }
+	| { type: 'server_config_updated'; serverConfig: ServerConfig };
 
 interface RealtimeProviderProps {
 	children: React.ReactNode;
@@ -77,6 +83,11 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		queryClient.invalidateQueries({
 			predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'userPosts',
 		});
+		// Increment postCount locally — avoids an extra REST call
+		queryClient.setQueryData(queryKeys.serverInfo, (old: ServerInfo | undefined) => {
+			if (!old) return old;
+			return { ...old, stats: { ...old.stats, postCount: old.stats.postCount + 1 } };
+		});
 	}, [queryClient]);
 
 	const handlePostDeleted = useCallback((postId: PostId) => {
@@ -101,6 +112,11 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 			{ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'userPosts' },
 			(payload) => removePostFromList(postId, payload)
 		);
+		// Decrement postCount locally
+		queryClient.setQueryData(queryKeys.serverInfo, (old: ServerInfo | undefined) => {
+			if (!old) return old;
+			return { ...old, stats: { ...old.stats, postCount: Math.max(0, old.stats.postCount - 1) } };
+		});
 	}, [queryClient, removePostFromCache, removePostFromList]);
 
 	const handleReactionUpdated = useCallback((counts: ReactionCounts) => {
@@ -113,6 +129,32 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		};
 		queryClient.setQueryData(queryKeys.reactions(counts.postId), adjustedReactionCounts);
 		queryClient.setQueryData(['posts', counts.postId, 'reactions'], adjustedReactionCounts.reactions);
+	}, [queryClient]);
+
+	const handleUserRegistered = useCallback(() => {
+		queryClient.setQueryData(queryKeys.serverInfo, (old: ServerInfo | undefined) => {
+			if (!old) return old;
+			return { ...old, stats: { ...old.stats, userCount: old.stats.userCount + 1 } };
+		});
+	}, [queryClient]);
+
+	const handleUserDeleted = useCallback(() => {
+		queryClient.setQueryData(queryKeys.serverInfo, (old: ServerInfo | undefined) => {
+			if (!old) return old;
+			return { ...old, stats: { ...old.stats, userCount: Math.max(0, old.stats.userCount - 1) } };
+		});
+	}, [queryClient]);
+
+	const handleServerInfoUpdated = useCallback((info: ServerInfo) => {
+		// Merge pushed info but keep locally-tracked stats so we don't clobber incremental counts
+		queryClient.setQueryData(queryKeys.serverInfo, (old: ServerInfo | undefined) => ({
+			...info,
+			stats: old?.stats ?? info.stats,
+		}));
+	}, [queryClient]);
+
+	const handleServerConfigUpdated = useCallback((serverConfig: ServerConfig) => {
+		queryClient.setQueryData(queryKeys.serverConfig, serverConfig);
 	}, [queryClient]);
 
 	const handleMessage = useCallback(
@@ -131,12 +173,28 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 					case 'reaction_updated':
 						handleReactionUpdated(data.reactionCounts);
 						break;
+
+					case 'user_registered':
+						handleUserRegistered();
+						break;
+
+					case 'user_deleted':
+						handleUserDeleted();
+						break;
+
+					case 'server_info_updated':
+						handleServerInfoUpdated(data.serverInfo);
+						break;
+
+					case 'server_config_updated':
+						handleServerConfigUpdated(data.serverConfig);
+						break;
 				}
 			} catch (err) {
 				console.error('Failed to parse WebSocket message:', err);
 			}
 		},
-		[handlePostCreated, handlePostDeleted, handleReactionUpdated]
+		[handlePostCreated, handlePostDeleted, handleReactionUpdated, handleUserRegistered, handleUserDeleted, handleServerInfoUpdated, handleServerConfigUpdated]
 	);
 
 	const connect = useCallback(() => {
@@ -144,7 +202,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 
 		// Construct WebSocket URL (proxied via Next.js rewrites)
 		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-		const wsUrl = `${protocol}//${window.location.host}/ws/timeline`;
+		const wsUrl = `${protocol}//${window.location.host}/ws/events`;
 
 		try {
 			// Note: WebSocket automatically sends cookies (including httpOnly cookies)
@@ -154,6 +212,9 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 
 			ws.onopen = () => {
 				reconnectAttemptsRef.current = 0;
+				// Re-sync server info and config on connect/reconnect to recover missed events
+				queryClient.invalidateQueries({ queryKey: queryKeys.serverInfo });
+				queryClient.invalidateQueries({ queryKey: queryKeys.serverConfig });
 			};
 
 			ws.onmessage = handleMessage;
@@ -182,7 +243,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		} catch (err) {
 			console.error('Failed to create WebSocket:', err);
 		}
-	}, [handleMessage]);
+	}, [handleMessage, queryClient]);
 
 	// Handle user inactivity - disconnect WebSocket and show alert
 	const handleInactivity = useCallback(() => {
@@ -191,7 +252,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		}
 
 		console.log('⏱️ User inactive for 5 minutes, disconnecting WebSocket...');
-		
+
 		// Set flag to prevent automatic reconnection
 		inactivityDisconnectRef.current = true;
 
@@ -210,7 +271,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		// Reset inactivity flag and hide alert
 		inactivityDisconnectRef.current = false;
 		setShowInactivityAlert(false);
-		
+
 		// Reconnect WebSocket
 		connect();
 	}, [connect]);

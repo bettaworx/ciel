@@ -70,6 +70,8 @@ export function useMe() {
 }
 
 // Server information (public endpoint)
+// Updates are pushed via WebSocket (server_info_updated, user_registered/deleted, post_created/deleted).
+// Re-synced to authoritative values on WebSocket connect/reconnect.
 export function useServerInfo() {
   const api = useApi();
 
@@ -80,12 +82,13 @@ export function useServerInfo() {
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
     },
-    staleTime: 1000 * 30, // 30秒 - configVersion変更を検知するため短縮
-    refetchInterval: 1000 * 30, // 30秒ごとにポーリング
+    staleTime: Infinity,
   });
 }
 
 // Server configuration (public endpoint)
+// Updates are pushed via WebSocket (server_config_updated).
+// Re-synced to authoritative values on WebSocket connect/reconnect.
 export function useServerConfig() {
   const api = useApi();
 
@@ -96,8 +99,7 @@ export function useServerConfig() {
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
     },
-    staleTime: 1000 * 30, // 30秒
-    refetchInterval: 1000 * 30, // 30秒ごとにポーリング
+    staleTime: Infinity,
   });
 }
 
