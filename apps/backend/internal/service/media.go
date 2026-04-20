@@ -1780,3 +1780,143 @@ func (s *MediaService) generateThumbnail(ctx context.Context, videoPath, thumbna
 
 	return nil
 }
+
+// UploadEmojiImage processes an uploaded image for use as a custom emoji.
+// The image is resized to the configured height (default 128px) while maintaining aspect ratio.
+// All formats (including GIF) are converted to animated WebP.
+// Returns the output dimensions (width, height).
+func (s *MediaService) UploadEmojiImage(ctx context.Context, src multipart.File, header *multipart.FileHeader, emojiID uuid.UUID) (int, int, error) {
+	if strings.TrimSpace(s.mediaDir) == "" {
+		return 0, 0, NewError(http.StatusServiceUnavailable, "service_unavailable", "media storage not configured")
+	}
+	if s.ffmpegPath == "" {
+		return 0, 0, NewError(http.StatusServiceUnavailable, "service_unavailable", "media encoding not available")
+	}
+
+	_, declaredCT, ext, err := s.validateUploadMetadata(header)
+	if err != nil {
+		return 0, 0, err
+	}
+	if s.cfg.IsVideoExtension(ext) {
+		return 0, 0, NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "video files are not allowed for emoji")
+	}
+
+	inPath, totalSize, err := s.writeUploadToTemp(src, ext, declaredCT)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer os.Remove(inPath)
+
+	maxBytes := int64(15) << 20 // 15 MiB
+	if totalSize > maxBytes {
+		return 0, 0, NewError(http.StatusRequestEntityTooLarge, "file_too_large", "emoji image must be 15 MiB or smaller")
+	}
+
+	if _, err := validateImageFile(inPath, s.cfg); err != nil {
+		return 0, 0, err
+	}
+
+	outDir := filepath.Join(s.mediaDir, "emoji", emojiID.String())
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		slog.Error("failed to create emoji output directory", "error", err)
+		return 0, 0, fmt.Errorf("failed to create output directory")
+	}
+	outPath := filepath.Join(outDir, "image.webp")
+
+	if err := s.convertToWebPEmoji(ctx, inPath, outPath); err != nil {
+		_ = os.RemoveAll(outDir)
+		return 0, 0, err
+	}
+
+	w, h, err := s.probeDimensions(ctx, outPath)
+	if err != nil {
+		_ = os.RemoveAll(outDir)
+		return 0, 0, fmt.Errorf("failed to probe emoji dimensions")
+	}
+
+	return w, h, nil
+}
+
+// convertToWebPEmoji converts any image (including animated GIF) to WebP,
+// resizing to the configured height while maintaining aspect ratio.
+func (s *MediaService) convertToWebPEmoji(ctx context.Context, inPath, outPath string) error {
+	targetHeight := s.cfg.Emoji.Height
+	if targetHeight <= 0 {
+		targetHeight = 128
+	}
+	quality := s.cfg.Emoji.Quality
+	if quality <= 0 || quality > 100 {
+		quality = 80
+	}
+
+	// scale=-1:H keeps aspect ratio, forcing exact height H.
+	// Using trunc(-1/2)*2 pattern ensures even dimensions for codec compatibility.
+	vf := fmt.Sprintf("scale=trunc(oh*a/2)*2:%d", targetHeight)
+
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", inPath,
+		"-vf", vf,
+		"-f", "webp",
+		"-c:v", "libwebp",
+		"-pix_fmt", "yuva420p",
+		"-lossless", "0",
+		"-q:v", strconv.Itoa(quality),
+		"-loop", "0",    // Preserve animation (0 = infinite loop)
+		"-preset", "default",
+		"-vsync", "0",         // Preserve frame timing
+		"-an",                 // No audio
+		"-map_metadata", "-1", // Strip metadata
+		"-map_chapters", "-1",
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		msg = strings.ReplaceAll(msg, inPath, "<input>")
+		msg = strings.ReplaceAll(msg, outPath, "<output>")
+		slog.Error("ffmpeg emoji conversion failed", "error", err, "stderr", msg)
+		return fmt.Errorf("emoji image conversion failed")
+	}
+	return nil
+}
+
+// DeleteEmojiImage removes the stored image files for a custom emoji.
+func (s *MediaService) DeleteEmojiImage(emojiID uuid.UUID) {
+	_ = os.RemoveAll(filepath.Join(s.mediaDir, "emoji", emojiID.String()))
+}
+
+// ServeEmojiImage serves the WebP image for a custom emoji.
+// This endpoint is public (no authentication required).
+func (s *MediaService) ServeEmojiImage(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "emojiId")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	p := filepath.Join(s.mediaDir, "emoji", id.String(), "image.webp")
+
+	f, err := os.Open(p)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/webp")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	http.ServeContent(w, r, "image.webp", fi.ModTime(), f)
+}
