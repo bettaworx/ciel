@@ -28,16 +28,17 @@ interface OgpCardProps {
  * border + rounded-xl consistent with the media cards in PostCard.
  */
 export function OgpCard({ url }: OgpCardProps) {
-  if (parseSpotifyUrl(url)) {
+  const isSpotify = Boolean(parseSpotifyUrl(url));
+  const { data: ogp, isLoading, isError } = useOgp(isSpotify ? null : url);
+
+  if (isSpotify) {
     return <SpotifyEmbed url={url} />;
   }
-
-  const { data: ogp, isLoading, isError } = useOgp(url);
 
   // --- Loading skeleton ---
   if (isLoading) {
     return (
-      <div className="mb-3 rounded-xl border border-border overflow-hidden">
+      <div className="rounded-xl border border-border overflow-hidden">
         <Skeleton className="h-40 w-full rounded-none" />
         <div className="p-3 space-y-2">
           <Skeleton className="h-4 w-3/4" />
@@ -75,7 +76,7 @@ export function OgpCard({ url }: OgpCardProps) {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="mb-3 flex rounded-xl border border-border overflow-hidden hover:bg-muted/50 transition-colors"
+        className="flex rounded-xl border border-border overflow-hidden hover:bg-muted/50 transition-colors"
       >
         {/* Square-cropped thumbnail */}
         <div className="relative shrink-0 w-[108px] h-[108px] bg-muted">
@@ -117,7 +118,7 @@ export function OgpCard({ url }: OgpCardProps) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="mb-3 block rounded-xl border border-border overflow-hidden hover:bg-muted/50 transition-colors"
+      className="block rounded-xl border border-border overflow-hidden hover:bg-muted/50 transition-colors"
     >
       {/* OGP Image */}
       {imageProxyUrl && (

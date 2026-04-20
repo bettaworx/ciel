@@ -84,6 +84,22 @@ function CropButton({
   );
 }
 
+function computeMediaStyle(
+  width: number | null | undefined,
+  height: number | null | undefined,
+  isDesktop: boolean,
+): React.CSSProperties | undefined {
+  if (!width || !height || width <= 0 || height <= 0) return undefined;
+  const MIN_RATIO = 3 / 4;
+  const MAX_RATIO = 21 / 9;
+  const MAX_HEIGHT = 512;
+  const ratio = Math.max(MIN_RATIO, Math.min(MAX_RATIO, width / height));
+  return {
+    aspectRatio: `${ratio}`,
+    ...(isDesktop && { maxWidth: `${MAX_HEIGHT * ratio}px` }),
+  };
+}
+
 /**
  * Shared media preview component used by both PostCard and the post composer.
  *
@@ -118,44 +134,21 @@ export function PostMediaPreview({
     [media],
   );
 
-  // Single image display constraints (same as PostCard):
-  //   Aspect ratio: 3:4 (portrait) to 21:9 (landscape), clipped via object-cover
+  // Single image/video display constraints:
+  //   Aspect ratio clamped between 3:4 (portrait) and 21:9 (landscape)
   //   Max height: 512px on desktop (enforced via maxWidth + aspectRatio)
-  const singleImageStyle = useMemo((): React.CSSProperties | undefined => {
-    if (media.length !== 1 || media[0].type !== "image") return undefined;
-    const m = media[0];
-    if (!m.width || !m.height || m.width <= 0 || m.height <= 0)
-      return undefined;
+  const singleImageStyle = useMemo(
+    () =>
+      media.length === 1 && media[0].type === "image"
+        ? computeMediaStyle(media[0].width, media[0].height, isDesktop)
+        : undefined,
+    [media, isDesktop],
+  );
 
-    const MIN_RATIO = 3 / 4; // portrait limit
-    const MAX_RATIO = 21 / 9; // landscape limit
-    const MAX_HEIGHT = 512;
-
-    const ratio = Math.max(MIN_RATIO, Math.min(MAX_RATIO, m.width / m.height));
-
-    return {
-      aspectRatio: `${ratio}`,
-      ...(isDesktop && { maxWidth: `${MAX_HEIGHT * ratio}px` }),
-    };
-  }, [media, isDesktop]);
-
-  // Apply the same constraints to videos (portrait 9:16 videos would otherwise
-  // dominate the screen).
-  const singleVideoStyle = useMemo((): React.CSSProperties | undefined => {
-    if (!videoMedia?.width || !videoMedia.height || videoMedia.width <= 0 || videoMedia.height <= 0)
-      return undefined;
-
-    const MIN_RATIO = 3 / 4;
-    const MAX_RATIO = 21 / 9;
-    const MAX_HEIGHT = 512;
-
-    const ratio = Math.max(MIN_RATIO, Math.min(MAX_RATIO, videoMedia.width / videoMedia.height));
-
-    return {
-      aspectRatio: `${ratio}`,
-      ...(isDesktop && { maxWidth: `${MAX_HEIGHT * ratio}px` }),
-    };
-  }, [videoMedia, isDesktop]);
+  const singleVideoStyle = useMemo(
+    () => computeMediaStyle(videoMedia?.width, videoMedia?.height, isDesktop),
+    [videoMedia, isDesktop],
+  );
 
   if (media.length === 0) return null;
 
@@ -190,7 +183,7 @@ export function PostMediaPreview({
   // --- Video ---
   if (videoMedia) {
     return (
-      <div className={cn("mb-3", className)}>
+      <div className={className}>
         <div
           className="relative w-full bg-muted overflow-hidden rounded-xl group"
           style={singleVideoStyle}
@@ -219,7 +212,7 @@ export function PostMediaPreview({
   // 1 image
   if (imageMedia.length === 1) {
     return (
-      <div className={cn("mb-3", className)}>
+      <div className={className}>
         <div
           className="relative w-full overflow-hidden rounded-xl group"
           style={singleImageStyle}
@@ -250,7 +243,7 @@ export function PostMediaPreview({
   // 2 images: side by side, 8:9
   if (imageMedia.length === 2) {
     return (
-      <div className={cn("grid grid-cols-2 gap-1 mb-3", className)}>
+      <div className={cn("grid grid-cols-2 gap-1", className)}>
         <div className="relative aspect-[8/9] overflow-hidden group">
           <Image
             src={imageMedia[0].url}
@@ -304,7 +297,7 @@ export function PostMediaPreview({
   // 3 images: left auto-height, right top/bottom 16:9
   if (imageMedia.length === 3) {
     return (
-      <div className={cn("grid grid-cols-2 gap-1 mb-3", className)}>
+      <div className={cn("grid grid-cols-2 gap-1", className)}>
         <div className="relative row-span-2 overflow-hidden group">
           <Image
             src={imageMedia[0].url}
@@ -388,7 +381,7 @@ export function PostMediaPreview({
       "rounded-br-xl",
     ];
     return (
-      <div className={cn("grid grid-cols-2 gap-1 mb-3", className)}>
+      <div className={cn("grid grid-cols-2 gap-1", className)}>
         {fourImages.map((item, i) => (
           <div
             key={item.id}

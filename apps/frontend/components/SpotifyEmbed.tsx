@@ -16,7 +16,7 @@ export function SpotifyEmbed({ url }: SpotifyEmbedProps) {
   const height = parsed.type === "track" ? 152 : 352;
 
   return (
-    <div className="mb-3 rounded-xl border border-border overflow-hidden">
+    <div className="rounded-xl border border-border overflow-hidden">
       <iframe
         src={getSpotifyEmbedUrl(parsed)}
         width="100%"

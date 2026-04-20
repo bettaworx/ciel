@@ -159,11 +159,11 @@ export function PostCard({
     });
   }, [deletePost, post.id, t]);
 
-  const handleUserClick = () => {
+  const handleUserClick = useCallback(() => {
     if (onUserClick && post.author?.username) {
       onUserClick(post.author.username);
     }
-  };
+  }, [onUserClick, post.author?.username]);
 
   const displayName =
     post.author?.displayName || post.author?.username || tUser("unknown");
@@ -221,13 +221,13 @@ export function PostCard({
   return (
     <article
       className={cn(
-        "text-card-foreground p-3 transition-colors",
+        "text-card-foreground p-2 sm:p-3 transition-colors",
         !isLast && "border-b border-border",
         className,
       )}
     >
       {/* Header: Avatar + Timestamp */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-1.5 sm:gap-3">
         <Button
           variant="ghost"
           size="icon"
@@ -244,8 +244,8 @@ export function PostCard({
         {/* Content: User Info + Post text + Media */}
         <div className="flex-1 min-w-0">
           {/* User Info */}
-          <div className="flex justify-between items-center gap-2 flex-wrap mb-1">
-            <div className="flex items-center gap-2">
+          <div className="flex justify-between items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={handleUserClick}
                 className="font-semibold text-sm sm:text-base text-foreground hover:underline focus:underline focus:outline-none truncate"
@@ -271,7 +271,7 @@ export function PostCard({
 
           {/* Post Content */}
           {post.content && (
-            <div className="mb-3">
+            <>
               <div
                 ref={contentRef}
                 className={cn(
@@ -295,21 +295,25 @@ export function PostCard({
                   </Button>
                 </div>
               )}
+            </>
+          )}
+
+          {(ogpUrl || previewMedia.length > 0) && (
+            <div className="mt-1.5 mb-1.5 sm:mb-3">
+              {/* OGP Link Preview – only when no media is attached */}
+              {ogpUrl && <OgpCard url={ogpUrl} />}
+
+              {/* Media: Images / Video via shared component */}
+              <PostMediaPreview
+                media={previewMedia}
+                onLightboxOpen={handleLightboxOpen}
+              />
             </div>
           )}
 
-          {/* OGP Link Preview – only when no media is attached */}
-          {ogpUrl && <OgpCard url={ogpUrl} />}
-
-          {/* Media: Images / Video via shared component */}
-          <PostMediaPreview
-            media={previewMedia}
-            onLightboxOpen={handleLightboxOpen}
-          />
-
           {/* Reactions */}
-          {reactions.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-3">
+          {hasReactions && (
+            <div className="flex flex-wrap gap-1.5 my-1.5">
               {reactions.map((reaction) => (
                 <ReactionBadge
                   key={reaction.emoji}
@@ -339,7 +343,7 @@ export function PostCard({
           )}
 
           {/* Reaction Picker */}
-          <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
             <ReactionPicker
               onEmojiSelect={handleToggleReaction}
               disabled={isPending}
