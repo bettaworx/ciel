@@ -1,7 +1,9 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { SpotifyEmbed } from "@/components/SpotifyEmbed";
 import { useOgp } from "@/lib/hooks/use-queries";
+import { parseSpotifyUrl } from "@/lib/ogp/spotify";
 import { ExternalLink } from "lucide-react";
 
 /** Image width threshold (px). Images this width or smaller use compact layout. */
@@ -26,6 +28,10 @@ interface OgpCardProps {
  * border + rounded-xl consistent with the media cards in PostCard.
  */
 export function OgpCard({ url }: OgpCardProps) {
+  if (parseSpotifyUrl(url)) {
+    return <SpotifyEmbed url={url} />;
+  }
+
   const { data: ogp, isLoading, isError } = useOgp(url);
 
   // --- Loading skeleton ---
