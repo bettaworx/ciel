@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Moon, Globe } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
@@ -20,6 +21,8 @@ import {
 import { type Locale } from "@/i18n/constants";
 import { setClientLocale } from "@/i18n/client-locale";
 
+const HEALTH_CHECK_INTERVAL_MS = 5000;
+
 /**
  * Offline page displayed when the server is unreachable.
  *
@@ -27,9 +30,32 @@ import { setClientLocale } from "@/i18n/client-locale";
  * - Displays a message indicating the server is offline
  * - Provides a manual reload button to retry connection
  * - Language switcher to change the interface language
+ * - Automatically redirects to "/" when the server comes back online
  */
 export default function OfflinePage() {
   const t = useTranslations();
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch("/api/v1/health", {
+          method: "GET",
+          credentials: "include",
+          signal: AbortSignal.timeout(4000),
+        });
+        if (res.ok) {
+          window.location.replace("/");
+        }
+      } catch {
+        // Server still unreachable — keep polling
+      }
+    };
+
+    const id = setInterval(check, HEALTH_CHECK_INTERVAL_MS);
+    // Run immediately so we don't wait for the first interval
+    check();
+    return () => clearInterval(id);
+  }, []);
 
   const handleReload = () => {
     // Force complete page reload bypassing all caches
