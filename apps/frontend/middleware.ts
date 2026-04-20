@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getRegisteredSources } from '@/lib/csp'
 
 function sanitize(value: string): string {
   return value.replace(/[\r\n]/g, '')
@@ -9,19 +10,25 @@ function buildCsp(nonce: string): string {
   const d = (key: string, fallback: string) =>
     sanitize(process.env[key] || fallback)
 
+  const extra = (directive: Parameters<typeof getRegisteredSources>[0]) => {
+    const sources = getRegisteredSources(directive)
+    return sources.length ? ' ' + sources.join(' ') : ''
+  }
+
   // Nonce is always injected into script-src automatically.
   // Do not include 'nonce-*' manually in CSP_SCRIPT_SRC.
-  const scriptSrc = `${d('CSP_SCRIPT_SRC', "'self'")} 'nonce-${nonce}'`
+  const scriptSrc = `${d('CSP_SCRIPT_SRC', "'self'")} 'nonce-${nonce}'${extra('script-src')}`
 
   return [
     `default-src ${d('CSP_DEFAULT_SRC', "'self'")}`,
     `script-src ${scriptSrc}`,
-    `style-src ${d('CSP_STYLE_SRC', "'self' 'unsafe-inline'")}`,
-    `img-src ${d('CSP_IMG_SRC', "'self' data: blob:")}`,
-    `font-src ${d('CSP_FONT_SRC', "'self' data:")}`,
-    `connect-src ${d('CSP_CONNECT_SRC', "'self'")}`,
-    `media-src ${d('CSP_MEDIA_SRC', "'self' blob:")}`,
+    `style-src ${d('CSP_STYLE_SRC', "'self' 'unsafe-inline'")}${extra('style-src')}`,
+    `img-src ${d('CSP_IMG_SRC', "'self' data: blob:")}${extra('img-src')}`,
+    `font-src ${d('CSP_FONT_SRC', "'self' data:")}${extra('font-src')}`,
+    `connect-src ${d('CSP_CONNECT_SRC', "'self'")}${extra('connect-src')}`,
+    `media-src ${d('CSP_MEDIA_SRC', "'self' blob:")}${extra('media-src')}`,
     `object-src ${d('CSP_OBJECT_SRC', "'none'")}`,
+    `frame-src ${d('CSP_FRAME_SRC', "'self'")}${extra('frame-src')}`,
     `base-uri ${d('CSP_BASE_URI', "'self'")}`,
     `form-action ${d('CSP_FORM_ACTION', "'self'")}`,
     `frame-ancestors ${d('CSP_FRAME_ANCESTORS', "'none'")}`,
