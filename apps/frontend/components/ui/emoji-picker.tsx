@@ -9,6 +9,7 @@ import {
 import { LoaderIcon, SearchIcon } from "lucide-react";
 import type * as React from "react";
 
+import { Twemoji } from "@/components/Twemoji";
 import { cn } from "@/lib/utils";
 
 function EmojiPicker({
@@ -68,7 +69,7 @@ function EmojiPickerEmoji({
       )}
       data-slot="emoji-picker-emoji"
     >
-      {emoji.emoji}
+      <Twemoji emoji={emoji.emoji} />
     </button>
   );
 }
@@ -141,7 +142,7 @@ function EmojiPickerFooter({
           emoji ? (
             <>
               <div className="flex size-7 flex-none items-center justify-center text-lg">
-                {emoji.emoji}
+                <Twemoji emoji={emoji.emoji} />
               </div>
               <span className="text-secondary-foreground truncate text-xs">
                 {emoji.label}

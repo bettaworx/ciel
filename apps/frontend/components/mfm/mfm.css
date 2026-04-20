@@ -588,6 +588,13 @@
   /* Placeholder for custom emoji - show as badge-like text */
 }
 
+.twemoji {
+  height: 1em;
+  width: 1em;
+  display: inline-block;
+  vertical-align: -0.125em;
+}
+
 .mfm-search {
   display: flex;
   flex-direction: row;

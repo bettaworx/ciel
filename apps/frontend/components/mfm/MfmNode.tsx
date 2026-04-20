@@ -2,6 +2,7 @@ import type { MfmNode as MfmNodeType } from "mfm-js";
 import type { ReactNode } from "react";
 import { ExternalLink, Search } from "lucide-react";
 import { MfmFn } from "@/components/mfm/MfmFn";
+import { Twemoji } from "@/components/Twemoji";
 
 interface MfmNodeProps {
   node: MfmNodeType;
@@ -144,7 +145,7 @@ export function MfmNode({ node }: MfmNodeProps) {
 
     // --- Unicode emoji ---
     case "unicodeEmoji": {
-      return <span>{node.props.emoji}</span>;
+      return <Twemoji emoji={node.props.emoji} />;
     }
 
     // --- Custom emoji code (stub) ---
