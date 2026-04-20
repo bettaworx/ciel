@@ -54,3 +54,12 @@ func mediaThumbnailURL(id uuid.UUID) string {
 //
 // This is primarily used by tests living outside this package.
 func MediaThumbnailURL(id uuid.UUID) string { return mediaThumbnailURL(id) }
+
+func emojiImageURL(id uuid.UUID) string {
+	return publicBaseURL() + "/emoji/" + id.String() + "/image.webp"
+}
+
+// EmojiImageURL builds the public URL for serving a custom emoji image.
+//
+// This is primarily used by tests living outside this package.
+func EmojiImageURL(id uuid.UUID) string { return emojiImageURL(id) }

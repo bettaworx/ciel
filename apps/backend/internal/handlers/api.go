@@ -33,6 +33,7 @@ type API struct {
 	Timeline   *service.TimelineService
 	Reactions  *service.ReactionsService
 	Media      *service.MediaService
+	Emojis     *service.EmojiService
 	Setup      *service.SetupService
 	Agreements *service.AgreementsService
 	Tokens     *auth.TokenManager

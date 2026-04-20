@@ -1393,3 +1393,45 @@ SET
     ELSE privacy_accepted_at 
   END
 WHERE id = ANY(sqlc.arg('user_ids')::uuid[]);
+
+-- ============================================================================
+-- CUSTOM EMOJIS
+-- ============================================================================
+
+-- name: CreateCustomEmoji :one
+INSERT INTO custom_emojis (id, shortcode, name, category, license, width, height)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING *;
+
+-- name: GetCustomEmojiByID :one
+SELECT * FROM custom_emojis
+WHERE id = $1;
+
+-- name: GetCustomEmojiByShortcode :one
+SELECT * FROM custom_emojis
+WHERE shortcode = $1;
+
+-- name: UpdateCustomEmoji :one
+UPDATE custom_emojis
+SET
+  shortcode  = COALESCE(sqlc.narg('shortcode')::text, shortcode),
+  name       = CASE WHEN sqlc.narg('set_name')::bool THEN sqlc.narg('name')::text ELSE name END,
+  category   = CASE WHEN sqlc.narg('set_category')::bool THEN sqlc.narg('category')::text ELSE category END,
+  license    = CASE WHEN sqlc.narg('set_license')::bool THEN sqlc.narg('license')::text ELSE license END,
+  width      = COALESCE(sqlc.narg('width')::int, width),
+  height     = COALESCE(sqlc.narg('height')::int, height),
+  updated_at = now()
+WHERE id = sqlc.arg('id')::uuid
+RETURNING *;
+
+-- name: DeleteCustomEmoji :exec
+DELETE FROM custom_emojis
+WHERE id = $1;
+
+-- name: ListCustomEmojis :many
+SELECT * FROM custom_emojis
+ORDER BY shortcode ASC
+LIMIT $1 OFFSET $2;
+
+-- name: CountCustomEmojis :one
+SELECT COUNT(*) FROM custom_emojis;

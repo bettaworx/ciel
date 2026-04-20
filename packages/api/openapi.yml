@@ -28,6 +28,7 @@ tags:
 - name: Reactions
 - name: Media
 - name: Reports
+- name: Emojis
 components:
   securitySchemes:
     bearerAuth:
@@ -194,3 +195,11 @@ paths:
     $ref: ./paths/reactions.yml#/~1posts~1{postId}~1reactions
   /posts/{postId}/reactions/users:
     $ref: ./paths/reactions.yml#/~1posts~1{postId}~1reactions~1users
+  /emojis:
+    $ref: ./paths/emojis.yml#/~1emojis
+  /emojis/{shortcode}:
+    $ref: ./paths/emojis.yml#/~1emojis~1{shortcode}
+  /admin/emojis:
+    $ref: ./paths/admin/emojis.yml#/~1admin~1emojis
+  /admin/emojis/{emojiId}:
+    $ref: ./paths/admin/emojis.yml#/~1admin~1emojis~1{emojiId}

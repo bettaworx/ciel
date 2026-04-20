@@ -8,8 +8,17 @@ components:
     Emoji:
       type: string
       minLength: 1
-      maxLength: 16
-      description: Unicode emoji string.
+      maxLength: 64
+      description: "Unicode emoji string or custom emoji shortcode in :shortcode: format."
+    EmojiId:
+      type: string
+      format: uuid
+    EmojiShortcode:
+      type: string
+      minLength: 2
+      maxLength: 50
+      pattern: ^[a-zA-Z0-9_]+$
+      description: Custom emoji shortcode (alphanumeric and underscore only, Mastodon-compatible).
     PostId:
       type: string
       format: uuid
