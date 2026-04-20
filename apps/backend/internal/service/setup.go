@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"database/sql"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -13,7 +14,9 @@ import (
 	"backend/internal/auth"
 	"backend/internal/config"
 	"backend/internal/db/sqlc"
+	"backend/internal/realtime"
 	"backend/internal/repository"
+	"backend/internal/version"
 
 	"github.com/google/uuid"
 )
@@ -23,6 +26,7 @@ type SetupService struct {
 	authService   *AuthService
 	setupTokenMgr *SetupTokenManager
 	configMgr     *config.Manager
+	publisher     realtime.Publisher
 }
 
 func NewSetupService(store *repository.Store, authService *AuthService, setupTokenMgr *SetupTokenManager, configMgr *config.Manager) *SetupService {
@@ -32,6 +36,11 @@ func NewSetupService(store *repository.Store, authService *AuthService, setupTok
 		setupTokenMgr: setupTokenMgr,
 		configMgr:     configMgr,
 	}
+}
+
+// SetPublisher sets the realtime event publisher.
+func (s *SetupService) SetPublisher(publisher realtime.Publisher) {
+	s.publisher = publisher
 }
 
 // GetSetupStatus returns the current setup status including admin existence
@@ -255,6 +264,10 @@ func (s *SetupService) CompleteServerSetup(ctx context.Context, userID uuid.UUID
 		return NewError(http.StatusForbidden, "forbidden", "admin role required")
 	}
 
+	// Track which categories changed to determine what events to publish
+	changesServerInfo := params.ServerName != nil || params.ServerDescription != nil || params.ServerIconMediaID != nil
+	changesConfig := params.InviteOnly != nil
+
 	// Update config file with server settings
 	err = s.configMgr.Update(func(cfg *config.Config) error {
 		if params.ServerName != nil {
@@ -277,7 +290,36 @@ func (s *SetupService) CompleteServerSetup(ctx context.Context, userID uuid.UUID
 		return nil
 	})
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Publish realtime events for changed data
+	if s.publisher != nil {
+		cfg := s.configMgr.Get()
+
+		if changesConfig {
+			serverConfig := BuildServerConfig(cfg)
+			if pubErr := s.publisher.Publish(ctx, realtime.Event{
+				Type:         realtime.EventServerConfigUpdated,
+				ServerConfig: &serverConfig,
+			}); pubErr != nil {
+				slog.Warn("failed to publish server_config_updated event", "error", pubErr)
+			}
+		}
+
+		if changesServerInfo {
+			info := s.buildServerInfoEvent(ctx, cfg)
+			if pubErr := s.publisher.Publish(ctx, realtime.Event{
+				Type:       realtime.EventServerInfoUpdated,
+				ServerInfo: &info,
+			}); pubErr != nil {
+				slog.Warn("failed to publish server_info_updated event", "error", pubErr)
+			}
+		}
+	}
+
+	return nil
 }
 
 // GetServerSettings returns the current server settings
@@ -293,4 +335,41 @@ func (s *SetupService) GetServerSettings(ctx context.Context) (*config.Config, e
 // GetStore returns the repository store for database access
 func (s *SetupService) GetStore() *repository.Store {
 	return s.store
+}
+
+// optionalString converts an empty string to nil, otherwise returns a pointer to the value.
+func optionalString(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// buildServerInfoEvent constructs a ServerInfo suitable for server_info_updated events.
+// Stats are zero-valued because clients maintain their own incremental counts.
+func (s *SetupService) buildServerInfoEvent(ctx context.Context, cfg *config.Config) api.ServerInfo {
+	versionStr := version.CommitOrDev()
+	branchStr := version.BranchOrDev()
+	semVer := version.Version
+
+	info := api.ServerInfo{
+		ServerName:        optionalString(cfg.Server.Name),
+		ServerDescription: optionalString(cfg.Server.Description),
+		ServerIconUrl:     nil,
+		Commit:            &versionStr,
+		Branch:            &branchStr,
+		Version:           &semVer,
+		Stats:             api.ServerStats{}, // clients maintain incremental counts
+	}
+
+	// Resolve icon URL if configured and store is available
+	if s.store != nil && cfg.Server.IconMediaID != nil {
+		media, err := s.store.Q.GetMediaByID(ctx, *cfg.Server.IconMediaID)
+		if err == nil {
+			iconURL := MediaImageURL(*cfg.Server.IconMediaID, media.Ext)
+			info.ServerIconUrl = &iconURL
+		}
+	}
+
+	return info
 }

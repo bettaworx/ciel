@@ -14,6 +14,7 @@ import (
 	"backend/internal/config"
 	"backend/internal/db/sqlc"
 	"backend/internal/logging"
+	"backend/internal/realtime"
 	"backend/internal/repository"
 
 	"github.com/google/uuid"
@@ -35,6 +36,7 @@ type AuthService struct {
 	now            func() time.Time
 	configMgr      *config.Manager
 	inviteSvc      InviteServiceInterface
+	publisher      realtime.Publisher
 }
 
 func NewAuthService(store *repository.Store, tokens *auth.TokenManager) *AuthService {
@@ -95,6 +97,11 @@ func (s *AuthService) SetConfigManager(configMgr *config.Manager) {
 // SetInviteService sets the invite service (used for database invite code validation)
 func (s *AuthService) SetInviteService(inviteSvc InviteServiceInterface) {
 	s.inviteSvc = inviteSvc
+}
+
+// SetPublisher sets the realtime event publisher.
+func (s *AuthService) SetPublisher(publisher realtime.Publisher) {
+	s.publisher = publisher
 }
 
 // validateRegistrationInput validates username and password from registration request
@@ -321,6 +328,12 @@ func (s *AuthService) Register(ctx context.Context, req api.RegisterRequest) (ap
 			return api.User{}, NewError(http.StatusConflict, "username_taken", "username already exists")
 		}
 		return api.User{}, err
+	}
+
+	if s.publisher != nil {
+		if err := s.publisher.Publish(ctx, realtime.Event{Type: realtime.EventUserRegistered}); err != nil {
+			slog.Warn("failed to publish user_registered event", "error", err)
+		}
 	}
 
 	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt), nil

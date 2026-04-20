@@ -285,6 +285,7 @@ func main() {
 		StepupSessionStore: stepupSessionStore,
 	})
 	authSvc.SetConfigManager(configMgr)
+	authSvc.SetPublisher(realtimeHub)
 
 	// Periodically clean up expired refresh tokens from the database
 	if store != nil {
@@ -330,12 +331,13 @@ func main() {
 
 	setupTokenMgr := service.NewSetupTokenManager(cacheImpl)
 	setupSvc := service.NewSetupService(store, authSvc, setupTokenMgr, configMgr)
+	setupSvc.SetPublisher(realtimeHub)
 
 	// Note: Setup middleware removed - invite-only mode controls registration instead
 
 	r.Use(middleware.RequireAdminAccess(tokenManager, authzSvc))
 
-	adminSvc := service.NewAdminService(store, cacheImpl, configMgr)
+	adminSvc := service.NewAdminService(store, cacheImpl, configMgr, realtimeHub)
 	usersSvc := service.NewUsersService(store)
 	postsSvc := service.NewPostsService(store, cacheImpl, realtimeHub)
 	timelineSvc := service.NewTimelineService(store, cacheImpl)
@@ -406,7 +408,7 @@ func main() {
 		ModPosts:         modPostsSvc,
 		ModMedia:         modMediaSvc,
 	}
-	r.Get("/ws/timeline", handlers.NewTimelineWebSocketHandler(realtimeHub, tokenManager, handlers.WebSocketOptions{TrustProxy: trustProxy}))
+	r.Get("/ws/events", handlers.NewWebSocketHandler(realtimeHub, tokenManager, handlers.WebSocketOptions{TrustProxy: trustProxy}))
 	api.HandlerWithOptions(&apiServer, api.ChiServerOptions{
 		BaseURL:    "/api/v1",
 		BaseRouter: r,

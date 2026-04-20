@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useServerConfig } from '@/lib/hooks/use-queries';
 
 /**
- * ConfigWatcher monitors server configuration changes and updates the UI
- * - Polls server config every 30 seconds via React Query
+ * ConfigWatcher monitors server configuration changes and updates the UI.
+ * - Reacts to server_config_updated WebSocket events (pushed by RealtimeProvider)
  * - Detects configVersion changes via localStorage
  * - Refreshes the page when server config is updated (name, icon, description)
  */

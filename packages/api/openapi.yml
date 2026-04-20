@@ -34,6 +34,9 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    RealtimeEvent:
+      $ref: ./schemas/realtime.yml#/components/schemas/RealtimeEvent
 paths:
   /health:
     $ref: ./paths/system.yml#/~1health
