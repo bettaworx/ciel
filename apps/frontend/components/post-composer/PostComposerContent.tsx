@@ -391,7 +391,6 @@ export function PostComposerContent({
             open={cropDialogOpen}
             onOpenChange={handleCropDialogOpenChange}
             imageSrc={cropImageSrc}
-            aspect={1}
             title={t("createPost.cropTitle")}
             originalFile={pendingCropImage.originalFile}
             initialCrop={pendingCropImage.crop}

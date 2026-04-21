@@ -18,8 +18,8 @@ interface ImageCropDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Data URL from FileReader */
   imageSrc: string;
-  /** Aspect ratio as width / height. E.g. 1 for square, 3 for 3:1 banner */
-  aspect: number;
+  /** Aspect ratio as width / height. E.g. 1 for square, 3 for 3:1 banner. Omit for free ratio. */
+  aspect?: number;
   /** Localized title shown in the dialog header */
   title: string;
   /** Original file — used to derive the output filename and MIME type */
@@ -85,7 +85,14 @@ async function getCroppedFile(
   });
 }
 
-function makeDefaultCrop(aspect: number, width: number, height: number): Crop {
+function makeDefaultCrop(
+  aspect: number | undefined,
+  width: number,
+  height: number,
+): Crop {
+  if (aspect === undefined) {
+    return { unit: "%", x: 0, y: 0, width: 100, height: 100 };
+  }
   return centerCrop(
     makeAspectCrop({ unit: "%", width: 100 }, aspect, width, height),
     width,
