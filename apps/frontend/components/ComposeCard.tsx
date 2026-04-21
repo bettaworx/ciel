@@ -133,10 +133,10 @@ export function ComposeCard() {
             // Prevent focus change when clicking avatar
             e.preventDefault();
           }}
-          className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-full hover:opacity-80 transition-opacity"
+          className="h-11 w-11 sm:h-12 sm:w-12 shrink-0 rounded-full hover:opacity-80 transition-opacity"
           aria-label={tNav("openUserMenu")}
         >
-          <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
+          <Avatar className="h-11 w-11 sm:h-12 sm:w-12">
             {user?.avatarUrl ? (
               <AvatarImage src={user.avatarUrl} alt={user.username} />
             ) : (
@@ -186,7 +186,7 @@ export function ComposeCard() {
             className="w-full flex items-center gap-3 text-left group"
             aria-label={t("createPost.title")}
           >
-            <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
+            <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
               {user?.avatarUrl ? (
                 <AvatarImage src={user.avatarUrl} alt={user.username} />
               ) : (
@@ -195,7 +195,7 @@ export function ComposeCard() {
                 </AvatarFallback>
               )}
             </Avatar>
-            <div className="flex-1 h-10 sm:h-12 rounded-lg bg-transparent transition-colors flex items-center">
+            <div className="flex-1 h-11 sm:h-12 rounded-lg bg-transparent transition-colors flex items-center">
               <span className="text-base md:text-lg md:mt-1 text-muted-foreground">
                 {t("createPost.placeholder")}
               </span>

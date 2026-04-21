@@ -221,13 +221,13 @@ export function PostCard({
   return (
     <article
       className={cn(
-        "text-card-foreground p-2 sm:p-3 transition-colors",
+        "text-card-foreground p-3 transition-colors",
         !isLast && "border-b border-border",
         className,
       )}
     >
       {/* Header: Avatar + Timestamp */}
-      <div className="flex items-start gap-1.5 sm:gap-3">
+      <div className="flex items-start gap-3">
         <Button
           variant="ghost"
           size="icon"
@@ -235,7 +235,7 @@ export function PostCard({
           onClick={handleUserClick}
           aria-label={t("viewProfile", { name: displayName })}
         >
-          <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
+          <Avatar className="h-11 w-11 sm:h-12 sm:w-12">
             <AvatarImage src={avatarUrl || undefined} alt={displayName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
