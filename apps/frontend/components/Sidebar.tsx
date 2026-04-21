@@ -144,7 +144,7 @@ export function Sidebar() {
           >
             <Button
               variant="ghost"
-              rounded="lg"
+              rounded="md"
               className={cn(
                 "w-10 h-10 transition-none",
                 isPinned && "bg-accent/60",
