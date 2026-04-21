@@ -17,7 +17,18 @@ export function MfmNode({ node }: MfmNodeProps) {
   switch (node.type) {
     // --- Plain text ---
     case "text": {
-      return <>{node.props.text}</>;
+      const parts = node.props.text.split("\n");
+      if (parts.length === 1) return <>{node.props.text}</>;
+      return (
+        <>
+          {parts.map((part, i) => (
+            <span key={i}>
+              {part}
+              {i < parts.length - 1 && <br />}
+            </span>
+          ))}
+        </>
+      );
     }
 
     // --- Plain (escape formatting) ---
