@@ -283,7 +283,7 @@ function CodeBlock({ code }: { code: string }) {
         variant="ghost"
         size="icon"
         rounded="md"
-        className="mfm-code-copy-button m-[.35em] h-8 w-8 text-muted-foreground!"
+        className="mfm-code-copy-button m-[.175em] sm:m-[.35em] h-8 w-8 text-muted-foreground!"
         onClick={handleCopy}
         aria-label="Copy code"
       >
