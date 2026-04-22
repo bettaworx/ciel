@@ -726,6 +726,7 @@
       "users": "Users",
       "posts": "Posts",
       "media": "Media",
+      "emojis": "Emojis",
       "contentFilters": "Content Filters",
       "invites": "Invite Codes",
       "agreements": "Agreements",
@@ -815,6 +816,64 @@
       "bytes": "bytes",
       "kb": "KB",
       "mb": "MB"
+    },
+    "emojis": {
+      "title": "Custom Emoji Management",
+      "createTitle": "Add Custom Emoji",
+      "createDescription": "Upload a new custom emoji for this server.",
+      "editTitle": "Edit Custom Emoji",
+      "editDescription": "Update emoji metadata or replace its image.",
+      "cropTitle": "Crop Emoji Image",
+      "table": {
+        "preview": "Preview",
+        "shortcode": "Shortcode",
+        "name": "Name",
+        "category": "Category",
+        "dimensions": "Dimensions",
+        "updatedAt": "Updated",
+        "actions": "Actions"
+      },
+      "form": {
+        "image": "Image",
+        "noImage": "No image selected",
+        "imageHint": "The uploaded image will be cropped to a square.",
+        "shortcode": "Shortcode",
+        "shortcodePlaceholder": "blobcat",
+        "shortcodeHint": "Letters, numbers, and underscores only.",
+        "name": "Display name",
+        "namePlaceholder": "e.g. Blob Cat",
+        "category": "Category",
+        "categoryPlaceholder": "e.g. reactions",
+        "license": "License",
+        "licensePlaceholder": "e.g. CC BY 4.0"
+      },
+      "actions": {
+        "add": "Add Emoji",
+        "create": "Create",
+        "save": "Save",
+        "edit": "Edit",
+        "delete": "Delete",
+        "selectImage": "Select Image",
+        "replaceImage": "Replace Image"
+      },
+      "messages": {
+        "createSuccess": "Custom emoji created",
+        "createError": "Failed to create custom emoji",
+        "updateSuccess": "Custom emoji updated",
+        "updateError": "Failed to update custom emoji",
+        "deleteSuccess": "Custom emoji deleted",
+        "deleteError": "Failed to delete custom emoji"
+      },
+      "confirm": {
+        "deleteTitle": "Delete custom emoji?",
+        "deleteDescription": "Delete :{shortcode}:. This action cannot be undone."
+      },
+      "validation": {
+        "shortcodeRequired": "Shortcode is required",
+        "shortcodeInvalid": "Shortcode can only contain letters, numbers, and underscores",
+        "imageRequired": "Please select an image",
+        "imageType": "Please select an image file"
+      }
     },
     "contentFilters": {
       "title": "Content Filters",
@@ -1030,6 +1089,10 @@
         "title": "No media found",
         "description": "Try adjusting your filters to see more results",
         "clearFilters": "Clear Filters"
+      },
+      "emojis": {
+        "title": "No custom emojis yet",
+        "description": "Uploaded emojis will appear here"
       },
       "contentFilters": {
         "title": "No filters configured",
