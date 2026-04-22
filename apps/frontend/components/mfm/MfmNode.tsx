@@ -1,6 +1,6 @@
 import type { MfmNode as MfmNodeType } from "mfm-js";
 import type { ReactNode } from "react";
-import { ClipboardCopy, ExternalLink, Search } from "lucide-react";
+import { Copy, ExternalLink, Search } from "lucide-react";
 import { MfmFn } from "@/components/mfm/MfmFn";
 import { Twemoji } from "@/components/Twemoji";
 
@@ -90,7 +90,7 @@ export function MfmNode({ node }: MfmNodeProps) {
             onClick={() => navigator.clipboard.writeText(node.props.code)}
             aria-label="Copy code"
           >
-            <ClipboardCopy size={14} />
+            <Copy size={12} />
           </button>
         </div>
       );
