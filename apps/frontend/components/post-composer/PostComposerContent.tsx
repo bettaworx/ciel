@@ -21,6 +21,7 @@ import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { OgpCard } from "@/components/OgpCard";
 import { cn } from "@/lib/utils";
 import { CharacterCounter } from "./CharacterCounter";
+import { EmojiAutocomplete } from "./EmojiAutocomplete";
 import { MediaUploadButton } from "./MediaUploadButton";
 import { TextFormatButton } from "./TextFormatButton";
 import { FontFormatButton } from "./FontFormatButton";
@@ -115,7 +116,6 @@ export function PostComposerContent({
     setContent,
     // State
     content,
-    images,
     isUploading,
     isDragging,
     ogpUrl,
@@ -298,7 +298,7 @@ export function PostComposerContent({
 
   /** Avatar + Textarea row */
   const textareaRow = (
-    <div className={cn("flex gap-3", layout === "dialog" && "pt-0 p-3")}>
+    <div className={cn("relative flex gap-3", layout === "dialog" && "pt-0 p-3")}>
       {avatar}
       <Textarea
         ref={textareaRef}
@@ -311,6 +311,12 @@ export function PostComposerContent({
         placeholder={t("createPost.placeholder")}
         className={`flex-1 max-h-[400px] mt-2 md:mt-3 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0`}
         maxLength={maxContentLength}
+        disabled={createPostMutation.isPending || isUploading}
+      />
+      <EmojiAutocomplete
+        textareaRef={textareaRef}
+        value={content}
+        setValue={setContent}
         disabled={createPostMutation.isPending || isUploading}
       />
     </div>
