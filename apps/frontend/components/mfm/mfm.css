@@ -497,14 +497,6 @@
   position: absolute;
   top: 0;
   right: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--muted-foreground);
-  cursor: pointer;
-  padding: 0.25em;
 }
 
 .mfm-inline-code {
