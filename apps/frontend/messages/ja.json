@@ -836,7 +836,7 @@
       "form": {
         "image": "画像",
         "noImage": "画像未選択",
-        "imageHint": "正方形でトリミングしてアップロードします。",
+        "imageHint": "静止画像は正方形にトリミングされます。GIF はアニメーション保持のためそのままアップロードされます。",
         "shortcode": "shortcode",
         "shortcodePlaceholder": "blobcat",
         "shortcodeHint": "英数字とアンダースコアのみ使用できます。",

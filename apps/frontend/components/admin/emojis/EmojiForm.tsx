@@ -47,6 +47,9 @@ export function EmojiForm({
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
 
+  const isAnimatedGif = (file: File) =>
+    file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+
   useEffect(() => {
     const defaults = getAdminEmojiFormDefaults(emoji ?? undefined);
     setValues(defaults);
@@ -80,6 +83,17 @@ export function EmojiForm({
 
     if (!file.type.startsWith("image/")) {
       setFormError(t("validation.imageType"));
+      event.target.value = "";
+      return;
+    }
+
+    if (isAnimatedGif(file)) {
+      setValues((current) => ({ ...current, imageFile: file }));
+      setCroppedPreview(file);
+      setCropDialogOpen(false);
+      setCropImageSrc(null);
+      setPendingCropFile(null);
+      setFormError(null);
       event.target.value = "";
       return;
     }

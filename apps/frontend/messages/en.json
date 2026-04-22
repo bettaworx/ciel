@@ -836,7 +836,7 @@
       "form": {
         "image": "Image",
         "noImage": "No image selected",
-        "imageHint": "The uploaded image will be cropped to a square.",
+        "imageHint": "Static images are cropped to a square. GIFs are uploaded as-is to preserve animation.",
         "shortcode": "Shortcode",
         "shortcodePlaceholder": "blobcat",
         "shortcodeHint": "Letters, numbers, and underscores only.",
