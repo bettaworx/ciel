@@ -1817,7 +1817,7 @@ func (s *MediaService) UploadEmojiImage(ctx context.Context, src multipart.File,
 		return 0, 0, err
 	}
 
-	outDir := filepath.Join(s.mediaDir, "emoji", emojiID.String())
+	outDir := filepath.Join(s.mediaDir, emojiID.String())
 	if err := os.RemoveAll(outDir); err != nil {
 		slog.Error("failed to reset emoji output directory", "error", err)
 		return 0, 0, fmt.Errorf("failed to prepare output directory")
@@ -1908,13 +1908,13 @@ func (s *MediaService) convertToWebPEmoji(ctx context.Context, inPath, outPath s
 
 // DeleteEmojiImage removes the stored image files for a custom emoji.
 func (s *MediaService) DeleteEmojiImage(emojiID uuid.UUID) {
-	_ = os.RemoveAll(filepath.Join(s.mediaDir, "emoji", emojiID.String()))
+	_ = os.RemoveAll(filepath.Join(s.mediaDir, emojiID.String()))
 }
 
 func (s *MediaService) resolveStoredEmojiImagePath(id uuid.UUID) (string, string, error) {
-	dir := filepath.Join(s.mediaDir, "emoji", id.String())
-	candidates := []string{"webp", "gif", "png", "jpeg", "jpg"}
-	for _, ext := range candidates {
+	dir := filepath.Join(s.mediaDir, id.String())
+	exts := []string{"webp", "gif", "png", "jpeg", "jpg"}
+	for _, ext := range exts {
 		p := filepath.Join(dir, "image."+ext)
 		if _, err := os.Stat(p); err == nil {
 			return p, ext, nil

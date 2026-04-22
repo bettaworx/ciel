@@ -68,7 +68,7 @@ func TestUploadEmojiImage_PreservesGIFAndClearsStaleFiles(t *testing.T) {
 	svc := service.NewMediaService(nil, mediaDir, getDefaultMediaConfig(), nil)
 	emojiID := uuid.New()
 
-	staleDir := filepath.Join(mediaDir, "emoji", emojiID.String())
+	staleDir := filepath.Join(mediaDir, emojiID.String())
 	if err := os.MkdirAll(staleDir, 0o755); err != nil {
 		t.Fatalf("os.MkdirAll: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestServeEmojiImage_ServesStoredGIFOnLegacyRoute(t *testing.T) {
 	svc := service.NewMediaService(nil, mediaDir, getDefaultMediaConfig(), nil)
 	emojiID := uuid.New()
 
-	emojiDir := filepath.Join(mediaDir, "emoji", emojiID.String())
+	emojiDir := filepath.Join(mediaDir, emojiID.String())
 	if err := os.MkdirAll(emojiDir, 0o755); err != nil {
 		t.Fatalf("os.MkdirAll: %v", err)
 	}
