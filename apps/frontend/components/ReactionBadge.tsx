@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Twemoji } from "@/components/Twemoji";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ReactionUserButton } from "@/components/ReactionUserButton";
+import { EmojiInline } from "@/components/EmojiInline";
 import type { components } from "@/lib/api/api";
 import { useReactionUsersPreview } from "@/lib/hooks/use-reaction-users";
 import { cn } from "@/lib/utils";
@@ -18,11 +18,6 @@ interface ReactionBadgeProps {
   disabled?: boolean;
   postId: components["schemas"]["PostId"];
   onOpenDialog?: (emoji: string) => void;
-}
-
-// Misskey custom emoji shortcodes: :name: or :name@domain:
-function isCustomShortcode(s: string): boolean {
-  return /^:[\w+-]+(?:@[\w.-]+)?:$/.test(s);
 }
 
 /**
@@ -81,7 +76,7 @@ export function ReactionBadge({
       aria-pressed={isReacted}
     >
       <span className="text-base leading-none" aria-hidden="true">
-        {isCustomShortcode(emoji) ? emoji : <Twemoji emoji={emoji} />}
+        <EmojiInline emoji={emoji} />
       </span>
       <span className="text-sm font-medium tabular-nums">{count}</span>
     </Button>

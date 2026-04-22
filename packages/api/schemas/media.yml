@@ -45,6 +45,7 @@ components:
       - avatar
       - banner
       - serverIcon
+      - emoji
       - video
       properties:
         maxUploadSizeMB:
@@ -78,6 +79,8 @@ components:
           $ref: '#/components/schemas/MediaBannerLimits'
         serverIcon:
           $ref: '#/components/schemas/MediaServerIconLimits'
+        emoji:
+          $ref: '#/components/schemas/MediaEmojiLimits'
         video:
           $ref: '#/components/schemas/MediaVideoLimits'
     MediaPostLimits:
@@ -171,6 +174,30 @@ components:
               type: integer
               description: Maximum longest edge size in pixels for animated GIF server icons (aspect ratio preserved). Both animated and static (first frame) versions are created.
               example: 512
+    MediaEmojiLimits:
+      type: object
+      required:
+      - static
+      - gif
+      properties:
+        static:
+          type: object
+          required:
+          - height
+          properties:
+            height:
+              type: integer
+              description: Output height in pixels for static custom emoji images (aspect ratio preserved)
+              example: 128
+        gif:
+          type: object
+          required:
+          - height
+          properties:
+            height:
+              type: integer
+              description: Output height in pixels for animated GIF custom emoji images (aspect ratio preserved)
+              example: 128
     MediaVideoLimits:
       type: object
       required:

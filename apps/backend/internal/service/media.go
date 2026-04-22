@@ -1823,7 +1823,7 @@ func (s *MediaService) UploadEmojiImage(ctx context.Context, src multipart.File,
 	}
 	outPath := filepath.Join(outDir, "image.webp")
 
-	if err := s.convertToWebPEmoji(ctx, inPath, outPath); err != nil {
+	if err := s.convertToWebPEmoji(ctx, inPath, outPath, ext == ".gif"); err != nil {
 		_ = os.RemoveAll(outDir)
 		return 0, 0, err
 	}
@@ -1837,14 +1837,21 @@ func (s *MediaService) UploadEmojiImage(ctx context.Context, src multipart.File,
 	return w, h, nil
 }
 
-// convertToWebPEmoji converts any image (including animated GIF) to WebP,
-// resizing to the configured height while maintaining aspect ratio.
-func (s *MediaService) convertToWebPEmoji(ctx context.Context, inPath, outPath string) error {
-	targetHeight := s.cfg.Emoji.Height
+// convertToWebPEmoji converts any image to WebP, using different settings for
+// static images and animated GIFs while preserving aspect ratio.
+func (s *MediaService) convertToWebPEmoji(ctx context.Context, inPath, outPath string, isGif bool) error {
+	var variant config.MediaEmojiVariantConfig
+	if isGif {
+		variant = s.cfg.Emoji.Gif
+	} else {
+		variant = s.cfg.Emoji.Static
+	}
+
+	targetHeight := variant.Height
 	if targetHeight <= 0 {
 		targetHeight = 128
 	}
-	quality := s.cfg.Emoji.Quality
+	quality := variant.Quality
 	if quality <= 0 || quality > 100 {
 		quality = 80
 	}
@@ -1864,9 +1871,9 @@ func (s *MediaService) convertToWebPEmoji(ctx context.Context, inPath, outPath s
 		"-pix_fmt", "yuva420p",
 		"-lossless", "0",
 		"-q:v", strconv.Itoa(quality),
-		"-loop", "0",    // Preserve animation (0 = infinite loop)
+		"-loop", "0", // Preserve animation (0 = infinite loop)
 		"-preset", "default",
-		"-vsync", "0",         // Preserve frame timing
+		"-vsync", "0", // Preserve frame timing
 		"-an",                 // No audio
 		"-map_metadata", "-1", // Strip metadata
 		"-map_chapters", "-1",

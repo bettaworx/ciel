@@ -334,6 +334,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			return request<components['schemas']['TimelinePage']>('GET', `/timeline${suffix}`);
 		},
 
+		listCustomEmojis: (params?: { limit?: number; offset?: number }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.offset !== undefined) qs.set('offset', String(params.offset));
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['EmojiListResponse']>('GET', `/emojis${suffix}`);
+		},
+
 		reactionCounts: (postId: components['schemas']['PostId']) =>
 			request<components['schemas']['ReactionCounts']>('GET', `/posts/${postId}/reactions`),
 

@@ -19,6 +19,7 @@ export const queryKeys = {
   me: ["me"] as const,
   serverInfo: ["serverInfo"] as const,
   serverConfig: ["serverConfig"] as const,
+  customEmojis: ["customEmojis"] as const,
   adminSettings: ["adminSettings"] as const,
   timeline: ["timeline"] as const,
   post: (id: string) => ["post", id] as const,
@@ -100,6 +101,21 @@ export function useServerConfig() {
       return result.data;
     },
     staleTime: Infinity,
+  });
+}
+
+export function useCustomEmojis() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.customEmojis,
+    queryFn: async () => {
+      const result = await api.listCustomEmojis({ limit: 200 });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.emojis;
+    },
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
   });
 }
 
