@@ -128,3 +128,34 @@ func TestServeEmojiImage_ServesStoredGIFOnLegacyRoute(t *testing.T) {
 		t.Fatal("expected non-empty response body")
 	}
 }
+
+func TestServeImage_ServesEmojiFileWhenMediaRowMissing(t *testing.T) {
+	mediaDir := t.TempDir()
+	svc := service.NewMediaService(nil, mediaDir, getDefaultMediaConfig(), nil)
+	emojiID := uuid.New()
+
+	emojiDir := filepath.Join(mediaDir, emojiID.String())
+	if err := os.MkdirAll(emojiDir, 0o755); err != nil {
+		t.Fatalf("os.MkdirAll: %v", err)
+	}
+	gifPath := filepath.Join(emojiDir, "image.gif")
+	writeAnimatedGIF(t, gifPath)
+
+	req := httptest.NewRequest(http.MethodGet, "/media/"+emojiID.String()+"/image.webp", nil)
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("mediaId", emojiID.String())
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+
+	rec := httptest.NewRecorder()
+	svc.ServeImage(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Content-Type"); got != "image/gif" {
+		t.Fatalf("expected image/gif, got %q", got)
+	}
+}

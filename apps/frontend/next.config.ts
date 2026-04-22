@@ -73,12 +73,6 @@ const nextConfig: NextConfig = {
         port,
         pathname: "/media/**",
       },
-      {
-        protocol,
-        hostname,
-        port,
-        pathname: "/emoji/**",
-      },
       // Also allow localhost explicitly for development
       ...(hostname !== "localhost"
         ? [
@@ -87,12 +81,6 @@ const nextConfig: NextConfig = {
               hostname: "localhost",
               port: "6137",
               pathname: "/media/**",
-            },
-            {
-              protocol: "http" as const,
-              hostname: "localhost",
-              port: "6137",
-              pathname: "/emoji/**",
             },
           ]
         : []),
@@ -110,10 +98,6 @@ const nextConfig: NextConfig = {
       {
         source: "/ws/:path*",
         destination: `${backendUrl}/ws/:path*`,
-      },
-      {
-        source: "/emoji/:path*",
-        destination: `${backendUrl}/emoji/:path*`,
       },
     ];
   },

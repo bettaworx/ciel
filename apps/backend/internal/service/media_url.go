@@ -56,7 +56,7 @@ func mediaThumbnailURL(id uuid.UUID) string {
 func MediaThumbnailURL(id uuid.UUID) string { return mediaThumbnailURL(id) }
 
 func emojiImageURL(id uuid.UUID) string {
-	return publicBaseURL() + "/emoji/" + id.String() + "/image.webp"
+	return publicBaseURL() + "/media/" + id.String() + "/image.webp"
 }
 
 // EmojiImageURL builds the public URL for serving a custom emoji image.

@@ -317,7 +317,7 @@ func TestEmojiImageURL(t *testing.T) {
 	id := uuid.MustParse("11111111-1111-1111-1111-111111111111")
 
 	got := service.EmojiImageURL(id)
-	want := "https://example.com/emoji/11111111-1111-1111-1111-111111111111/image.webp"
+	want := "https://example.com/media/11111111-1111-1111-1111-111111111111/image.webp"
 	if got != want {
 		t.Fatalf("expected %q, got %q", want, got)
 	}

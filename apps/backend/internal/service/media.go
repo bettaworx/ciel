@@ -151,13 +151,13 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 
 	// Check if media exists and get its metadata
 	if s.store == nil {
-		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+		s.serveEmojiImageFromMediaRoute(w, r, id)
 		return
 	}
 
 	row, err := s.store.Q.GetMediaByID(r.Context(), id)
 	if err != nil {
-		http.NotFound(w, r)
+		s.serveEmojiImageFromMediaRoute(w, r, id)
 		return
 	}
 
@@ -240,6 +240,32 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 
 	// Use http.ServeContent for Range Request support (efficient seeking)
+	http.ServeContent(w, r, filename, stat.ModTime(), f)
+}
+
+func (s *MediaService) serveEmojiImageFromMediaRoute(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
+	p, ext, err := s.resolveStoredEmojiImagePath(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	f, err := os.Open(p)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	filename := "image." + ext
+	w.Header().Set("Content-Type", mimeForExt(ext))
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
 }
 
