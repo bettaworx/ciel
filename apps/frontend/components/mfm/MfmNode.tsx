@@ -1,6 +1,6 @@
 import type { MfmNode as MfmNodeType } from "mfm-js";
 import type { ReactNode } from "react";
-import { ExternalLink, Search } from "lucide-react";
+import { ClipboardCopy, ExternalLink, Search } from "lucide-react";
 import { MfmFn } from "@/components/mfm/MfmFn";
 import { Twemoji } from "@/components/Twemoji";
 
@@ -81,9 +81,18 @@ export function MfmNode({ node }: MfmNodeProps) {
     // --- Code block ---
     case "blockCode": {
       return (
-        <pre className="mfm-code-block">
-          <code>{node.props.code}</code>
-        </pre>
+        <div className="mfm-code-block-wrapper">
+          <pre className="mfm-code-block">
+            <code>{node.props.code}</code>
+          </pre>
+          <button
+            className="mfm-code-copy-button"
+            onClick={() => navigator.clipboard.writeText(node.props.code)}
+            aria-label="Copy code"
+          >
+            <ClipboardCopy size={16} />
+          </button>
+        </div>
       );
     }
 
