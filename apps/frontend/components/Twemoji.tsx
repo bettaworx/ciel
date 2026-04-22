@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
 import { parse as parseTwemoji } from "@twemoji/parser";
+import { cn } from "@/lib/utils";
 
 // Pin to the 16.x series to match @twemoji/parser@16.0.0.
 // jsDelivr serves tagged URLs with Cache-Control: immutable.
@@ -12,35 +13,53 @@ function buildUrl(codepoints: string): string {
 
 interface TwemojiProps {
   emoji: string;
+  className?: string;
 }
 
 // Renders a single twemoji SVG image, falling back to native emoji on load error.
-function TwemojiImg({ src, alt }: { src: string; alt: string }) {
+function TwemojiImg({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <>{alt}</>;
+  if (failed) {
+    return <span className={cn("mfm-inline-emoji", className)}>{alt}</span>;
+  }
   return (
-    <img
-      src={src}
-      alt={alt}
-      className="twemoji"
-      draggable={false}
-      loading="lazy"
-      onError={() => setFailed(true)}
-    />
+    <span className={cn("mfm-inline-emoji", className)}>
+      <img
+        src={src}
+        alt={alt}
+        className="twemoji"
+        draggable={false}
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
+    </span>
   );
 }
 
-function TwemojiInner({ emoji }: TwemojiProps) {
+function TwemojiInner({ emoji, className }: TwemojiProps) {
   const entries = parseTwemoji(emoji, { buildUrl, assetType: "svg" });
 
   // 0 entries: not recognized by parser (e.g. bare © without VS16,
   //            environment-dependent characters)
   // >1 entries: ZWJ sequence decomposed — twemoji has no combined asset,
   //             parser split into components. Show native emoji in both cases.
-  if (entries.length !== 1) return <>{emoji}</>;
+  if (entries.length !== 1) {
+    return <span className={cn("mfm-inline-emoji", className)}>{emoji}</span>;
+  }
 
   const entry = entries[0];
-  return <TwemojiImg src={entry.url} alt={entry.text} />;
+  return <TwemojiImg src={entry.url} alt={entry.text} className={className} />;
 }
 
-export const Twemoji = memo(TwemojiInner, (a, b) => a.emoji === b.emoji);
+export const Twemoji = memo(
+  TwemojiInner,
+  (a, b) => a.emoji === b.emoji && a.className === b.className,
+);

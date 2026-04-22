@@ -14,5 +14,5 @@ export function EmojiInline({ emoji, className }: EmojiInlineProps) {
     return <CustomEmoji shortcode={emoji} className={className} />;
   }
 
-  return <Twemoji emoji={emoji} />;
+  return <Twemoji emoji={emoji} className={className} />;
 }

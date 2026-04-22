@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { CustomEmoji } from "@/components/CustomEmoji";
 import { applyFormatToTextarea } from "@/components/post-composer/applyFormat";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { useCustomEmojis } from "@/lib/hooks/use-queries";
 import {
   applyEmojiSuggestion,
@@ -23,6 +28,7 @@ interface EmojiAutocompleteProps {
 interface CaretPosition {
   left: number;
   top: number;
+  height: number;
 }
 
 export function EmojiAutocomplete({
@@ -180,15 +186,24 @@ export function EmojiAutocomplete({
   }
 
   return (
-    <div
-      className="pointer-events-none absolute z-20"
-      style={{
-        left: `${caretPosition.left}px`,
-        top: `${caretPosition.top - 8}px`,
-        transform: "translateY(-100%)",
-      }}
-    >
-      <div className="pointer-events-auto min-w-52 max-w-72 overflow-hidden rounded-xl border bg-popover text-popover-foreground">
+    <Popover open={isOpen} modal={false}>
+      <PopoverAnchor asChild>
+        <div
+          className="pointer-events-none absolute z-20 h-px w-px"
+          aria-hidden="true"
+          style={{
+            left: `${caretPosition.left}px`,
+            top: `${caretPosition.top + caretPosition.height}px`,
+          }}
+        />
+      </PopoverAnchor>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={8}
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        className="w-auto min-w-52 max-w-72 overflow-hidden rounded-xl p-0"
+      >
         <ul className="py-1">
           {suggestions.map((emoji, index) => {
             const isActive = index === activeIndex;
@@ -212,8 +227,8 @@ export function EmojiAutocomplete({
             );
           })}
         </ul>
-      </div>
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -270,8 +285,9 @@ function getTextareaCaretPosition(
 
   const left = marker.offsetLeft - textarea.scrollLeft + textarea.offsetLeft;
   const top = marker.offsetTop - textarea.scrollTop + textarea.offsetTop;
+  const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) || 16;
 
   document.body.removeChild(mirror);
 
-  return { left, top };
+  return { left, top, height: lineHeight };
 }
