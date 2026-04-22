@@ -90,7 +90,7 @@ export function MfmNode({ node }: MfmNodeProps) {
             onClick={() => navigator.clipboard.writeText(node.props.code)}
             aria-label="Copy code"
           >
-            <ClipboardCopy size={16} />
+            <ClipboardCopy size={14} />
           </button>
         </div>
       );
