@@ -439,13 +439,23 @@ function useVirtualizedGridRange(
       const viewportBottom = viewportTop + container.clientHeight;
       const stride = rowHeight + rowGap;
 
+      // Clamp startRow to [0, totalRows]. Without the upper bound, scrolling
+      // past a short category makes its own startRow exceed totalRows, which
+      // inflates topSpacerHeight far beyond totalContentHeight and pushes
+      // every following category down — visually snapping the user back.
       const startRow = Math.max(
         0,
-        Math.floor((viewportTop - gridTop) / stride) - VIRTUAL_OVERSCAN_ROWS,
+        Math.min(
+          totalRows,
+          Math.floor((viewportTop - gridTop) / stride) - VIRTUAL_OVERSCAN_ROWS,
+        ),
       );
       const endRow = Math.min(
         totalRows,
-        Math.ceil((viewportBottom - gridTop) / stride) + VIRTUAL_OVERSCAN_ROWS,
+        Math.max(
+          startRow,
+          Math.ceil((viewportBottom - gridTop) / stride) + VIRTUAL_OVERSCAN_ROWS,
+        ),
       );
 
       setRange((current) => {
@@ -534,7 +544,12 @@ function EmojiGrid({
   const visibleRows = Math.ceil(visibleItems.length / columns);
   const totalContentHeight =
     totalRows === 0 ? 0 : totalRows * rowHeight + (totalRows - 1) * rowGap;
-  const topSpacerHeight = startRow * (rowHeight + rowGap);
+  // startRow * stride includes a trailing rowGap that totalContentHeight
+  // doesn't. Cap so the grid never overflows its intrinsic height.
+  const topSpacerHeight = Math.min(
+    totalContentHeight,
+    startRow * (rowHeight + rowGap),
+  );
   const visibleHeight =
     visibleRows === 0
       ? 0
