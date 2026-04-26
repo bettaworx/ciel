@@ -108,3 +108,4 @@ packages/api/openapi.bundled.yml
 apps/backend/internal/db/sqlc/*.go
 !apps/backend/internal/db/sqlc/generate.go
 .claude/settings.local.json
+idea
