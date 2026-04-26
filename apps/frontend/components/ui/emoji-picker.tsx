@@ -3,6 +3,7 @@
 import * as React from "react";
 import { SearchIcon, LoaderIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { flushSync } from "react-dom";
 
 import { cn } from "@/lib/utils";
 import { Twemoji } from "@/components/Twemoji";
@@ -126,27 +127,35 @@ function EmojiPicker({
       window.clearTimeout(resumeVirtualizationTimerRef.current);
     }
 
-    setActiveCategory(id);
-    pendingCategoryRef.current = id;
-    setVirtualizationDisabled(true);
-
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        const target = container.querySelector(
-          `[data-category-id="${id}"]`,
-        ) as HTMLElement | null;
-        if (!target) return;
-
-        container.scrollTo({ top: target.offsetTop, behavior: "smooth" });
-
-        resumeVirtualizationTimerRef.current = window.setTimeout(() => {
-          pendingCategoryRef.current = null;
-          setActiveCategory(id);
-          setVirtualizationDisabled(false);
-          resumeVirtualizationTimerRef.current = null;
-        }, 350);
-      });
+    flushSync(() => {
+      setActiveCategory(id);
+      pendingCategoryRef.current = id;
+      setVirtualizationDisabled(true);
     });
+
+    const scrollToTarget = () => {
+      const target = container.querySelector(
+        `[data-category-id="${id}"]`,
+      ) as HTMLElement | null;
+      if (!target) return false;
+
+      container.scrollTo({ top: target.offsetTop, behavior: "smooth" });
+
+      resumeVirtualizationTimerRef.current = window.setTimeout(() => {
+        pendingCategoryRef.current = null;
+        setActiveCategory(id);
+        setVirtualizationDisabled(false);
+        resumeVirtualizationTimerRef.current = null;
+      }, 350);
+
+      return true;
+    };
+
+    if (!scrollToTarget()) {
+      window.requestAnimationFrame(() => {
+        scrollToTarget();
+      });
+    }
   }, []);
 
   const onSelect = React.useCallback(
