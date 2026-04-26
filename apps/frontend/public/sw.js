@@ -1,14 +1,11 @@
 // Service Worker for Ciel PWA
 // Implements hybrid caching strategy for optimal offline experience
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE = `ciel-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ciel-dynamic-${CACHE_VERSION}`;
 const RSC_CACHE = `ciel-rsc-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
-
-// RSC cache TTL: 5 minutes
-const RSC_TTL_MS = 300_000;
 
 // Assets to precache on install
 const PRECACHE_URLS = [
@@ -78,42 +75,25 @@ self.addEventListener('fetch', (event) => {
   }
 
   // React Server Components requests (_rsc query param)
-  // Stale-While-Revalidate with 5-minute TTL for fast client-side navigation
+  // Network First so client-side navigation always receives fresh server data.
   if (url.searchParams.has('_rsc')) {
     event.respondWith(
       caches.open(RSC_CACHE).then(async (cache) => {
-        const cached = await cache.match(request);
-        if (cached) {
-          // Check TTL (5 minutes)
-          const date = cached.headers.get('date');
-          const age = date ? Date.now() - new Date(date).getTime() : Infinity;
-          if (age < RSC_TTL_MS) {
-            // Serve from cache immediately, update in background
-            // Note: background fetch consumes the body via cache.put() only
-            fetch(request).then((res) => {
-              if (res.ok) {
-                cache.put(request, res); // consume body directly, no clone needed
-              }
-            }).catch(() => {});
-            return cached;
+        try {
+          const response = await fetch(request);
+          if (response.ok) {
+            cache.put(request, response.clone());
           }
+          return response;
+        } catch {
+          return cache.match(request) || new Response('', { status: 503, statusText: 'Service Unavailable' });
         }
-
-        const fetchPromise = fetch(request).then((res) => {
-          if (res.ok) {
-            cache.put(request, res.clone());
-          }
-          return res;
-        });
-
-        // Cache expired or not cached: fetch from network
-        return fetchPromise;
       })
     );
     return;
   }
 
-  // Navigation requests (HTML pages) - Stale-While-Revalidate
+  // Navigation requests (HTML pages) - Network First
   if (request.mode === 'navigate') {
     // Special handling for offline page - always fetch from network
     if (url.pathname === OFFLINE_URL) {
@@ -128,40 +108,39 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.open(DYNAMIC_CACHE).then(async (cache) => {
         const cached = await cache.match(request);
-        const fetchPromise = fetch(request)
-          .then((res) => {
-            if (res.ok) {
-              cache.put(request, res.clone());
-              return res;
-            }
-            // If server error (5xx), fall back to cache or offline page
-            if (res.status >= 500) {
-              return cached || caches.match(OFFLINE_URL);
-            }
-            return res;
-          })
-          .catch(() => cached || caches.match(OFFLINE_URL));
 
-        // Serve from cache immediately if available, update in background
-        if (cached) {
-          fetch(request).then((res) => {
-            if (res.ok) {
-              cache.put(request, res); // consume body directly, no clone needed
-            }
-          }).catch(() => {});
-          return cached;
+        try {
+          const response = await fetch(request);
+          if (response.ok) {
+            cache.put(request, response.clone());
+            return response;
+          }
+          if (response.status >= 500) {
+            return cached || caches.match(OFFLINE_URL);
+          }
+          return response;
+        } catch {
+          if (cached) {
+            return cached;
+          }
+          return caches.match(OFFLINE_URL);
         }
-
-        return fetchPromise;
       })
     );
     return;
   }
 
-  // Static assets (JS, CSS, images from _next/static or root) - Cache First
+  // Next.js build assets (including JS/CSS) should always be fetched through the
+  // browser's normal cache semantics. Avoid SW-level caching so deploys don't keep
+  // serving stale application bundles.
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // Static assets from the public root - Cache First
   if (
-    url.pathname.startsWith('/_next/static/') ||
-    url.pathname.match(/\.(js|css|woff2?|png|jpg|jpeg|gif|svg|webp|ico)$/i)
+    url.pathname.match(/\.(woff2?|png|jpg|jpeg|gif|svg|webp|ico)$/i)
   ) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
