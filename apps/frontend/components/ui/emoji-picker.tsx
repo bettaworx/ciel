@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Twemoji } from "@/components/Twemoji";
 import { useEmojiPickerData } from "@/lib/emoji-picker/use-emoji-picker-data";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import {
   useEmojiSkinTone,
   useSetEmojiSkinTone,
@@ -29,12 +30,10 @@ import {
 // Context
 // ---------------------------------------------------------------------------
 
-interface EmojiPickerContextValue {
+interface EmojiPickerDataContextValue {
   categories: EmojiCategory[];
   isLoading: boolean;
   isEmpty: boolean;
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
   isSearching: boolean;
   activeCategory: string;
   setActiveCategory: (id: string) => void;
@@ -42,14 +41,31 @@ interface EmojiPickerContextValue {
   onSelect: (event: EmojiSelectEvent) => void;
   columns: number;
   contentRef: React.RefObject<HTMLDivElement | null>;
+  virtualizationDisabled: boolean;
+  pendingCategoryRef: React.MutableRefObject<string | null>;
 }
 
-const EmojiPickerContext = React.createContext<EmojiPickerContextValue | null>(
-  null,
-);
+interface EmojiPickerSearchContextValue {
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+}
+
+const EmojiPickerDataContext =
+  React.createContext<EmojiPickerDataContextValue | null>(
+    null,
+  );
+const EmojiPickerSearchContext =
+  React.createContext<EmojiPickerSearchContextValue | null>(null);
 
 function useEmojiPickerContext() {
-  const ctx = React.useContext(EmojiPickerContext);
+  const ctx = React.useContext(EmojiPickerDataContext);
+  if (!ctx)
+    throw new Error("EmojiPicker.* must be used within <EmojiPicker>");
+  return ctx;
+}
+
+function useEmojiPickerSearchContext() {
+  const ctx = React.useContext(EmojiPickerSearchContext);
   if (!ctx)
     throw new Error("EmojiPicker.* must be used within <EmojiPicker>");
   return ctx;
@@ -73,13 +89,28 @@ function EmojiPicker({
   onEmojiSelect,
 }: EmojiPickerProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
+  const deferredSearchQuery = React.useDeferredValue(searchQuery);
   const [activeCategory, setActiveCategory] = React.useState("");
+  const [virtualizationDisabled, setVirtualizationDisabled] = React.useState(true);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const resumeVirtualizationTimerRef = React.useRef<number | null>(null);
+  const pendingCategoryRef = React.useRef<string | null>(null);
   const setRecentEmojis = useSetRecentEmojis();
 
-  const { categories, isLoading, isEmpty } = useEmojiPickerData(searchQuery);
+  const { categories, isLoading, isEmpty, isSearching } =
+    useEmojiPickerData(deferredSearchQuery);
 
-  const isSearching = searchQuery.trim().length > 0;
+  React.useEffect(() => {
+    setVirtualizationDisabled(false);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (resumeVirtualizationTimerRef.current !== null) {
+        window.clearTimeout(resumeVirtualizationTimerRef.current);
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     if (categories.length > 0 && !activeCategory) {
@@ -88,12 +119,34 @@ function EmojiPicker({
   }, [categories, activeCategory]);
 
   const scrollToCategory = React.useCallback((id: string) => {
-    const el = contentRef.current?.querySelector(
-      `[data-category-id="${id}"]`,
-    );
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    const container = contentRef.current;
+    if (!container) return;
+
+    if (resumeVirtualizationTimerRef.current !== null) {
+      window.clearTimeout(resumeVirtualizationTimerRef.current);
     }
+
+    setActiveCategory(id);
+    pendingCategoryRef.current = id;
+    setVirtualizationDisabled(true);
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const target = container.querySelector(
+          `[data-category-id="${id}"]`,
+        ) as HTMLElement | null;
+        if (!target) return;
+
+        container.scrollTo({ top: target.offsetTop, behavior: "smooth" });
+
+        resumeVirtualizationTimerRef.current = window.setTimeout(() => {
+          pendingCategoryRef.current = null;
+          setActiveCategory(id);
+          setVirtualizationDisabled(false);
+          resumeVirtualizationTimerRef.current = null;
+        }, 350);
+      });
+    });
   }, []);
 
   const onSelect = React.useCallback(
@@ -106,13 +159,19 @@ function EmojiPicker({
     [onEmojiSelect, setRecentEmojis],
   );
 
+  const searchValue = React.useMemo(
+    (): EmojiPickerSearchContextValue => ({
+      searchQuery,
+      setSearchQuery,
+    }),
+    [searchQuery],
+  );
+
   const value = React.useMemo(
-    (): EmojiPickerContextValue => ({
+    (): EmojiPickerDataContextValue => ({
       categories,
       isLoading,
       isEmpty,
-      searchQuery,
-      setSearchQuery,
       isSearching,
       activeCategory,
       setActiveCategory,
@@ -120,36 +179,41 @@ function EmojiPicker({
       onSelect,
       columns,
       contentRef,
+      virtualizationDisabled,
+      pendingCategoryRef,
     }),
     [
       categories,
       isLoading,
       isEmpty,
-      searchQuery,
       isSearching,
       activeCategory,
       scrollToCategory,
       onSelect,
       columns,
+      virtualizationDisabled,
+      pendingCategoryRef,
     ],
   );
 
   return (
-    <EmojiPickerContext.Provider value={value}>
-      {/*
-       * No overflow-hidden here — the parent container (e.g. PopoverContent
-       * with overflow-hidden) is responsible for clipping to its border-radius.
-       */}
-      <div
-        className={cn(
-          "bg-popover text-popover-foreground isolate flex h-full w-full flex-col",
-          className,
-        )}
-        data-slot="emoji-picker"
-      >
-        {children}
-      </div>
-    </EmojiPickerContext.Provider>
+    <EmojiPickerSearchContext.Provider value={searchValue}>
+      <EmojiPickerDataContext.Provider value={value}>
+        {/*
+         * No overflow-hidden here — the parent container (e.g. PopoverContent
+         * with overflow-hidden) is responsible for clipping to its border-radius.
+         */}
+        <div
+          className={cn(
+            "bg-popover text-popover-foreground isolate flex h-full w-full flex-col",
+            className,
+          )}
+          data-slot="emoji-picker"
+        >
+          {children}
+        </div>
+      </EmojiPickerDataContext.Provider>
+    </EmojiPickerSearchContext.Provider>
   );
 }
 
@@ -163,7 +227,7 @@ interface EmojiPickerSearchProps {
 }
 
 function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
-  const { searchQuery, setSearchQuery } = useEmojiPickerContext();
+  const { searchQuery, setSearchQuery } = useEmojiPickerSearchContext();
   const skinTone = useEmojiSkinTone();
   const setSkinTone = useSetEmojiSkinTone();
   const t = useTranslations("emojiPicker");
@@ -176,15 +240,15 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
   return (
     <div
       className={cn(
-        "flex h-9 items-center gap-1.5 border-b pl-3 pr-1.5",
+        "flex h-12 items-center gap-2 border-b pl-4 pr-2 sm:h-9 sm:gap-1.5 sm:pl-3 sm:pr-1.5",
         className,
       )}
       data-slot="emoji-picker-search-wrapper"
     >
-      <SearchIcon className="size-4 shrink-0 opacity-50" />
+      <SearchIcon className="size-4.5 shrink-0 opacity-50 sm:size-4" />
       <input
         type="text"
-        className="outline-hidden placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+        className="outline-hidden placeholder:text-muted-foreground flex h-12 w-full rounded-md bg-transparent py-3 text-base disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:text-sm"
         placeholder={placeholder ?? t("searchPlaceholder")}
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
@@ -194,11 +258,11 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
       {searchQuery.length > 0 && (
         <button
           type="button"
-          className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:size-6"
           aria-label={t("clearSearch")}
           onClick={() => setSearchQuery("")}
         >
-          <XIcon className="size-3.5" />
+          <XIcon className="size-4 sm:size-3.5" />
         </button>
       )}
       {/* Skin tone selector — always visible, controlled so it closes on selection */}
@@ -206,14 +270,14 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex size-6 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent"
+            className="flex size-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent sm:size-6"
             aria-label={t("changeSkinTone")}
           >
             <Twemoji emoji={currentSample} />
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto p-1.5 flex gap-1"
+          className="flex w-auto gap-1.5 p-2 sm:gap-1 sm:p-1.5"
           align="end"
           side="bottom"
           sideOffset={4}
@@ -223,7 +287,7 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
               key={opt.value}
               type="button"
               className={cn(
-                "flex size-8 items-center justify-center rounded-md transition-colors hover:bg-accent",
+                "flex size-10 items-center justify-center rounded-md transition-colors hover:bg-accent sm:size-8",
                 skinTone === opt.value ? "bg-c-9" : undefined,
               )}
               aria-label={t(`skinTone.${opt.labelKey}`)}
@@ -268,7 +332,7 @@ const EmojiButton = React.memo(function EmojiButton({
   return (
     <button
       type="button"
-      className="flex aspect-square items-center justify-center rounded-sm hover:bg-accent transition-colors"
+      className="flex aspect-square min-h-10 items-center justify-center rounded-md p-1 transition-colors hover:bg-accent sm:min-h-8 sm:rounded-sm sm:p-0"
       title={item.label}
       aria-label={item.label}
       onClick={handleClick}
@@ -277,12 +341,12 @@ const EmojiButton = React.memo(function EmojiButton({
         <img
           src={item.src}
           alt={item.type === "custom" ? (item.shortcode ?? item.label) : item.label}
-          className="size-6 object-contain"
+          className="size-7 object-contain sm:size-6"
           loading="lazy"
           draggable={false}
         />
       ) : (
-        <span className="text-base leading-none">
+        <span className="text-xl leading-none sm:text-base">
           {item.emoji ?? item.shortcode ?? "?"}
         </span>
       )}
@@ -294,6 +358,142 @@ const EmojiButton = React.memo(function EmojiButton({
 // Emoji grid (shared between category view and search view)
 // ---------------------------------------------------------------------------
 
+const MOBILE_ROW_GAP = 4;
+const DESKTOP_ROW_GAP = 2;
+const VIRTUAL_OVERSCAN_ROWS = 4;
+const MOBILE_GRID_PADDING_X = 24;
+const DESKTOP_GRID_PADDING_X = 8;
+
+function useVirtualizedGridRange(
+  itemCount: number,
+  columns: number,
+  wrapperRef: React.RefObject<HTMLDivElement | null>,
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>,
+  disabled: boolean,
+) {
+  const isDesktop = useMediaQuery("(min-width: 640px)");
+  const rowGap = isDesktop ? DESKTOP_ROW_GAP : MOBILE_ROW_GAP;
+  const paddingX = isDesktop ? DESKTOP_GRID_PADDING_X : MOBILE_GRID_PADDING_X;
+  const totalRows = Math.ceil(itemCount / columns);
+  const [rowHeight, setRowHeight] = React.useState(0);
+  const [range, setRange] = React.useState(() => ({
+    startRow: 0,
+    endRow: totalRows,
+  }));
+
+  React.useEffect(() => {
+    setRange({ startRow: 0, endRow: totalRows });
+  }, [totalRows, disabled]);
+
+  React.useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const updateMetrics = () => {
+      const nextWidth = Math.max(0, wrapper.clientWidth - paddingX);
+      const totalGap = Math.max(0, columns - 1) * rowGap;
+      const nextRowHeight =
+        columns > 0 ? Math.floor((nextWidth - totalGap) / columns) : 0;
+      setRowHeight((current) =>
+        current === nextRowHeight ? current : nextRowHeight,
+      );
+    };
+
+    updateMetrics();
+
+    const resizeObserver = new ResizeObserver(updateMetrics);
+    resizeObserver.observe(wrapper);
+    window.addEventListener("resize", updateMetrics);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateMetrics);
+    };
+  }, [columns, paddingX, rowGap, wrapperRef]);
+
+  React.useEffect(() => {
+    if (disabled || rowHeight <= 0) return;
+
+    const container = scrollContainerRef.current;
+    const wrapper = wrapperRef.current;
+    if (!container || !wrapper) return;
+
+    let frame = 0;
+
+    const updateRange = () => {
+      frame = 0;
+
+      const containerRect = container.getBoundingClientRect();
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const gridTop = wrapperRect.top - containerRect.top + container.scrollTop;
+      const viewportTop = container.scrollTop;
+      const viewportBottom = viewportTop + container.clientHeight;
+      const stride = rowHeight + rowGap;
+
+      const startRow = Math.max(
+        0,
+        Math.floor((viewportTop - gridTop) / stride) - VIRTUAL_OVERSCAN_ROWS,
+      );
+      const endRow = Math.min(
+        totalRows,
+        Math.ceil((viewportBottom - gridTop) / stride) + VIRTUAL_OVERSCAN_ROWS,
+      );
+
+      setRange((current) => {
+        if (
+          current.startRow === startRow &&
+          current.endRow === endRow
+        ) {
+          return current;
+        }
+
+        return {
+          startRow,
+          endRow: Math.max(startRow, endRow),
+        };
+      });
+    };
+
+    const requestUpdate = () => {
+      if (frame !== 0) return;
+      frame = window.requestAnimationFrame(updateRange);
+    };
+
+    requestUpdate();
+    container.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+
+    const resizeObserver = new ResizeObserver(requestUpdate);
+    resizeObserver.observe(container);
+    resizeObserver.observe(wrapper);
+
+    return () => {
+      if (frame !== 0) {
+        window.cancelAnimationFrame(frame);
+      }
+      container.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("resize", requestUpdate);
+      resizeObserver.disconnect();
+    };
+  }, [
+    columns,
+    disabled,
+    rowGap,
+    rowHeight,
+    scrollContainerRef,
+    totalRows,
+    wrapperRef,
+  ]);
+
+  return {
+    rowHeight,
+    rowGap,
+    totalRows,
+    startRow: disabled ? 0 : range.startRow,
+    endRow: disabled ? totalRows : range.endRow,
+  };
+}
+
 function EmojiGrid({
   items,
   columns,
@@ -303,22 +503,64 @@ function EmojiGrid({
   columns: number;
   onSelect: (event: EmojiSelectEvent) => void;
 }) {
+  const { contentRef, virtualizationDisabled } = useEmojiPickerContext();
+  const wrapperRef = React.useRef<HTMLDivElement | null>(null);
+  const {
+    rowHeight,
+    rowGap,
+    totalRows,
+    startRow,
+    endRow,
+  } = useVirtualizedGridRange(
+    items.length,
+    columns,
+    wrapperRef,
+    contentRef,
+    virtualizationDisabled || items.length <= columns * 4,
+  );
+
+  const startIndex = startRow * columns;
+  const endIndex = Math.min(items.length, endRow * columns);
+  const visibleItems = items.slice(startIndex, endIndex);
+  const visibleRows = Math.ceil(visibleItems.length / columns);
+  const totalContentHeight =
+    totalRows === 0 ? 0 : totalRows * rowHeight + (totalRows - 1) * rowGap;
+  const topSpacerHeight = startRow * (rowHeight + rowGap);
+  const visibleHeight =
+    visibleRows === 0
+      ? 0
+      : visibleRows * rowHeight + (visibleRows - 1) * rowGap;
+  const bottomSpacerHeight = Math.max(
+    0,
+    totalContentHeight - topSpacerHeight - visibleHeight,
+  );
+
   return (
     <div
-      className="grid gap-0.5 p-1"
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      ref={wrapperRef}
+      className="px-3 py-2 sm:px-1 sm:py-1"
     >
-      {items.map((item) => (
-        <EmojiButton
-          key={
-            item.type === "custom"
-              ? `custom-${item.shortcode}`
-              : item.emoji ?? item.label
-          }
-          item={item}
-          onSelect={onSelect}
-        />
-      ))}
+      {topSpacerHeight > 0 && (
+        <div aria-hidden="true" style={{ height: topSpacerHeight }} />
+      )}
+      <div
+        className="grid gap-1 sm:gap-0.5"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
+        {visibleItems.map((item) => (
+          <EmojiButton
+            key={item.key}
+            item={item}
+            onSelect={onSelect}
+          />
+        ))}
+      </div>
+      {bottomSpacerHeight > 0 && (
+        <div aria-hidden="true" style={{ height: bottomSpacerHeight }} />
+      )}
+      {items.length > 0 && visibleItems.length === 0 && (
+        <div className="sr-only">{items.length}</div>
+      )}
     </div>
   );
 }
@@ -353,40 +595,75 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
     onSelect,
     contentRef,
     setActiveCategory,
+    pendingCategoryRef,
   } = useEmojiPickerContext();
   const t = useTranslations("emojiPicker");
 
-  // Track active category via IntersectionObserver (only when not searching).
-  // Use startTransition so updates don't block scroll rendering.
+  // Track active category from scroll position.
+  // This is more stable than IntersectionObserver around category boundaries.
   React.useEffect(() => {
     if (isSearching) return;
 
     const container = contentRef.current;
     if (!container) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const id = (entry.target as HTMLElement).dataset.categoryId;
-            if (id) {
-              React.startTransition(() => setActiveCategory(id));
-            }
+    let frame = 0;
+
+    const updateActiveCategory = () => {
+      frame = 0;
+
+      const pendingCategory = pendingCategoryRef.current;
+      if (pendingCategory) {
+        const pendingSection = container.querySelector(
+          `[data-category-id="${pendingCategory}"]`,
+        ) as HTMLElement | null;
+        if (pendingSection) {
+          const distance = Math.abs(container.scrollTop - pendingSection.offsetTop);
+          if (distance <= 16) {
+            pendingCategoryRef.current = null;
+            React.startTransition(() => setActiveCategory(pendingCategory));
           }
         }
-      },
-      {
-        root: container,
-        rootMargin: "-10% 0px -80% 0px",
-        threshold: 0,
-      },
-    );
+        return;
+      }
 
-    const headers = container.querySelectorAll("[data-category-id]");
-    headers.forEach((h) => observer.observe(h));
+      const sections = Array.from(
+        container.querySelectorAll("[data-category-id]"),
+      ) as HTMLElement[];
 
-    return () => observer.disconnect();
-  }, [categories, isSearching, contentRef, setActiveCategory]);
+      if (sections.length === 0) return;
+
+      const anchor = container.scrollTop + 8;
+      let nextActive = sections[0].dataset.categoryId ?? "";
+
+      for (const section of sections) {
+        if (section.offsetTop <= anchor) {
+          nextActive = section.dataset.categoryId ?? nextActive;
+          continue;
+        }
+        break;
+      }
+
+      if (nextActive) {
+        React.startTransition(() => setActiveCategory(nextActive));
+      }
+    };
+
+    const requestUpdate = () => {
+      if (frame !== 0) return;
+      frame = window.requestAnimationFrame(updateActiveCategory);
+    };
+
+    requestUpdate();
+    container.addEventListener("scroll", requestUpdate, { passive: true });
+
+    return () => {
+      if (frame !== 0) {
+        window.cancelAnimationFrame(frame);
+      }
+      container.removeEventListener("scroll", requestUpdate);
+    };
+  }, [categories, isSearching, contentRef, setActiveCategory, pendingCategoryRef]);
 
   const searchResults = React.useMemo(() => {
     if (!isSearching) return null;
@@ -415,7 +692,7 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
         <div className="pb-1">
           {isSearching && searchResults ? (
             <>
-              <div className="bg-popover text-muted-foreground px-3 pb-3.5 pt-3.5 text-xs leading-none">
+              <div className="bg-popover text-muted-foreground px-3 pb-3.5 pt-3.5 text-sm leading-none sm:text-xs">
                 {t("searchResults")}
               </div>
               <EmojiGrid items={searchResults} columns={columns} onSelect={onSelect} />
@@ -423,7 +700,7 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
           ) : (
             categories.map((cat) => (
               <section key={cat.id} data-category-id={cat.id}>
-                <div className="bg-popover text-muted-foreground sticky top-0 z-10 px-3 pb-3.5 pt-3.5 text-xs leading-none">
+                <div className="bg-popover text-muted-foreground sticky top-0 z-10 px-3 pb-3.5 pt-3.5 text-sm leading-none sm:text-xs">
                   <CategoryLabel category={cat} />
                 </div>
                 <EmojiGrid items={cat.emojis} columns={columns} onSelect={onSelect} />
@@ -453,7 +730,7 @@ function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
   return (
     <div
       className={cn(
-        "flex w-full items-center justify-between gap-1 border-t p-2",
+        "flex w-full items-center gap-1.5 overflow-x-auto border-t p-3 sm:gap-1 sm:p-2",
         // Keep in DOM while searching to prevent panel height change
         isSearching && "invisible pointer-events-none",
         className,
@@ -470,16 +747,23 @@ function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
             key={cat.id}
             type="button"
             className={cn(
-              "flex size-7 items-center justify-center rounded-md transition-colors",
+              "flex size-10 shrink-0 aspect-square items-center justify-center rounded-md transition-colors sm:size-7",
               isActive
                 ? "bg-c-9 text-c-1"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent",
             )}
             aria-label={cat.label}
             tabIndex={isSearching ? -1 : undefined}
-            onClick={() => scrollToCategory(cat.id)}
+            onClick={(event) => {
+              event.currentTarget.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+                inline: "center",
+              });
+              scrollToCategory(cat.id);
+            }}
           >
-            <Icon className="size-[18px]" />
+            <Icon className="size-5 sm:size-[18px]" />
           </button>
         );
       })}

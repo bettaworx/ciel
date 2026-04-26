@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { parse as parseTwemoji } from "@twemoji/parser";
 import { EMOJIBASE_CDN, CATEGORY_META } from "./constants";
+import { buildEmojiSearchText, getEmojiSrc } from "./helpers";
 import type { EmojiItem, EmojiCategory } from "./types";
 import type { LucideIcon } from "lucide-react";
 import { Smile } from "lucide-react";
@@ -41,7 +41,7 @@ export function resolveEmoji(item: EmojiItem, tone: number): string {
     Array.isArray(s.tone) ? s.tone[0] === tone : s.tone === tone,
   );
   if (!skin) return base;
-  return parseTwemoji(skin.emoji).length === 1 ? skin.emoji : base;
+  return getEmojiSrc(skin.emoji) ? skin.emoji : base;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ async function fetchEmojiData(): Promise<{
       e.group === componentGroupOrder
     )
       return false;
-    return parseTwemoji(e.emoji).length === 1;
+    return getEmojiSrc(e.emoji) !== null;
   });
 
   // Build sorted group list
@@ -96,11 +96,14 @@ async function fetchEmojiData(): Promise<{
         icon,
         emojis: emojis.map(
           (e): EmojiItem => ({
+            key: `standard:${e.emoji}`,
             type: "standard" as const,
             emoji: e.emoji,
             label: e.label,
+            searchText: buildEmojiSearchText(e.label),
             group: e.group,
             skins: e.skins,
+            src: getEmojiSrc(e.emoji),
           }),
         ),
       } satisfies EmojiCategory;

@@ -2,11 +2,14 @@ import type { LucideIcon } from "lucide-react";
 
 /** Unified emoji item for both standard Unicode and custom server emojis. */
 export interface EmojiItem {
+  key: string;
   type: "standard" | "custom";
   /** Unicode codepoint string (standard emojis only). */
   emoji?: string;
   /** Display name / label. */
   label: string;
+  /** Pre-normalized search text. */
+  searchText: string;
   /** Emojibase group number (standard emojis only). */
   group?: number;
   /** Skin tone variants (standard emojis only). */

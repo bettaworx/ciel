@@ -16,7 +16,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 
 interface ReactionPickerProps {
@@ -54,10 +59,10 @@ export function ReactionPicker({
             variant="ghost"
             size="sm"
             disabled={disabled}
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
+            className="h-10 w-10 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground sm:h-8 sm:w-8"
             aria-label={t("addReaction")}
           >
-            <SmilePlus className="h-5 w-5" />
+            <SmilePlus className="h-5 w-5 sm:h-5 sm:w-5" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-fit overflow-hidden p-0" align="start">
@@ -83,17 +88,18 @@ export function ReactionPicker({
           variant="ghost"
           size="sm"
           disabled={disabled}
-          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
+          className="h-10 w-10 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground sm:h-8 sm:w-8"
           aria-label={t("addReaction")}
         >
-          <SmilePlus className="h-5 w-5" />
+          <SmilePlus className="h-5 w-5 sm:h-5 sm:w-5" />
         </Button>
       </DrawerTrigger>
       <DrawerContent>
         <div className="w-full flex flex-col">
+          <DrawerTitle className="sr-only">{t("addReaction")}</DrawerTitle>
           <EmojiPicker
             className="w-full h-[400px] border-0"
-            columns={12}
+            columns={8}
             onEmojiSelect={handleEmojiSelect}
           >
             <EmojiPickerSearch

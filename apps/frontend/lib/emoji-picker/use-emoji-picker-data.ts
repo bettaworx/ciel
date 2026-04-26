@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { parse as parseTwemoji } from "@twemoji/parser";
 import { useEmojiData, resolveEmoji } from "./use-emoji-data";
 import { useCustomEmojis } from "@/lib/hooks/use-queries";
 import {
@@ -11,28 +10,13 @@ import {
 import {
   RECENT_CATEGORY_ICON,
   CUSTOM_CATEGORY_ICON,
-  buildTwemojiUrl,
 } from "./constants";
+import {
+  createCustomEmojiItem,
+  dedupeCustomEmojis,
+  getEmojiSrc,
+} from "./helpers";
 import type { EmojiItem, EmojiCategory } from "./types";
-
-// ---------------------------------------------------------------------------
-// Pre-compute image src URL for a single EmojiItem.
-// Called once in the data layer so the render path is pure React props.
-// ---------------------------------------------------------------------------
-
-function computeSrc(item: EmojiItem): string | null {
-  if (item.type === "custom") return item.imageUrl ?? null;
-  if (!item.emoji) return null;
-  const entries = parseTwemoji(item.emoji, {
-    buildUrl: buildTwemojiUrl,
-    assetType: "svg",
-  });
-  return entries.length === 1 ? entries[0].url : null;
-}
-
-function withSrc(item: EmojiItem): EmojiItem {
-  return { ...item, src: computeSrc(item) };
-}
 
 // ---------------------------------------------------------------------------
 // Debounce helper
@@ -59,12 +43,14 @@ export function useEmojiPickerData(searchQuery: string) {
 
   // Debounce search so we don't recompute on every keystroke
   const debouncedQuery = useDebouncedValue(searchQuery.trim().toLowerCase(), 150);
+  const isSearching = debouncedQuery.length > 0;
 
   const categories = useMemo(() => {
     if (!emojiData) return [];
 
     const result: EmojiCategory[] = [];
     const query = debouncedQuery;
+    const normalizedCustomEmojis = dedupeCustomEmojis(customEmojis);
 
     // --- Recent category ---
     if (!query && recentKeys.length > 0) {
@@ -75,27 +61,28 @@ export function useEmojiPickerData(searchQuery: string) {
         }
       }
       const customMap = new Map<string, EmojiItem>();
-      if (customEmojis) {
-        for (const ce of customEmojis) {
-          customMap.set(`:${ce.shortcode}:`, {
-            type: "custom",
-            label: ce.name || ce.shortcode,
-            shortcode: ce.shortcode,
-            imageUrl: ce.imageUrl,
-            src: ce.imageUrl ?? null,
-          });
+      if (normalizedCustomEmojis.length > 0) {
+        for (const [index, ce] of normalizedCustomEmojis.entries()) {
+          customMap.set(`:${ce.shortcode}:`, createCustomEmojiItem(ce, index));
         }
       }
 
       const recentItems: EmojiItem[] = [];
+      const seen = new Set<string>();
       for (const key of recentKeys) {
         const standard = standardMap.get(key);
         if (standard) {
+          if (seen.has(standard.key)) continue;
+          seen.add(standard.key);
           recentItems.push(standard);
           continue;
         }
         const custom = customMap.get(key);
-        if (custom) recentItems.push(custom);
+        if (custom) {
+          if (seen.has(custom.key)) continue;
+          seen.add(custom.key);
+          recentItems.push(custom);
+        }
       }
 
       if (recentItems.length > 0) {
@@ -110,21 +97,13 @@ export function useEmojiPickerData(searchQuery: string) {
     }
 
     // --- Custom category ---
-    if (customEmojis && customEmojis.length > 0) {
-      const items: EmojiItem[] = customEmojis.map((ce) => ({
-        type: "custom" as const,
-        label: ce.name || ce.shortcode,
-        shortcode: ce.shortcode,
-        imageUrl: ce.imageUrl,
-        src: ce.imageUrl ?? null,
-      }));
+    if (normalizedCustomEmojis.length > 0) {
+      const items: EmojiItem[] = normalizedCustomEmojis.map((ce, index) =>
+        createCustomEmojiItem(ce, index),
+      );
 
       const filtered = query
-        ? items.filter(
-            (item) =>
-              (item.shortcode?.toLowerCase().includes(query) ?? false) ||
-              item.label.toLowerCase().includes(query),
-          )
+        ? items.filter((item) => item.searchText.includes(query))
         : items;
 
       if (filtered.length > 0) {
@@ -141,22 +120,26 @@ export function useEmojiPickerData(searchQuery: string) {
     // --- Standard categories ---
     for (const cat of emojiData.categories) {
       const filtered = query
-        ? cat.emojis.filter((item) =>
-            item.label.toLowerCase().includes(query),
-          )
+        ? cat.emojis.filter((item) => item.searchText.includes(query))
         : cat.emojis;
 
       if (filtered.length === 0) continue;
 
-      // Apply skin tone and pre-compute src in one pass
+      // Apply skin tone without re-parsing the same emoji on every render.
       const resolved = filtered.map((item) => {
         const resolvedEmoji =
-          skinTone !== 0 ? resolveEmoji(item, skinTone) : item.emoji;
-        const emojiForSrc =
-          resolvedEmoji !== item.emoji
-            ? { ...item, emoji: resolvedEmoji }
-            : item;
-        return withSrc(emojiForSrc);
+          skinTone !== 0 && item.emoji ? resolveEmoji(item, skinTone) : item.emoji;
+
+        if (!resolvedEmoji || resolvedEmoji === item.emoji) {
+          return item;
+        }
+
+        return {
+          ...item,
+          key: `standard:${resolvedEmoji}`,
+          emoji: resolvedEmoji,
+          src: getEmojiSrc(resolvedEmoji),
+        };
       });
 
       result.push({ ...cat, emojis: resolved });
@@ -169,5 +152,6 @@ export function useEmojiPickerData(searchQuery: string) {
     categories,
     isLoading: emojiLoading,
     isEmpty: !emojiLoading && categories.length === 0,
+    isSearching,
   };
 }
