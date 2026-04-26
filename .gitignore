@@ -63,6 +63,10 @@ coverage/
 # Go workspace / module caches (rarely committed)
 go.work
 go.work.sum
+.gocache/
+.gomodcache/
+**/.gocache/
+**/.gomodcache/
 
 # Vendor is usually not committed with Go modules (uncomment if you don't commit it)
 # vendor/
