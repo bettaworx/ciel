@@ -739,7 +739,7 @@ function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
   return (
     <div
       className={cn(
-        "flex w-full items-center  overflow-x-auto border-t p-3 sm:gap-2 gap-3 sm:p-2",
+        "flex w-full items-center sm:justify-between overflow-x-auto border-t p-3 sm:gap-0 gap-3 sm:p-2",
         // Keep in DOM while searching to prevent panel height change
         isSearching && "invisible pointer-events-none",
         className,
