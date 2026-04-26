@@ -538,7 +538,7 @@ function EmojiGrid({
   return (
     <div
       ref={wrapperRef}
-      className="px-3 py-2 sm:px-1 sm:py-1"
+      className="px-3 sm:px-1"
     >
       {topSpacerHeight > 0 && (
         <div aria-hidden="true" style={{ height: topSpacerHeight }} />
