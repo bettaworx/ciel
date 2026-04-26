@@ -1196,5 +1196,22 @@
     },
     "sourceCode": "Source code",
     "versionInfo": "Version info"
+  },
+  "emojiPicker": {
+    "searchPlaceholder": "Search emoji...",
+    "searchResults": "Search results",
+    "changeSkinTone": "Change skin tone",
+    "clearSearch": "Clear search",
+    "noEmojiFound": "No emoji found.",
+    "recentlyUsed": "Recently Used",
+    "custom": "Custom",
+    "skinTone": {
+      "default": "Default",
+      "light": "Light",
+      "mediumLight": "Medium-Light",
+      "medium": "Medium",
+      "mediumDark": "Medium-Dark",
+      "dark": "Dark"
+    }
   }
 }

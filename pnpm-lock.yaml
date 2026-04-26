@@ -89,9 +89,6 @@ importers:
       framer-motion:
         specifier: ^12.7.5
         version: 12.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      frimousse:
-        specifier: ^0.3.0
-        version: 0.3.0(react@19.2.5)(typescript@6.0.3)
       jotai:
         specifier: ^2.16.2
         version: 2.19.1(@babel/core@7.29.0)(@babel/template@7.28.6)(@types/react@19.2.14)(react@19.2.5)
@@ -3750,15 +3747,6 @@ packages:
       react:
         optional: true
       react-dom:
-        optional: true
-
-  frimousse@0.3.0:
-    resolution: {integrity: sha512-kO6LMoKY/cLAYEhXXtqLRaLIE6L/DagpFPrUZaLv3LsUa1/8Iza3HhwZcgN8eZ+weXnhv69eoclNUPohcCa/IQ==}
-    peerDependencies:
-      react: ^18 || ^19
-      typescript: '>=5.1.0'
-    peerDependenciesMeta:
-      typescript:
         optional: true
 
   fs-extra@10.1.0:
@@ -9978,12 +9966,6 @@ snapshots:
     optionalDependencies:
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
-
-  frimousse@0.3.0(react@19.2.5)(typescript@6.0.3):
-    dependencies:
-      react: 19.2.5
-    optionalDependencies:
-      typescript: 6.0.3
 
   fs-extra@10.1.0:
     dependencies:

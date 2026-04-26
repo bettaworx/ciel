@@ -9,6 +9,7 @@ import {
   EmojiPickerSearch,
   EmojiPickerContent,
   EmojiPickerFooter,
+  type EmojiSelectEvent,
 } from "@/components/ui/emoji-picker";
 import {
   Popover,
@@ -37,7 +38,7 @@ export function ReactionPicker({
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const handleEmojiSelect = React.useCallback(
-    ({ emoji }: { emoji: string }) => {
+    ({ emoji }: EmojiSelectEvent) => {
       onEmojiSelect(emoji);
       setOpen(false);
     },
@@ -59,9 +60,9 @@ export function ReactionPicker({
             <SmilePlus className="h-5 w-5" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-fit p-0" align="start">
+        <PopoverContent className="w-fit overflow-hidden p-0" align="start">
           <EmojiPicker
-            className="h-[342px] w-fit"
+            className="h-[400px] w-[400px]"
             columns={9}
             onEmojiSelect={handleEmojiSelect}
           >

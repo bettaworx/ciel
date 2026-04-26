@@ -1196,5 +1196,22 @@
     },
     "sourceCode": "ソースコード",
     "versionInfo": "バージョン情報"
+  },
+  "emojiPicker": {
+    "searchPlaceholder": "絵文字を検索...",
+    "searchResults": "検索結果",
+    "changeSkinTone": "肌の色を変更",
+    "clearSearch": "検索をクリア",
+    "noEmojiFound": "絵文字が見つかりません",
+    "recentlyUsed": "最近使用した絵文字",
+    "custom": "カスタム",
+    "skinTone": {
+      "default": "デフォルト",
+      "light": "薄い肌色",
+      "mediumLight": "やや薄い肌色",
+      "medium": "中間の肌色",
+      "mediumDark": "やや濃い肌色",
+      "dark": "濃い肌色"
+    }
   }
 }
