@@ -10,7 +10,7 @@ We recommend using it with a container, such as Docker or Podman. But it's cool 
 
 The required libraries are:
 - node (22.16.0+)
-- go (1.24.5+)
+- go (1.26.0+)
 - pnpm (10.28.0+)
 
 Clone the repository:

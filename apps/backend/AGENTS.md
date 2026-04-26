@@ -5,7 +5,7 @@ This document provides comprehensive guidelines for working on the Ciel backend 
 ## Architecture Overview
 
 The backend is built with:
-- **Go 1.23+**
+- **Go 1.26+**
 - **PostgreSQL** with SQLC for type-safe queries
 - **Redis** for caching and pub/sub
 - **Chi router** for HTTP routing
