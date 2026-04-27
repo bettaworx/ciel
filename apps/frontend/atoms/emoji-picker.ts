@@ -39,24 +39,22 @@ export const DEFAULT_RECENT_EMOJIS = [
   "😭",
   "🤯",
   "🤔",
-  "✔️",
+  "✅",
   "🆗",
   "❗️",
   "❓",
   "⁉️",
   "⭕️",
-  "✖️",
+  "❌",
 ] as const;
 
 const RECENT_EMOJI_CANONICAL_MAP: Record<string, string> = {
   "❤": "❤️",
-  "✔": "✔️",
-  "✅": "✔️",
+  "✔": "✅",
   "❗": "❗️",
   "?": "❓",
   "⭕": "⭕️",
-  "✖": "✖️",
-  "❌": "✖️",
+  "✖": "❌",
 };
 
 export function normalizeRecentEmojiKey(emoji: string): string {
