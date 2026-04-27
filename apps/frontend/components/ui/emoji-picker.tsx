@@ -1,12 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { SearchIcon, LoaderIcon, XIcon } from "lucide-react";
+import {
+  SearchIcon,
+  LoaderIcon,
+  XIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
-import { flushSync } from "react-dom";
+import { FixedSizeGrid, type GridChildComponentProps } from "react-window";
 
 import { cn } from "@/lib/utils";
-import { Twemoji } from "@/components/Twemoji";
 import { useEmojiPickerData } from "@/lib/emoji-picker/use-emoji-picker-data";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import {
@@ -16,6 +20,13 @@ import {
   addRecentEmoji,
 } from "@/atoms/emoji-picker";
 import { SKIN_TONE_OPTIONS } from "@/lib/emoji-picker/constants";
+import {
+  buildSectionLayouts,
+  findActiveCategoryId,
+  getGridWidth,
+  type EmojiPickerLayoutMetrics,
+  type EmojiPickerSectionLayout,
+} from "@/lib/emoji-picker/layout";
 import type {
   EmojiItem,
   EmojiCategory,
@@ -27,9 +38,74 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
+const MOBILE_CELL_SIZE = 36;
+const DESKTOP_CELL_SIZE = 32;
+const MOBILE_GAP = 4;
+const DESKTOP_GAP = 2;
+const MOBILE_GRID_PADDING_X = 12;
+const DESKTOP_GRID_PADDING_X = 4;
+const CATEGORY_HEADER_HEIGHT = 44;
+const SECTION_SPACING = 4;
+const GRID_OVERSCAN_COUNT = 2;
+const ACTIVE_CATEGORY_HEADER_OFFSET = CATEGORY_HEADER_HEIGHT;
+
+function useElementWidth<T extends HTMLElement>() {
+  const ref = React.useRef<T | null>(null);
+  const [width, setWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    const updateWidth = () => {
+      setWidth((current) => {
+        const next = element.clientWidth;
+        return current === next ? current : next;
+      });
+    };
+
+    updateWidth();
+
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(element);
+    window.addEventListener("resize", updateWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, []);
+
+  return { ref, width };
+}
+
+function getLayoutMetrics(
+  isDesktop: boolean,
+  columns: number,
+  containerWidth: number,
+): EmojiPickerLayoutMetrics {
+  const fallbackCellSize = isDesktop ? DESKTOP_CELL_SIZE : MOBILE_CELL_SIZE;
+  const gap = isDesktop ? DESKTOP_GAP : MOBILE_GAP;
+  const gridPaddingX = isDesktop ? DESKTOP_GRID_PADDING_X : MOBILE_GRID_PADDING_X;
+  const availableWidth = Math.max(0, containerWidth - gridPaddingX * 2);
+  const totalGap = Math.max(0, columns - 1) * gap;
+  const fittedCellSize =
+    columns > 0 && availableWidth > totalGap
+      ? Math.floor((availableWidth - totalGap) / columns)
+      : fallbackCellSize;
+  const cellSize = Math.max(24, fittedCellSize || fallbackCellSize);
+
+  return {
+    cellSize,
+    rowGap: gap,
+    columnGap: gap,
+    gridPaddingX,
+    headerHeight: CATEGORY_HEADER_HEIGHT,
+    sectionSpacing: SECTION_SPACING,
+  };
+}
 
 interface EmojiPickerDataContextValue {
   categories: EmojiCategory[];
@@ -42,8 +118,8 @@ interface EmojiPickerDataContextValue {
   onSelect: (event: EmojiSelectEvent) => void;
   columns: number;
   contentRef: React.RefObject<HTMLDivElement | null>;
-  virtualizationDisabled: boolean;
-  pendingCategoryRef: React.MutableRefObject<string | null>;
+  layoutMetrics: EmojiPickerLayoutMetrics;
+  sectionLayouts: EmojiPickerSectionLayout[];
 }
 
 interface EmojiPickerSearchContextValue {
@@ -52,29 +128,25 @@ interface EmojiPickerSearchContextValue {
 }
 
 const EmojiPickerDataContext =
-  React.createContext<EmojiPickerDataContextValue | null>(
-    null,
-  );
+  React.createContext<EmojiPickerDataContextValue | null>(null);
 const EmojiPickerSearchContext =
   React.createContext<EmojiPickerSearchContextValue | null>(null);
 
 function useEmojiPickerContext() {
   const ctx = React.useContext(EmojiPickerDataContext);
-  if (!ctx)
+  if (!ctx) {
     throw new Error("EmojiPicker.* must be used within <EmojiPicker>");
+  }
   return ctx;
 }
 
 function useEmojiPickerSearchContext() {
   const ctx = React.useContext(EmojiPickerSearchContext);
-  if (!ctx)
+  if (!ctx) {
     throw new Error("EmojiPicker.* must be used within <EmojiPicker>");
+  }
   return ctx;
 }
-
-// ---------------------------------------------------------------------------
-// Root
-// ---------------------------------------------------------------------------
 
 interface EmojiPickerProps {
   children: React.ReactNode;
@@ -92,71 +164,53 @@ function EmojiPicker({
   const [searchQuery, setSearchQuery] = React.useState("");
   const deferredSearchQuery = React.useDeferredValue(searchQuery);
   const [activeCategory, setActiveCategory] = React.useState("");
-  const [virtualizationDisabled, setVirtualizationDisabled] = React.useState(true);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
-  const resumeVirtualizationTimerRef = React.useRef<number | null>(null);
-  const pendingCategoryRef = React.useRef<string | null>(null);
+  const { ref: pickerRef, width: pickerWidth } = useElementWidth<HTMLDivElement>();
   const setRecentEmojis = useSetRecentEmojis();
+  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const { categories, isLoading, isEmpty, isSearching } =
     useEmojiPickerData(deferredSearchQuery);
+  const layoutMetrics = React.useMemo(
+    () => getLayoutMetrics(isDesktop, columns, pickerWidth),
+    [isDesktop, columns, pickerWidth],
+  );
+  const sectionLayouts = React.useMemo(
+    () => buildSectionLayouts(categories, columns, layoutMetrics),
+    [categories, columns, layoutMetrics],
+  );
+  const sectionLayoutMap = React.useMemo(
+    () => new Map(sectionLayouts.map((layout) => [layout.id, layout])),
+    [sectionLayouts],
+  );
 
   React.useEffect(() => {
-    setVirtualizationDisabled(false);
-  }, []);
+    if (categories.length === 0) {
+      setActiveCategory("");
+      return;
+    }
 
-  React.useEffect(() => {
-    return () => {
-      if (resumeVirtualizationTimerRef.current !== null) {
-        window.clearTimeout(resumeVirtualizationTimerRef.current);
-      }
-    };
-  }, []);
-
-  React.useEffect(() => {
-    if (categories.length > 0 && !activeCategory) {
+    if (
+      !activeCategory ||
+      !categories.some((category) => category.id === activeCategory)
+    ) {
       setActiveCategory(categories[0].id);
     }
   }, [categories, activeCategory]);
 
-  const scrollToCategory = React.useCallback((id: string) => {
-    const container = contentRef.current;
-    if (!container) return;
+  const scrollToCategory = React.useCallback(
+    (id: string) => {
+      const container = contentRef.current;
+      const targetLayout = sectionLayoutMap.get(id);
+      if (!container || !targetLayout) {
+        return;
+      }
 
-    if (resumeVirtualizationTimerRef.current !== null) {
-      window.clearTimeout(resumeVirtualizationTimerRef.current);
-    }
-
-    flushSync(() => {
       setActiveCategory(id);
-      pendingCategoryRef.current = id;
-      setVirtualizationDisabled(true);
-    });
-
-    const scrollToTarget = () => {
-      const target = container.querySelector(
-        `[data-category-id="${id}"]`,
-      ) as HTMLElement | null;
-      if (!target) return false;
-
-      container.scrollTo({ top: target.offsetTop, behavior: "smooth" });
-
-      resumeVirtualizationTimerRef.current = window.setTimeout(() => {
-        pendingCategoryRef.current = null;
-        setActiveCategory(id);
-        setVirtualizationDisabled(false);
-        resumeVirtualizationTimerRef.current = null;
-      }, 350);
-
-      return true;
-    };
-
-    if (!scrollToTarget()) {
-      window.requestAnimationFrame(() => {
-        scrollToTarget();
-      });
-    }
-  }, []);
+      container.scrollTo({ top: targetLayout.offsetTop, behavior: "smooth" });
+    },
+    [sectionLayoutMap],
+  );
 
   const onSelect = React.useCallback(
     (event: EmojiSelectEvent) => {
@@ -188,8 +242,8 @@ function EmojiPicker({
       onSelect,
       columns,
       contentRef,
-      virtualizationDisabled,
-      pendingCategoryRef,
+      layoutMetrics,
+      sectionLayouts,
     }),
     [
       categories,
@@ -197,22 +251,20 @@ function EmojiPicker({
       isEmpty,
       isSearching,
       activeCategory,
+      setActiveCategory,
       scrollToCategory,
       onSelect,
       columns,
-      virtualizationDisabled,
-      pendingCategoryRef,
+      layoutMetrics,
+      sectionLayouts,
     ],
   );
 
   return (
     <EmojiPickerSearchContext.Provider value={searchValue}>
       <EmojiPickerDataContext.Provider value={value}>
-        {/*
-         * No overflow-hidden here — the parent container (e.g. PopoverContent
-         * with overflow-hidden) is responsible for clipping to its border-radius.
-         */}
         <div
+          ref={pickerRef}
           className={cn(
             "bg-popover text-popover-foreground isolate flex h-full w-full flex-col",
             className,
@@ -225,10 +277,6 @@ function EmojiPicker({
     </EmojiPickerSearchContext.Provider>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Search bar + Skin tone selector
-// ---------------------------------------------------------------------------
 
 interface EmojiPickerSearchProps {
   className?: string;
@@ -263,7 +311,6 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
         onChange={(e) => setSearchQuery(e.target.value)}
         data-slot="emoji-picker-search"
       />
-      {/* Clear button — visible when input has text */}
       {searchQuery.length > 0 && (
         <button
           type="button"
@@ -274,7 +321,6 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
           <XIcon className="size-4 sm:size-3.5" />
         </button>
       )}
-      {/* Skin tone selector — always visible, controlled so it closes on selection */}
       <Popover open={skinToneOpen} onOpenChange={setSkinToneOpen}>
         <PopoverTrigger asChild>
           <button
@@ -320,11 +366,6 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Emoji button — renders pre-computed src directly, no per-image state.
-// src is computed once in use-emoji-picker-data when skin tone or data changes.
-// ---------------------------------------------------------------------------
-
 const EmojiButton = React.memo(function EmojiButton({
   item,
   onSelect,
@@ -347,7 +388,7 @@ const EmojiButton = React.memo(function EmojiButton({
   return (
     <button
       type="button"
-      className="flex aspect-square min-h-10 items-center justify-center rounded-md p-1 transition-colors hover:bg-accent sm:min-h-8 sm:rounded-sm sm:p-0"
+      className="flex h-full w-full items-center justify-center rounded-md p-1 transition-colors hover:bg-accent sm:rounded-sm sm:p-0"
       title={item.label}
       aria-label={item.label}
       onClick={handleClick}
@@ -369,235 +410,46 @@ const EmojiButton = React.memo(function EmojiButton({
   );
 });
 
-// ---------------------------------------------------------------------------
-// Emoji grid (shared between category view and search view)
-// ---------------------------------------------------------------------------
-
-const MOBILE_ROW_GAP = 4;
-const DESKTOP_ROW_GAP = 2;
-const VIRTUAL_OVERSCAN_ROWS = 4;
-const MOBILE_GRID_PADDING_X = 24;
-const DESKTOP_GRID_PADDING_X = 8;
-
-function useVirtualizedGridRange(
-  itemCount: number,
-  columns: number,
-  wrapperRef: React.RefObject<HTMLDivElement | null>,
-  scrollContainerRef: React.RefObject<HTMLDivElement | null>,
-  disabled: boolean,
-) {
-  const isDesktop = useMediaQuery("(min-width: 640px)");
-  const rowGap = isDesktop ? DESKTOP_ROW_GAP : MOBILE_ROW_GAP;
-  const paddingX = isDesktop ? DESKTOP_GRID_PADDING_X : MOBILE_GRID_PADDING_X;
-  const totalRows = Math.ceil(itemCount / columns);
-  const [rowHeight, setRowHeight] = React.useState(0);
-  const [range, setRange] = React.useState(() => ({
-    startRow: 0,
-    endRow: totalRows,
-  }));
-
-  React.useEffect(() => {
-    setRange({ startRow: 0, endRow: totalRows });
-  }, [totalRows, disabled]);
-
-  React.useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-
-    const updateMetrics = () => {
-      const nextWidth = Math.max(0, wrapper.clientWidth - paddingX);
-      const totalGap = Math.max(0, columns - 1) * rowGap;
-      const nextRowHeight =
-        columns > 0 ? Math.floor((nextWidth - totalGap) / columns) : 0;
-      setRowHeight((current) =>
-        current === nextRowHeight ? current : nextRowHeight,
-      );
-    };
-
-    updateMetrics();
-
-    const resizeObserver = new ResizeObserver(updateMetrics);
-    resizeObserver.observe(wrapper);
-    window.addEventListener("resize", updateMetrics);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updateMetrics);
-    };
-  }, [columns, paddingX, rowGap, wrapperRef]);
-
-  React.useEffect(() => {
-    if (disabled || rowHeight <= 0) return;
-
-    const container = scrollContainerRef.current;
-    const wrapper = wrapperRef.current;
-    if (!container || !wrapper) return;
-
-    let frame = 0;
-
-    const updateRange = () => {
-      frame = 0;
-
-      const containerRect = container.getBoundingClientRect();
-      const wrapperRect = wrapper.getBoundingClientRect();
-      const gridTop = wrapperRect.top - containerRect.top + container.scrollTop;
-      const viewportTop = container.scrollTop;
-      const viewportBottom = viewportTop + container.clientHeight;
-      const stride = rowHeight + rowGap;
-
-      // Clamp startRow to [0, totalRows]. Without the upper bound, scrolling
-      // past a short category makes its own startRow exceed totalRows, which
-      // inflates topSpacerHeight far beyond totalContentHeight and pushes
-      // every following category down — visually snapping the user back.
-      const startRow = Math.max(
-        0,
-        Math.min(
-          totalRows,
-          Math.floor((viewportTop - gridTop) / stride) - VIRTUAL_OVERSCAN_ROWS,
-        ),
-      );
-      const endRow = Math.min(
-        totalRows,
-        Math.max(
-          startRow,
-          Math.ceil((viewportBottom - gridTop) / stride) + VIRTUAL_OVERSCAN_ROWS,
-        ),
-      );
-
-      setRange((current) => {
-        if (
-          current.startRow === startRow &&
-          current.endRow === endRow
-        ) {
-          return current;
-        }
-
-        return {
-          startRow,
-          endRow: Math.max(startRow, endRow),
-        };
-      });
-    };
-
-    const requestUpdate = () => {
-      if (frame !== 0) return;
-      frame = window.requestAnimationFrame(updateRange);
-    };
-
-    requestUpdate();
-    container.addEventListener("scroll", requestUpdate, { passive: true });
-    window.addEventListener("resize", requestUpdate);
-
-    const resizeObserver = new ResizeObserver(requestUpdate);
-    resizeObserver.observe(container);
-    resizeObserver.observe(wrapper);
-
-    return () => {
-      if (frame !== 0) {
-        window.cancelAnimationFrame(frame);
-      }
-      container.removeEventListener("scroll", requestUpdate);
-      window.removeEventListener("resize", requestUpdate);
-      resizeObserver.disconnect();
-    };
-  }, [
-    columns,
-    disabled,
-    rowGap,
-    rowHeight,
-    scrollContainerRef,
-    totalRows,
-    wrapperRef,
-  ]);
-
-  return {
-    rowHeight,
-    rowGap,
-    totalRows,
-    startRow: disabled ? 0 : range.startRow,
-    endRow: disabled ? totalRows : range.endRow,
-  };
-}
-
-function EmojiGrid({
-  items,
-  columns,
-  onSelect,
-}: {
+interface EmojiGridData {
   items: EmojiItem[];
   columns: number;
+  rowCount: number;
   onSelect: (event: EmojiSelectEvent) => void;
-}) {
-  const { contentRef, virtualizationDisabled } = useEmojiPickerContext();
-  const wrapperRef = React.useRef<HTMLDivElement | null>(null);
-  const {
-    rowHeight,
-    rowGap,
-    totalRows,
-    startRow,
-    endRow,
-  } = useVirtualizedGridRange(
-    items.length,
-    columns,
-    wrapperRef,
-    contentRef,
-    virtualizationDisabled || items.length <= columns * 4,
-  );
+  cellSize: number;
+  columnGap: number;
+  rowGap: number;
+}
 
-  const startIndex = startRow * columns;
-  const endIndex = Math.min(items.length, endRow * columns);
-  const visibleItems = items.slice(startIndex, endIndex);
-  const visibleRows = Math.ceil(visibleItems.length / columns);
-  const totalContentHeight =
-    totalRows === 0 ? 0 : totalRows * rowHeight + (totalRows - 1) * rowGap;
-  // startRow * stride includes a trailing rowGap that totalContentHeight
-  // doesn't. Cap so the grid never overflows its intrinsic height.
-  const topSpacerHeight = Math.min(
-    totalContentHeight,
-    startRow * (rowHeight + rowGap),
-  );
-  const visibleHeight =
-    visibleRows === 0
-      ? 0
-      : visibleRows * rowHeight + (visibleRows - 1) * rowGap;
-  const bottomSpacerHeight = Math.max(
-    0,
-    totalContentHeight - topSpacerHeight - visibleHeight,
-  );
+function EmojiGridCell({
+  columnIndex,
+  rowIndex,
+  style,
+  data,
+}: GridChildComponentProps<EmojiGridData>) {
+  const itemIndex = rowIndex * data.columns + columnIndex;
+  const item = data.items[itemIndex];
+
+  if (!item) {
+    return null;
+  }
 
   return (
     <div
-      ref={wrapperRef}
-      className="px-3 sm:px-1"
+      style={{
+        ...style,
+        boxSizing: "border-box",
+        paddingRight:
+          columnIndex === data.columns - 1 ? 0 : data.columnGap,
+        paddingBottom:
+          rowIndex === data.rowCount - 1 ? 0 : data.rowGap,
+      }}
     >
-      {topSpacerHeight > 0 && (
-        <div aria-hidden="true" style={{ height: topSpacerHeight }} />
-      )}
-      <div
-        className="grid gap-1 sm:gap-0.5"
-        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-      >
-        {visibleItems.map((item) => (
-          <EmojiButton
-            key={item.key}
-            item={item}
-            onSelect={onSelect}
-          />
-        ))}
+      <div style={{ width: "100%", height: "100%" }}>
+        <EmojiButton item={item} onSelect={data.onSelect} />
       </div>
-      {bottomSpacerHeight > 0 && (
-        <div aria-hidden="true" style={{ height: bottomSpacerHeight }} />
-      )}
-      {items.length > 0 && visibleItems.length === 0 && (
-        <div className="sr-only">{items.length}</div>
-      )}
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Category header label (resolves i18n key or falls back to raw label)
-// ---------------------------------------------------------------------------
 
 function CategoryLabel({ category }: { category: EmojiCategory }) {
   const t = useTranslations("emojiPicker");
@@ -607,12 +459,77 @@ function CategoryLabel({ category }: { category: EmojiCategory }) {
   return <>{category.label}</>;
 }
 
-// ---------------------------------------------------------------------------
-// Content (scrollable grid)
-// ---------------------------------------------------------------------------
+function EmojiGrid({
+  items,
+  columns,
+  onSelect,
+  metrics,
+}: {
+  items: EmojiItem[];
+  columns: number;
+  onSelect: (event: EmojiSelectEvent) => void;
+  metrics: EmojiPickerLayoutMetrics;
+}) {
+  const rowCount = columns > 0 ? Math.ceil(items.length / columns) : 0;
+  const gridWidth = getGridWidth(columns, metrics);
+  const itemData = React.useMemo<EmojiGridData>(
+    () => ({
+      items,
+      columns,
+      rowCount,
+      onSelect,
+      cellSize: metrics.cellSize,
+      columnGap: metrics.columnGap,
+      rowGap: metrics.rowGap,
+    }),
+    [
+      items,
+      columns,
+      rowCount,
+      onSelect,
+      metrics.cellSize,
+      metrics.columnGap,
+      metrics.rowGap,
+    ],
+  );
+
+  if (rowCount === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className="px-3 sm:px-1"
+      data-grid-item-count={items.length}
+    >
+      <FixedSizeGrid
+        columnCount={columns}
+        columnWidth={metrics.cellSize}
+        height={rowCount * metrics.cellSize}
+        itemData={itemData}
+        overscanRowCount={GRID_OVERSCAN_COUNT}
+        rowCount={rowCount}
+        rowHeight={metrics.cellSize}
+        width={gridWidth}
+      >
+        {EmojiGridCell}
+      </FixedSizeGrid>
+    </div>
+  );
+}
 
 interface EmojiPickerContentProps {
   className?: string;
+}
+
+function SearchResultsHeader() {
+  const t = useTranslations("emojiPicker");
+
+  return (
+    <div className="bg-popover text-muted-foreground px-3 pb-3.5 pt-3.5 text-sm leading-none sm:px-1 sm:text-xs">
+      {t("searchResults")}
+    </div>
+  );
 }
 
 function EmojiPickerContent({ className }: EmojiPickerContentProps) {
@@ -624,98 +541,61 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
     columns,
     onSelect,
     contentRef,
+    layoutMetrics,
+    sectionLayouts,
     setActiveCategory,
-    pendingCategoryRef,
   } = useEmojiPickerContext();
   const t = useTranslations("emojiPicker");
-  const activeCategoryRef = React.useRef("");
 
-  // Track active category from scroll position.
-  // This is more stable than IntersectionObserver around category boundaries.
-  const updateActiveCategory = React.useEffectEvent((container: HTMLDivElement) => {
-    const pendingCategory = pendingCategoryRef.current;
-    if (pendingCategory) {
-      const pendingSection = container.querySelector(
-        `[data-category-id="${pendingCategory}"]`,
-      ) as HTMLElement | null;
-      if (pendingSection) {
-        const distance = Math.abs(container.scrollTop - pendingSection.offsetTop);
-        if (distance <= 16) {
-          pendingCategoryRef.current = null;
-          if (activeCategoryRef.current !== pendingCategory) {
-            activeCategoryRef.current = pendingCategory;
-            setActiveCategory(pendingCategory);
-          }
-        }
-      }
+  const searchResults = React.useMemo(() => {
+    if (!isSearching) {
+      return null;
+    }
+    return categories.flatMap((category) => category.emojis);
+  }, [categories, isSearching]);
+
+  React.useEffect(() => {
+    if (isSearching) {
       return;
     }
 
-    const sections = Array.from(
-      container.querySelectorAll("[data-category-id]"),
-    ) as HTMLElement[];
-    if (sections.length === 0) return;
-
-    const stickyHeaderOffset = 44;
-    const viewportAnchor =
-      container.scrollTop +
-      stickyHeaderOffset +
-      Math.max(24, Math.floor(container.clientHeight * 0.2));
-    let nextActive = sections[0].dataset.categoryId ?? "";
-
-    for (const section of sections) {
-      if (section.offsetTop <= viewportAnchor) {
-        nextActive = section.dataset.categoryId ?? nextActive;
-        continue;
-      }
-      break;
-    }
-
-    if (nextActive && activeCategoryRef.current !== nextActive) {
-      activeCategoryRef.current = nextActive;
-      setActiveCategory(nextActive);
-    }
-  });
-
-  React.useEffect(() => {
-    if (isSearching) return;
-
     const container = contentRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     let frame = 0;
-
-    const runActiveCategoryUpdate = () => {
+    const syncActiveCategory = () => {
       frame = 0;
-      updateActiveCategory(container);
+      const nextActive = findActiveCategoryId(
+        sectionLayouts,
+        container.scrollTop,
+        container.clientHeight,
+        ACTIVE_CATEGORY_HEADER_OFFSET,
+      );
+
+      if (nextActive) {
+        setActiveCategory(nextActive);
+      }
     };
 
-    const requestUpdate = () => {
-      if (frame !== 0) return;
-      frame = window.requestAnimationFrame(runActiveCategoryUpdate);
+    const requestSync = () => {
+      if (frame !== 0) {
+        return;
+      }
+      frame = window.requestAnimationFrame(syncActiveCategory);
     };
 
-    requestUpdate();
-    container.addEventListener("scroll", requestUpdate, { passive: true });
+    requestSync();
+    container.addEventListener("scroll", requestSync, { passive: true });
 
     return () => {
       if (frame !== 0) {
         window.cancelAnimationFrame(frame);
       }
-      container.removeEventListener("scroll", requestUpdate);
+      container.removeEventListener("scroll", requestSync);
     };
-  }, [categories, isSearching, contentRef, pendingCategoryRef]);
-
-  const searchResults = React.useMemo(() => {
-    if (!isSearching) return null;
-    return categories.flatMap((cat) => cat.emojis);
-  }, [isSearching, categories]);
-
-  React.useEffect(() => {
-    if (isSearching) return;
-    const firstCategoryId = categories[0]?.id ?? "";
-    activeCategoryRef.current = firstCategoryId;
-  }, [categories, isSearching]);
+  }, [contentRef, isSearching, sectionLayouts, setActiveCategory]);
 
   return (
     <div
@@ -730,7 +610,7 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
       )}
 
       {isEmpty && !isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
+        <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
           {t("noEmojiFound")}
         </div>
       )}
@@ -739,18 +619,29 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
         <div className="pb-1">
           {isSearching && searchResults ? (
             <>
-              <div className="bg-popover text-muted-foreground px-3 pb-3.5 pt-3.5 text-sm leading-none sm:text-xs">
-                {t("searchResults")}
-              </div>
-              <EmojiGrid items={searchResults} columns={columns} onSelect={onSelect} />
+              <SearchResultsHeader />
+              <EmojiGrid
+                items={searchResults}
+                columns={columns}
+                onSelect={onSelect}
+                metrics={layoutMetrics}
+              />
             </>
           ) : (
-            categories.map((cat) => (
-              <section key={cat.id} data-category-id={cat.id}>
-                <div className="bg-popover text-muted-foreground sticky top-0 z-10 px-3 pb-3.5 pt-3.5 text-sm leading-none sm:text-xs">
-                  <CategoryLabel category={cat} />
+            categories.map((category) => (
+              <section
+                key={category.id}
+                data-category-id={category.id}
+              >
+                <div className="bg-popover text-muted-foreground sticky top-0 z-10 px-3 pb-3.5 pt-3.5 text-sm leading-none sm:px-1 sm:text-xs">
+                  <CategoryLabel category={category} />
                 </div>
-                <EmojiGrid items={cat.emojis} columns={columns} onSelect={onSelect} />
+                <EmojiGrid
+                  items={category.emojis}
+                  columns={columns}
+                  onSelect={onSelect}
+                  metrics={layoutMetrics}
+                />
               </section>
             ))
           )}
@@ -760,10 +651,6 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Footer (category navigation)
-// ---------------------------------------------------------------------------
-
 interface EmojiPickerFooterProps {
   className?: string;
 }
@@ -772,38 +659,40 @@ function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
   const { categories, isSearching, activeCategory, scrollToCategory } =
     useEmojiPickerContext();
 
-  if (categories.length === 0 || isSearching) return null;
+  if (categories.length === 0 || isSearching) {
+    return null;
+  }
 
   return (
     <div
       className={cn(
-        "flex w-full items-center sm:justify-between overflow-x-auto border-t p-3 sm:gap-0 gap-3 sm:p-2",
+        "flex w-full items-center gap-3 overflow-x-auto border-t p-3 sm:justify-between sm:gap-0 sm:p-2",
         className,
       )}
       data-slot="emoji-picker-footer"
     >
-      {categories.map((cat) => {
-        const Icon = cat.icon;
-        const isActive = activeCategory === cat.id;
+      {categories.map((category) => {
+        const Icon: LucideIcon = category.icon;
+        const isActive = activeCategory === category.id;
 
         return (
           <button
-            key={cat.id}
+            key={category.id}
             type="button"
             className={cn(
-              "flex size-10 shrink-0 aspect-square items-center justify-center rounded-md transition-colors sm:size-7",
+              "flex aspect-square size-10 shrink-0 items-center justify-center rounded-md transition-colors sm:size-7",
               isActive
                 ? "bg-c-9 text-c-1"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                : "text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
-            aria-label={cat.label}
+            aria-label={category.label}
             onClick={(event) => {
               event.currentTarget.scrollIntoView({
                 behavior: "smooth",
                 block: "nearest",
                 inline: "center",
               });
-              scrollToCategory(cat.id);
+              scrollToCategory(category.id);
             }}
           >
             <Icon className="size-5 sm:size-[18px]" />
