@@ -16,7 +16,12 @@ import { useCreatePost, useUploadMedia, useMediaLimits } from "@/lib/hooks/use-q
 import { ApiHttpError } from "@/lib/api/client";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import type { components } from "@/lib/api/api";
-import type { LocalImage, LocalVideo, PreviewMediaItem } from "./types";
+import type {
+  LocalImage,
+  LocalVideo,
+  PreviewMediaItem,
+  TextSelectionRange,
+} from "./types";
 import {
   MAX_IMAGES,
   MAX_VIDEOS,
@@ -110,6 +115,10 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [pendingCropImageId, setPendingCropImageId] = useState<string | null>(null);
   const [cropDialogZIndexClass, setCropDialogZIndexClass] = useState("z-[70]");
+  const [selectionRange, setSelectionRange] = useState<TextSelectionRange>({
+    start: 0,
+    end: 0,
+  });
 
   // OGP: debounced URL extracted from content
   const [ogpUrl, setOgpUrl] = useState<string | null>(null);
@@ -731,6 +740,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     isUploading,
     isDragging,
     ogpUrl,
+    selectionRange,
 
     // Unified media list for PostMediaPreview
     previewMedia,
@@ -784,6 +794,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
     // Utilities
     resetForm,
+    setSelectionRange,
   };
 }
 

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, type RefObject } from "react";
+import type { RefObject } from "react";
 import { type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { applyFormatToTextarea } from "./applyFormat";
+import type { TextSelectionRange, TextSelectionRangeSetter } from "./types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -15,6 +16,8 @@ interface LinkFormatButtonProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   setContent: (value: string) => void;
   content: string;
+  selectionRange: TextSelectionRange;
+  setSelectionRange: TextSelectionRangeSetter;
   ariaLabel?: string;
   className?: string;
   iconClassName?: string;
@@ -166,40 +169,12 @@ export function LinkFormatButton({
   textareaRef,
   setContent,
   content,
+  selectionRange,
+  setSelectionRange,
   ariaLabel,
   className,
   iconClassName,
 }: LinkFormatButtonProps) {
-  const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 });
-
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const update = () => {
-      setSelectionRange({
-        start: textarea.selectionStart,
-        end: textarea.selectionEnd,
-      });
-    };
-
-    textarea.addEventListener("select", update);
-    textarea.addEventListener("keyup", update);
-    textarea.addEventListener("mouseup", update);
-    textarea.addEventListener("click", update);
-    textarea.addEventListener("focus", update);
-    textarea.addEventListener("input", update);
-
-    return () => {
-      textarea.removeEventListener("select", update);
-      textarea.removeEventListener("keyup", update);
-      textarea.removeEventListener("mouseup", update);
-      textarea.removeEventListener("click", update);
-      textarea.removeEventListener("focus", update);
-      textarea.removeEventListener("input", update);
-    };
-  }, [textareaRef]);
-
   const linkMatch = findLinkDecoration(
     content,
     selectionRange.start,

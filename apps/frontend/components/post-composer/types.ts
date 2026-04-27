@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from "react";
 import type { Crop } from "react-image-crop";
 
 /**
@@ -43,3 +44,12 @@ export interface PreviewMediaItem {
   height: number;
   thumbnailUrl?: string | null;
 }
+
+export interface TextSelectionRange {
+  start: number;
+  end: number;
+}
+
+export type TextSelectionRangeSetter = Dispatch<
+  SetStateAction<TextSelectionRange>
+>;

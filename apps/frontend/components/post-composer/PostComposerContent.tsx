@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   X,
@@ -114,12 +114,14 @@ export function PostComposerContent({
     textareaRef,
     // State setters
     setContent,
+    setSelectionRange,
     // State
     content,
     isUploading,
     isDragging,
     ogpUrl,
     previewMedia,
+    selectionRange,
     // Computed
     maxContentLength,
     contentLength,
@@ -146,6 +148,59 @@ export function PostComposerContent({
     // Mutations
     createPostMutation,
   } = compose;
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    let frame = 0;
+    const syncSelectionRange = () => {
+      frame = 0;
+      const nextSelectionRange = {
+        start: textarea.selectionStart,
+        end: textarea.selectionEnd,
+      };
+
+      setSelectionRange((current) =>
+        current.start === nextSelectionRange.start &&
+        current.end === nextSelectionRange.end
+          ? current
+          : nextSelectionRange,
+      );
+    };
+
+    const requestSyncSelectionRange = () => {
+      if (frame !== 0) {
+        return;
+      }
+
+      frame = window.requestAnimationFrame(syncSelectionRange);
+    };
+
+    requestSyncSelectionRange();
+
+    textarea.addEventListener("input", requestSyncSelectionRange);
+    textarea.addEventListener("select", requestSyncSelectionRange);
+    textarea.addEventListener("keyup", requestSyncSelectionRange);
+    textarea.addEventListener("mouseup", requestSyncSelectionRange);
+    textarea.addEventListener("click", requestSyncSelectionRange);
+    textarea.addEventListener("focus", requestSyncSelectionRange);
+
+    return () => {
+      if (frame !== 0) {
+        window.cancelAnimationFrame(frame);
+      }
+
+      textarea.removeEventListener("input", requestSyncSelectionRange);
+      textarea.removeEventListener("select", requestSyncSelectionRange);
+      textarea.removeEventListener("keyup", requestSyncSelectionRange);
+      textarea.removeEventListener("mouseup", requestSyncSelectionRange);
+      textarea.removeEventListener("click", requestSyncSelectionRange);
+      textarea.removeEventListener("focus", requestSyncSelectionRange);
+    };
+  }, [textareaRef, setSelectionRange]);
 
   // ---- Shared sub-sections ------------------------------------------------
 
@@ -210,6 +265,8 @@ export function PostComposerContent({
         textareaRef={textareaRef}
         setContent={setContent}
         content={content}
+        selectionRange={selectionRange}
+        setSelectionRange={setSelectionRange}
         ariaLabel={t("createPost.formatBold")}
         className={s.toolbarButton}
         iconClassName={s.toolbarIcon}
@@ -221,6 +278,8 @@ export function PostComposerContent({
         textareaRef={textareaRef}
         setContent={setContent}
         content={content}
+        selectionRange={selectionRange}
+        setSelectionRange={setSelectionRange}
         ariaLabel={t("createPost.formatItalic")}
         className={s.toolbarButton}
         iconClassName={s.toolbarIcon}
@@ -232,6 +291,8 @@ export function PostComposerContent({
         textareaRef={textareaRef}
         setContent={setContent}
         content={content}
+        selectionRange={selectionRange}
+        setSelectionRange={setSelectionRange}
         ariaLabel={t("createPost.formatFont")}
         className={cn(s.toolbarButton, layout === "card" && "max-sm:hidden")}
         iconClassName={s.toolbarIcon}
@@ -241,6 +302,8 @@ export function PostComposerContent({
         textareaRef={textareaRef}
         setContent={setContent}
         content={content}
+        selectionRange={selectionRange}
+        setSelectionRange={setSelectionRange}
         ariaLabel={t("createPost.formatSize")}
         className={cn(s.toolbarButton, layout === "card" && "max-sm:hidden")}
         iconClassName={s.toolbarIcon}
@@ -257,6 +320,8 @@ export function PostComposerContent({
             textareaRef={textareaRef}
             setContent={setContent}
             content={content}
+            selectionRange={selectionRange}
+            setSelectionRange={setSelectionRange}
             ariaLabel={t("createPost.formatCode")}
             className={cn(s.toolbarButton, "max-sm:hidden")}
             iconClassName={s.toolbarIcon}
@@ -266,6 +331,8 @@ export function PostComposerContent({
             textareaRef={textareaRef}
             setContent={setContent}
             content={content}
+            selectionRange={selectionRange}
+            setSelectionRange={setSelectionRange}
             ariaLabel={t("createPost.formatLink")}
             className={cn(s.toolbarButton, "max-sm:hidden")}
             iconClassName={s.toolbarIcon}
@@ -277,6 +344,8 @@ export function PostComposerContent({
             textareaRef={textareaRef}
             setContent={setContent}
             content={content}
+            selectionRange={selectionRange}
+            setSelectionRange={setSelectionRange}
             ariaLabel={t("createPost.formatCenter")}
             className={cn(s.toolbarButton, "max-sm:hidden")}
             iconClassName={s.toolbarIcon}
@@ -289,6 +358,8 @@ export function PostComposerContent({
         textareaRef={textareaRef}
         setContent={setContent}
         content={content}
+        selectionRange={selectionRange}
+        setSelectionRange={setSelectionRange}
         includeFontSize={layout === "card"}
         className={cn(s.toolbarButton, layout === "dialog" && "sm:hidden")}
         iconClassName={s.toolbarIcon}
