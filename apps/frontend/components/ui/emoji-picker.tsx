@@ -90,10 +90,9 @@ function getLayoutMetrics(
   const gap = isDesktop ? DESKTOP_GAP : MOBILE_GAP;
   const gridPaddingX = isDesktop ? DESKTOP_GRID_PADDING_X : MOBILE_GRID_PADDING_X;
   const availableWidth = Math.max(0, containerWidth - gridPaddingX * 2);
-  const totalGap = Math.max(0, columns - 1) * gap;
   const fittedCellSize =
-    columns > 0 && availableWidth > totalGap
-      ? Math.floor((availableWidth - totalGap) / columns)
+    columns > 0 && availableWidth > 0
+      ? availableWidth / columns
       : fallbackCellSize;
   const cellSize = Math.max(24, fittedCellSize || fallbackCellSize);
 
@@ -118,6 +117,7 @@ interface EmojiPickerDataContextValue {
   onSelect: (event: EmojiSelectEvent) => void;
   columns: number;
   contentRef: React.RefObject<HTMLDivElement | null>;
+  setViewportWidth: (width: number) => void;
   layoutMetrics: EmojiPickerLayoutMetrics;
   sectionLayouts: EmojiPickerSectionLayout[];
 }
@@ -164,6 +164,7 @@ function EmojiPicker({
   const [searchQuery, setSearchQuery] = React.useState("");
   const deferredSearchQuery = React.useDeferredValue(searchQuery);
   const [activeCategory, setActiveCategory] = React.useState("");
+  const [viewportWidth, setViewportWidth] = React.useState(0);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const { ref: pickerRef, width: pickerWidth } = useElementWidth<HTMLDivElement>();
   const setRecentEmojis = useSetRecentEmojis();
@@ -172,8 +173,8 @@ function EmojiPicker({
   const { categories, isLoading, isEmpty, isSearching } =
     useEmojiPickerData(deferredSearchQuery);
   const layoutMetrics = React.useMemo(
-    () => getLayoutMetrics(isDesktop, columns, pickerWidth),
-    [isDesktop, columns, pickerWidth],
+    () => getLayoutMetrics(isDesktop, columns, viewportWidth || pickerWidth),
+    [isDesktop, columns, pickerWidth, viewportWidth],
   );
   const sectionLayouts = React.useMemo(
     () => buildSectionLayouts(categories, columns, layoutMetrics),
@@ -242,6 +243,7 @@ function EmojiPicker({
       onSelect,
       columns,
       contentRef,
+      setViewportWidth,
       layoutMetrics,
       sectionLayouts,
     }),
@@ -257,6 +259,7 @@ function EmojiPicker({
       columns,
       layoutMetrics,
       sectionLayouts,
+      setViewportWidth,
     ],
   );
 
@@ -541,6 +544,7 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
     columns,
     onSelect,
     contentRef,
+    setViewportWidth,
     layoutMetrics,
     sectionLayouts,
     setActiveCategory,
@@ -553,6 +557,31 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
     }
     return categories.flatMap((category) => category.emojis);
   }, [categories, isSearching]);
+
+  React.useEffect(() => {
+    const container = contentRef.current;
+    if (!container) {
+      return;
+    }
+
+    const updateWidth = () => {
+      setViewportWidth((current) => {
+        const next = container.clientWidth;
+        return current === next ? current : next;
+      });
+    };
+
+    updateWidth();
+
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(container);
+    window.addEventListener("resize", updateWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, [contentRef, setViewportWidth]);
 
   React.useEffect(() => {
     if (isSearching) {
