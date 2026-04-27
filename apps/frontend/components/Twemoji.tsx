@@ -1,19 +1,17 @@
 import { memo, useState } from "react";
 import { parse as parseTwemoji } from "@twemoji/parser";
 import { cn } from "@/lib/utils";
+import {
+  buildTwemojiUrl,
+  type TwemojiAssetType,
+} from "@/lib/emoji-picker/constants";
 
 // Pin to the 16.x series to match @twemoji/parser@16.0.0.
 // jsDelivr serves tagged URLs with Cache-Control: immutable.
-const TWEMOJI_VERSION = "16.0.1";
-const TWEMOJI_CDN_BASE = `https://cdn.jsdelivr.net/gh/jdecked/twemoji@${TWEMOJI_VERSION}/assets/svg/`;
-
-function buildUrl(codepoints: string): string {
-  return `${TWEMOJI_CDN_BASE}${codepoints}.svg`;
-}
-
 interface TwemojiProps {
   emoji: string;
   className?: string;
+  assetType?: TwemojiAssetType;
 }
 
 // Renders a single twemoji SVG image, falling back to native emoji on load error.
@@ -44,8 +42,15 @@ function TwemojiImg({
   );
 }
 
-function TwemojiInner({ emoji, className }: TwemojiProps) {
-  const entries = parseTwemoji(emoji, { buildUrl, assetType: "svg" });
+function TwemojiInner({
+  emoji,
+  className,
+  assetType = "svg",
+}: TwemojiProps) {
+  const entries = parseTwemoji(emoji, {
+    buildUrl: (codepoints) => buildTwemojiUrl(codepoints, assetType),
+    assetType,
+  });
 
   // 0 entries: not recognized by parser (e.g. bare © without VS16,
   //            environment-dependent characters)
@@ -61,5 +66,8 @@ function TwemojiInner({ emoji, className }: TwemojiProps) {
 
 export const Twemoji = memo(
   TwemojiInner,
-  (a, b) => a.emoji === b.emoji && a.className === b.className,
+  (a, b) =>
+    a.emoji === b.emoji &&
+    a.className === b.className &&
+    (a.assetType ?? "svg") === (b.assetType ?? "svg"),
 );

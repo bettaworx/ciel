@@ -1,23 +1,46 @@
 import { parse as parseTwemoji } from "@twemoji/parser";
 
 import type { PublicEmoji } from "@/lib/custom-emojis";
-import { buildTwemojiUrl } from "./constants";
+import {
+  buildTwemojiUrl,
+  type TwemojiAssetType,
+} from "./constants";
 import type { EmojiItem } from "./types";
 
 const emojiSrcCache = new Map<string, string | null>();
+const twemojiEmojiCache = new Map<string, boolean>();
 
-export function getEmojiSrc(emoji: string): string | null {
-  const cached = emojiSrcCache.get(emoji);
+export function isSingleTwemojiEmoji(emoji: string): boolean {
+  const cached = twemojiEmojiCache.get(emoji);
   if (cached !== undefined) {
     return cached;
   }
 
   const entries = parseTwemoji(emoji, {
-    buildUrl: buildTwemojiUrl,
+    buildUrl: (codepoints) => buildTwemojiUrl(codepoints, "svg"),
     assetType: "svg",
   });
+  const valid = entries.length === 1;
+  twemojiEmojiCache.set(emoji, valid);
+  return valid;
+}
+
+export function getEmojiSrc(
+  emoji: string,
+  assetType: TwemojiAssetType = "svg",
+): string | null {
+  const cacheKey = `${assetType}:${emoji}`;
+  const cached = emojiSrcCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const entries = parseTwemoji(emoji, {
+    buildUrl: (codepoints) => buildTwemojiUrl(codepoints, assetType),
+    assetType,
+  });
   const src = entries.length === 1 ? entries[0].url : null;
-  emojiSrcCache.set(emoji, src);
+  emojiSrcCache.set(cacheKey, src);
   return src;
 }
 
