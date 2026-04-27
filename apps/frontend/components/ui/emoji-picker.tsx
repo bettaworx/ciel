@@ -622,9 +622,55 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
     pendingCategoryRef,
   } = useEmojiPickerContext();
   const t = useTranslations("emojiPicker");
+  const activeCategoryRef = React.useRef("");
 
   // Track active category from scroll position.
   // This is more stable than IntersectionObserver around category boundaries.
+  const updateActiveCategory = React.useEffectEvent((container: HTMLDivElement) => {
+    const pendingCategory = pendingCategoryRef.current;
+    if (pendingCategory) {
+      const pendingSection = container.querySelector(
+        `[data-category-id="${pendingCategory}"]`,
+      ) as HTMLElement | null;
+      if (pendingSection) {
+        const distance = Math.abs(container.scrollTop - pendingSection.offsetTop);
+        if (distance <= 16) {
+          pendingCategoryRef.current = null;
+          if (activeCategoryRef.current !== pendingCategory) {
+            activeCategoryRef.current = pendingCategory;
+            setActiveCategory(pendingCategory);
+          }
+        }
+      }
+      return;
+    }
+
+    const sections = Array.from(
+      container.querySelectorAll("[data-category-id]"),
+    ) as HTMLElement[];
+    if (sections.length === 0) return;
+
+    const stickyHeaderOffset = 44;
+    const viewportAnchor =
+      container.scrollTop +
+      stickyHeaderOffset +
+      Math.max(24, Math.floor(container.clientHeight * 0.2));
+    let nextActive = sections[0].dataset.categoryId ?? "";
+
+    for (const section of sections) {
+      if (section.offsetTop <= viewportAnchor) {
+        nextActive = section.dataset.categoryId ?? nextActive;
+        continue;
+      }
+      break;
+    }
+
+    if (nextActive && activeCategoryRef.current !== nextActive) {
+      activeCategoryRef.current = nextActive;
+      setActiveCategory(nextActive);
+    }
+  });
+
   React.useEffect(() => {
     if (isSearching) return;
 
@@ -633,49 +679,14 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
 
     let frame = 0;
 
-    const updateActiveCategory = () => {
+    const runActiveCategoryUpdate = () => {
       frame = 0;
-
-      const pendingCategory = pendingCategoryRef.current;
-      if (pendingCategory) {
-        const pendingSection = container.querySelector(
-          `[data-category-id="${pendingCategory}"]`,
-        ) as HTMLElement | null;
-        if (pendingSection) {
-          const distance = Math.abs(container.scrollTop - pendingSection.offsetTop);
-          if (distance <= 16) {
-            pendingCategoryRef.current = null;
-            React.startTransition(() => setActiveCategory(pendingCategory));
-          }
-        }
-        return;
-      }
-
-      const sections = Array.from(
-        container.querySelectorAll("[data-category-id]"),
-      ) as HTMLElement[];
-
-      if (sections.length === 0) return;
-
-      const anchor = container.scrollTop + 8;
-      let nextActive = sections[0].dataset.categoryId ?? "";
-
-      for (const section of sections) {
-        if (section.offsetTop <= anchor) {
-          nextActive = section.dataset.categoryId ?? nextActive;
-          continue;
-        }
-        break;
-      }
-
-      if (nextActive) {
-        React.startTransition(() => setActiveCategory(nextActive));
-      }
+      updateActiveCategory(container);
     };
 
     const requestUpdate = () => {
       if (frame !== 0) return;
-      frame = window.requestAnimationFrame(updateActiveCategory);
+      frame = window.requestAnimationFrame(runActiveCategoryUpdate);
     };
 
     requestUpdate();
@@ -687,12 +698,18 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
       }
       container.removeEventListener("scroll", requestUpdate);
     };
-  }, [categories, isSearching, contentRef, setActiveCategory, pendingCategoryRef]);
+  }, [categories, isSearching, contentRef, pendingCategoryRef]);
 
   const searchResults = React.useMemo(() => {
     if (!isSearching) return null;
     return categories.flatMap((cat) => cat.emojis);
   }, [isSearching, categories]);
+
+  React.useEffect(() => {
+    if (isSearching) return;
+    const firstCategoryId = categories[0]?.id ?? "";
+    activeCategoryRef.current = firstCategoryId;
+  }, [categories, isSearching]);
 
   return (
     <div
@@ -749,18 +766,15 @@ function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
   const { categories, isSearching, activeCategory, scrollToCategory } =
     useEmojiPickerContext();
 
-  if (categories.length === 0) return null;
+  if (categories.length === 0 || isSearching) return null;
 
   return (
     <div
       className={cn(
         "flex w-full items-center sm:justify-between overflow-x-auto border-t p-3 sm:gap-0 gap-3 sm:p-2",
-        // Keep in DOM while searching to prevent panel height change
-        isSearching && "invisible pointer-events-none",
         className,
       )}
       data-slot="emoji-picker-footer"
-      aria-hidden={isSearching}
     >
       {categories.map((cat) => {
         const Icon = cat.icon;
@@ -777,7 +791,6 @@ function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
                 : "text-muted-foreground hover:text-foreground hover:bg-accent",
             )}
             aria-label={cat.label}
-            tabIndex={isSearching ? -1 : undefined}
             onClick={(event) => {
               event.currentTarget.scrollIntoView({
                 behavior: "smooth",

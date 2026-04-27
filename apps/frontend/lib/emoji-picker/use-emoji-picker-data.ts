@@ -1,34 +1,37 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useDeferredValue, useMemo } from "react";
 import { useEmojiData, resolveEmoji } from "./use-emoji-data";
 import { useCustomEmojis } from "@/lib/hooks/use-queries";
 import {
   useRecentEmojis,
   useEmojiSkinTone,
+  normalizeRecentEmojis,
 } from "@/atoms/emoji-picker";
 import {
   RECENT_CATEGORY_ICON,
   CUSTOM_CATEGORY_ICON,
 } from "./constants";
 import {
-  createCustomEmojiItem,
-  dedupeCustomEmojis,
   getEmojiSrc,
 } from "./helpers";
 import type { EmojiItem, EmojiCategory } from "./types";
+import { buildEmojiSearchDataset, searchEmojiDataset } from "./search";
 
-// ---------------------------------------------------------------------------
-// Debounce helper
-// ---------------------------------------------------------------------------
+function resolveEmojiItemTone(item: EmojiItem, skinTone: number): EmojiItem {
+  const resolvedEmoji =
+    skinTone !== 0 && item.emoji ? resolveEmoji(item, skinTone) : item.emoji;
 
-export function useDebouncedValue<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(id);
-  }, [value, delay]);
-  return debounced;
+  if (!resolvedEmoji || resolvedEmoji === item.emoji) {
+    return item;
+  }
+
+  return {
+    ...item,
+    key: `standard:${resolvedEmoji}`,
+    emoji: resolvedEmoji,
+    src: getEmojiSrc(resolvedEmoji),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -38,50 +41,32 @@ export function useDebouncedValue<T>(value: T, delay: number): T {
 export function useEmojiPickerData(searchQuery: string) {
   const { data: emojiData, isLoading: emojiLoading } = useEmojiData();
   const { data: customEmojis } = useCustomEmojis();
-  const recentKeys = useRecentEmojis();
+  const recentKeys = normalizeRecentEmojis(useRecentEmojis());
   const skinTone = useEmojiSkinTone();
 
-  // Debounce search so we don't recompute on every keystroke
-  const debouncedQuery = useDebouncedValue(searchQuery.trim().toLowerCase(), 150);
+  const debouncedQuery = useDeferredValue(searchQuery.trim().toLowerCase());
   const isSearching = debouncedQuery.length > 0;
+  const searchDataset = useMemo(() => {
+    if (!emojiData) return null;
+    return buildEmojiSearchDataset(emojiData.categories, customEmojis);
+  }, [emojiData, customEmojis]);
 
   const categories = useMemo(() => {
-    if (!emojiData) return [];
+    if (!emojiData || !searchDataset) return [];
 
     const result: EmojiCategory[] = [];
     const query = debouncedQuery;
-    const normalizedCustomEmojis = dedupeCustomEmojis(customEmojis);
 
     // --- Recent category ---
     if (!query && recentKeys.length > 0) {
-      const standardMap = new Map<string, EmojiItem>();
-      for (const cat of emojiData.categories) {
-        for (const item of cat.emojis) {
-          if (item.emoji) standardMap.set(item.emoji, item);
-        }
-      }
-      const customMap = new Map<string, EmojiItem>();
-      if (normalizedCustomEmojis.length > 0) {
-        for (const [index, ce] of normalizedCustomEmojis.entries()) {
-          customMap.set(`:${ce.shortcode}:`, createCustomEmojiItem(ce, index));
-        }
-      }
-
       const recentItems: EmojiItem[] = [];
       const seen = new Set<string>();
       for (const key of recentKeys) {
-        const standard = standardMap.get(key);
-        if (standard) {
-          if (seen.has(standard.key)) continue;
-          seen.add(standard.key);
-          recentItems.push(standard);
-          continue;
-        }
-        const custom = customMap.get(key);
-        if (custom) {
-          if (seen.has(custom.key)) continue;
-          seen.add(custom.key);
-          recentItems.push(custom);
+        const item = searchDataset.recentLookup.get(key);
+        if (item) {
+          if (seen.has(item.key)) continue;
+          seen.add(item.key);
+          recentItems.push(resolveEmojiItemTone(item, skinTone));
         }
       }
 
@@ -96,57 +81,43 @@ export function useEmojiPickerData(searchQuery: string) {
       }
     }
 
-    // --- Custom category ---
-    if (normalizedCustomEmojis.length > 0) {
-      const items: EmojiItem[] = normalizedCustomEmojis.map((ce, index) =>
-        createCustomEmojiItem(ce, index),
+    if (query) {
+      const searchResults = searchEmojiDataset(searchDataset, query).map((item) =>
+        resolveEmojiItemTone(item, skinTone),
       );
 
-      const filtered = query
-        ? items.filter((item) => item.searchText.includes(query))
-        : items;
-
-      if (filtered.length > 0) {
+      if (searchResults.length > 0) {
         result.push({
-          id: "custom",
-          label: "Custom",
-          labelKey: "custom",
+          id: "search-results",
+          label: "Search Results",
           icon: CUSTOM_CATEGORY_ICON,
-          emojis: filtered,
+          emojis: searchResults,
         });
       }
+
+      return result;
+    }
+
+    // --- Custom category ---
+    if (searchDataset.customItems.length > 0) {
+      result.push({
+        id: "custom",
+        label: "Custom",
+        labelKey: "custom",
+        icon: CUSTOM_CATEGORY_ICON,
+        emojis: searchDataset.customItems,
+      });
     }
 
     // --- Standard categories ---
     for (const cat of emojiData.categories) {
-      const filtered = query
-        ? cat.emojis.filter((item) => item.searchText.includes(query))
-        : cat.emojis;
-
-      if (filtered.length === 0) continue;
-
-      // Apply skin tone without re-parsing the same emoji on every render.
-      const resolved = filtered.map((item) => {
-        const resolvedEmoji =
-          skinTone !== 0 && item.emoji ? resolveEmoji(item, skinTone) : item.emoji;
-
-        if (!resolvedEmoji || resolvedEmoji === item.emoji) {
-          return item;
-        }
-
-        return {
-          ...item,
-          key: `standard:${resolvedEmoji}`,
-          emoji: resolvedEmoji,
-          src: getEmojiSrc(resolvedEmoji),
-        };
-      });
+      const resolved = cat.emojis.map((item) => resolveEmojiItemTone(item, skinTone));
 
       result.push({ ...cat, emojis: resolved });
     }
 
     return result;
-  }, [emojiData, customEmojis, recentKeys, skinTone, debouncedQuery]);
+  }, [emojiData, recentKeys, skinTone, debouncedQuery, searchDataset]);
 
   return {
     categories,
