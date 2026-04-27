@@ -687,6 +687,28 @@ interface EmojiPickerFooterProps {
 function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
   const { categories, isSearching, activeCategory, scrollToCategory } =
     useEmojiPickerContext();
+  const footerRef = React.useRef<HTMLDivElement | null>(null);
+  const buttonRefs = React.useRef(new Map<string, HTMLButtonElement>());
+
+  React.useEffect(() => {
+    const container = footerRef.current;
+    const activeButton = buttonRefs.current.get(activeCategory);
+    if (!container || !activeButton) {
+      return;
+    }
+
+    const buttonCenter =
+      activeButton.offsetLeft + activeButton.offsetWidth / 2;
+    const nextScrollLeft = Math.max(
+      0,
+      buttonCenter - container.clientWidth / 2,
+    );
+
+    container.scrollTo({
+      left: nextScrollLeft,
+      behavior: "smooth",
+    });
+  }, [activeCategory]);
 
   if (categories.length === 0 || isSearching) {
     return null;
@@ -694,6 +716,7 @@ function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
 
   return (
     <div
+      ref={footerRef}
       className={cn(
         "flex w-full items-center gap-3 overflow-x-auto border-t p-3 sm:justify-between sm:gap-0 sm:p-2",
         className,
@@ -707,6 +730,14 @@ function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
         return (
           <button
             key={category.id}
+            ref={(node) => {
+              if (node) {
+                buttonRefs.current.set(category.id, node);
+                return;
+              }
+
+              buttonRefs.current.delete(category.id);
+            }}
             type="button"
             className={cn(
               "flex aspect-square size-10 shrink-0 items-center justify-center rounded-md transition-colors sm:size-7",
