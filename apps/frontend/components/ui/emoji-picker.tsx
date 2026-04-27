@@ -242,9 +242,9 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
   const t = useTranslations("emojiPicker");
   const [skinToneOpen, setSkinToneOpen] = React.useState(false);
 
-  const currentSample =
-    SKIN_TONE_OPTIONS.find((o) => o.value === skinTone)?.sample ??
-    SKIN_TONE_OPTIONS[0].sample;
+  const currentColor =
+    SKIN_TONE_OPTIONS.find((o) => o.value === skinTone)?.color ??
+    SKIN_TONE_OPTIONS[0].color;
 
   return (
     <div
@@ -282,7 +282,10 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
             className="flex size-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent sm:size-6"
             aria-label={t("changeSkinTone")}
           >
-            <Twemoji emoji={currentSample} />
+            <span
+              className="size-4 rounded-full sm:size-3.5"
+              style={{ backgroundColor: currentColor }}
+            />
           </button>
         </PopoverTrigger>
         <PopoverContent
@@ -305,7 +308,10 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
                 setSkinToneOpen(false);
               }}
             >
-              <Twemoji emoji={opt.sample} />
+              <span
+                className="size-5 rounded-full sm:size-4"
+                style={{ backgroundColor: opt.color }}
+              />
             </button>
           ))}
         </PopoverContent>

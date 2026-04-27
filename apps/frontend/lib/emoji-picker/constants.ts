@@ -53,10 +53,10 @@ export const RECENT_CATEGORY_ICON = Clock4;
 export const CUSTOM_CATEGORY_ICON = Hash;
 
 export const SKIN_TONE_OPTIONS = [
-  { value: 0, labelKey: "default", sample: "\u{1F44B}" },
-  { value: 1, labelKey: "light", sample: "\u{1F44B}\u{1F3FB}" },
-  { value: 2, labelKey: "mediumLight", sample: "\u{1F44B}\u{1F3FC}" },
-  { value: 3, labelKey: "medium", sample: "\u{1F44B}\u{1F3FD}" },
-  { value: 4, labelKey: "mediumDark", sample: "\u{1F44B}\u{1F3FE}" },
-  { value: 5, labelKey: "dark", sample: "\u{1F44B}\u{1F3FF}" },
+  { value: 0, labelKey: "default", sample: "\u{1F44B}", color: "#ffdc5d" },
+  { value: 1, labelKey: "light", sample: "\u{1F44B}\u{1F3FB}", color: "#f7dece" },
+  { value: 2, labelKey: "mediumLight", sample: "\u{1F44B}\u{1F3FC}", color: "#f3d2a2" },
+  { value: 3, labelKey: "medium", sample: "\u{1F44B}\u{1F3FD}", color: "#d4ab88" },
+  { value: 4, labelKey: "mediumDark", sample: "\u{1F44B}\u{1F3FE}", color: "#af7e57" },
+  { value: 5, labelKey: "dark", sample: "\u{1F44B}\u{1F3FF}", color: "#7c533e" },
 ] as const;
