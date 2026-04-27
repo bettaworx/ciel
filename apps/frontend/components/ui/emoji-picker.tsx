@@ -117,7 +117,7 @@ interface EmojiPickerDataContextValue {
   onSelect: (event: EmojiSelectEvent) => void;
   columns: number;
   contentRef: React.RefObject<HTMLDivElement | null>;
-  setViewportWidth: (width: number) => void;
+  setViewportWidth: React.Dispatch<React.SetStateAction<number>>;
   layoutMetrics: EmojiPickerLayoutMetrics;
   sectionLayouts: EmojiPickerSectionLayout[];
 }
