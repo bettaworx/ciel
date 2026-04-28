@@ -1,9 +1,15 @@
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { getRequestConfig } from 'next-intl/server';
-import { locales, defaultLocale, type Locale } from '@/i18n/constants';
+import { locales, defaultLocale, LOCALE_COOKIE_KEY, type Locale } from '@/i18n/constants';
 
 // Re-export for backward compatibility
 export { locales, defaultLocale, type Locale };
+
+function normalizeLocale(value: string | null): Locale | undefined {
+	if (!value) return undefined;
+	const normalized = value.toLowerCase().split('-')[0];
+	return locales.includes(normalized as Locale) ? (normalized as Locale) : undefined;
+}
 
 // Detect locale from browser's Accept-Language header
 function detectLocaleFromHeader(acceptLanguage: string | null): Locale {
@@ -33,7 +39,12 @@ function detectLocaleFromHeader(acceptLanguage: string | null): Locale {
 
 // Server-side locale detection
 export async function getLocale(): Promise<Locale> {
-	// Check Accept-Language header
+	const cookieStore = await cookies();
+	const cookieLocale = normalizeLocale(cookieStore.get(LOCALE_COOKIE_KEY)?.value ?? null);
+	if (cookieLocale) {
+		return cookieLocale;
+	}
+
 	const headersList = await headers();
 	const acceptLanguage = headersList.get('accept-language');
 	if (acceptLanguage) {
