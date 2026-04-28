@@ -154,7 +154,8 @@ export function MfmFn({ node, children }: MfmFnProps) {
     case "font": {
       style.display = "inline-block";
       // Respect per-font sub-settings
-      if (args.serif === true && settings.font.serif) style.fontFamily = "serif";
+      if (args.serif === true && settings.font.serif)
+        style.fontFamily = "var(--mfm-font-serif)";
       else if (args.monospace === true && settings.font.monospace)
         style.fontFamily =
           "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";

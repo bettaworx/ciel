@@ -72,6 +72,7 @@ export function Providers({ children }: ProvidersProps) {
 		localeRequestRef.current = requestId;
 		loadMessages(resolvedLocale).then((loadedMessages) => {
 			if (localeRequestRef.current !== requestId) return;
+			document.documentElement.lang = resolvedLocale;
 			setLocale(resolvedLocale);
 			setMessages(loadedMessages);
 		});
