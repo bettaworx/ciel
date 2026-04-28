@@ -356,7 +356,7 @@ export function PostCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
+                    className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
                     aria-label={t("actions.more")}
                   >
                     <MoreHorizontal className="h-5 w-5" />
@@ -404,7 +404,7 @@ export function PostCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
+                    className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
                     aria-label={t("actions.more")}
                   >
                     <MoreHorizontal className="h-5 w-5" />

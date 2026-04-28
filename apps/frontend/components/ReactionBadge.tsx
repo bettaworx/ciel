@@ -51,19 +51,14 @@ export function ReactionBadge({
       disabled={disabled}
       onClick={onToggle}
       className={cn(
-        // ベーススタイル
-        "h-8 px-2.5 py-1 rounded-full transition-colors duration-160 ease",
-        "flex items-center gap-1.5 pr-3.5",
-
-        // 状態別スタイル
+        "h-9 px-3 rounded-full transition-colors duration-160 ease",
+        "flex items-center gap-2",
         isReacted
           ? [
-              // リアクション済み: テーマカラー
               "bg-c-9 text-c-foreground-1",
               "hover:bg-c-8 hover:text-c-foreground-1",
             ]
           : [
-              // 未リアクション: ミュート色
               "bg-muted text-muted-foreground border-border",
               "hover:bg-accent hover:text-muted-foreground hover:border-border",
             ],
@@ -75,7 +70,7 @@ export function ReactionBadge({
       }
       aria-pressed={isReacted}
     >
-      <span className="text-base leading-none" aria-hidden="true">
+      <span className="inline-flex items-center text-base" aria-hidden="true">
         <EmojiInline emoji={emoji} />
       </span>
       <span className="text-sm font-medium tabular-nums">{count}</span>
