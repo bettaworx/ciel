@@ -303,7 +303,7 @@ export function PostCard({
 
           {/* Group 2: Media */}
           {(ogpUrl || previewMedia.length > 0) && (
-            <div className="mb-2 sm:mb-3">
+            <div className="mb-3 sm:mb-3">
               {/* OGP Link Preview – only when no media is attached */}
               {ogpUrl && <OgpCard url={ogpUrl} />}
 
