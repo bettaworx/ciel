@@ -242,64 +242,68 @@ export function PostCard({
         </Button>
 
         {/* Content: User Info + Post text + Media */}
-        <div className="flex-1 min-w-0">
-          {/* User Info */}
-          <div className="flex justify-between items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={handleUserClick}
-                className="font-semibold text-sm sm:text-base text-foreground hover:underline focus:underline focus:outline-none truncate"
+        <div className="flex-1 min-w-0 flex flex-col">
+          {/* Group 1: Header + Text */}
+          <div className="mb-1 sm:mb-1.5">
+            {/* User Info */}
+            <div className="flex justify-between items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleUserClick}
+                  className="font-semibold text-sm sm:text-base text-foreground hover:underline focus:underline focus:outline-none truncate"
+                >
+                  <MfmRenderer
+                    text={displayName}
+                    allowList={DISPLAY_NAME_ALLOW_LIST}
+                  />
+                </button>
+                {hasDisplayName && (
+                  <span className="text-muted-foreground text-xs sm:text-sm truncate">
+                    @{username}
+                  </span>
+                )}
+              </div>
+              <span
+                className="text-muted-foreground text-xs"
+                aria-label={createdAt.toLocaleString(locale)}
               >
-                <MfmRenderer
-                  text={displayName}
-                  allowList={DISPLAY_NAME_ALLOW_LIST}
-                />
-              </button>
-              {hasDisplayName && (
-                <span className="text-muted-foreground text-xs sm:text-sm truncate">
-                  @{username}
-                </span>
-              )}
+                {timeAgo}
+              </span>
             </div>
-            <span
-              className="text-muted-foreground text-xs"
-              aria-label={createdAt.toLocaleString(locale)}
-            >
-              {timeAgo}
-            </span>
+
+            {/* Post Content */}
+            {post.content && (
+              <>
+                <div
+                  ref={contentRef}
+                  className={cn(
+                    "text-foreground whitespace-pre-wrap break-words text-sm sm:text-base",
+                    !isContentExpanded &&
+                      isContentOverflowing &&
+                      "max-h-32 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_50%,transparent_100%)]",
+                  )}
+                >
+                  <MfmRenderer text={post.content} />
+                </div>
+                {isContentOverflowing && (
+                  <div className="flex justify-start mt-1">
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-muted-foreground"
+                      onClick={() => setIsContentExpanded((v) => !v)}
+                    >
+                      {isContentExpanded ? t("showLess") : t("showMore")}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
-          {/* Post Content */}
-          {post.content && (
-            <>
-              <div
-                ref={contentRef}
-                className={cn(
-                  "text-foreground whitespace-pre-wrap break-words text-sm sm:text-base",
-                  !isContentExpanded &&
-                    isContentOverflowing &&
-                    "max-h-32 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_50%,transparent_100%)]",
-                )}
-              >
-                <MfmRenderer text={post.content} />
-              </div>
-              {isContentOverflowing && (
-                <div className="flex justify-start mt-1">
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0 text-muted-foreground"
-                    onClick={() => setIsContentExpanded((v) => !v)}
-                  >
-                    {isContentExpanded ? t("showLess") : t("showMore")}
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-
+          {/* Group 2: Media */}
           {(ogpUrl || previewMedia.length > 0) && (
-            <div className="mt-1.5 mb-1.5 sm:mb-3">
+            <div className="mb-2 sm:mb-3">
               {/* OGP Link Preview – only when no media is attached */}
               {ogpUrl && <OgpCard url={ogpUrl} />}
 
@@ -308,27 +312,6 @@ export function PostCard({
                 media={previewMedia}
                 onLightboxOpen={handleLightboxOpen}
               />
-            </div>
-          )}
-
-          {/* Reactions */}
-          {hasReactions && (
-            <div className="flex flex-wrap gap-1.5 my-1.5">
-              {reactions.map((reaction) => (
-                <ReactionBadge
-                  key={reaction.emoji}
-                  emoji={reaction.emoji}
-                  count={reaction.count}
-                  isReacted={reaction.isReacted}
-                  onToggle={() => handleToggleReaction(reaction.emoji)}
-                  disabled={isPending}
-                  postId={post.id}
-                  onOpenDialog={(emoji) => {
-                    setReactionDialogEmoji(emoji);
-                    setReactionDialogOpen(true);
-                  }}
-                />
-              ))}
             </div>
           )}
 
@@ -342,12 +325,31 @@ export function PostCard({
             />
           )}
 
-          {/* Reaction Picker */}
-          <div className="flex items-center justify-between gap-2">
-            <ReactionPicker
-              onEmojiSelect={handleToggleReaction}
-              disabled={isPending}
-            />
+          {/* Reactions + Reaction Picker */}
+          <div className="flex items-end justify-between gap-2">
+            <div className="flex items-center flex-wrap gap-1.5">
+              {hasReactions &&
+                reactions.map((reaction) => (
+                  <ReactionBadge
+                    key={reaction.emoji}
+                    emoji={reaction.emoji}
+                    count={reaction.count}
+                    isReacted={reaction.isReacted}
+                    onToggle={() => handleToggleReaction(reaction.emoji)}
+                    disabled={isPending}
+                    postId={post.id}
+                    onOpenDialog={(emoji) => {
+                      setReactionDialogEmoji(emoji);
+                      setReactionDialogOpen(true);
+                    }}
+                  />
+                ))}
+              <ReactionPicker
+                onEmojiSelect={handleToggleReaction}
+                disabled={isPending}
+              />
+            </div>
+            <div className="shrink-0">
             {isDesktop ? (
               <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
                 <DropdownMenuTrigger asChild>
@@ -457,6 +459,7 @@ export function PostCard({
                 </DrawerContent>
               </Drawer>
             )}
+            </div>
           </div>
         </div>
       </div>
