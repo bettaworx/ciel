@@ -2,7 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { EMOJIBASE_CDN, CATEGORY_META } from "./constants";
-import { buildEmojiSearchText, getEmojiSrc } from "./helpers";
+import {
+  buildEmojiSearchText,
+  getEmojiSrc,
+  isSingleTwemojiEmoji,
+} from "./helpers";
 import type { EmojiItem, EmojiCategory } from "./types";
 import type { LucideIcon } from "lucide-react";
 import { Smile } from "lucide-react";
@@ -41,7 +45,7 @@ export function resolveEmoji(item: EmojiItem, tone: number): string {
     Array.isArray(s.tone) ? s.tone[0] === tone : s.tone === tone,
   );
   if (!skin) return base;
-  return getEmojiSrc(skin.emoji) ? skin.emoji : base;
+  return isSingleTwemojiEmoji(skin.emoji) ? skin.emoji : base;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +77,7 @@ async function fetchEmojiData(): Promise<{
       e.group === componentGroupOrder
     )
       return false;
-    return getEmojiSrc(e.emoji) !== null;
+    return isSingleTwemojiEmoji(e.emoji);
   });
 
   // Build sorted group list
@@ -103,7 +107,7 @@ async function fetchEmojiData(): Promise<{
             searchText: buildEmojiSearchText(e.label),
             group: e.group,
             skins: e.skins,
-            src: getEmojiSrc(e.emoji),
+            src: getEmojiSrc(e.emoji, "png"),
           }),
         ),
       } satisfies EmojiCategory;

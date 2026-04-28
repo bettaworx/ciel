@@ -21,10 +21,19 @@ export const EMOJIBASE_CDN =
 // ---------------------------------------------------------------------------
 
 const TWEMOJI_VERSION = "16.0.1";
-const TWEMOJI_CDN_BASE = `https://cdn.jsdelivr.net/gh/jdecked/twemoji@${TWEMOJI_VERSION}/assets/svg/`;
+const TWEMOJI_CDN_BASE = `https://cdn.jsdelivr.net/gh/jdecked/twemoji@${TWEMOJI_VERSION}/assets`;
 
-export function buildTwemojiUrl(codepoints: string): string {
-  return `${TWEMOJI_CDN_BASE}${codepoints}.svg`;
+export type TwemojiAssetType = "svg" | "png";
+
+export function buildTwemojiUrl(
+  codepoints: string,
+  assetType: TwemojiAssetType = "svg",
+): string {
+  if (assetType === "png") {
+    return `${TWEMOJI_CDN_BASE}/72x72/${codepoints}.png`;
+  }
+
+  return `${TWEMOJI_CDN_BASE}/svg/${codepoints}.svg`;
 }
 
 /**

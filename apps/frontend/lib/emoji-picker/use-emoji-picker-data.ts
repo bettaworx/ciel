@@ -30,7 +30,7 @@ function resolveEmojiItemTone(item: EmojiItem, skinTone: number): EmojiItem {
     ...item,
     key: `standard:${resolvedEmoji}`,
     emoji: resolvedEmoji,
-    src: getEmojiSrc(resolvedEmoji),
+    src: getEmojiSrc(resolvedEmoji, "png"),
   };
 }
 

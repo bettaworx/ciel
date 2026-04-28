@@ -5,9 +5,25 @@ import {
   buildEmojiSearchText,
   createCustomEmojiItem,
   dedupeCustomEmojis,
+  getEmojiSrc,
+  isSingleTwemojiEmoji,
 } from "./helpers";
 
 describe("emoji picker helpers", () => {
+  it("builds twemoji asset URLs for both svg and png", () => {
+    expect(getEmojiSrc("😀")).toBe(
+      "https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/1f600.svg",
+    );
+    expect(getEmojiSrc("😀", "png")).toBe(
+      "https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/72x72/1f600.png",
+    );
+  });
+
+  it("checks whether an emoji is supported independently from asset type", () => {
+    expect(isSingleTwemojiEmoji("😀")).toBe(true);
+    expect(isSingleTwemojiEmoji("A")).toBe(false);
+  });
+
   it("dedupes custom emojis by shortcode while preserving first occurrence", () => {
     const emojis: PublicEmoji[] = [
       {
