@@ -8,6 +8,7 @@
     --radius-md: calc(var(--radius) - 2px);
     --radius-lg: var(--radius);
     --radius-xl: calc(var(--radius) + 4px);
+    --font-sans: var(--app-font-sans);
 
     --color-background: var(--background);
     --color-background-1: var(--background-1);
@@ -41,6 +42,23 @@
 }
 
 :root {
+    --app-font-sans:
+        var(--font-noto-sans-jp),
+        var(--font-noto-sans),
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    --mfm-font-serif:
+        var(--font-noto-serif),
+        var(--font-noto-serif-jp),
+        ui-serif,
+        Georgia,
+        Cambria,
+        "Times New Roman",
+        Times,
+        serif;
     --background: oklch(0.97 0 0);
     --background-1: oklch(1 0 0);
     --foreground: oklch(0.25 0 0);

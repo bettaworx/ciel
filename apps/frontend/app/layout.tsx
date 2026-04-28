@@ -1,4 +1,9 @@
-import { IBM_Plex_Sans_JP } from "next/font/google";
+import {
+  Noto_Sans,
+  Noto_Sans_JP,
+  Noto_Serif,
+  Noto_Serif_JP,
+} from "next/font/google";
 import { headers } from "next/headers";
 import { Toaster } from "@/components/ui/sonner";
 import { ConditionalSidebar } from "@/components/ConditionalSidebar";
@@ -12,11 +17,32 @@ import { ThemeColorMeta } from "@/components/ThemeColorMeta";
 import { RegisterServiceWorker } from "@/app/register-sw";
 import "./globals.css";
 
-const ibmPlexSansJP = IBM_Plex_Sans_JP({
-  variable: "--font-ibm-plex-sans-jp",
+const notoSans = Noto_Sans({
+  variable: "--font-noto-sans",
   subsets: ["latin"],
   weight: ["400", "500", "700"],
   display: "swap",
+});
+
+const notoSansJp = Noto_Sans_JP({
+  variable: "--font-noto-sans-jp",
+  weight: ["400", "500", "700"],
+  display: "swap",
+  preload: false,
+});
+
+const notoSerif = Noto_Serif({
+  variable: "--font-noto-serif",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+});
+
+const notoSerifJp = Noto_Serif_JP({
+  variable: "--font-noto-serif-jp",
+  weight: ["400", "500", "700"],
+  display: "swap",
+  preload: false,
 });
 
 export default async function RootLayout({
@@ -38,7 +64,10 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Ciel" />
         <link rel="apple-touch-icon" href="/pwa/icon-192" />
       </head>
-      <body className={`${ibmPlexSansJP.className} antialiased`} suppressHydrationWarning>
+      <body
+        className={`${notoSans.variable} ${notoSansJp.variable} ${notoSerif.variable} ${notoSerifJp.variable} antialiased`}
+        suppressHydrationWarning
+      >
         <Providers>
           <DynamicTitle titleKey="meta.title" />
           <ThemeColorMeta />
