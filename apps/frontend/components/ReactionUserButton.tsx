@@ -20,7 +20,7 @@ export function ReactionUserButton({
   user,
   className,
 }: ReactionUserButtonProps) {
-  const displayName = user.displayName || user.username;
+  const displayName = user.displayName || `@${user.username}`;
   const initials = displayName
     .split(" ")
     .map((n) => n[0])

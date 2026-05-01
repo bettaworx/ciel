@@ -303,7 +303,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
       header={
         <PageHeader>
           <MfmRenderer
-            text={user.displayName || user.username}
+            text={user.displayName || `@${user.username}`}
             allowList={DISPLAY_NAME_ALLOW_LIST}
           />
         </PageHeader>
@@ -542,14 +542,16 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                 ) : (
                   <h1 className="text-xl font-bold text-foreground">
                     <MfmRenderer
-                      text={user.displayName || user.username}
+                      text={user.displayName || `@${user.username}`}
                       allowList={DISPLAY_NAME_ALLOW_LIST}
                     />
                   </h1>
                 )}
-                <p className="text-sm text-muted-foreground">
-                  @{user.username}
-                </p>
+                {user.displayName && (
+                  <p className="text-sm text-muted-foreground">
+                    @{user.username}
+                  </p>
+                )}
               </div>
 
               <div className="pb-3">
