@@ -43,6 +43,7 @@ export interface PreviewMediaItem {
   width: number;
   height: number;
   thumbnailUrl?: string | null;
+  blurhash?: string | null;
 }
 
 export interface TextSelectionRange {

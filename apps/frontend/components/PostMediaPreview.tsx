@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Crop, X } from "lucide-react";
+import { BlurhashImage } from "@/components/BlurhashImage";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
@@ -217,7 +217,8 @@ export function PostMediaPreview({
           className="relative w-full overflow-hidden rounded-xl group"
           style={singleImageStyle}
         >
-          <Image
+          <BlurhashImage
+            blurhash={imageMedia[0].blurhash}
             src={imageMedia[0].url}
             alt=""
             fill
@@ -245,7 +246,8 @@ export function PostMediaPreview({
     return (
       <div className={cn("grid grid-cols-2 gap-1", className)}>
         <div className="relative aspect-[8/9] overflow-hidden group">
-          <Image
+          <BlurhashImage
+            blurhash={imageMedia[0].blurhash}
             src={imageMedia[0].url}
             alt=""
             fill
@@ -268,7 +270,8 @@ export function PostMediaPreview({
           )}
         </div>
         <div className="relative aspect-[8/9] overflow-hidden group">
-          <Image
+          <BlurhashImage
+            blurhash={imageMedia[1].blurhash}
             src={imageMedia[1].url}
             alt=""
             fill
@@ -299,7 +302,8 @@ export function PostMediaPreview({
     return (
       <div className={cn("grid grid-cols-2 gap-1", className)}>
         <div className="relative row-span-2 overflow-hidden group">
-          <Image
+          <BlurhashImage
+            blurhash={imageMedia[0].blurhash}
             src={imageMedia[0].url}
             alt=""
             fill
@@ -322,7 +326,8 @@ export function PostMediaPreview({
           )}
         </div>
         <div className="relative aspect-video overflow-hidden group">
-          <Image
+          <BlurhashImage
+            blurhash={imageMedia[1].blurhash}
             src={imageMedia[1].url}
             alt=""
             fill
@@ -345,7 +350,8 @@ export function PostMediaPreview({
           )}
         </div>
         <div className="relative aspect-video overflow-hidden group">
-          <Image
+          <BlurhashImage
+            blurhash={imageMedia[2].blurhash}
             src={imageMedia[2].url}
             alt=""
             fill
@@ -387,7 +393,8 @@ export function PostMediaPreview({
             key={item.id}
             className="relative aspect-video overflow-hidden group"
           >
-            <Image
+            <BlurhashImage
+              blurhash={item.blurhash}
               src={item.url}
               alt=""
               fill

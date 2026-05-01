@@ -36,6 +36,10 @@ components:
           format: uri
           nullable: true
           description: Thumbnail URL (video only, null for images)
+        blurhash:
+          type: string
+          nullable: true
+          description: BlurHash placeholder string used to render a blurred preview while the image loads. Null for legacy media or when generation failed.
     MediaLimits:
       type: object
       required:

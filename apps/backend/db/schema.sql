@@ -105,7 +105,8 @@ CREATE TABLE IF NOT EXISTS media (
   deleted_at TIMESTAMPTZ,
   deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
   deletion_reason TEXT,
-  phash TEXT
+  phash TEXT,
+  blurhash TEXT
 );
 
 DO $$
