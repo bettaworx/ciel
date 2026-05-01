@@ -1,6 +1,6 @@
 import {
-  Noto_Sans,
-  Noto_Sans_JP,
+  BIZ_UDGothic,
+  Manrope,
   Noto_Serif,
   Noto_Serif_JP,
 } from "next/font/google";
@@ -18,16 +18,16 @@ import { RegisterServiceWorker } from "@/app/register-sw";
 import { getLocale } from "@/i18n/config";
 import "./globals.css";
 
-const notoSans = Noto_Sans({
+const manrope = Manrope({
   variable: "--font-sans-latin",
   subsets: ["latin"],
   weight: ["400", "500", "700"],
   display: "swap",
 });
 
-const notoSansJp = Noto_Sans_JP({
+const bizUdGothic = BIZ_UDGothic({
   variable: "--font-sans-japanese",
-  weight: ["400", "500", "700"],
+  weight: ["400", "700"],
   display: "swap",
   preload: false,
 });
@@ -59,7 +59,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${notoSans.variable} ${notoSansJp.variable} ${notoSerif.variable} ${notoSerifJp.variable}`}
+      className={`${manrope.variable} ${bizUdGothic.variable} ${notoSerif.variable} ${notoSerifJp.variable}`}
       suppressHydrationWarning
     >
       <head>
