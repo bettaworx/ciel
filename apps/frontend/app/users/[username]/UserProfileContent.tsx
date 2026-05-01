@@ -38,6 +38,7 @@ import {
 import { PageContainer } from "@/components/PageContainer";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
@@ -625,13 +626,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               </div>
             )}
 
-            {hasNextPage && <div ref={postsInfiniteScrollRef} className="h-px" />}
-
-            {isFetchingNextPage && (
-              <div className="flex items-center justify-center py-3">
-                <Spinner variant="theme" size="sm" label={t("loading")} />
-              </div>
-            )}
+            <InfiniteScrollTrigger
+              sentinelRef={postsInfiniteScrollRef}
+              hasNextPage={Boolean(hasNextPage)}
+              isFetchingNextPage={isFetchingNextPage}
+            />
           </TabsContent>
 
           <TabsContent value="media">
@@ -668,15 +667,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               </div>
             )}
 
-            {hasNextMediaPage && (
-              <div ref={mediaInfiniteScrollRef} className="h-px" />
-            )}
-
-            {isFetchingNextMediaPage && (
-              <div className="flex items-center justify-center py-3">
-                <Spinner variant="theme" size="sm" label={t("loading")} />
-              </div>
-            )}
+            <InfiniteScrollTrigger
+              sentinelRef={mediaInfiniteScrollRef}
+              hasNextPage={Boolean(hasNextMediaPage)}
+              isFetchingNextPage={isFetchingNextMediaPage}
+            />
           </TabsContent>
         </Tabs>
       </div>

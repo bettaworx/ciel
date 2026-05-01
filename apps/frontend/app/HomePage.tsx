@@ -10,6 +10,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
 import { WelcomeCard } from "@/components/WelcomeCard";
 import { ComposeCard } from "@/components/ComposeCard";
+import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { Spinner } from "@/components/ui/spinner";
 
 export function HomePage() {
@@ -62,13 +63,11 @@ export function HomePage() {
           )}
         </div>
 
-        {hasNextPage && <div ref={infiniteScrollRef} className="h-px" />}
-
-        {isFetchingNextPage && (
-          <div className="flex items-center justify-center py-3">
-            <Spinner variant="theme" size="sm" label={t("loading")} />
-          </div>
-        )}
+        <InfiniteScrollTrigger
+          sentinelRef={infiniteScrollRef}
+          hasNextPage={Boolean(hasNextPage)}
+          isFetchingNextPage={isFetchingNextPage}
+        />
       </div>
     </PageContainer>
   );
