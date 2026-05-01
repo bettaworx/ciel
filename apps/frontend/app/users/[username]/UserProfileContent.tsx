@@ -38,6 +38,7 @@ import {
 import { PageContainer } from "@/components/PageContainer";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
@@ -67,6 +68,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     error: postsError,
     fetchNextPage,
     hasNextPage,
+    isFetchingNextPage,
   } = useUserPosts(username);
   const {
     data: mediaData,
@@ -74,6 +76,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     error: mediaError,
     fetchNextPage: fetchNextMediaPage,
     hasNextPage: hasNextMediaPage,
+    isFetchingNextPage: isFetchingNextMediaPage,
   } = useUserPosts(username, { mediaType: "media" });
 
   // Edit mode state
@@ -121,6 +124,18 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     normalizedBio !== (user?.bio ?? null);
   const hasImageChanges = Boolean(selectedAvatarFile || selectedBannerFile);
   const canSaveProfile = hasTextChanges || hasImageChanges;
+  const postsInfiniteScrollRef = useInfiniteScroll({
+    enabled: Boolean(hasNextPage),
+    hasNextPage: Boolean(hasNextPage),
+    isFetchingNextPage,
+    fetchNextPage,
+  });
+  const mediaInfiniteScrollRef = useInfiniteScroll({
+    enabled: Boolean(hasNextMediaPage),
+    hasNextPage: Boolean(hasNextMediaPage),
+    isFetchingNextPage: isFetchingNextMediaPage,
+    fetchNextPage: fetchNextMediaPage,
+  });
 
   const handleEditStart = () => {
     if (!user) return;
@@ -610,14 +625,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               </div>
             )}
 
-            {hasNextPage && (
-              <div className="mt-8 text-center">
-                <Button
-                  onClick={() => fetchNextPage()}
-                  className="transition-colors duration-160 ease"
-                >
-                  {t("timeline.loadMore")}
-                </Button>
+            {hasNextPage && <div ref={postsInfiniteScrollRef} className="h-px" />}
+
+            {isFetchingNextPage && (
+              <div className="flex items-center justify-center py-3">
+                <Spinner variant="theme" size="sm" label={t("loading")} />
               </div>
             )}
           </TabsContent>
@@ -657,13 +669,12 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             )}
 
             {hasNextMediaPage && (
-              <div className="mt-8 text-center">
-                <Button
-                  onClick={() => fetchNextMediaPage()}
-                  className="transition-colors duration-160 ease"
-                >
-                  {t("timeline.loadMore")}
-                </Button>
+              <div ref={mediaInfiniteScrollRef} className="h-px" />
+            )}
+
+            {isFetchingNextMediaPage && (
+              <div className="flex items-center justify-center py-3">
+                <Spinner variant="theme" size="sm" label={t("loading")} />
               </div>
             )}
           </TabsContent>

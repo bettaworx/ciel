@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
+import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { useTimeline } from "@/lib/hooks/use-queries";
-import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
 import { WelcomeCard } from "@/components/WelcomeCard";
@@ -16,9 +16,22 @@ export function HomePage() {
   const t = useTranslations();
   const router = useRouter();
   const auth = useAtomValue(authAtom);
-  const { data, isLoading, error, fetchNextPage, hasNextPage } = useTimeline();
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTimeline();
 
   const posts = data?.pages.flatMap((page) => page.items ?? []) ?? [];
+  const infiniteScrollRef = useInfiniteScroll({
+    enabled: posts.length > 0,
+    hasNextPage: Boolean(hasNextPage),
+    isFetchingNextPage,
+    fetchNextPage,
+  });
 
   return (
     <PageContainer maxWidth="2xl">
@@ -49,11 +62,11 @@ export function HomePage() {
           )}
         </div>
 
-        {hasNextPage && (
-          <div className="mt-8 text-center">
-            <Button variant="contrast" onClick={() => fetchNextPage()}>
-              {t("timeline.loadMore")}
-            </Button>
+        {hasNextPage && <div ref={infiniteScrollRef} className="h-px" />}
+
+        {isFetchingNextPage && (
+          <div className="flex items-center justify-center py-3">
+            <Spinner variant="theme" size="sm" label={t("loading")} />
           </div>
         )}
       </div>
