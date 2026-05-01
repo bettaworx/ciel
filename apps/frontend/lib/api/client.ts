@@ -334,6 +334,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			return request<components['schemas']['TimelinePage']>('GET', `/timeline${suffix}`);
 		},
 
+		listCustomEmojis: (params?: { limit?: number; offset?: number }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.offset !== undefined) qs.set('offset', String(params.offset));
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['EmojiListResponse']>('GET', `/emojis${suffix}`);
+		},
+
 		reactionCounts: (postId: components['schemas']['PostId']) =>
 			request<components['schemas']['ReactionCounts']>('GET', `/posts/${postId}/reactions`),
 
@@ -516,6 +524,27 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		adminDeleteMedia: (mediaId: components['schemas']['MediaId'], body?: components['schemas']['DeleteMediaRequest']) =>
 			request<void>('DELETE', `/admin/media/${mediaId}`, { body }),
+
+		// Admin - Emojis
+		adminListEmojis: (params?: {
+			limit?: number;
+			offset?: number;
+		}) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.offset !== undefined) qs.set('offset', String(params.offset));
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['AdminEmojiListResponse']>('GET', `/admin/emojis${suffix}`);
+		},
+
+		adminCreateEmoji: (form: FormData) =>
+			requestForm<components['schemas']['AdminEmoji']>('POST', '/admin/emojis', { form }),
+
+		adminUpdateEmoji: (emojiId: components['schemas']['EmojiId'], form: FormData) =>
+			requestForm<components['schemas']['AdminEmoji']>('PUT', `/admin/emojis/${emojiId}`, { form }),
+
+		adminDeleteEmoji: (emojiId: components['schemas']['EmojiId']) =>
+			request<void>('DELETE', `/admin/emojis/${emojiId}`),
 
 		// Admin - User Mutes
 		adminGetUserMutes: (userId: components['schemas']['UserId']) =>

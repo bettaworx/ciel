@@ -599,11 +599,28 @@
   /* Placeholder for custom emoji - show as badge-like text */
 }
 
+.mfm-inline-emoji {
+  display: inline-block;
+  line-height: 1;
+  vertical-align: -0.2em;
+}
+
+.mfm-custom-emoji-placeholder {
+  width: 1.25em;
+  height: 1.25em;
+}
+
 .twemoji {
   height: 1.25em;
   width: 1.25em;
-  display: inline-block;
-  vertical-align: -0.3em;
+  display: block;
+}
+
+.mfm-custom-emoji-image {
+  height: 1.25em;
+  width: auto;
+  max-width: none;
+  display: block;
 }
 
 .mfm-search {

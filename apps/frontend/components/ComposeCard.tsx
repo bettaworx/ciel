@@ -196,7 +196,7 @@ export function ComposeCard() {
               )}
             </Avatar>
             <div className="flex-1 h-11 sm:h-12 rounded-lg bg-transparent transition-colors flex items-center">
-              <span className="text-base md:text-lg md:mt-1 text-muted-foreground">
+              <span className="text-base md:text-lg text-muted-foreground">
                 {t("createPost.placeholder")}
               </span>
             </div>

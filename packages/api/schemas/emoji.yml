@@ -1,0 +1,100 @@
+components:
+  schemas:
+    PublicEmoji:
+      type: object
+      required:
+      - shortcode
+      - imageUrl
+      properties:
+        shortcode:
+          $ref: ./common.yml#/components/schemas/EmojiShortcode
+        name:
+          type: string
+          nullable: true
+          description: Optional display name for the emoji.
+        category:
+          type: string
+          nullable: true
+          description: Optional category for grouping emojis.
+        license:
+          type: string
+          nullable: true
+          description: Optional license information for the emoji image.
+        imageUrl:
+          type: string
+          format: uri
+          description: URL of the emoji WebP image.
+
+    AdminEmoji:
+      type: object
+      required:
+      - id
+      - shortcode
+      - imageUrl
+      - width
+      - height
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          $ref: ./common.yml#/components/schemas/EmojiId
+        shortcode:
+          $ref: ./common.yml#/components/schemas/EmojiShortcode
+        name:
+          type: string
+          nullable: true
+          description: Optional display name for the emoji.
+        category:
+          type: string
+          nullable: true
+          description: Optional category for grouping emojis.
+        license:
+          type: string
+          nullable: true
+          description: Optional license information for the emoji image.
+        imageUrl:
+          type: string
+          format: uri
+          description: URL of the emoji WebP image.
+        width:
+          type: integer
+          minimum: 1
+          description: Output image width in pixels.
+        height:
+          type: integer
+          minimum: 1
+          description: Output image height in pixels.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EmojiListResponse:
+      type: object
+      required:
+      - emojis
+      - total
+      properties:
+        emojis:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicEmoji'
+        total:
+          type: integer
+          description: Total number of custom emojis on this server.
+
+    AdminEmojiListResponse:
+      type: object
+      required:
+      - emojis
+      - total
+      properties:
+        emojis:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminEmoji'
+        total:
+          type: integer
+          description: Total number of custom emojis on this server.

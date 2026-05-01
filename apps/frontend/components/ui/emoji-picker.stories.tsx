@@ -16,9 +16,13 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  render: () => (
+  args: {
+    children: null,
+    onEmojiSelect: (e) => console.log("selected", e),
+  },
+  render: (args) => (
     <div className="w-[352px] h-[400px]">
-      <EmojiPicker>
+      <EmojiPicker {...args}>
         <EmojiPickerSearch placeholder="Search emoji..." />
         <EmojiPickerContent />
         <EmojiPickerFooter />
@@ -28,11 +32,32 @@ export const Default: Story = {
 };
 
 export const WithoutFooter: Story = {
-  render: () => (
+  args: {
+    children: null,
+    onEmojiSelect: (e) => console.log("selected", e),
+  },
+  render: (args) => (
     <div className="w-[352px] h-[350px]">
-      <EmojiPicker>
+      <EmojiPicker {...args}>
         <EmojiPickerSearch placeholder="Search emoji..." />
         <EmojiPickerContent />
+      </EmojiPicker>
+    </div>
+  ),
+};
+
+export const WideColumns: Story = {
+  args: {
+    children: null,
+    columns: 12,
+    onEmojiSelect: (e) => console.log("selected", e),
+  },
+  render: (args) => (
+    <div className="w-[480px] h-[400px]">
+      <EmojiPicker {...args}>
+        <EmojiPickerSearch placeholder="Search emoji..." />
+        <EmojiPickerContent />
+        <EmojiPickerFooter />
       </EmojiPicker>
     </div>
   ),

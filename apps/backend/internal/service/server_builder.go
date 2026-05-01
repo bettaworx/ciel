@@ -58,6 +58,18 @@ func BuildServerConfig(cfg *config.Config) api.ServerConfig {
 					MaxSize: cfg.Media.ServerIcon.Gif.MaxSize,
 				},
 			},
+			Emoji: api.MediaEmojiLimits{
+				Static: struct {
+					Height int `json:"height"`
+				}{
+					Height: cfg.Media.Emoji.Static.Height,
+				},
+				Gif: struct {
+					Height int `json:"height"`
+				}{
+					Height: cfg.Media.Emoji.Gif.Height,
+				},
+			},
 			Video: api.MediaVideoLimits{
 				MaxUploadSizeMB:    cfg.Media.Video.MaxUploadSize,
 				MaxDurationSeconds: cfg.Media.Video.MaxDuration,

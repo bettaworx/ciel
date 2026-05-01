@@ -3,19 +3,27 @@
 import * as React from "react";
 import { SmilePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import {
   EmojiPicker,
   EmojiPickerSearch,
   EmojiPickerContent,
   EmojiPickerFooter,
+  type EmojiSelectEvent,
 } from "@/components/ui/emoji-picker";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 
 interface ReactionPickerProps {
@@ -35,9 +43,18 @@ export function ReactionPicker({
   const t = useTranslations("postCard");
   const [open, setOpen] = React.useState(false);
   const isDesktop = useMediaQuery("(min-width: 640px)");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamsKey = searchParams.toString();
+
+  useBodyScrollLock(open);
+
+  React.useEffect(() => {
+    setOpen(false);
+  }, [pathname, searchParamsKey]);
 
   const handleEmojiSelect = React.useCallback(
-    ({ emoji }: { emoji: string }) => {
+    ({ emoji }: EmojiSelectEvent) => {
       onEmojiSelect(emoji);
       setOpen(false);
     },
@@ -53,15 +70,15 @@ export function ReactionPicker({
             variant="ghost"
             size="sm"
             disabled={disabled}
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
+            className="h-9 w-9 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
             aria-label={t("addReaction")}
           >
-            <SmilePlus className="h-5 w-5" />
+            <SmilePlus className="h-5 w-5 sm:h-5 sm:w-5" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-fit p-0" align="start">
+        <PopoverContent className="w-fit overflow-hidden p-0" align="start">
           <EmojiPicker
-            className="h-[342px] w-fit"
+            className="h-[400px] w-[400px]"
             columns={9}
             onEmojiSelect={handleEmojiSelect}
           >
@@ -82,17 +99,18 @@ export function ReactionPicker({
           variant="ghost"
           size="sm"
           disabled={disabled}
-          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
+          className="h-9 w-9 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
           aria-label={t("addReaction")}
         >
-          <SmilePlus className="h-5 w-5" />
+          <SmilePlus className="h-5 w-5 sm:h-5 sm:w-5" />
         </Button>
       </DrawerTrigger>
       <DrawerContent>
         <div className="w-full flex flex-col">
+          <DrawerTitle className="sr-only">{t("addReaction")}</DrawerTitle>
           <EmojiPicker
             className="w-full h-[400px] border-0"
-            columns={12}
+            columns={8}
             onEmojiSelect={handleEmojiSelect}
           >
             <EmojiPickerSearch

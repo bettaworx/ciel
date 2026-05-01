@@ -212,21 +212,6 @@ html[lang="en"] {
         --offset-top: 1rem;
         --offset-bottom: 1rem;
     }
-    /* Frimousse emoji picker full width override for mobile drawer */
-    [data-slot="emoji-picker"] [frimousse-list] {
-        width: 100% !important;
-    }
-
-    [data-slot="emoji-picker"] [frimousse-row] {
-        width: 100% !important;
-        display: flex !important;
-        gap: 0.25rem;
-    }
-
-    [data-slot="emoji-picker"] [frimousse-emoji] {
-        flex: 1 1 0%;
-        min-width: 0;
-    }
 
     /* Custom spinner animation - 2x faster than default */
     .animate-spin-fast {

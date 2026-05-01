@@ -20,6 +20,7 @@ func mapPostRow(row sqlc.GetPostWithAuthorByIDRow) api.Post {
 		Id:        row.ID,
 		Content:   row.Content,
 		Media:     []api.Media{},
+		Reactions: []api.ReactionCount{},
 		CreatedAt: row.CreatedAt,
 		DeletedAt: deletedAt,
 		// Note: Post author doesn't include agreement fields (not needed for display)
@@ -32,6 +33,7 @@ func mapPostsByUsernameRow(row sqlc.ListPostsByUsernameRow) api.Post {
 		Id:        row.ID,
 		Content:   row.Content,
 		Media:     []api.Media{},
+		Reactions: []api.ReactionCount{},
 		CreatedAt: row.CreatedAt,
 		DeletedAt: nil,
 		// Note: Post author doesn't include agreement fields (not needed for display)

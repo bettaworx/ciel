@@ -19,6 +19,7 @@ export const queryKeys = {
   me: ["me"] as const,
   serverInfo: ["serverInfo"] as const,
   serverConfig: ["serverConfig"] as const,
+  customEmojis: ["customEmojis"] as const,
   adminSettings: ["adminSettings"] as const,
   timeline: ["timeline"] as const,
   post: (id: string) => ["post", id] as const,
@@ -44,6 +45,8 @@ export const queryKeys = {
   adminInviteCode: (id: string) => ["adminInviteCode", id] as const,
   adminInviteUsageHistory: (id: string) =>
     ["adminInviteUsageHistory", id] as const,
+  adminEmojis: (params?: { limit?: number; offset?: number }) =>
+    ["adminEmojis", params] as const,
   ogp: (url: string) => ["ogp", url] as const,
 };
 
@@ -100,6 +103,21 @@ export function useServerConfig() {
       return result.data;
     },
     staleTime: Infinity,
+  });
+}
+
+export function useCustomEmojis() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.customEmojis,
+    queryFn: async () => {
+      const result = await api.listCustomEmojis({ limit: 200 });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.emojis;
+    },
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
   });
 }
 
@@ -650,6 +668,83 @@ export function useAdminDuplicateAgreementDocument(documentId: string) {
       queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === "adminAgreementDocuments",
       });
+    },
+  });
+}
+
+// ==================== Admin - Invite Codes ====================
+
+// ==================== Admin - Emojis ====================
+
+export function useAdminEmojis(params?: {
+  limit?: number;
+  offset?: number;
+}) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.adminEmojis(params),
+    queryFn: async () => {
+      const result = await api.adminListEmojis(params);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    staleTime: 1000 * 60,
+  });
+}
+
+export function useAdminCreateEmoji() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (form: FormData) => {
+      const result = await api.adminCreateEmoji(form);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "adminEmojis",
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customEmojis });
+    },
+  });
+}
+
+export function useAdminUpdateEmoji(emojiId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (form: FormData) => {
+      const result = await api.adminUpdateEmoji(emojiId, form);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "adminEmojis",
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customEmojis });
+    },
+  });
+}
+
+export function useAdminDeleteEmoji() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (emojiId: string) => {
+      const result = await api.adminDeleteEmoji(emojiId);
+      if (!result.ok) throw new Error(result.errorText);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "adminEmojis",
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customEmojis });
     },
   });
 }
