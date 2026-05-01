@@ -575,14 +575,18 @@ func (s *MediaService) uploadImagePassthrough(ctx context.Context, user auth.Use
 		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "failed to process image")
 	}
 
+	// Compute BlurHash placeholder from the saved image. Failure is non-fatal.
+	blurhashStr := computeBlurhashForImage(outPath)
+
 	// Create database record with original dimensions and format.
 	row, err := s.store.Q.CreateMedia(ctx, sqlc.CreateMediaParams{
-		ID:     id,
-		UserID: user.ID,
-		Type:   "image",
-		Ext:    storeExt,
-		Width:  int32(info.Width),
-		Height: int32(info.Height),
+		ID:       id,
+		UserID:   user.ID,
+		Type:     "image",
+		Ext:      storeExt,
+		Width:    int32(info.Width),
+		Height:   int32(info.Height),
+		Blurhash: nullStringFromString(blurhashStr),
 	})
 	if err != nil {
 		cleanupOut()
@@ -595,6 +599,7 @@ func (s *MediaService) uploadImagePassthrough(ctx context.Context, user auth.Use
 		Url:       mediaImageURL(row.ID, row.Ext),
 		Width:     int(row.Width),
 		Height:    int(row.Height),
+		Blurhash:  nullStringToPtr(row.Blurhash),
 		CreatedAt: row.CreatedAt,
 	}, nil
 }
@@ -687,6 +692,9 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 		return api.Media{}, NewError(http.StatusInternalServerError, "internal_error", "thumbnail generation failed")
 	}
 
+	// Compute BlurHash placeholder from the thumbnail. Failure is non-fatal.
+	blurhashStr := computeBlurhashForImage(thumbnailPath)
+
 	// Save to database
 	duration := sql.NullFloat64{Float64: videoInfo.Duration, Valid: true}
 	row, err := s.store.Q.CreateMedia(ctx, sqlc.CreateMediaParams{
@@ -697,6 +705,7 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 		Width:    int32(outputWidth),
 		Height:   int32(outputHeight),
 		Duration: duration,
+		Blurhash: nullStringFromString(blurhashStr),
 	})
 	if err != nil {
 		cleanupOut()
@@ -719,6 +728,7 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 		Height:       int(row.Height),
 		Duration:     durationPtr,
 		ThumbnailUrl: &thumbnailURL,
+		Blurhash:     nullStringToPtr(row.Blurhash),
 		CreatedAt:    row.CreatedAt,
 	}, nil
 }
@@ -1091,14 +1101,18 @@ func (s *MediaService) convertAndSaveImage(ctx context.Context, user auth.User, 
 		}
 	}
 
+	// Compute BlurHash placeholder from the converted output. Failure is non-fatal.
+	blurhashStr := computeBlurhashForImage(outPath)
+
 	// Create database record
 	row, err := s.store.Q.CreateMedia(ctx, sqlc.CreateMediaParams{
-		ID:     id,
-		UserID: user.ID,
-		Type:   mediaType,
-		Ext:    storedImageExt,
-		Width:  int32(wOut),
-		Height: int32(hOut),
+		ID:       id,
+		UserID:   user.ID,
+		Type:     mediaType,
+		Ext:      storedImageExt,
+		Width:    int32(wOut),
+		Height:   int32(hOut),
+		Blurhash: nullStringFromString(blurhashStr),
 	})
 	if err != nil {
 		cleanupOut()
@@ -1111,6 +1125,7 @@ func (s *MediaService) convertAndSaveImage(ctx context.Context, user auth.User, 
 		Url:       mediaImageURL(row.ID, row.Ext),
 		Width:     int(row.Width),
 		Height:    int(row.Height),
+		Blurhash:  nullStringToPtr(row.Blurhash),
 		CreatedAt: row.CreatedAt,
 	}, nil
 }
@@ -1181,14 +1196,19 @@ func (s *MediaService) uploadServerIconWithBothVersions(ctx context.Context, use
 		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "failed to read converted image")
 	}
 
+	// Compute BlurHash placeholder from the static (single-frame) version.
+	// Animated WebP cannot be decoded by the standard Go image package.
+	blurhashStr := computeBlurhashForImage(staticPath)
+
 	// Create database record
 	row, err := s.store.Q.CreateMedia(ctx, sqlc.CreateMediaParams{
-		ID:     id,
-		UserID: user.ID,
-		Type:   "server_icon",
-		Ext:    storedImageExt,
-		Width:  int32(wOut),
-		Height: int32(hOut),
+		ID:       id,
+		UserID:   user.ID,
+		Type:     "server_icon",
+		Ext:      storedImageExt,
+		Width:    int32(wOut),
+		Height:   int32(hOut),
+		Blurhash: nullStringFromString(blurhashStr),
 	})
 	if err != nil {
 		cleanupOut()
@@ -1201,6 +1221,7 @@ func (s *MediaService) uploadServerIconWithBothVersions(ctx context.Context, use
 		Url:       mediaImageURL(row.ID, row.Ext),
 		Width:     int(row.Width),
 		Height:    int(row.Height),
+		Blurhash:  nullStringToPtr(row.Blurhash),
 		CreatedAt: row.CreatedAt,
 	}, nil
 }

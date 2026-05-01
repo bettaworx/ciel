@@ -336,7 +336,7 @@ func (s *AuthService) Register(ctx context.Context, req api.RegisterRequest) (ap
 		}
 	}
 
-	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt), nil
+	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt), nil
 }
 
 func (s *AuthService) LoginStart(ctx context.Context, req api.LoginStartRequest) (api.LoginStartResponse, error) {
@@ -475,7 +475,7 @@ func (s *AuthService) LoginFinish(ctx context.Context, req api.LoginFinishReques
 		AccessToken:      token,
 		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
 		ExpiresInSeconds: expiresIn,
-		User:             mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt),
+		User:             mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt),
 	}, rawRefreshToken, nil
 }
 

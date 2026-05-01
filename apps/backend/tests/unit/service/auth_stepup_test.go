@@ -76,8 +76,8 @@ func TestAuthService_StepUpFinish_WrongNonce(t *testing.T) {
 	created := time.Unix(1_700_000_000, 0).UTC()
 
 	mock.ExpectQuery(`SELECT\s+u.id`).WithArgs(userID).WillReturnRows(
-		sqlmock.NewRows([]string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "salt", "iterations", "stored_key", "server_key"}).
-			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, []byte("salt"), int32(100000), []byte{1, 2}, []byte{3, 4}),
+		sqlmock.NewRows([]string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash", "salt", "iterations", "stored_key", "server_key"}).
+			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, []byte("salt"), int32(100000), []byte{1, 2}, []byte{3, 4}),
 	)
 
 	startResp, err := svc.StepUpStart(context.Background(), user, api.StepupStartRequest{ClientNonce: "cnonce"})
@@ -113,8 +113,8 @@ func TestAuthService_StepUpStart_AuditSuccess(t *testing.T) {
 	storedKey, serverKey := auth.DeriveVerifier("password123", salt, iterations)
 
 	mock.ExpectQuery(`SELECT\s+u.id`).WithArgs(userID).WillReturnRows(
-		sqlmock.NewRows([]string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "salt", "iterations", "stored_key", "server_key"}).
-			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
+		sqlmock.NewRows([]string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash", "salt", "iterations", "stored_key", "server_key"}).
+			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
 	)
 
 	_, err := svc.StepUpStart(context.Background(), user, api.StepupStartRequest{ClientNonce: "cnonce"})
@@ -144,12 +144,12 @@ func TestAuthService_StepUpFinish_AuditSuccess(t *testing.T) {
 	storedKey, serverKey := auth.DeriveVerifier(password, salt, iterations)
 
 	mock.ExpectQuery(`SELECT\s+u.id`).WithArgs(userID).WillReturnRows(
-		sqlmock.NewRows([]string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "salt", "iterations", "stored_key", "server_key"}).
-			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
+		sqlmock.NewRows([]string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash", "salt", "iterations", "stored_key", "server_key"}).
+			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
 	)
 	mock.ExpectQuery(`SELECT\s+u.id`).WithArgs(userID).WillReturnRows(
-		sqlmock.NewRows([]string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "salt", "iterations", "stored_key", "server_key"}).
-			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
+		sqlmock.NewRows([]string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash", "salt", "iterations", "stored_key", "server_key"}).
+			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
 	)
 
 	startResp, err := svc.StepUpStart(context.Background(), user, api.StepupStartRequest{ClientNonce: "cnonce"})

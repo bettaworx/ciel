@@ -189,6 +189,7 @@ export function PostCard({
         width: m.width,
         height: m.height,
         thumbnailUrl: m.thumbnailUrl,
+        blurhash: m.blurhash,
       })),
     [media],
   );

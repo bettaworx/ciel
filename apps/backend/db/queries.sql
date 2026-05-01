@@ -27,7 +27,8 @@ SELECT
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
 	m.ext AS avatar_ext,
-	bm.ext AS banner_ext
+	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash
 FROM users u
 LEFT JOIN media m ON m.id = u.avatar_media_id
 LEFT JOIN media bm ON bm.id = u.banner_media_id
@@ -47,7 +48,8 @@ SELECT
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
 	m.ext AS avatar_ext,
-	bm.ext AS banner_ext
+	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash
 FROM users u
 LEFT JOIN media m ON m.id = u.avatar_media_id
 LEFT JOIN media bm ON bm.id = u.banner_media_id
@@ -117,6 +119,7 @@ SELECT
 	updated.privacy_accepted_at,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash,
 	(SELECT avatar_media_id FROM prev) AS previous_avatar_media_id
 FROM updated
 LEFT JOIN media m ON m.id = updated.avatar_media_id
@@ -146,6 +149,7 @@ SELECT
 	updated.privacy_accepted_at,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash,
 	(SELECT banner_media_id FROM prev) AS previous_banner_media_id
 FROM updated
 LEFT JOIN media m ON m.id = updated.avatar_media_id
@@ -170,6 +174,7 @@ SELECT
 	u.privacy_accepted_at,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash,
 	c.salt,
 	c.iterations,
 	c.stored_key,
@@ -195,6 +200,7 @@ SELECT
 	u.privacy_accepted_at,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash,
 	c.salt,
 	c.iterations,
 	c.stored_key,
@@ -255,9 +261,9 @@ WHERE id = $1
 RETURNING id, deleted_at;
 
 -- name: CreateMedia :one
-INSERT INTO media (id, user_id, type, ext, width, height, duration)
-VALUES ($1, $2, $3, $4, $5, $6, sqlc.narg('duration'))
-RETURNING id, user_id, type, ext, width, height, duration, created_at;
+INSERT INTO media (id, user_id, type, ext, width, height, duration, blurhash)
+VALUES ($1, $2, $3, $4, $5, $6, sqlc.narg('duration'), sqlc.narg('blurhash'))
+RETURNING id, user_id, type, ext, width, height, duration, blurhash, created_at;
 
 -- name: CountOwnedMediaByIDs :one
 SELECT COUNT(*)::int
@@ -267,7 +273,7 @@ WHERE user_id = $1
 	AND type IN ('image', 'video');
 
 -- name: GetMediaByID :one
-SELECT id, user_id, type, ext, width, height, duration, created_at
+SELECT id, user_id, type, ext, width, height, duration, blurhash, created_at
 FROM media
 WHERE id = $1;
 
@@ -305,6 +311,7 @@ SELECT
 	m.width,
 	m.height,
 	m.duration,
+	m.blurhash,
 	m.created_at,
 	pm.sort_order
 FROM post_media pm
@@ -324,6 +331,7 @@ SELECT
 	m.width,
 	m.height,
 	m.duration,
+	m.blurhash,
 	m.created_at,
 	pm.sort_order
 FROM post_media pm

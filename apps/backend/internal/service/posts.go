@@ -262,6 +262,7 @@ func (s *PostsService) attachMediaToPost(ctx context.Context, post *api.Post) er
 			Type:      api.MediaType(row.Type),
 			Width:     int(row.Width),
 			Height:    int(row.Height),
+			Blurhash:  nullStringToPtr(row.Blurhash),
 			CreatedAt: row.CreatedAt,
 		}
 
@@ -314,6 +315,7 @@ func (s *PostsService) attachMediaToPosts(ctx context.Context, posts []api.Post)
 			Type:      api.MediaType(row.Type),
 			Width:     int(row.Width),
 			Height:    int(row.Height),
+			Blurhash:  nullStringToPtr(row.Blurhash),
 			CreatedAt: row.CreatedAt,
 		}
 

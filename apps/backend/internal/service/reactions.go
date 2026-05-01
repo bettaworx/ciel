@@ -194,6 +194,7 @@ func (s *ReactionsService) ListUsers(ctx context.Context, postID api.PostId, emo
 			row.AvatarExt,
 			uuid.NullUUID{},
 			sql.NullString{},
+			sql.NullString{},
 			0,
 			0,
 			sql.NullTime{},

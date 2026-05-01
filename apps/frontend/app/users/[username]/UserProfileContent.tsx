@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
@@ -46,6 +46,7 @@ import { PostCard } from "@/components/PostCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
+import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { toast } from "sonner";
 
 type UserProfileContentProps = {
@@ -137,6 +138,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     isFetchingNextPage: isFetchingNextMediaPage,
     fetchNextPage: fetchNextMediaPage,
   });
+
+  const bannerBlurhashDataUrl = useMemo(
+    () => getBlurhashDataUrl(user?.bannerBlurhash),
+    [user?.bannerBlurhash],
+  );
 
   const handleEditStart = () => {
     if (!user) return;
@@ -314,11 +320,20 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
         <div className="select-none bg-card rounded-2xl overflow-hidden mb-3">
           {/* Banner */}
           <div
-            className={`w-full aspect-[3/1] bg-muted relative ${isEditing ? "cursor-pointer" : ""}`}
+            className={`w-full aspect-[3/1] bg-muted relative overflow-hidden ${isEditing ? "cursor-pointer" : ""}`}
             onClick={
               isEditing ? () => bannerFileInputRef.current?.click() : undefined
             }
           >
+            {!isEditing && user.bannerUrl && bannerBlurhashDataUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={bannerBlurhashDataUrl}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              />
+            )}
             {(isEditing ? bannerPreview || user.bannerUrl : user.bannerUrl) && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -328,7 +343,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                     : user.bannerUrl) ?? undefined
                 }
                 alt=""
-                className="w-full h-full object-cover"
+                className="relative w-full h-full object-cover"
               />
             )}
             {isEditing && (

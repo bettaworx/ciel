@@ -31,6 +31,10 @@ components:
           type: string
           format: uri
           nullable: true
+        bannerBlurhash:
+          type: string
+          nullable: true
+          description: BlurHash placeholder for the banner image. Null when no banner is set or generation failed.
         isAdmin:
           type: boolean
           description: Whether user has admin.all permission

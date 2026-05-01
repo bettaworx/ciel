@@ -114,8 +114,8 @@ func TestAPI_GetServerInfo_WithIcon(t *testing.T) {
 
 	// Mock the GetMediaByID query (called after stats)
 	createdAt := time.Date(2026, 1, 22, 0, 0, 0, 0, time.UTC)
-	rows := sqlmock.NewRows([]string{"id", "user_id", "type", "ext", "width", "height", "duration", "created_at"}).
-		AddRow(iconMediaID, uuid.New(), "image", "webp", int32(400), int32(400), sql.NullFloat64{}, createdAt)
+	rows := sqlmock.NewRows([]string{"id", "user_id", "type", "ext", "width", "height", "duration", "blurhash", "created_at"}).
+		AddRow(iconMediaID, uuid.New(), "image", "webp", int32(400), int32(400), sql.NullFloat64{}, sql.NullString{}, createdAt)
 	mock.ExpectQuery(`-- name: GetMediaByID`).
 		WithArgs(iconMediaID).
 		WillReturnRows(rows)
