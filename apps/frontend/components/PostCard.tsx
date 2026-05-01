@@ -169,7 +169,8 @@ export function PostCard({
   }, [onUserClick, post.author?.username]);
 
   const displayName =
-    post.author?.displayName || post.author?.username || tUser("unknown");
+    post.author?.displayName ||
+    (post.author?.username ? `@${post.author.username}` : tUser("unknown"));
   const username = post.author?.username || tUser("unknownUsername");
   const hasDisplayName = Boolean(post.author?.displayName);
   const avatarUrl = post.author?.avatarUrl;
