@@ -380,7 +380,7 @@ export function PostComposerContent({
         onPaste={handlePaste}
         onBlur={onBlur}
         placeholder={t("createPost.placeholder")}
-        className={`flex-1 max-h-[400px] mt-2 md:mt-3 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0`}
+        className={`flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0`}
         maxLength={maxContentLength}
         disabled={createPostMutation.isPending || isUploading}
       />
