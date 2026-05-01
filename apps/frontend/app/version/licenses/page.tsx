@@ -14,7 +14,16 @@ type LicenseEntry = {
   version: string;
   license: string;
   repository: string | null;
+  licenseUrl: string | null;
   licenseText: string | null;
+  source?: string;
+  font?: {
+    weights?: string[];
+    styles?: string[];
+    subsets?: string[];
+    display?: string;
+    preload?: boolean;
+  };
 };
 
 export default function LicensesPage() {
@@ -37,19 +46,30 @@ export default function LicensesPage() {
       <div className="bg-card rounded-2xl flex flex-col overflow-hidden">
         {licenses.map((entry, index) => {
           const key = `${entry.name}@${entry.version}`;
+          const linkTarget = entry.licenseUrl ?? entry.repository;
+          const details = [
+            entry.version,
+            entry.license,
+            entry.source,
+            entry.font?.weights?.length
+              ? `weights: ${entry.font.weights.join(", ")}`
+              : null,
+          ].filter(Boolean);
           const label = (
             <>
               <div className="flex flex-col min-w-0 text-left">
                 <span className="text-sm font-medium truncate">{entry.name}</span>
-                <span className="text-xs text-muted-foreground truncate">{entry.version}</span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {details.join(" · ")}
+                </span>
               </div>
-              {entry.repository && <ExternalLink className="opacity-60 shrink-0" />}
+              {linkTarget && <ExternalLink className="opacity-60 shrink-0" />}
             </>
           );
 
-          const row = entry.repository ? (
+          const row = linkTarget ? (
             <Button variant="list_row" size="list" asChild>
-              <a href={entry.repository} target="_blank" rel="noopener noreferrer">
+              <a href={linkTarget} target="_blank" rel="noopener noreferrer">
                 {label}
               </a>
             </Button>
