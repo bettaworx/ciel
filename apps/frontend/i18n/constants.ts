@@ -6,3 +6,6 @@ export const defaultLocale: Locale = 'ja';
 
 // Local storage key for persisted locale
 export const LOCALE_STORAGE_KEY = 'ciel:locale';
+
+// Cookie key for persisted locale that the server can read during SSR
+export const LOCALE_COOKIE_KEY = 'NEXT_LOCALE';

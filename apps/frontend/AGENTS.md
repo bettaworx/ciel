@@ -196,8 +196,9 @@ export function useCreatePost() {
 
 ### Typography
 
-- **Primary Font**: IBM Plex Sans JP (weights: 400, 500, 700)
-- **Fallback**: System fonts
+- **Primary Sans Stack**: Locale-aware stack selected in `app/globals.css`
+- **Font Loading**: `next/font/google` variables are defined in `app/layout.tsx`
+- **Fallbacks**: Shared sans/serif fallback tokens live in `app/globals.css`
 - **Display**: swap (for performance)
 
 ### Design Rules

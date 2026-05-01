@@ -44,7 +44,7 @@ func TestTimelineService_Get_UsesRedis(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
 
 	limit := 1
-	page, err := svc.Get(context.Background(), api.GetTimelineParams{Limit: &limit})
+	page, err := svc.Get(context.Background(), api.GetTimelineParams{Limit: &limit}, nil)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestTimelineService_Get_FallsBackToDB(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
 
 	limit := 1
-	page, err := svc.Get(context.Background(), api.GetTimelineParams{Limit: &limit})
+	page, err := svc.Get(context.Background(), api.GetTimelineParams{Limit: &limit}, nil)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}

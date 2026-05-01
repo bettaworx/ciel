@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmojiInline } from "@/components/EmojiInline";
 import { ReactionUserButton } from "@/components/ReactionUserButton";
 import type { components } from "@/lib/api/api";
 import { useReactionUsers } from "@/lib/hooks/use-reaction-users";
@@ -80,7 +81,9 @@ export function ReactionUsersDialog({
               value={reaction.emoji}
               className={cn("px-3", "whitespace-nowrap")}
             >
-              <span className="text-sm">{reaction.emoji}</span>
+              <span className="text-sm">
+                <EmojiInline emoji={reaction.emoji} />
+              </span>
               <span className="ml-1 text-xs tabular-nums text-muted-foreground">
                 {reaction.count}
               </span>

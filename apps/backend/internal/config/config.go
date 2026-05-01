@@ -101,6 +101,7 @@ type MediaConfig struct {
 	Avatar            MediaAvatarConfig     `yaml:"avatar"`
 	Banner            MediaBannerConfig     `yaml:"banner"`
 	ServerIcon        MediaServerIconConfig `yaml:"server_icon"`
+	Emoji             MediaEmojiConfig      `yaml:"emoji"`
 	Video             MediaVideoConfig      `yaml:"video"`
 }
 
@@ -176,6 +177,20 @@ type MediaServerIconStaticConfig struct {
 type MediaServerIconGifConfig struct {
 	MaxSize int `yaml:"max_size"` // maximum output size in pixels (longest edge)
 	Quality int `yaml:"quality"`  // WebP quality (0-100)
+}
+
+// MediaEmojiConfig holds settings for custom emoji uploads
+type MediaEmojiConfig struct {
+	Static  MediaEmojiVariantConfig `yaml:"static"`
+	Gif     MediaEmojiVariantConfig `yaml:"gif"`
+	Height  int                     `yaml:"height,omitempty"`  // legacy fallback: output height in pixels
+	Quality int                     `yaml:"quality,omitempty"` // legacy fallback: WebP quality (0-100)
+}
+
+// MediaEmojiVariantConfig holds settings for custom emoji uploads by source type.
+type MediaEmojiVariantConfig struct {
+	Height  int `yaml:"height"`  // output height in pixels (aspect ratio preserved)
+	Quality int `yaml:"quality"` // WebP quality (0-100)
 }
 
 // MediaVideoConfig holds settings for video uploads
@@ -277,6 +292,8 @@ func (m *MediaConfig) ClampQuality() {
 	m.Banner.Gif.Quality = clamp(m.Banner.Gif.Quality, 0, 100)
 	m.ServerIcon.Static.Quality = clamp(m.ServerIcon.Static.Quality, 0, 100)
 	m.ServerIcon.Gif.Quality = clamp(m.ServerIcon.Gif.Quality, 0, 100)
+	m.Emoji.Static.Quality = clamp(m.Emoji.Static.Quality, 0, 100)
+	m.Emoji.Gif.Quality = clamp(m.Emoji.Gif.Quality, 0, 100)
 }
 
 // Validate checks if the media configuration is valid
@@ -336,6 +353,20 @@ func (m *MediaConfig) Validate() error {
 	}
 	if m.ServerIcon.Gif.MaxSize <= 0 {
 		return fmt.Errorf("media.server_icon.gif.max_size must be positive, got %d", m.ServerIcon.Gif.MaxSize)
+	}
+
+	// Validate emoji settings
+	if m.Emoji.Static.Height <= 0 {
+		return fmt.Errorf("media.emoji.static.height must be positive, got %d", m.Emoji.Static.Height)
+	}
+	if m.Emoji.Static.Height > 512 {
+		return fmt.Errorf("media.emoji.static.height must be <= 512, got %d", m.Emoji.Static.Height)
+	}
+	if m.Emoji.Gif.Height <= 0 {
+		return fmt.Errorf("media.emoji.gif.height must be positive, got %d", m.Emoji.Gif.Height)
+	}
+	if m.Emoji.Gif.Height > 512 {
+		return fmt.Errorf("media.emoji.gif.height must be <= 512, got %d", m.Emoji.Gif.Height)
 	}
 
 	// Validate video settings
@@ -412,6 +443,18 @@ func (m *MediaConfig) LogClampedQuality(original *MediaConfig) {
 			"field", "server_icon.gif.quality",
 			"original", original.ServerIcon.Gif.Quality,
 			"clamped", m.ServerIcon.Gif.Quality)
+	}
+	if m.Emoji.Static.Quality != original.Emoji.Static.Quality {
+		slog.Warn("media config quality clamped to valid range",
+			"field", "emoji.static.quality",
+			"original", original.Emoji.Static.Quality,
+			"clamped", m.Emoji.Static.Quality)
+	}
+	if m.Emoji.Gif.Quality != original.Emoji.Gif.Quality {
+		slog.Warn("media config quality clamped to valid range",
+			"field", "emoji.gif.quality",
+			"original", original.Emoji.Gif.Quality,
+			"clamped", m.Emoji.Gif.Quality)
 	}
 }
 
@@ -498,6 +541,16 @@ func DefaultConfig() *Config {
 				Gif: MediaServerIconGifConfig{
 					MaxSize: 512,
 					Quality: 50,
+				},
+			},
+			Emoji: MediaEmojiConfig{
+				Static: MediaEmojiVariantConfig{
+					Height:  128,
+					Quality: 80,
+				},
+				Gif: MediaEmojiVariantConfig{
+					Height:  128,
+					Quality: 80,
 				},
 			},
 			Video: MediaVideoConfig{

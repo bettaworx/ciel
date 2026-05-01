@@ -217,6 +217,42 @@ export function parseMfmToPlaintext(text: string): MfmNode[] {
   return extractPlainAndEmoji(parsed);
 }
 
+function extractVisibleContent(nodes: MfmNode[]): MfmNode[] {
+  const result: MfmNode[] = [];
+
+  for (const node of nodes) {
+    if (node.type === "text" || node.type === "unicodeEmoji" || node.type === "emojiCode") {
+      result.push(node);
+      continue;
+    }
+
+    if (node.type === "fn") {
+      const fnNode = node as { type: "fn"; props: { name: string }; children: MfmNode[] };
+      if (fnNode.props.name === "ruby") {
+        const raw = extractPlainText(fnNode.children);
+        const lastSpace = raw.lastIndexOf(" ");
+        const baseText = lastSpace >= 0 ? raw.slice(0, lastSpace) : raw;
+        if (baseText) {
+          result.push({ type: "text", props: { text: baseText }, children: [] } as unknown as MfmNode);
+        }
+        continue;
+      }
+    }
+
+    if ("children" in node && node.children && node.children.length > 0) {
+      result.push(...extractVisibleContent(node.children as MfmNode[]));
+      continue;
+    }
+
+    const text = extractPlainText([node]);
+    if (text) {
+      result.push({ type: "text", props: { text }, children: [] } as unknown as MfmNode);
+    }
+  }
+
+  return result;
+}
+
 /**
  * Recursively extracts plain text from MFM AST nodes.
  * Used as fallback content when filtering disallowed nodes.
@@ -271,21 +307,7 @@ export function filterMfmNodes(
     if (node.type === "fn") {
       const fnNode = node as { type: "fn"; props: { name: string; args: Record<string, string | true> }; children: MfmNode[] };
       if (!allowList.fnNames.has(fnNode.props.name)) {
-        // Ruby: children text is "base ruby" separated by space.
-        // When disabled, show only the base text (everything before the last space).
-        if (fnNode.props.name === "ruby") {
-          const raw = extractPlainText(fnNode.children);
-          const lastSpace = raw.lastIndexOf(" ");
-          const baseText = lastSpace >= 0 ? raw.slice(0, lastSpace) : raw;
-          if (baseText) {
-            result.push({ type: "text", props: { text: baseText }, children: [] } as unknown as MfmNode);
-          }
-        } else {
-          const text = extractPlainText([node]);
-          if (text) {
-            result.push({ type: "text", props: { text }, children: [] } as unknown as MfmNode);
-          }
-        }
+        result.push(...extractVisibleContent([node]));
         continue;
       }
     }

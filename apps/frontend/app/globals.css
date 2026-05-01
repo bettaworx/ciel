@@ -41,6 +41,39 @@
 }
 
 :root {
+    /* Typography tokens: update families by role, not by vendor name. */
+    --font-fallback-sans:
+        sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI";
+    --font-fallback-serif:
+        ui-serif,
+        Georgia,
+        Cambria,
+        "Times New Roman",
+        Times,
+        serif;
+    --font-stack-sans-ja:
+        var(--font-sans-japanese),
+        var(--font-sans-latin),
+        var(--font-fallback-sans);
+    --font-stack-sans-en:
+        var(--font-sans-latin),
+        var(--font-sans-japanese),
+        var(--font-fallback-sans);
+    --font-stack-serif-ja:
+        var(--font-serif-japanese),
+        var(--font-serif-latin),
+        var(--font-fallback-serif);
+    --font-stack-serif-en:
+        var(--font-serif-latin),
+        var(--font-serif-japanese),
+        var(--font-fallback-serif);
+    --app-font-sans: var(--font-stack-sans-ja);
+    --font-sans: var(--app-font-sans);
+    --mfm-font-serif: var(--font-stack-serif-ja);
     --background: oklch(0.97 0 0);
     --background-1: oklch(1 0 0);
     --foreground: oklch(0.25 0 0);
@@ -84,6 +117,18 @@
     --c-ring: oklch(93.2% 0.032 255.585);
     --c-foreground: oklch(0.97 0 0);
     --c-foreground-1: oklch(62.3% 0.214 259.815);
+}
+
+html[lang="ja"] {
+    --app-font-sans: var(--font-stack-sans-ja);
+    --font-sans: var(--app-font-sans);
+    --mfm-font-serif: var(--font-stack-serif-ja);
+}
+
+html[lang="en"] {
+    --app-font-sans: var(--font-stack-sans-en);
+    --font-sans: var(--app-font-sans);
+    --mfm-font-serif: var(--font-stack-serif-en);
 }
 
 .dark {
@@ -149,8 +194,10 @@
     * {
         @apply border-border outline-ring/50;
     }
+    html,
     body {
-        @apply bg-background text-foreground font-sans;
+        @apply bg-background text-foreground;
+        font-family: var(--app-font-sans);
     }
     code,
     pre,
@@ -164,21 +211,6 @@
     .toaster {
         --offset-top: 1rem;
         --offset-bottom: 1rem;
-    }
-    /* Frimousse emoji picker full width override for mobile drawer */
-    [data-slot="emoji-picker"] [frimousse-list] {
-        width: 100% !important;
-    }
-
-    [data-slot="emoji-picker"] [frimousse-row] {
-        width: 100% !important;
-        display: flex !important;
-        gap: 0.25rem;
-    }
-
-    [data-slot="emoji-picker"] [frimousse-emoji] {
-        flex: 1 1 0%;
-        min-width: 0;
     }
 
     /* Custom spinner animation - 2x faster than default */

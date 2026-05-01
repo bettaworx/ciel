@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type RefObject } from "react";
+import { useState, type RefObject } from "react";
 import { type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { applyFormatToTextarea } from "./applyFormat";
+import type { TextSelectionRange, TextSelectionRangeSetter } from "./types";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -38,6 +39,8 @@ interface SizeFormatButtonProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   setContent: (value: string) => void;
   content: string;
+  selectionRange: TextSelectionRange;
+  setSelectionRange: TextSelectionRangeSetter;
   ariaLabel?: string;
   className?: string;
   iconClassName?: string;
@@ -214,41 +217,14 @@ export function SizeFormatButton({
   textareaRef,
   setContent,
   content,
+  selectionRange,
+  setSelectionRange,
   ariaLabel,
   className,
   iconClassName,
 }: SizeFormatButtonProps) {
   const isDesktop = useMediaQuery("(min-width: 640px)");
-  const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 });
   const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const update = () => {
-      setSelectionRange({
-        start: textarea.selectionStart,
-        end: textarea.selectionEnd,
-      });
-    };
-
-    textarea.addEventListener("select", update);
-    textarea.addEventListener("keyup", update);
-    textarea.addEventListener("mouseup", update);
-    textarea.addEventListener("click", update);
-    textarea.addEventListener("focus", update);
-    textarea.addEventListener("input", update);
-
-    return () => {
-      textarea.removeEventListener("select", update);
-      textarea.removeEventListener("keyup", update);
-      textarea.removeEventListener("mouseup", update);
-      textarea.removeEventListener("click", update);
-      textarea.removeEventListener("focus", update);
-      textarea.removeEventListener("input", update);
-    };
-  }, [textareaRef]);
 
   const sizeMatch = findSizeDecoration(
     content,

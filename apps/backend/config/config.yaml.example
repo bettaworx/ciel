@@ -143,6 +143,19 @@ media:
       width: 1500     # Output width in pixels
       height: 500     # Output height in pixels
       quality: 50     # WebP quality (0-100)
+
+  # Custom emoji settings
+  # Emojis preserve aspect ratio and are resized by height.
+  emoji:
+    # Static images (PNG, JPG, WebP)
+    static:
+      height: 128     # Output height in pixels
+      quality: 80     # WebP quality (0-100)
+
+    # Animated GIFs (converted to animated WebP)
+    gif:
+      height: 128     # Output height in pixels
+      quality: 80     # WebP quality (0-100)
   
   # Video upload and encoding settings
   video:

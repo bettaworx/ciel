@@ -151,13 +151,13 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 
 	// Check if media exists and get its metadata
 	if s.store == nil {
-		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+		s.serveEmojiImageFromMediaRoute(w, r, id)
 		return
 	}
 
 	row, err := s.store.Q.GetMediaByID(r.Context(), id)
 	if err != nil {
-		http.NotFound(w, r)
+		s.serveEmojiImageFromMediaRoute(w, r, id)
 		return
 	}
 
@@ -240,6 +240,32 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 
 	// Use http.ServeContent for Range Request support (efficient seeking)
+	http.ServeContent(w, r, filename, stat.ModTime(), f)
+}
+
+func (s *MediaService) serveEmojiImageFromMediaRoute(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
+	p, ext, err := s.resolveStoredEmojiImagePath(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	f, err := os.Open(p)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	filename := "image." + ext
+	w.Header().Set("Content-Type", mimeForExt(ext))
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
 }
 
@@ -1779,4 +1805,179 @@ func (s *MediaService) generateThumbnail(ctx context.Context, videoPath, thumbna
 	}
 
 	return nil
+}
+
+// UploadEmojiImage processes an uploaded image for use as a custom emoji.
+// Static images are converted to WebP, while GIF uploads are validated and
+// stored as-is to preserve animation during the current transition period.
+// Returns the output dimensions (width, height).
+func (s *MediaService) UploadEmojiImage(ctx context.Context, src multipart.File, header *multipart.FileHeader, emojiID uuid.UUID) (int, int, error) {
+	if strings.TrimSpace(s.mediaDir) == "" {
+		return 0, 0, NewError(http.StatusServiceUnavailable, "service_unavailable", "media storage not configured")
+	}
+
+	_, declaredCT, ext, err := s.validateUploadMetadata(header)
+	if err != nil {
+		return 0, 0, err
+	}
+	if s.ffmpegPath == "" && ext != ".gif" {
+		return 0, 0, NewError(http.StatusServiceUnavailable, "service_unavailable", "media encoding not available")
+	}
+	if s.cfg.IsVideoExtension(ext) {
+		return 0, 0, NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "video files are not allowed for emoji")
+	}
+
+	inPath, totalSize, err := s.writeUploadToTemp(src, ext, declaredCT)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer os.Remove(inPath)
+
+	maxBytes := int64(15) << 20 // 15 MiB
+	if totalSize > maxBytes {
+		return 0, 0, NewError(http.StatusRequestEntityTooLarge, "file_too_large", "emoji image must be 15 MiB or smaller")
+	}
+
+	info, err := validateImageFile(inPath, s.cfg)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	outDir := filepath.Join(s.mediaDir, emojiID.String())
+	if err := os.RemoveAll(outDir); err != nil {
+		slog.Error("failed to reset emoji output directory", "error", err)
+		return 0, 0, fmt.Errorf("failed to prepare output directory")
+	}
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		slog.Error("failed to create emoji output directory", "error", err)
+		return 0, 0, fmt.Errorf("failed to create output directory")
+	}
+
+	if ext == ".gif" {
+		outPath := filepath.Join(outDir, "image.gif")
+		if err := copyFile(inPath, outPath); err != nil {
+			_ = os.RemoveAll(outDir)
+			return 0, 0, fmt.Errorf("failed to store emoji image")
+		}
+		return info.Width, info.Height, nil
+	}
+
+	outPath := filepath.Join(outDir, "image.webp")
+	if err := s.convertToWebPEmoji(ctx, inPath, outPath, false); err != nil {
+		_ = os.RemoveAll(outDir)
+		return 0, 0, err
+	}
+
+	w, h, err := s.probeDimensions(ctx, outPath)
+	if err != nil {
+		_ = os.RemoveAll(outDir)
+		return 0, 0, fmt.Errorf("failed to probe emoji dimensions")
+	}
+	return w, h, nil
+}
+
+// convertToWebPEmoji converts any image to WebP, using different settings for
+// static images and animated GIFs while preserving aspect ratio.
+func (s *MediaService) convertToWebPEmoji(ctx context.Context, inPath, outPath string, isGif bool) error {
+	var variant config.MediaEmojiVariantConfig
+	if isGif {
+		variant = s.cfg.Emoji.Gif
+	} else {
+		variant = s.cfg.Emoji.Static
+	}
+
+	targetHeight := variant.Height
+	if targetHeight <= 0 {
+		targetHeight = 128
+	}
+	quality := variant.Quality
+	if quality <= 0 || quality > 100 {
+		quality = 80
+	}
+
+	// scale=-1:H keeps aspect ratio, forcing exact height H.
+	// Using trunc(-1/2)*2 pattern ensures even dimensions for codec compatibility.
+	vf := fmt.Sprintf("scale=trunc(oh*a/2)*2:%d", targetHeight)
+
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", inPath,
+		"-vf", vf,
+		"-f", "webp",
+		"-c:v", "libwebp",
+		"-pix_fmt", "yuva420p",
+		"-lossless", "0",
+		"-q:v", strconv.Itoa(quality),
+		"-loop", "0", // Preserve animation (0 = infinite loop)
+		"-preset", "default",
+		"-vsync", "0", // Preserve frame timing
+		"-an",                 // No audio
+		"-map_metadata", "-1", // Strip metadata
+		"-map_chapters", "-1",
+		outPath,
+	}
+
+	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		msg = strings.ReplaceAll(msg, inPath, "<input>")
+		msg = strings.ReplaceAll(msg, outPath, "<output>")
+		slog.Error("ffmpeg emoji conversion failed", "error", err, "stderr", msg)
+		return fmt.Errorf("emoji image conversion failed")
+	}
+	return nil
+}
+
+// DeleteEmojiImage removes the stored image files for a custom emoji.
+func (s *MediaService) DeleteEmojiImage(emojiID uuid.UUID) {
+	_ = os.RemoveAll(filepath.Join(s.mediaDir, emojiID.String()))
+}
+
+func (s *MediaService) resolveStoredEmojiImagePath(id uuid.UUID) (string, string, error) {
+	dir := filepath.Join(s.mediaDir, id.String())
+	exts := []string{"webp", "gif", "png", "jpeg", "jpg"}
+	for _, ext := range exts {
+		p := filepath.Join(dir, "image."+ext)
+		if _, err := os.Stat(p); err == nil {
+			return p, ext, nil
+		}
+	}
+	return "", "", os.ErrNotExist
+}
+
+// ServeEmojiImage serves the stored image for a custom emoji.
+// This endpoint is public (no authentication required).
+func (s *MediaService) ServeEmojiImage(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "emojiId")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	p, ext, err := s.resolveStoredEmojiImagePath(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", mimeForExt(ext))
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	http.ServeContent(w, r, "image."+ext, fi.ModTime(), f)
 }
