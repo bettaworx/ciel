@@ -1,9 +1,3 @@
-import {
-  BIZ_UDGothic,
-  Manrope,
-  Noto_Serif,
-  Noto_Serif_JP,
-} from "next/font/google";
 import { headers } from "next/headers";
 import { Toaster } from "@/components/ui/sonner";
 import { ConditionalSidebar } from "@/components/ConditionalSidebar";
@@ -16,35 +10,8 @@ import { DynamicTitle } from "@/components/DynamicTitle";
 import { ThemeColorMeta } from "@/components/ThemeColorMeta";
 import { RegisterServiceWorker } from "@/app/register-sw";
 import { getLocale } from "@/i18n/config";
+import { getFontVariableClassName } from "@/app/typography/fonts";
 import "./globals.css";
-
-const manrope = Manrope({
-  variable: "--font-sans-latin",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  display: "swap",
-});
-
-const bizUdGothic = BIZ_UDGothic({
-  variable: "--font-sans-japanese",
-  weight: ["400", "700"],
-  display: "swap",
-  preload: false,
-});
-
-const notoSerif = Noto_Serif({
-  variable: "--font-serif-latin",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  display: "swap",
-});
-
-const notoSerifJp = Noto_Serif_JP({
-  variable: "--font-serif-japanese",
-  weight: ["400", "500", "700"],
-  display: "swap",
-  preload: false,
-});
 
 export default async function RootLayout({
   children,
@@ -59,7 +26,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${manrope.variable} ${bizUdGothic.variable} ${notoSerif.variable} ${notoSerifJp.variable}`}
+      className={getFontVariableClassName()}
       suppressHydrationWarning
     >
       <head>
