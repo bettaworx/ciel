@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useAtomValue } from 'jotai';
-import { isAuthenticatedAtom } from '@/atoms/auth';
 import { queryKeys } from '@/lib/hooks/use-queries';
 import { useActivityTracker } from '@/lib/hooks/use-activity-tracker';
 import { WebSocketDisconnectAlert } from '@/components/realtime/WebSocketDisconnectAlert';
@@ -30,7 +28,6 @@ interface RealtimeProviderProps {
 
 export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	const queryClient = useQueryClient();
-	const isAuthenticated = useAtomValue(isAuthenticatedAtom);
 	const wsRef = useRef<WebSocket | null>(null);
 	const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const reconnectAttemptsRef = useRef(0);
@@ -77,6 +74,51 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		}
 		return { ...(typed as object), items };
 	}, []);
+
+	const applyReactionsToPost = useCallback((counts: ReactionCounts, post: Post): Post => ({
+		...post,
+		reactions: counts.reactions,
+	}), []);
+
+	const applyReactionsToCache = useCallback((counts: ReactionCounts, payload: unknown) => {
+		if (!payload || typeof payload !== 'object') {
+			return payload;
+		}
+		const maybePost = payload as Post;
+		if (maybePost.id === counts.postId) {
+			return applyReactionsToPost(counts, maybePost);
+		}
+		const typed = payload as { pages?: Array<{ items?: Post[] }>; items?: Post[] };
+		if (Array.isArray(typed.pages)) {
+			let changed = false;
+			const pages = typed.pages.map((page) => {
+				if (!page || !Array.isArray(page.items)) {
+					return page;
+				}
+				const items = page.items.map((item) => {
+					if (item?.id !== counts.postId) {
+						return item;
+					}
+					changed = true;
+					return applyReactionsToPost(counts, item);
+				});
+				return changed ? { ...page, items } : page;
+			});
+			return changed ? { ...(typed as object), pages } : payload;
+		}
+		if (Array.isArray(typed.items)) {
+			let changed = false;
+			const items = typed.items.map((item) => {
+				if (item?.id !== counts.postId) {
+					return item;
+				}
+				changed = true;
+				return applyReactionsToPost(counts, item);
+			});
+			return changed ? { ...(typed as object), items } : payload;
+		}
+		return payload;
+	}, [applyReactionsToPost]);
 
 	const handlePostCreated = useCallback(() => {
 		queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
@@ -129,7 +171,16 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		};
 		queryClient.setQueryData(queryKeys.reactions(counts.postId), adjustedReactionCounts);
 		queryClient.setQueryData(['posts', counts.postId, 'reactions'], adjustedReactionCounts.reactions);
-	}, [queryClient]);
+		queryClient.setQueryData(queryKeys.post(counts.postId), (payload) => applyReactionsToCache(adjustedReactionCounts, payload));
+		queryClient.setQueriesData(
+			{ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'timeline' },
+			(payload) => applyReactionsToCache(adjustedReactionCounts, payload)
+		);
+		queryClient.setQueriesData(
+			{ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'userPosts' },
+			(payload) => applyReactionsToCache(adjustedReactionCounts, payload)
+		);
+	}, [queryClient, applyReactionsToCache]);
 
 	const handleUserRegistered = useCallback(() => {
 		queryClient.setQueryData(queryKeys.serverInfo, (old: ServerInfo | undefined) => {
@@ -220,11 +271,11 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 			ws.onmessage = handleMessage;
 
 
-			ws.onerror = (err) => {
+			ws.onerror = () => {
 				// Errors are handled in onclose
 			};
 
-			ws.onclose = (event) => {
+			ws.onclose = () => {
 				wsRef.current = null;
 
 				// Don't reconnect if disconnection was due to inactivity

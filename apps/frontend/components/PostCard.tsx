@@ -75,7 +75,10 @@ export function PostCard({
   const t = useTranslations("postCard");
   const tReactions = useTranslations("reactions");
   const tUser = useTranslations("user");
-  const { reactions, toggleReaction, isPending } = useReactions(post.id);
+  const { reactions, toggleReaction, isPending } = useReactions(
+    post.id,
+    post.reactions,
+  );
   const auth = useAtomValue(authAtom);
   const deletePost = useDeletePost();
   const isDesktop = useMediaQuery("(min-width: 640px)");

@@ -342,6 +342,8 @@ func main() {
 	postsSvc := service.NewPostsService(store, cacheImpl, realtimeHub)
 	timelineSvc := service.NewTimelineService(store, cacheImpl)
 	reactionsSvc := service.NewReactionsService(store, cacheImpl, realtimeHub)
+	postsSvc.SetReactionsService(reactionsSvc)
+	timelineSvc.SetReactionsService(reactionsSvc)
 
 	mediaDir := os.Getenv("MEDIA_DIR")
 	if mediaDir == "" {

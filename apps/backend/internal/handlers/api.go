@@ -522,7 +522,12 @@ func (h API) GetUsersUsernamePosts(w http.ResponseWriter, r *http.Request, usern
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "posts not configured"})
 		return
 	}
-	page, err := h.Posts.ListByUsername(r.Context(), username, params)
+	user, ok := auth.UserFromContext(r.Context())
+	var userID *api.UserId
+	if ok {
+		userID = &user.ID
+	}
+	page, err := h.Posts.ListByUsername(r.Context(), username, params, userID)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -562,7 +567,12 @@ func (h API) GetPostsPostId(w http.ResponseWriter, r *http.Request, postId api.P
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "posts not configured"})
 		return
 	}
-	post, err := h.Posts.Get(r.Context(), postId)
+	user, ok := auth.UserFromContext(r.Context())
+	var userID *api.UserId
+	if ok {
+		userID = &user.ID
+	}
+	post, err := h.Posts.Get(r.Context(), postId, userID)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -595,7 +605,12 @@ func (h API) GetTimeline(w http.ResponseWriter, r *http.Request, params api.GetT
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "timeline not configured"})
 		return
 	}
-	page, err := h.Timeline.Get(r.Context(), params)
+	user, ok := auth.UserFromContext(r.Context())
+	var userID *api.UserId
+	if ok {
+		userID = &user.ID
+	}
+	page, err := h.Timeline.Get(r.Context(), params, userID)
 	if err != nil {
 		writeServiceError(w, err)
 		return

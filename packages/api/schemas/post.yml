@@ -8,6 +8,7 @@ components:
       - content
       - createdAt
       - media
+      - reactions
       properties:
         id:
           $ref: ./common.yml#/components/schemas/PostId
@@ -22,6 +23,10 @@ components:
           maxItems: 4
           items:
             $ref: ./media.yml#/components/schemas/Media
+        reactions:
+          type: array
+          items:
+            $ref: ./reactions.yml#/components/schemas/ReactionCount
         createdAt:
           type: string
           format: date-time

@@ -442,6 +442,12 @@ FROM post_reaction_counts
 WHERE post_id = $1
 ORDER BY emoji ASC;
 
+-- name: ListReactionCountsForPosts :many
+SELECT post_id, emoji, count
+FROM post_reaction_counts
+WHERE post_id = ANY(sqlc.arg(post_ids)::uuid[])
+ORDER BY post_id ASC, emoji ASC;
+
 -- name: ListReactionCountsWithUserStatus :many
 -- Returns reaction counts with whether the specified user has reacted
 SELECT 
@@ -456,6 +462,13 @@ SELECT
 FROM post_reaction_counts prc
 WHERE prc.post_id = $1
 ORDER BY prc.emoji ASC;
+
+-- name: ListReactionEventsForUserAndPosts :many
+SELECT post_id, emoji
+FROM post_reaction_events
+WHERE user_id = sqlc.arg(user_id)
+	AND post_id = ANY(sqlc.arg(post_ids)::uuid[])
+ORDER BY post_id ASC, emoji ASC;
 
 -- name: AddReactionEvent :one
 INSERT INTO post_reaction_events (user_id, post_id, emoji)
