@@ -58,7 +58,7 @@ export function BlurhashImage({
         alt={alt}
         className={cn(
           className,
-          placeholder && "transition-opacity duration-300",
+          placeholder && "transition-opacity duration-200",
           placeholder && !loaded && "opacity-0",
         )}
         onLoad={(event) => {
