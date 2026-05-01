@@ -70,7 +70,7 @@ export function ReactionPicker({
             variant="ghost"
             size="sm"
             disabled={disabled}
-            className="h-9 w-9 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
+            className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
             aria-label={t("addReaction")}
           >
             <SmilePlus className="h-5 w-5 sm:h-5 sm:w-5" />
@@ -99,7 +99,7 @@ export function ReactionPicker({
           variant="ghost"
           size="sm"
           disabled={disabled}
-          className="h-9 w-9 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
+          className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
           aria-label={t("addReaction")}
         >
           <SmilePlus className="h-5 w-5 sm:h-5 sm:w-5" />

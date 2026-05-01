@@ -51,7 +51,7 @@ export function ReactionBadge({
       disabled={disabled}
       onClick={onToggle}
       className={cn(
-        "h-9 px-3 rounded-full transition-colors duration-160 ease",
+        "h-8 px-3 rounded-full transition-colors duration-160 ease",
         "flex items-center gap-2",
         isReacted
           ? [
