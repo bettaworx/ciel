@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   SearchIcon,
-  LoaderIcon,
   XIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -37,6 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Spinner } from "@/components/ui/spinner";
 
 const MOBILE_CELL_SIZE = 36;
 const DESKTOP_CELL_SIZE = 32;
@@ -634,7 +634,7 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
     >
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-          <LoaderIcon className="size-4 animate-spin" />
+          <Spinner size="xs" />
         </div>
       )}
 

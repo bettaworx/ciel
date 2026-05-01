@@ -5,11 +5,12 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Loader2, Pencil, Plus, SmilePlus, Trash2 } from "lucide-react";
+import { Pencil, Plus, SmilePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogContent,
@@ -81,7 +82,7 @@ export default function AdminEmojisPage() {
       <Card className="p-6">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Spinner size="sm" className="text-muted-foreground" />
           </div>
         ) : error ? (
           <div className="py-12 text-center text-sm text-destructive">

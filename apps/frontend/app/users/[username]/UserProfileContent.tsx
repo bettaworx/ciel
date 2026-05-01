@@ -42,7 +42,7 @@ import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Spinner } from "@/components/Spinner";
+import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { toast } from "sonner";
 

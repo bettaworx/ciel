@@ -10,7 +10,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
 import { WelcomeCard } from "@/components/WelcomeCard";
 import { ComposeCard } from "@/components/ComposeCard";
-import { Spinner } from "@/components/Spinner";
+import { Spinner } from "@/components/ui/spinner";
 
 export function HomePage() {
   const t = useTranslations();

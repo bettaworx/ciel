@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, fn, userEvent, within } from "storybook/test";
-import { Mail, Loader2, ChevronRight } from "lucide-react";
+import { Mail, ChevronRight } from "lucide-react";
 import { Button } from "./button";
+import { Spinner } from "./spinner";
 
 const meta = {
   title: "UI/Button",
@@ -126,7 +127,7 @@ export const Loading: Story = {
     disabled: true,
     children: (
       <>
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Spinner size="xs" />
         Please wait
       </>
     ),

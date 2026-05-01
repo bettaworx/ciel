@@ -3,8 +3,8 @@
 import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 import { EmojiForm } from "@/components/admin/emojis/EmojiForm";
+import { Spinner } from "@/components/ui/spinner";
 import { buildAdminEmojiUpdateFormData } from "@/lib/admin-emojis";
 import { useAdminEmojis, useAdminUpdateEmoji } from "@/lib/hooks/use-queries";
 
@@ -22,7 +22,7 @@ export default function EditEmojiPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Spinner size="sm" className="text-muted-foreground" />
       </div>
     );
   }
