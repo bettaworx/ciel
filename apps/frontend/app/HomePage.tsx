@@ -51,7 +51,7 @@ export function HomePage() {
 
         {hasNextPage && (
           <div className="mt-8 text-center">
-            <Button onClick={() => fetchNextPage()}>
+            <Button variant="contrast" onClick={() => fetchNextPage()}>
               {t("timeline.loadMore")}
             </Button>
           </div>

@@ -10,6 +10,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-accent",
+        contrast:
+          "bg-background-1 text-foreground hover:bg-sidebar-hover hover:text-accent-foreground",
         primary: "bg-c-1 text-c-foreground hover:bg-c-2",
         primary_disabled: "bg-c-1/80 text-c-foreground/80 hover:bg-c-2",
         sidebar: "rounded-2xl transition-colors",
