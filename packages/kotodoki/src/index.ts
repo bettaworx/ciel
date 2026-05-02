@@ -1,6 +1,6 @@
 export { resolveKotodokiContext, getDayPeriod, getSeason } from "./context.js";
 export { createKotodoki, selectPhrase } from "./selector.js";
-export { defaultDatasets, jaJPDataset } from "./datasets/index.js";
+export { defaultDatasets, enUSDataset, jaJPDataset } from "./datasets/index.js";
 export type {
   DayPeriod,
   HolidayEntry,

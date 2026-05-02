@@ -159,4 +159,41 @@ describe("createKotodoki", () => {
     expect(getMatchedIds("2026-01-06T01:30:00+09:00")).toEqual(["night-owl"]);
     expect(getMatchedIds("2026-01-06T02:00:00+09:00")).toEqual([]);
   });
+
+  it("selects en-US phrases from the default datasets", () => {
+    const kotodoki = createKotodoki({
+      rng: () => 0,
+    });
+
+    const result = kotodoki.selectPhrase({
+      datetime: "2026-01-05T08:30:00-05:00",
+      timezone: "America/New_York",
+      locale: "en-US",
+      region: "US",
+    });
+
+    expect(result.context.holidayIds).toEqual([]);
+    expect(result.matched.map((entry) => entry.id)).toEqual(["en-morning"]);
+    expect(result.selected?.id).toBe("en-morning");
+  });
+
+  it("matches en-US time-of-day phrases", () => {
+    const kotodoki = createKotodoki();
+    const getMatchedIds = (datetime: string) =>
+      kotodoki
+        .getMatchingPhrases({
+          datetime,
+          timezone: "America/New_York",
+          locale: "en-US",
+          region: "US",
+        })
+        .map((entry) => entry.id);
+
+    expect(getMatchedIds("2026-01-05T08:30:00-05:00")).toEqual(["en-morning"]);
+    expect(getMatchedIds("2026-01-05T12:30:00-05:00")).toEqual(["en-noon"]);
+    expect(getMatchedIds("2026-01-05T23:30:00-05:00")).toEqual([
+      "en-night",
+      "en-late-night",
+    ]);
+  });
 });
