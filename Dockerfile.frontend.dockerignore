@@ -13,6 +13,10 @@
 **/.turbo
 **/coverage
 
+# The frontend image installs from the repository root workspace.
+apps/frontend/pnpm-lock.yaml
+apps/frontend/pnpm-workspace.yaml
+
 # Secrets and environment files
 .env
 .env.*
