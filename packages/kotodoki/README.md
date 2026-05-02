@@ -78,7 +78,7 @@ if (result.selected) {
 
 ### 文言ガイドライン
 
-`PhraseEntry.phrase` は一言で完結する短文にする。「あけましておめでとうございます。今年の抱負は？」のように、あいさつと問いかけを一つのphraseへ連結してはならない。必要な場合は別々の `PhraseEntry` として定義する。文言そのものの文体はデータセットの用途に従う。
+`PhraseEntry.phrase` は一言で完結する短文にする。読点・句点に頼らず、単調で扱いやすい文言を優先する。疑問符・感嘆符、問いかけ、挨拶は使用できる。詳細は `src/datasets/GUIDELINES.md` に従う。
 
 ```ts
 import { createKotodoki, type KotodokiDataset } from "@ciel/kotodoki";
