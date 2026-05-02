@@ -150,6 +150,14 @@ const jaJPPhrases: readonly PhraseEntry[] = [
     tags: ["daily"],
   },
   {
+    id: "ja-midnight",
+    locales: ["ja", "ja-JP"],
+    regions: ["JP"],
+    conditions: { dayPeriods: ["night"], hours: [23, 2] },
+    phrase: "夜ふかしですか？",
+    tags: ["daily"],
+  },
+  {
     id: "ja-weekend",
     locales: ["ja", "ja-JP"],
     regions: ["JP"],

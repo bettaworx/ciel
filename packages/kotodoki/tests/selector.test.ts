@@ -59,6 +59,28 @@ const fallbackOnlyDataset = {
   phrases: testDataset.phrases.slice(0, 2),
 } satisfies KotodokiDataset;
 
+const crossMidnightDataset = {
+  id: "cross-midnight-ja-JP",
+  locale: "ja-JP",
+  region: "JP",
+  holidays: [],
+  phrases: [
+    {
+      id: "fallback",
+      locales: ["ja-JP"],
+      regions: ["JP"],
+      phrase: "fallback",
+    },
+    {
+      id: "night-owl",
+      locales: ["ja-JP"],
+      regions: ["JP"],
+      conditions: { hours: [23, 2] },
+      phrase: "night owl phrase",
+    },
+  ],
+} satisfies KotodokiDataset;
+
 describe("createKotodoki", () => {
   it("prioritizes matched phrases over fallback phrases", () => {
     const kotodoki = createKotodoki({
@@ -115,5 +137,26 @@ describe("createKotodoki", () => {
       "winter",
     ]);
     expect(result.selected?.id).toBe("holiday");
+  });
+
+  it("matches hour ranges that cross midnight", () => {
+    const kotodoki = createKotodoki({
+      datasets: [crossMidnightDataset],
+    });
+
+    const getMatchedIds = (datetime: string) =>
+      kotodoki
+        .getMatchingPhrases({
+          datetime,
+          timezone: "Asia/Tokyo",
+          locale: "ja-JP",
+          region: "JP",
+        })
+        .map((entry) => entry.id);
+
+    expect(getMatchedIds("2026-01-05T22:30:00+09:00")).toEqual([]);
+    expect(getMatchedIds("2026-01-05T23:30:00+09:00")).toEqual(["night-owl"]);
+    expect(getMatchedIds("2026-01-06T01:30:00+09:00")).toEqual(["night-owl"]);
+    expect(getMatchedIds("2026-01-06T02:00:00+09:00")).toEqual([]);
   });
 });
