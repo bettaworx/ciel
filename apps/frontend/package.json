@@ -11,12 +11,13 @@
     "test:watch": "vitest",
     "gen:openapi": "openapi-typescript ../../packages/api/openapi.yml -o lib/api/api.d.ts",
     "gen:licenses": "node scripts/generate-licenses.cjs",
-    "predev": "pnpm run gen:licenses",
-    "prebuild": "pnpm run gen:licenses",
+    "predev": "pnpm -C ../../packages/kotodoki run build && pnpm run gen:licenses",
+    "prebuild": "pnpm -C ../../packages/kotodoki run build && pnpm run gen:licenses",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@ciel/kotodoki": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",

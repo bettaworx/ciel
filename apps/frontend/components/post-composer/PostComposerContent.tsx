@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   X,
@@ -35,6 +35,7 @@ import {
   ACCEPTED_VIDEO_TYPES,
 } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
+import { useComposerPlaceholder } from "./useComposerPlaceholder";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,6 +54,8 @@ interface PostComposerContentProps {
   closeDisabled?: boolean;
   /** (card only) Called when the textarea loses focus */
   onBlur?: () => void;
+  /** Reuse a parent-selected placeholder so collapsed and expanded card states match. */
+  placeholder?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -97,9 +100,14 @@ export function PostComposerContent({
   onClose,
   closeDisabled,
   onBlur,
+  placeholder: placeholderOverride,
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
+  const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
+  const hadTypedContentRef = useRef(false);
+  const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
+  const placeholder = placeholderOverride ?? generatedPlaceholder;
 
   // ---------------------------------------------------------------------------
   // Destructure `compose` so that the React Compiler / eslint can distinguish
@@ -148,6 +156,22 @@ export function PostComposerContent({
     // Mutations
     createPostMutation,
   } = compose;
+
+  useEffect(() => {
+    if (placeholderOverride !== undefined) {
+      return;
+    }
+
+    if (content.length === 0) {
+      if (hadTypedContentRef.current) {
+        hadTypedContentRef.current = false;
+        setPlaceholderRefreshKey((key) => key + 1);
+      }
+      return;
+    }
+
+    hadTypedContentRef.current = true;
+  }, [content, placeholderOverride]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -379,7 +403,7 @@ export function PostComposerContent({
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
         onBlur={onBlur}
-        placeholder={t("createPost.placeholder")}
+        placeholder={placeholder}
         className={`flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0`}
         maxLength={maxContentLength}
         disabled={createPostMutation.isPending || isUploading}
