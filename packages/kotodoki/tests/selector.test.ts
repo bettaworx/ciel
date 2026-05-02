@@ -82,22 +82,31 @@ const crossMidnightDataset = {
 } satisfies KotodokiDataset;
 
 describe("createKotodoki", () => {
-  it("prioritizes matched phrases over fallback phrases", () => {
+  it("weights matched phrases without excluding fallback phrases", () => {
     const kotodoki = createKotodoki({
       datasets: [testDataset],
-      rng: () => 0.99,
     });
-
-    const result = kotodoki.selectPhrase({
+    const input = {
       datetime: "2026-01-05T12:30:00+09:00",
       timezone: "Asia/Tokyo",
       locale: "ja-JP",
       region: "JP",
-    });
+    };
 
-    expect(result.reason).toBe("matched");
-    expect(result.matched.map((entry) => entry.id)).toEqual(["noon", "winter"]);
-    expect(result.selected?.id).toBe("noon");
+    const timeResult = kotodoki.selectPhrase(input, { rng: () => 0 });
+    const seasonResult = kotodoki.selectPhrase(input, { rng: () => 0.6 });
+    const fallbackResult = kotodoki.selectPhrase(input, { rng: () => 0.9 });
+
+    expect(fallbackResult.matched.map((entry) => entry.id)).toEqual([
+      "noon",
+      "winter",
+    ]);
+    expect(timeResult.reason).toBe("matched");
+    expect(timeResult.selected?.id).toBe("noon");
+    expect(seasonResult.reason).toBe("matched");
+    expect(seasonResult.selected?.id).toBe("winter");
+    expect(fallbackResult.reason).toBe("fallback");
+    expect(fallbackResult.selected?.id).toBe("fallback-a");
   });
 
   it("uses injected random sources for reproducible fallback selection", () => {
@@ -120,7 +129,7 @@ describe("createKotodoki", () => {
   it("matches phrases through resolved holiday ids", () => {
     const kotodoki = createKotodoki({
       datasets: [testDataset],
-      rng: () => 0.99,
+      rng: () => 0.4,
     });
 
     const result = kotodoki.selectPhrase({
@@ -137,6 +146,33 @@ describe("createKotodoki", () => {
       "winter",
     ]);
     expect(result.selected?.id).toBe("holiday");
+  });
+
+  it("keeps lower-weight matches and fallbacks eligible on holidays", () => {
+    const kotodoki = createKotodoki({
+      datasets: [testDataset],
+    });
+    const input = {
+      datetime: "2026-01-02T12:30:00+09:00",
+      timezone: "Asia/Tokyo",
+      locale: "ja-JP",
+      region: "JP",
+    };
+
+    expect(kotodoki.selectPhrase(input, { rng: () => 0 }).selected?.id).toBe(
+      "noon",
+    );
+    expect(kotodoki.selectPhrase(input, { rng: () => 0.4 }).selected?.id).toBe(
+      "holiday",
+    );
+    expect(kotodoki.selectPhrase(input, { rng: () => 0.8 }).selected?.id).toBe(
+      "winter",
+    );
+
+    const fallbackResult = kotodoki.selectPhrase(input, { rng: () => 0.95 });
+
+    expect(fallbackResult.reason).toBe("fallback");
+    expect(fallbackResult.selected?.id).toBe("fallback-a");
   });
 
   it("matches hour ranges that cross midnight", () => {

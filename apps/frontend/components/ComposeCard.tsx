@@ -26,11 +26,13 @@ import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
 export function ComposeCard() {
   const t = useTranslations();
   const tNav = useTranslations("nav");
-  const placeholder = useComposerPlaceholder();
   const user = useAtomValue(userAtom);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const composeCardRef = useRef<HTMLDivElement>(null);
+  const hadTypedContentRef = useRef(false);
+  const placeholder = useComposerPlaceholder(placeholderRefreshKey);
 
   // User menu state
   const {
@@ -61,6 +63,18 @@ export function ComposeCard() {
   // Destructure textareaRef so the linter recognises it as a stable ref identity
   // (accessing compose.textareaRef triggers react-hooks/exhaustive-deps)
   const { textareaRef } = compose;
+
+  useEffect(() => {
+    if (compose.content.length === 0) {
+      if (hadTypedContentRef.current) {
+        hadTypedContentRef.current = false;
+        setPlaceholderRefreshKey((key) => key + 1);
+      }
+      return;
+    }
+
+    hadTypedContentRef.current = true;
+  }, [compose.content]);
 
   // Focus textarea when expanded
   useEffect(() => {
@@ -185,7 +199,7 @@ export function ComposeCard() {
         {!isExpanded && (
           <button
             onClick={() => setIsExpanded(true)}
-            className="w-full flex items-center gap-3 text-left group"
+            className="w-full flex items-start gap-3 text-left group"
             aria-label={t("createPost.title")}
           >
             <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
@@ -197,8 +211,8 @@ export function ComposeCard() {
                 </AvatarFallback>
               )}
             </Avatar>
-            <div className="flex-1 h-11 sm:h-12 rounded-lg bg-transparent transition-colors flex items-center">
-              <span className="text-base md:text-lg text-muted-foreground">
+            <div className="flex-1 h-11 sm:h-12 rounded-lg bg-transparent transition-colors flex items-start">
+              <span className="mt-2.25 md:mt-2 text-base md:text-lg text-muted-foreground">
                 {placeholder}
               </span>
             </div>
@@ -212,6 +226,7 @@ export function ComposeCard() {
             compose={compose}
             avatar={avatarElement}
             onBlur={handleBlur}
+            placeholder={placeholder}
           />
         )}
       </div>

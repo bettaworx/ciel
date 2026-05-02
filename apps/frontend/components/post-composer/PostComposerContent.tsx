@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   X,
@@ -54,6 +54,8 @@ interface PostComposerContentProps {
   closeDisabled?: boolean;
   /** (card only) Called when the textarea loses focus */
   onBlur?: () => void;
+  /** Reuse a parent-selected placeholder so collapsed and expanded card states match. */
+  placeholder?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -98,10 +100,14 @@ export function PostComposerContent({
   onClose,
   closeDisabled,
   onBlur,
+  placeholder: placeholderOverride,
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
-  const placeholder = useComposerPlaceholder();
+  const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
+  const hadTypedContentRef = useRef(false);
+  const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
+  const placeholder = placeholderOverride ?? generatedPlaceholder;
 
   // ---------------------------------------------------------------------------
   // Destructure `compose` so that the React Compiler / eslint can distinguish
@@ -150,6 +156,22 @@ export function PostComposerContent({
     // Mutations
     createPostMutation,
   } = compose;
+
+  useEffect(() => {
+    if (placeholderOverride !== undefined) {
+      return;
+    }
+
+    if (content.length === 0) {
+      if (hadTypedContentRef.current) {
+        hadTypedContentRef.current = false;
+        setPlaceholderRefreshKey((key) => key + 1);
+      }
+      return;
+    }
+
+    hadTypedContentRef.current = true;
+  }, [content, placeholderOverride]);
 
   useEffect(() => {
     const textarea = textareaRef.current;

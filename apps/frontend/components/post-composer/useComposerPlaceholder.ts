@@ -8,7 +8,7 @@ function regionFromLocale(locale: string): string {
   return locale.startsWith("en") ? "US" : "JP";
 }
 
-export function useComposerPlaceholder(): string {
+export function useComposerPlaceholder(refreshKey = 0): string {
   const t = useTranslations();
   const locale = useLocale();
   const fallback = t("createPost.placeholder");
@@ -18,10 +18,8 @@ export function useComposerPlaceholder(): string {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const region = regionFromLocale(locale);
     const result = selectPhrase({ locale, region, timezone });
-    if (result.selected) {
-      setPlaceholder(result.selected.phrase);
-    }
-  }, [locale, fallback]);
+    setPlaceholder(result.selected?.phrase ?? fallback);
+  }, [locale, fallback, refreshKey]);
 
   return placeholder;
 }

@@ -14,6 +14,8 @@ import type {
 const DEFAULT_LOCALE = "ja-JP";
 const DEFAULT_REGION = "JP";
 const DEFAULT_TIMEZONE = "Asia/Tokyo";
+const FALLBACK_WEIGHT = 0.5;
+const CONDITIONAL_BASE_WEIGHT = 2;
 
 export function createKotodoki(options: KotodokiOptions = {}): Kotodoki {
   const datasets = options.datasets ?? defaultDatasets;
@@ -44,15 +46,19 @@ export function createKotodoki(options: KotodokiOptions = {}): Kotodoki {
       const fallbacks = phrases.filter(
         (entry) => isFallbackPhrase(entry) && entryMatchesContext(entry, context),
       );
-      const candidates = matched.length > 0 ? getHighestPriorityMatches(matched) : fallbacks;
-      const selected = choose(candidates, selectOptions?.rng ?? rng);
+      const candidates = [...matched, ...fallbacks];
+      const selected = chooseWeighted(candidates, selectOptions?.rng ?? rng);
 
       return {
         context,
         matched,
         fallbacks,
         selected,
-        reason: matched.length > 0 ? "matched" : selected ? "fallback" : "none",
+        reason: selected
+          ? isFallbackPhrase(selected)
+            ? "fallback"
+            : "matched"
+          : "none",
       } satisfies KotodokiSelection;
     },
   };
@@ -74,46 +80,69 @@ function getConditionalMatches(
   );
 }
 
-function getHighestPriorityMatches(entries: readonly PhraseEntry[]) {
-  const highestPriority = Math.max(...entries.map(getConditionPriority));
-  return entries.filter((entry) => getConditionPriority(entry) === highestPriority);
-}
-
-function getConditionPriority(entry: PhraseEntry) {
+function getSelectionWeight(entry: PhraseEntry) {
   const conditions = entry.conditions;
-  if (!conditions) {
-    return 0;
+  if (isFallbackPhrase(entry)) {
+    return FALLBACK_WEIGHT;
   }
 
-  if (conditions.holidays) {
-    return 100;
+  let weight = CONDITIONAL_BASE_WEIGHT;
+
+  if (conditions?.months) {
+    weight += 1;
   }
 
-  if (conditions.hours || conditions.dayPeriods) {
-    return 50;
+  if (conditions?.seasons) {
+    weight += 1;
   }
 
-  if (conditions.weekdays) {
-    return 30;
+  if (conditions?.weekdays) {
+    weight += 1;
   }
 
-  if (conditions.seasons || conditions.months) {
-    return 20;
+  if (conditions?.hours) {
+    weight += 2;
   }
 
-  return 0;
+  if (conditions?.dayPeriods) {
+    weight += 2;
+  }
+
+  if (conditions?.holidays) {
+    weight += 4;
+  }
+
+  return weight;
 }
 
-function choose<T>(entries: readonly T[], rng: RandomSource): T | null {
+function chooseWeighted<T extends PhraseEntry>(
+  entries: readonly T[],
+  rng: RandomSource,
+): T | null {
   if (entries.length === 0) {
     return null;
   }
 
-  const value = rng();
-  const normalized = Number.isFinite(value)
+  const totalWeight = entries.reduce(
+    (total, entry) => total + getSelectionWeight(entry),
+    0,
+  );
+  const target = normalizeRandomValue(rng()) * totalWeight;
+  let cursor = 0;
+
+  for (const entry of entries) {
+    cursor += getSelectionWeight(entry);
+
+    if (target < cursor) {
+      return entry;
+    }
+  }
+
+  return entries.at(-1) ?? null;
+}
+
+function normalizeRandomValue(value: number) {
+  return Number.isFinite(value)
     ? Math.min(Math.max(value, 0), 0.999_999_999)
     : 0;
-  const index = Math.floor(normalized * entries.length);
-
-  return entries[index] ?? entries[0] ?? null;
 }
