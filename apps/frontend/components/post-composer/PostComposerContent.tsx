@@ -35,6 +35,7 @@ import {
   ACCEPTED_VIDEO_TYPES,
 } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
+import { useComposerPlaceholder } from "./useComposerPlaceholder";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,6 +101,7 @@ export function PostComposerContent({
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
+  const placeholder = useComposerPlaceholder();
 
   // ---------------------------------------------------------------------------
   // Destructure `compose` so that the React Compiler / eslint can distinguish
@@ -379,7 +381,7 @@ export function PostComposerContent({
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
         onBlur={onBlur}
-        placeholder={t("createPost.placeholder")}
+        placeholder={placeholder}
         className={`flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0`}
         maxLength={maxContentLength}
         disabled={createPostMutation.isPending || isUploading}

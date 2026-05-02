@@ -13,6 +13,7 @@ import {
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
 import { PostComposerContent } from "./post-composer/PostComposerContent";
+import { useComposerPlaceholder } from "./post-composer/useComposerPlaceholder";
 
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { UserMenuContent } from "@/components/auth/UserMenuContent";
@@ -25,6 +26,7 @@ import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
 export function ComposeCard() {
   const t = useTranslations();
   const tNav = useTranslations("nav");
+  const placeholder = useComposerPlaceholder();
   const user = useAtomValue(userAtom);
   const [isExpanded, setIsExpanded] = useState(false);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -197,7 +199,7 @@ export function ComposeCard() {
             </Avatar>
             <div className="flex-1 h-11 sm:h-12 rounded-lg bg-transparent transition-colors flex items-center">
               <span className="text-base md:text-lg text-muted-foreground">
-                {t("createPost.placeholder")}
+                {placeholder}
               </span>
             </div>
           </button>
