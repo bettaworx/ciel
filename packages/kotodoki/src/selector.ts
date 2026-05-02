@@ -1,4 +1,4 @@
-import { defaultDatasets } from "./datasets/index.js";
+import { getAllDatasets } from "./catalog.js";
 import { resolveKotodokiContext } from "./context.js";
 import { entryMatchesContext, isFallbackPhrase } from "./matching.js";
 import type {
@@ -17,8 +17,8 @@ const DEFAULT_TIMEZONE = "Asia/Tokyo";
 const FALLBACK_WEIGHT = 0.5;
 const CONDITIONAL_BASE_WEIGHT = 2;
 
-export function createKotodoki(options: KotodokiOptions = {}): Kotodoki {
-  const datasets = options.datasets ?? defaultDatasets;
+export function createKotodoki(options: KotodokiOptions): Kotodoki {
+  const datasets = getAllDatasets(options.catalog, options.categories);
   const defaultLocale = options.defaultLocale ?? DEFAULT_LOCALE;
   const defaultRegion = options.defaultRegion ?? DEFAULT_REGION;
   const defaultTimezone = options.defaultTimezone ?? DEFAULT_TIMEZONE;
@@ -27,7 +27,8 @@ export function createKotodoki(options: KotodokiOptions = {}): Kotodoki {
   return {
     resolveContext(input?: KotodokiInput) {
       return resolveKotodokiContext(input, {
-        datasets,
+        catalog: options.catalog,
+        categories: options.categories,
         defaultLocale,
         defaultRegion,
         defaultTimezone,
@@ -62,13 +63,6 @@ export function createKotodoki(options: KotodokiOptions = {}): Kotodoki {
       } satisfies KotodokiSelection;
     },
   };
-}
-
-export function selectPhrase(
-  input?: KotodokiInput,
-  options?: SelectPhraseOptions,
-): KotodokiSelection {
-  return createKotodoki().selectPhrase(input, options);
 }
 
 function getConditionalMatches(

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createKotodoki } from "../src/index.js";
-import type { KotodokiDataset } from "../src/index.js";
+import { createDatasetCatalog, createKotodoki } from "../src/index.js";
+import type { KotodokiDataset, KotodokiDatasetCollection } from "../src/index.js";
 
 const testDataset = {
   id: "test-ja-JP",
@@ -81,10 +81,43 @@ const crossMidnightDataset = {
   ],
 } satisfies KotodokiDataset;
 
+const otherCategoryDataset = {
+  id: "other-ja-JP",
+  locale: "ja-JP",
+  region: "JP",
+  holidays: [],
+  phrases: [
+    {
+      id: "other-fallback",
+      locales: ["ja-JP"],
+      regions: ["JP"],
+      phrase: "other fallback",
+    },
+  ],
+} satisfies KotodokiDataset;
+
+function createTestCatalog(
+  datasets: readonly KotodokiDataset[],
+  category = "test",
+) {
+  const collection = {
+    id: `${category}-collection`,
+    category,
+    source: {
+      type: "app",
+      owner: "kotodoki-tests",
+    },
+    datasets,
+  } satisfies KotodokiDatasetCollection;
+
+  return createDatasetCatalog([collection]);
+}
+
 describe("createKotodoki", () => {
   it("weights matched phrases without excluding fallback phrases", () => {
     const kotodoki = createKotodoki({
-      datasets: [testDataset],
+      catalog: createTestCatalog([testDataset]),
+      categories: ["test"],
     });
     const input = {
       datetime: "2026-01-05T12:30:00+09:00",
@@ -111,7 +144,8 @@ describe("createKotodoki", () => {
 
   it("uses injected random sources for reproducible fallback selection", () => {
     const kotodoki = createKotodoki({
-      datasets: [fallbackOnlyDataset],
+      catalog: createTestCatalog([fallbackOnlyDataset]),
+      categories: ["test"],
       rng: () => 0.75,
     });
 
@@ -128,7 +162,8 @@ describe("createKotodoki", () => {
 
   it("matches phrases through resolved holiday ids", () => {
     const kotodoki = createKotodoki({
-      datasets: [testDataset],
+      catalog: createTestCatalog([testDataset]),
+      categories: ["test"],
       rng: () => 0.4,
     });
 
@@ -150,7 +185,8 @@ describe("createKotodoki", () => {
 
   it("keeps lower-weight matches and fallbacks eligible on holidays", () => {
     const kotodoki = createKotodoki({
-      datasets: [testDataset],
+      catalog: createTestCatalog([testDataset]),
+      categories: ["test"],
     });
     const input = {
       datetime: "2026-01-02T12:30:00+09:00",
@@ -177,7 +213,8 @@ describe("createKotodoki", () => {
 
   it("matches hour ranges that cross midnight", () => {
     const kotodoki = createKotodoki({
-      datasets: [crossMidnightDataset],
+      catalog: createTestCatalog([crossMidnightDataset]),
+      categories: ["test"],
     });
 
     const getMatchedIds = (datetime: string) =>
@@ -196,40 +233,60 @@ describe("createKotodoki", () => {
     expect(getMatchedIds("2026-01-06T02:00:00+09:00")).toEqual([]);
   });
 
-  it("selects en-US phrases from the default datasets", () => {
+  it("uses only selected catalog categories", () => {
+    const catalog = createDatasetCatalog([
+      {
+        id: "test-collection",
+        category: "test",
+        source: { type: "app", owner: "kotodoki-tests" },
+        datasets: [testDataset],
+      },
+      {
+        id: "other-collection",
+        category: "other",
+        source: { type: "app", owner: "kotodoki-tests" },
+        datasets: [otherCategoryDataset],
+      },
+    ]);
     const kotodoki = createKotodoki({
+      catalog,
+      categories: ["test"],
       rng: () => 0,
     });
 
     const result = kotodoki.selectPhrase({
-      datetime: "2026-01-05T08:30:00-05:00",
-      timezone: "America/New_York",
-      locale: "en-US",
-      region: "US",
+      datetime: "2026-01-05T12:30:00+09:00",
+      timezone: "Asia/Tokyo",
+      locale: "ja-JP",
+      region: "JP",
     });
 
-    expect(result.context.holidayIds).toEqual([]);
-    expect(result.matched.map((entry) => entry.id)).toEqual(["en-morning"]);
-    expect(result.selected?.id).toBe("en-morning");
+    expect(result.matched.map((entry) => entry.id)).toEqual([
+      "noon",
+      "winter",
+    ]);
+    expect(result.fallbacks.map((entry) => entry.id)).toEqual([
+      "fallback-a",
+      "fallback-b",
+    ]);
   });
 
-  it("matches en-US time-of-day phrases", () => {
-    const kotodoki = createKotodoki();
-    const getMatchedIds = (datetime: string) =>
-      kotodoki
-        .getMatchingPhrases({
-          datetime,
-          timezone: "America/New_York",
-          locale: "en-US",
-          region: "US",
-        })
-        .map((entry) => entry.id);
+  it("returns no selection for missing categories", () => {
+    const kotodoki = createKotodoki({
+      catalog: createTestCatalog([testDataset]),
+      categories: ["missing"],
+    });
 
-    expect(getMatchedIds("2026-01-05T08:30:00-05:00")).toEqual(["en-morning"]);
-    expect(getMatchedIds("2026-01-05T12:30:00-05:00")).toEqual(["en-noon"]);
-    expect(getMatchedIds("2026-01-05T23:30:00-05:00")).toEqual([
-      "en-night",
-      "en-late-night",
-    ]);
+    const result = kotodoki.selectPhrase({
+      datetime: "2026-01-05T12:30:00+09:00",
+      timezone: "Asia/Tokyo",
+      locale: "ja-JP",
+      region: "JP",
+    });
+
+    expect(result.matched).toEqual([]);
+    expect(result.fallbacks).toEqual([]);
+    expect(result.selected).toBeNull();
+    expect(result.reason).toBe("none");
   });
 });

@@ -1,6 +1,11 @@
+export {
+  createDatasetCatalog,
+  getAllDatasets,
+  getDatasetCollections,
+  getDatasetsByCategory,
+} from "./catalog.js";
 export { resolveKotodokiContext, getDayPeriod, getSeason } from "./context.js";
-export { createKotodoki, selectPhrase } from "./selector.js";
-export { defaultDatasets, enUSDataset, jaJPDataset } from "./datasets/index.js";
+export { createKotodoki } from "./selector.js";
 export type {
   DayPeriod,
   HolidayEntry,
@@ -8,6 +13,10 @@ export type {
   HourRange,
   Kotodoki,
   KotodokiDataset,
+  KotodokiDatasetCatalog,
+  KotodokiDatasetCategoryId,
+  KotodokiDatasetCollection,
+  KotodokiDatasetSource,
   KotodokiInput,
   KotodokiOptions,
   KotodokiSelection,
@@ -15,6 +24,7 @@ export type {
   PhraseConditions,
   PhraseEntry,
   RandomSource,
+  ResolveKotodokiContextOptions,
   ResolvedKotodokiContext,
   Season,
   SelectPhraseOptions,

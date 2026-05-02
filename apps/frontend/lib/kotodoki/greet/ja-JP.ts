@@ -1,6 +1,6 @@
-import type { HolidayEntry, KotodokiDataset, PhraseEntry } from "../types.js";
+import type { HolidayEntry, KotodokiDataset, PhraseEntry } from "@ciel/kotodoki";
 
-const jaJPHolidays: readonly HolidayEntry[] = [
+const jaJPGreetHolidays: readonly HolidayEntry[] = [
   {
     id: "new_year",
     locales: ["ja", "ja-JP"],
@@ -87,7 +87,7 @@ const jaJPHolidays: readonly HolidayEntry[] = [
   },
 ] as const;
 
-const jaJPPhrases: readonly PhraseEntry[] = [
+const jaJPGreetPhrases: readonly PhraseEntry[] = [
   {
     id: "ja-fallback-ask-now",
     locales: ["ja", "ja-JP"],
@@ -319,10 +319,10 @@ const jaJPPhrases: readonly PhraseEntry[] = [
   },
 ] as const;
 
-export const jaJPDataset: KotodokiDataset = {
-  id: "ja-JP",
+export const jaJPGreetDataset: KotodokiDataset = {
+  id: "greet-ja-JP",
   locale: "ja-JP",
   region: "JP",
-  holidays: jaJPHolidays,
-  phrases: jaJPPhrases,
+  holidays: jaJPGreetHolidays,
+  phrases: jaJPGreetPhrases,
 };

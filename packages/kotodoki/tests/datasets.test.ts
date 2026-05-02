@@ -1,45 +1,95 @@
 import { describe, expect, it } from "vitest";
-import { enUSDataset, jaJPDataset } from "../src/index.js";
+import {
+  createDatasetCatalog,
+  getAllDatasets,
+  getDatasetCollections,
+  getDatasetsByCategory,
+} from "../src/index.js";
+import type { KotodokiDataset, KotodokiDatasetCollection } from "../src/index.js";
 
-const builtInDatasets = [jaJPDataset, enUSDataset] as const;
+const greetDataset = {
+  id: "greet-ja-JP",
+  locale: "ja-JP",
+  region: "JP",
+  holidays: [],
+  phrases: [
+    {
+      id: "greet-fallback",
+      locales: ["ja-JP"],
+      regions: ["JP"],
+      phrase: "hello",
+    },
+  ],
+} satisfies KotodokiDataset;
 
-describe("built-in datasets", () => {
-  it("keeps built-in phrases free of commas and periods", () => {
-    for (const dataset of builtInDatasets) {
-      for (const entry of dataset.phrases) {
-        const prohibitedPunctuation = entry.phrase.match(/[、。，．,.]/g) ?? [];
+const notifyDataset = {
+  id: "notify-ja-JP",
+  locale: "ja-JP",
+  region: "JP",
+  holidays: [],
+  phrases: [
+    {
+      id: "notify-fallback",
+      locales: ["ja-JP"],
+      regions: ["JP"],
+      phrase: "notice",
+    },
+  ],
+} satisfies KotodokiDataset;
 
-        expect(
-          prohibitedPunctuation,
-          `${entry.id} should not use commas or periods`,
-        ).toEqual([]);
-      }
-    }
+const externalCollection = {
+  id: "external-greet",
+  category: "greet",
+  source: {
+    type: "repository",
+    owner: "example",
+    repository: "kotodoki-datasets",
+    ref: "main",
+    path: "greet/ja-JP.ts",
+  },
+  datasets: [greetDataset],
+} satisfies KotodokiDatasetCollection;
+
+const appCollection = {
+  id: "app-notify",
+  category: "notify",
+  source: {
+    type: "app",
+    owner: "frontend",
+    path: "apps/frontend/lib/kotodoki/notify-datasets.ts",
+  },
+  datasets: [notifyDataset],
+} satisfies KotodokiDatasetCollection;
+
+describe("dataset catalog", () => {
+  it("returns collections by category", () => {
+    const catalog = createDatasetCatalog([externalCollection, appCollection]);
+
+    expect(getDatasetCollections(catalog, ["greet"])).toEqual([
+      externalCollection,
+    ]);
+    expect(getDatasetCollections(catalog, ["notify"])).toEqual([
+      appCollection,
+    ]);
   });
 
-  it("keeps each built-in phrase to one utterance", () => {
-    for (const dataset of builtInDatasets) {
-      for (const entry of dataset.phrases) {
-        const allowedEndings = entry.phrase.match(/[！？!?]/g) ?? [];
+  it("expands datasets for selected categories", () => {
+    const catalog = createDatasetCatalog([externalCollection, appCollection]);
 
-        expect(
-          allowedEndings.length,
-          `${entry.id} should not combine multiple questions or exclamations`,
-        ).toBeLessThanOrEqual(1);
-      }
-    }
+    expect(getDatasetsByCategory(catalog, "greet")).toEqual([greetDataset]);
+    expect(getAllDatasets(catalog, ["notify"])).toEqual([notifyDataset]);
+    expect(getAllDatasets(catalog)).toEqual([greetDataset, notifyDataset]);
   });
 
-  it("keeps en-US focused on time-of-day phrases", () => {
-    expect(enUSDataset.holidays).toEqual([]);
+  it("keeps source metadata with collections", () => {
+    const catalog = createDatasetCatalog([externalCollection]);
 
-    for (const entry of enUSDataset.phrases) {
-      const conditionKeys = Object.keys(entry.conditions ?? {}).sort();
-
-      expect(
-        conditionKeys.every((key) => key === "dayPeriods" || key === "hours"),
-        `${entry.id} should only use time-of-day conditions`,
-      ).toBe(true);
-    }
+    expect(catalog.collections[0]?.source).toEqual({
+      type: "repository",
+      owner: "example",
+      repository: "kotodoki-datasets",
+      ref: "main",
+      path: "greet/ja-JP.ts",
+    });
   });
 });

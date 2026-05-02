@@ -1,4 +1,4 @@
-import { defaultDatasets } from "./datasets/index.js";
+import { getAllDatasets } from "./catalog.js";
 import { holidayMatchesLocaleAndRegion } from "./matching.js";
 import type {
   DayPeriod,
@@ -6,6 +6,7 @@ import type {
   HolidayMatch,
   KotodokiDataset,
   KotodokiInput,
+  ResolveKotodokiContextOptions,
   ResolvedKotodokiContext,
   Season,
   Weekday,
@@ -14,13 +15,6 @@ import type {
 const DEFAULT_LOCALE = "ja-JP";
 const DEFAULT_REGION = "JP";
 const DEFAULT_TIMEZONE = "Asia/Tokyo";
-
-type ResolveContextOptions = {
-  datasets?: readonly KotodokiDataset[];
-  defaultLocale?: string;
-  defaultRegion?: string;
-  defaultTimezone?: string;
-};
 
 type ZonedDateParts = {
   year: number;
@@ -33,7 +27,7 @@ type ZonedDateParts = {
 
 export function resolveKotodokiContext(
   input: KotodokiInput = {},
-  options: ResolveContextOptions = {},
+  options: ResolveKotodokiContextOptions = {},
 ): ResolvedKotodokiContext {
   const locale = input.locale ?? options.defaultLocale ?? DEFAULT_LOCALE;
   const region = (input.region ?? options.defaultRegion ?? DEFAULT_REGION).toUpperCase();
@@ -41,7 +35,9 @@ export function resolveKotodokiContext(
     input.timezone ?? options.defaultTimezone ?? getSystemTimezone();
   const instant = normalizeInstant(input.datetime);
   const parts = getZonedDateParts(instant, timezone);
-  const datasets = options.datasets ?? defaultDatasets;
+  const datasets = options.catalog
+    ? getAllDatasets(options.catalog, options.categories)
+    : [];
   const holidays = resolveHolidays(datasets, parts, locale, region);
 
   return {

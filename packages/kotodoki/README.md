@@ -1,15 +1,49 @@
 # kotodoki
 
-日時や季節、行事を入力値に、いまの空気に合う文章を選ぶ小さなライブラリである。
+日時や季節、行事を入力値に、文脈に合う文章を選ぶ小さなエンジンである。
 
 `kotodoki` は「言葉」と「時」を合わせた名前である。投稿欄、通知、空状態、オンボーディングなどの短い文言を、固定文として置くだけではなく、時刻や季節、地域の行事に少し寄せて選ぶための補助ライブラリである。
 
 ## コンセプト
 
-```ts
-import { selectPhrase } from "@ciel/kotodoki";
+kotodoki はデータセットを内蔵しない。利用側のアプリ、外部パッケージ、外部リポジトリ由来のデータセットを `KotodokiDatasetCatalog` として渡し、カテゴリ単位で選択対象を切り替える。
 
-const result = selectPhrase({
+```ts
+import { createDatasetCatalog, createKotodoki } from "@ciel/kotodoki";
+import type { KotodokiDatasetCollection } from "@ciel/kotodoki";
+
+const greetCollection = {
+  id: "frontend-greet",
+  category: "greet",
+  source: {
+    type: "app",
+    owner: "frontend",
+    path: "apps/frontend/lib/kotodoki/greet",
+  },
+  datasets: [
+    {
+      id: "greet-ja-JP",
+      locale: "ja-JP",
+      region: "JP",
+      holidays: [],
+      phrases: [
+        {
+          id: "default",
+          locales: ["ja-JP"],
+          regions: ["JP"],
+          phrase: "いまの気分は？",
+        },
+      ],
+    },
+  ],
+} satisfies KotodokiDatasetCollection;
+
+const kotodoki = createKotodoki({
+  catalog: createDatasetCatalog([greetCollection]),
+  categories: ["greet"],
+});
+
+const result = kotodoki.selectPhrase({
   locale: "ja-JP",
   region: "JP",
   timezone: "Asia/Tokyo",
@@ -18,8 +52,6 @@ const result = selectPhrase({
 
 console.log(result.selected?.phrase);
 ```
-
-通常時は「いまどうしてる？」「何かありましたか？」のような汎用的な文を返す。昼なら「一旦休憩しましょう」、夜なら「今日も一日おつかれさまです」、正月なら「あけましておめでとうございます！」または「今年の抱負は？」のように、日時コンテキストに合う候補を優先する。行事、時間帯、曜日、季節の順に文脈を強く扱う。
 
 ## インストールと参照
 
@@ -41,26 +73,14 @@ pnpm -C packages/kotodoki build
 
 ## API
 
-```ts
-import { createKotodoki, jaJPDataset } from "@ciel/kotodoki";
+主な公開API:
 
-const kotodoki = createKotodoki({
-  datasets: [jaJPDataset],
-  rng: Math.random,
-});
-
-const result = kotodoki.selectPhrase({
-  locale: "ja-JP",
-  region: "JP",
-  timezone: "Asia/Tokyo",
-  datetime: "2026-01-01T09:00:00+09:00",
-});
-
-if (result.selected) {
-  console.log(result.reason); // "matched" | "fallback" | "none"
-  console.log(result.selected.phrase);
-}
-```
+- `createKotodoki({ catalog, categories })`: 指定カテゴリのデータセットを使う選択器を作る。
+- `createDatasetCatalog(collections)`: アプリや外部由来のデータセット collection を束ねる。
+- `getDatasetCollections(catalog, categories?)`: collection をカテゴリで取得する。
+- `getDatasetsByCategory(catalog, category)`: 1カテゴリのデータセットを展開する。
+- `getAllDatasets(catalog, categories?)`: 複数カテゴリのデータセットを展開する。
+- `resolveKotodokiContext(input, options?)`: 日付、曜日、時間帯、季節、行事を解決する。
 
 主な公開型:
 
@@ -69,36 +89,28 @@ if (result.selected) {
 - `PhraseEntry`: 表示候補の文言と条件。
 - `HolidayEntry`: 地域別行事の定義。
 - `KotodokiDataset`: 行事と文言を束ねる地域別データセット。
+- `KotodokiDatasetCollection`: カテゴリ、参照元、複数データセットを束ねる単位。
+- `KotodokiDatasetCatalog`: collection を登録・展開するためのカタログ。
 
-## データセット
+## データセットの所有
 
-初期データセットは `ja-JP` / `JP` と `en-US` / `US` である。`ja-JP` は日本の季節、時間帯、曜日、正月、節分、ひな祭り、花見期、ゴールデンウィーク、七夕、お盆、月見期、ハロウィン、クリスマス、大晦日を含む。`en-US` はまず時間帯だけを扱い、行事や季節は扱わない。
+データセットは利用場所に近いパッケージで管理する。たとえばフロントエンドでしか使わないプレースホルダー文言は `apps/frontend` に置き、frontend が `@ciel/kotodoki` に catalog として渡す。
 
-独自データセットを渡すと、サービスや地域に合わせた文言に差し替えられる。
-
-### 文言ガイドライン
-
-`PhraseEntry.phrase` は一言で完結する短文にする。読点・句点に頼らず、単調で扱いやすい文言を優先する。疑問符・感嘆符、問いかけ、挨拶は使用できる。詳細は `src/datasets/GUIDELINES.md` に従う。
+外部リポジトリや外部パッケージ由来のデータセットも、実データを import したうえで collection の `source` に参照元メタデータを残す。kotodoki 自体は URL fetch や動的ロードを行わない。
 
 ```ts
-import { createKotodoki, type KotodokiDataset } from "@ciel/kotodoki";
-
-const dataset = {
-  id: "custom-ja-JP",
-  locale: "ja-JP",
-  region: "JP",
-  holidays: [],
-  phrases: [
-    {
-      id: "default",
-      locales: ["ja-JP"],
-      regions: ["JP"],
-      phrase: "いまの気分は？",
-    },
-  ],
-} satisfies KotodokiDataset;
-
-const kotodoki = createKotodoki({ datasets: [dataset] });
+const externalCollection = {
+  id: "community-greet",
+  category: "greet",
+  source: {
+    type: "repository",
+    owner: "example",
+    repository: "kotodoki-datasets",
+    ref: "main",
+    path: "greet/ja-JP.ts",
+  },
+  datasets: [externalDataset],
+} satisfies KotodokiDatasetCollection;
 ```
 
 ## 開発

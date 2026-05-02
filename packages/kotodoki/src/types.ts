@@ -61,6 +61,33 @@ export type KotodokiDataset = {
   phrases: readonly PhraseEntry[];
 };
 
+export type KotodokiDatasetCategoryId = string;
+
+export type KotodokiDatasetSource = {
+  type: "app" | "package" | "repository" | (string & {});
+  owner?: string;
+  repository?: string;
+  packageName?: string;
+  version?: string;
+  ref?: string;
+  path?: string;
+  url?: string;
+};
+
+export type KotodokiDatasetCollection = {
+  id: string;
+  category: KotodokiDatasetCategoryId;
+  source: KotodokiDatasetSource;
+  datasets: readonly KotodokiDataset[];
+  label?: string;
+  description?: string;
+  tags?: readonly string[];
+};
+
+export type KotodokiDatasetCatalog = {
+  collections: readonly KotodokiDatasetCollection[];
+};
+
 export type KotodokiInput = {
   locale?: string;
   region?: string;
@@ -98,11 +125,20 @@ export type KotodokiSelection = {
 };
 
 export type KotodokiOptions = {
-  datasets?: readonly KotodokiDataset[];
+  catalog: KotodokiDatasetCatalog;
+  categories?: readonly KotodokiDatasetCategoryId[];
   defaultLocale?: string;
   defaultRegion?: string;
   defaultTimezone?: string;
   rng?: RandomSource;
+};
+
+export type ResolveKotodokiContextOptions = {
+  catalog?: KotodokiDatasetCatalog;
+  categories?: readonly KotodokiDatasetCategoryId[];
+  defaultLocale?: string;
+  defaultRegion?: string;
+  defaultTimezone?: string;
 };
 
 export type SelectPhraseOptions = {
