@@ -160,6 +160,9 @@ func (s *AuthService) checkServerSettings(ctx context.Context, req api.RegisterR
 	}
 
 	// Validate agreement versions match current server versions
+	if req.TermsVersion != int(settings.TermsVersion) {
+		return sqlc.ServerSetting{}, NewError(http.StatusBadRequest, "invalid_request", "terms version mismatch")
+	}
 	if req.PrivacyVersion != int(settings.PrivacyVersion) {
 		return sqlc.ServerSetting{}, NewError(http.StatusBadRequest, "invalid_request", "privacy version mismatch")
 	}
