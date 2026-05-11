@@ -9,8 +9,9 @@ COPY .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/frontend/package.json ./apps/frontend/package.json
 COPY packages/kotodoki/package.json ./packages/kotodoki/package.json
 
+# CI/release builds require an up-to-date pnpm-lock.yaml; fail fast on lockfile drift.
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    corepack enable pnpm && pnpm install --no-frozen-lockfile
+    corepack enable pnpm && pnpm install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app
