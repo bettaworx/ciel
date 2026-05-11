@@ -1174,9 +1174,30 @@
     "seekSeconds": "{seconds}s"
   },
   "imageCrop": {
-    "apply": "Crop & Apply",
+    "apply": "Apply",
     "cancel": "Cancel",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "aspectRatio": "Aspect ratio",
+    "rotate": "Rotate 90°",
+    "flipHorizontal": "Flip horizontal",
+    "ratioFree": "Freeform",
+    "ratioOriginal": "Original",
+    "ratio11": "1:1",
+    "ratio54": "5:4",
+    "ratio43": "4:3",
+    "ratio32": "3:2",
+    "ratio169": "16:9",
+    "ratio45": "4:5",
+    "ratio34": "3:4",
+    "ratio23": "2:3",
+    "ratio916": "9:16",
+    "resetConfirm": {
+      "trigger": "Reset edits",
+      "title": "Reset edits?",
+      "description": "Rotation, flip, crop area, and aspect ratio selection will all be restored to their initial state.",
+      "cancel": "Cancel",
+      "confirm": "Reset"
+    }
   },
   "about": {
     "title": "About this server",

@@ -179,7 +179,7 @@ export function ServerProfileSection({ serverInfo }: ServerProfileSectionProps) 
           open={cropDialogOpen}
           onOpenChange={setCropDialogOpen}
           imageSrc={cropImageSrc}
-          aspect={1}
+          aspectMode={{ mode: "fixed", aspect: 1 }}
           title={t("cropTitle")}
           originalFile={pendingCropFile}
           onCropComplete={handleIconCropComplete}

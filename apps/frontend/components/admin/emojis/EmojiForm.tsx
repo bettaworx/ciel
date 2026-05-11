@@ -310,7 +310,7 @@ export function EmojiForm({
           onOpenChange={setCropDialogOpen}
           imageSrc={cropImageSrc}
           originalFile={pendingCropFile}
-          aspect={1}
+          aspectMode={{ mode: "fixed", aspect: 1 }}
           title={t("cropTitle")}
           onCropComplete={handleCropComplete}
         />
