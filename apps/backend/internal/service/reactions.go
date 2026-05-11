@@ -368,7 +368,8 @@ func (s *ReactionsService) publish(ctx context.Context, counts api.ReactionCount
 	if s.publisher == nil {
 		return
 	}
-	_ = s.publisher.Publish(ctx, realtime.Event{Type: realtime.EventReactionUpdated, ReactionCounts: &counts})
+	anonymized := anonymizeReactionCounts(counts)
+	_ = s.publisher.Publish(ctx, realtime.Event{Type: realtime.EventReactionUpdated, ReactionCounts: &anonymized})
 }
 
 func encodeReactionUsersCursor(c ReactionUsersCursor) string {

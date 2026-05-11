@@ -36,13 +36,27 @@ export function AuthInitProvider({ children }: { children: React.ReactNode }) {
 		
 		// Only invalidate if userId actually changed
 		if (prevUserIdRef.current !== currentUserId) {
-			// Invalidate all reaction queries
+			queryClient.removeQueries({
+				predicate: (query) =>
+					Array.isArray(query.queryKey) &&
+					query.queryKey[0] === 'reactionSelf',
+			});
+
+			// Invalidate post caches because reactedByCurrentUser is user-specific.
 			queryClient.invalidateQueries({
 				predicate: (query) =>
 					Array.isArray(query.queryKey) &&
-					query.queryKey.length >= 3 &&
-					query.queryKey[0] === 'posts' &&
-					query.queryKey[2] === 'reactions',
+					(
+						query.queryKey[0] === 'timeline' ||
+						query.queryKey[0] === 'userPosts' ||
+						query.queryKey[0] === 'post' ||
+						query.queryKey[0] === 'reactions' ||
+						(
+							query.queryKey.length >= 3 &&
+							query.queryKey[0] === 'posts' &&
+							query.queryKey[2] === 'reactions'
+						)
+					),
 			});
 			
 			prevUserIdRef.current = currentUserId;

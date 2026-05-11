@@ -3,13 +3,16 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from 'jotai';
-import { isAuthenticatedAtom } from '@/atoms/auth';
+import { authAtom } from '@/atoms/auth';
 import { useApi } from '@/lib/api/use-api';
 import { queryKeys } from '@/lib/hooks/use-queries';
-import type { components } from '@/lib/api/api';
-
-type ReactionCount = components['schemas']['ReactionCount'];
-type ReactionCounts = components['schemas']['ReactionCounts'];
+import {
+	isReactionByCurrentUser,
+	reactionSelfQueryKey,
+	reactedEmojiList,
+	type ReactionCount,
+	type ReactionCounts,
+} from '@/lib/reactions';
 
 export interface Reaction {
 	emoji: string;
@@ -20,8 +23,13 @@ export interface Reaction {
 export function useReactions(postId: string, initialReactions?: ReactionCount[]) {
 	const api = useApi();
 	const queryClient = useQueryClient();
-	const isAuthenticated = useAtomValue(isAuthenticatedAtom);
-	const reactionSelfKey = useMemo(() => ['reactionSelf', postId] as const, [postId]);
+	const auth = useAtomValue(authAtom);
+	const currentUserId = auth.status === 'ready' ? auth.user?.id ?? null : null;
+	const isAuthenticated = currentUserId !== null;
+	const reactionSelfKey = useMemo(
+		() => reactionSelfQueryKey(postId, currentUserId),
+		[postId, currentUserId]
+	);
 	const initializedRef = useRef(false);
 	const { data: selfEmojis } = useQuery<string[]>({
 		queryKey: reactionSelfKey,
@@ -46,6 +54,10 @@ export function useReactions(postId: string, initialReactions?: ReactionCount[])
 	});
 
 	useEffect(() => {
+		initializedRef.current = false;
+	}, [postId, currentUserId]);
+
+	useEffect(() => {
 		if (!isAuthenticated) {
 			queryClient.setQueryData(reactionSelfKey, [] as string[]);
 			initializedRef.current = false;
@@ -57,18 +69,12 @@ export function useReactions(postId: string, initialReactions?: ReactionCount[])
 		if (initializedRef.current) {
 			return;
 		}
-		const nextSelfEmojis = reactionsData
-			.filter((reaction) => reaction.reactedByCurrentUser)
-			.map((reaction) => reaction.emoji);
+		const nextSelfEmojis = reactedEmojiList(reactionsData);
 		queryClient.setQueryData(reactionSelfKey, nextSelfEmojis);
 		initializedRef.current = true;
 	}, [isAuthenticated, queryClient, reactionSelfKey, reactionsData]);
 
-	useEffect(() => {
-		initializedRef.current = false;
-	}, [postId]);
-
-	const selfEmojiSet = new Set(selfEmojis ?? []);
+	const selfEmojiSet = useMemo(() => new Set(selfEmojis ?? []), [selfEmojis]);
 
 	// Convert API ReactionCount to our Reaction interface
 	// Sort by count in descending order (most reactions first)
@@ -76,7 +82,11 @@ export function useReactions(postId: string, initialReactions?: ReactionCount[])
 		.map((reaction) => ({
 			emoji: reaction.emoji,
 			count: reaction.count,
-			isReacted: isAuthenticated ? selfEmojiSet.has(reaction.emoji) : false,
+			isReacted: isReactionByCurrentUser(
+				reaction,
+				selfEmojiSet,
+				isAuthenticated
+			),
 		}))
 		.sort((a, b) => b.count - a.count);
 
@@ -145,9 +155,7 @@ export function useReactions(postId: string, initialReactions?: ReactionCount[])
 		},
 		onSuccess: (counts) => {
 			if (counts?.reactions) {
-				const nextSelfEmojis = counts.reactions
-					.filter((reaction) => reaction.reactedByCurrentUser)
-					.map((reaction) => reaction.emoji);
+				const nextSelfEmojis = reactedEmojiList(counts.reactions);
 				queryClient.setQueryData(reactionSelfKey, nextSelfEmojis);
 				queryClient.setQueryData<ReactionCount[]>(['posts', postId, 'reactions'], counts.reactions);
 				queryClient.setQueryData(queryKeys.reactions(postId), counts);

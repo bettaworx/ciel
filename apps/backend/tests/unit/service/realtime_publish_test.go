@@ -127,6 +127,10 @@ func TestReactionsService_Add_PublishesEvent(t *testing.T) {
 	if publisher.events[0].ReactionCounts == nil || publisher.events[0].ReactionCounts.PostId != postID {
 		t.Fatalf("expected reaction counts payload, got %+v", publisher.events[0])
 	}
+	if len(publisher.events[0].ReactionCounts.Reactions) != 1 ||
+		publisher.events[0].ReactionCounts.Reactions[0].ReactedByCurrentUser {
+		t.Fatalf("expected anonymized reaction counts payload, got %+v", publisher.events[0].ReactionCounts)
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectations: %v", err)
 	}

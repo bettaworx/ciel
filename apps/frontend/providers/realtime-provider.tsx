@@ -2,9 +2,17 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAtomValue } from 'jotai';
+import { userAtom } from '@/atoms/auth';
 import { queryKeys } from '@/lib/hooks/use-queries';
 import { useActivityTracker } from '@/lib/hooks/use-activity-tracker';
 import { WebSocketDisconnectAlert } from '@/components/realtime/WebSocketDisconnectAlert';
+import {
+	mergeReactionCountsForCurrentUser,
+	reactionSelfQueryKey,
+	reactedEmojiList,
+	type ReactionCount,
+} from '@/lib/reactions';
 import type { components } from '@/lib/api/api';
 
 type Post = components['schemas']['Post'];
@@ -28,6 +36,7 @@ interface RealtimeProviderProps {
 
 export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	const queryClient = useQueryClient();
+	const user = useAtomValue(userAtom);
 	const wsRef = useRef<WebSocket | null>(null);
 	const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const reconnectAttemptsRef = useRef(0);
@@ -75,18 +84,30 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		return { ...(typed as object), items };
 	}, []);
 
-	const applyReactionsToPost = useCallback((counts: ReactionCounts, post: Post): Post => ({
+	const applyReactionsToPost = useCallback((
+		counts: ReactionCounts,
+		post: Post,
+		selfEmojis: readonly string[],
+	): Post => ({
 		...post,
-		reactions: counts.reactions,
+		reactions: mergeReactionCountsForCurrentUser(
+			counts,
+			[...selfEmojis, ...reactedEmojiList(post.reactions)],
+			{ trustServerStatus: false },
+		).reactions,
 	}), []);
 
-	const applyReactionsToCache = useCallback((counts: ReactionCounts, payload: unknown) => {
+	const applyReactionsToCache = useCallback((
+		counts: ReactionCounts,
+		payload: unknown,
+		selfEmojis: readonly string[],
+	) => {
 		if (!payload || typeof payload !== 'object') {
 			return payload;
 		}
 		const maybePost = payload as Post;
 		if (maybePost.id === counts.postId) {
-			return applyReactionsToPost(counts, maybePost);
+			return applyReactionsToPost(counts, maybePost, selfEmojis);
 		}
 		const typed = payload as { pages?: Array<{ items?: Post[] }>; items?: Post[] };
 		if (Array.isArray(typed.pages)) {
@@ -100,7 +121,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 						return item;
 					}
 					changed = true;
-					return applyReactionsToPost(counts, item);
+					return applyReactionsToPost(counts, item, selfEmojis);
 				});
 				return changed ? { ...page, items } : page;
 			});
@@ -113,12 +134,33 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 					return item;
 				}
 				changed = true;
-				return applyReactionsToPost(counts, item);
+				return applyReactionsToPost(counts, item, selfEmojis);
 			});
 			return changed ? { ...(typed as object), items } : payload;
 		}
 		return payload;
 	}, [applyReactionsToPost]);
+
+	const getKnownSelfEmojis = useCallback((postId: PostId) => {
+		if (!user?.id) {
+			return [];
+		}
+		const selfEmojis = queryClient.getQueryData<string[]>(
+			reactionSelfQueryKey(postId, user.id),
+		) ?? [];
+		const directReactions = queryClient.getQueryData<ReactionCount[]>(
+			['posts', postId, 'reactions'],
+		);
+		const counts = queryClient.getQueryData<ReactionCounts>(
+			queryKeys.reactions(postId),
+		);
+
+		return Array.from(new Set([
+			...selfEmojis,
+			...reactedEmojiList(directReactions),
+			...reactedEmojiList(counts?.reactions),
+		]));
+	}, [queryClient, user?.id]);
 
 	const handlePostCreated = useCallback(() => {
 		queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
@@ -162,25 +204,27 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	}, [queryClient, removePostFromCache, removePostFromList]);
 
 	const handleReactionUpdated = useCallback((counts: ReactionCounts) => {
-		const adjustedReactionCounts: ReactionCounts = {
-			...counts,
-			reactions: counts.reactions.map((reaction) => ({
-				...reaction,
-				reactedByCurrentUser: false,
-			})),
-		};
+		const selfEmojis = getKnownSelfEmojis(counts.postId);
+		const adjustedReactionCounts = mergeReactionCountsForCurrentUser(
+			counts,
+			selfEmojis,
+			{ trustServerStatus: false },
+		);
 		queryClient.setQueryData(queryKeys.reactions(counts.postId), adjustedReactionCounts);
 		queryClient.setQueryData(['posts', counts.postId, 'reactions'], adjustedReactionCounts.reactions);
-		queryClient.setQueryData(queryKeys.post(counts.postId), (payload) => applyReactionsToCache(adjustedReactionCounts, payload));
+		queryClient.setQueryData(
+			queryKeys.post(counts.postId),
+			(payload) => applyReactionsToCache(counts, payload, selfEmojis),
+		);
 		queryClient.setQueriesData(
 			{ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'timeline' },
-			(payload) => applyReactionsToCache(adjustedReactionCounts, payload)
+			(payload) => applyReactionsToCache(counts, payload, selfEmojis)
 		);
 		queryClient.setQueriesData(
 			{ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'userPosts' },
-			(payload) => applyReactionsToCache(adjustedReactionCounts, payload)
+			(payload) => applyReactionsToCache(counts, payload, selfEmojis)
 		);
-	}, [queryClient, applyReactionsToCache]);
+	}, [queryClient, applyReactionsToCache, getKnownSelfEmojis]);
 
 	const handleUserRegistered = useCallback(() => {
 		queryClient.setQueryData(queryKeys.serverInfo, (old: ServerInfo | undefined) => {
