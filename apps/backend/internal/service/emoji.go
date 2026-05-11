@@ -143,6 +143,10 @@ func (s *EmojiService) Update(ctx context.Context, p EmojiUpdateParams) (sqlc.Cu
 		if err != nil {
 			return sqlc.CustomEmoji{}, err
 		}
+		if w < math.MinInt32 || w > math.MaxInt32 || h < math.MinInt32 || h > math.MaxInt32 {
+			slog.Error("emoji dimensions out of int32 range", "width", w, "height", h, "emoji_id", p.ID)
+			return sqlc.CustomEmoji{}, NewError(http.StatusInternalServerError, "internal_error", "failed to update emoji")
+		}
 		params.Width = sql.NullInt32{Int32: int32(w), Valid: true}
 		params.Height = sql.NullInt32{Int32: int32(h), Valid: true}
 	}
