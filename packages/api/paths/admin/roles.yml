@@ -1,0 +1,324 @@
+/admin/roles:
+  get:
+    tags:
+    - Admin
+    summary: List roles
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/RoleList
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  post:
+    tags:
+    - Admin
+    summary: Create role
+    description: Create a new role
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/roles.yml#/components/schemas/CreateRoleRequest
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/Role
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_user_roles_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '409':
+        description: Role ID already exists
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/roles/{roleId}:
+  get:
+    tags:
+    - Admin
+    summary: Get role details
+    description: Retrieve details of a specific role
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: roleId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/RoleId
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/Role
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Role not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  patch:
+    tags:
+    - Admin
+    summary: Update role
+    description: Update role name and description
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: roleId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/RoleId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/roles.yml#/components/schemas/UpdateRoleRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/Role
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_user_roles_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Role not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  delete:
+    tags:
+    - Admin
+    summary: Delete role
+    description: Delete a role (cascade deletes user assignments)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: roleId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/RoleId
+    responses:
+      '204':
+        description: Deleted
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - cannot delete system roles (user, admin)
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Role not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/roles/{roleId}/permissions:
+  get:
+    tags:
+    - Admin
+    summary: Get role permissions
+    description: Get all permissions assigned to a role
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: roleId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/RoleId
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/RolePermissions
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Role not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+  put:
+    tags:
+    - Admin
+    summary: Update role permissions
+    description: Replace all permissions for a role
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: roleId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/RoleId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/roles.yml#/components/schemas/RolePermissions
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/RolePermissions
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_user_roles_manage permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Role not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/roles/{roleId}/users:
+  get:
+    tags:
+    - Admin
+    summary: Get users with role
+    description: Get all users that have been assigned this role
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: roleId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/RoleId
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    - name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/RoleUsersPage
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Role not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/permissions:
+  get:
+    tags:
+    - Admin
+    summary: List permissions
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/roles.yml#/components/schemas/PermissionList
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error

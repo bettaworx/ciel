@@ -1,0 +1,223 @@
+components:
+  schemas:
+    Media:
+      type: object
+      required:
+      - id
+      - type
+      - url
+      - width
+      - height
+      - createdAt
+      properties:
+        id:
+          $ref: ./common.yml#/components/schemas/MediaId
+        type:
+          $ref: ./enums.yml#/components/schemas/MediaType
+        url:
+          type: string
+          format: uri
+        width:
+          type: integer
+          minimum: 1
+        height:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        duration:
+          type: number
+          format: float
+          nullable: true
+          description: Duration in seconds (video only, null for images)
+        thumbnailUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Thumbnail URL (video only, null for images)
+        blurhash:
+          type: string
+          nullable: true
+          description: BlurHash placeholder string used to render a blurred preview while the image loads. Null for legacy media or when generation failed.
+    MediaLimits:
+      type: object
+      required:
+      - maxUploadSizeMB
+      - allowedExtensions
+      - post
+      - avatar
+      - banner
+      - serverIcon
+      - emoji
+      - video
+      properties:
+        maxUploadSizeMB:
+          type: integer
+          description: Maximum file upload size in megabytes (for images)
+          example: 15
+        allowedExtensions:
+          type: array
+          items:
+            type: string
+          description: List of allowed file extensions
+          example:
+          - png
+          - jpg
+          - jpeg
+          - webp
+          - gif
+          - mp4
+          - webm
+          - mov
+          - avi
+          - mkv
+          - m4v
+          - 3gp
+          - ogv
+        post:
+          $ref: '#/components/schemas/MediaPostLimits'
+        avatar:
+          $ref: '#/components/schemas/MediaAvatarLimits'
+        banner:
+          $ref: '#/components/schemas/MediaBannerLimits'
+        serverIcon:
+          $ref: '#/components/schemas/MediaServerIconLimits'
+        emoji:
+          $ref: '#/components/schemas/MediaEmojiLimits'
+        video:
+          $ref: '#/components/schemas/MediaVideoLimits'
+    MediaPostLimits:
+      type: object
+      required:
+      - static
+      - gif
+      properties:
+        static:
+          type: object
+          required:
+          - maxSize
+          properties:
+            maxSize:
+              type: integer
+              description: Maximum longest edge size in pixels for static images (aspect ratio preserved)
+              example: 2048
+        gif:
+          type: object
+          required:
+          - maxSize
+          properties:
+            maxSize:
+              type: integer
+              description: Maximum longest edge size in pixels for animated GIFs (aspect ratio preserved)
+              example: 1024
+    MediaAvatarLimits:
+      type: object
+      required:
+      - size
+      properties:
+        size:
+          type: integer
+          description: Avatar output size in pixels (square, center-cropped)
+          example: 400
+    MediaBannerLimits:
+      type: object
+      required:
+      - static
+      - gif
+      properties:
+        static:
+          type: object
+          required:
+          - width
+          - height
+          properties:
+            width:
+              type: integer
+              description: Banner output width in pixels (center-cropped)
+              example: 1500
+            height:
+              type: integer
+              description: Banner output height in pixels (center-cropped)
+              example: 500
+        gif:
+          type: object
+          required:
+          - width
+          - height
+          properties:
+            width:
+              type: integer
+              description: Animated banner output width in pixels (center-cropped)
+              example: 1500
+            height:
+              type: integer
+              description: Animated banner output height in pixels (center-cropped)
+              example: 500
+    MediaServerIconLimits:
+      type: object
+      required:
+      - static
+      - gif
+      properties:
+        static:
+          type: object
+          required:
+          - size
+          properties:
+            size:
+              type: integer
+              description: Server icon output size in pixels (square, center-cropped)
+              example: 512
+        gif:
+          type: object
+          required:
+          - maxSize
+          properties:
+            maxSize:
+              type: integer
+              description: Maximum longest edge size in pixels for animated GIF server icons (aspect ratio preserved). Both animated and static (first frame) versions are created.
+              example: 512
+    MediaEmojiLimits:
+      type: object
+      required:
+      - static
+      - gif
+      properties:
+        static:
+          type: object
+          required:
+          - height
+          properties:
+            height:
+              type: integer
+              description: Output height in pixels for static custom emoji images (aspect ratio preserved)
+              example: 128
+        gif:
+          type: object
+          required:
+          - height
+          properties:
+            height:
+              type: integer
+              description: Output height in pixels for animated GIF custom emoji images (aspect ratio preserved)
+              example: 128
+    MediaVideoLimits:
+      type: object
+      required:
+      - maxUploadSizeMB
+      - maxDurationSeconds
+      - maxSize
+      properties:
+        maxUploadSizeMB:
+          type: integer
+          description: Maximum video file upload size in megabytes
+          example: 100
+        maxDurationSeconds:
+          type: integer
+          description: Maximum video duration in seconds
+          example: 300
+        maxSize:
+          type: integer
+          description: Maximum longest edge size in pixels for video output (aspect ratio preserved)
+          example: 1920

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Spinner } from "@/components/Spinner";
+import { Spinner } from "@/components/ui/spinner";
 
 interface LoadingScreenProps {
   isLoading: boolean;

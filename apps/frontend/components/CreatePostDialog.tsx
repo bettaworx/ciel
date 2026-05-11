@@ -48,7 +48,7 @@ export function CreatePostDialog({
 
   // Static (non-interactive) avatar for the dialog
   const avatarElement = (
-    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
+    <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
       {user?.avatarUrl ? (
         <AvatarImage src={user.avatarUrl} alt={user?.username} />
       ) : (

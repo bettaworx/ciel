@@ -27,7 +27,8 @@ SELECT
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
 	m.ext AS avatar_ext,
-	bm.ext AS banner_ext
+	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash
 FROM users u
 LEFT JOIN media m ON m.id = u.avatar_media_id
 LEFT JOIN media bm ON bm.id = u.banner_media_id
@@ -47,7 +48,8 @@ SELECT
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
 	m.ext AS avatar_ext,
-	bm.ext AS banner_ext
+	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash
 FROM users u
 LEFT JOIN media m ON m.id = u.avatar_media_id
 LEFT JOIN media bm ON bm.id = u.banner_media_id
@@ -117,6 +119,7 @@ SELECT
 	updated.privacy_accepted_at,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash,
 	(SELECT avatar_media_id FROM prev) AS previous_avatar_media_id
 FROM updated
 LEFT JOIN media m ON m.id = updated.avatar_media_id
@@ -146,6 +149,7 @@ SELECT
 	updated.privacy_accepted_at,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash,
 	(SELECT banner_media_id FROM prev) AS previous_banner_media_id
 FROM updated
 LEFT JOIN media m ON m.id = updated.avatar_media_id
@@ -170,6 +174,7 @@ SELECT
 	u.privacy_accepted_at,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash,
 	c.salt,
 	c.iterations,
 	c.stored_key,
@@ -195,6 +200,7 @@ SELECT
 	u.privacy_accepted_at,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
+	bm.blurhash AS banner_blurhash,
 	c.salt,
 	c.iterations,
 	c.stored_key,
@@ -255,9 +261,9 @@ WHERE id = $1
 RETURNING id, deleted_at;
 
 -- name: CreateMedia :one
-INSERT INTO media (id, user_id, type, ext, width, height, duration)
-VALUES ($1, $2, $3, $4, $5, $6, sqlc.narg('duration'))
-RETURNING id, user_id, type, ext, width, height, duration, created_at;
+INSERT INTO media (id, user_id, type, ext, width, height, duration, blurhash)
+VALUES ($1, $2, $3, $4, $5, $6, sqlc.narg('duration'), sqlc.narg('blurhash'))
+RETURNING id, user_id, type, ext, width, height, duration, blurhash, created_at;
 
 -- name: CountOwnedMediaByIDs :one
 SELECT COUNT(*)::int
@@ -267,7 +273,7 @@ WHERE user_id = $1
 	AND type IN ('image', 'video');
 
 -- name: GetMediaByID :one
-SELECT id, user_id, type, ext, width, height, duration, created_at
+SELECT id, user_id, type, ext, width, height, duration, blurhash, created_at
 FROM media
 WHERE id = $1;
 
@@ -305,6 +311,7 @@ SELECT
 	m.width,
 	m.height,
 	m.duration,
+	m.blurhash,
 	m.created_at,
 	pm.sort_order
 FROM post_media pm
@@ -324,6 +331,7 @@ SELECT
 	m.width,
 	m.height,
 	m.duration,
+	m.blurhash,
 	m.created_at,
 	pm.sort_order
 FROM post_media pm
@@ -442,6 +450,12 @@ FROM post_reaction_counts
 WHERE post_id = $1
 ORDER BY emoji ASC;
 
+-- name: ListReactionCountsForPosts :many
+SELECT post_id, emoji, count
+FROM post_reaction_counts
+WHERE post_id = ANY(sqlc.arg(post_ids)::uuid[])
+ORDER BY post_id ASC, emoji ASC;
+
 -- name: ListReactionCountsWithUserStatus :many
 -- Returns reaction counts with whether the specified user has reacted
 SELECT 
@@ -456,6 +470,13 @@ SELECT
 FROM post_reaction_counts prc
 WHERE prc.post_id = $1
 ORDER BY prc.emoji ASC;
+
+-- name: ListReactionEventsForUserAndPosts :many
+SELECT post_id, emoji
+FROM post_reaction_events
+WHERE user_id = sqlc.arg(user_id)
+	AND post_id = ANY(sqlc.arg(post_ids)::uuid[])
+ORDER BY post_id ASC, emoji ASC;
 
 -- name: AddReactionEvent :one
 INSERT INTO post_reaction_events (user_id, post_id, emoji)
@@ -1393,3 +1414,45 @@ SET
     ELSE privacy_accepted_at 
   END
 WHERE id = ANY(sqlc.arg('user_ids')::uuid[]);
+
+-- ============================================================================
+-- CUSTOM EMOJIS
+-- ============================================================================
+
+-- name: CreateCustomEmoji :one
+INSERT INTO custom_emojis (id, shortcode, name, category, license, width, height)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING *;
+
+-- name: GetCustomEmojiByID :one
+SELECT * FROM custom_emojis
+WHERE id = $1;
+
+-- name: GetCustomEmojiByShortcode :one
+SELECT * FROM custom_emojis
+WHERE shortcode = $1;
+
+-- name: UpdateCustomEmoji :one
+UPDATE custom_emojis
+SET
+  shortcode  = COALESCE(sqlc.narg('shortcode')::text, shortcode),
+  name       = CASE WHEN sqlc.narg('set_name')::bool THEN sqlc.narg('name')::text ELSE name END,
+  category   = CASE WHEN sqlc.narg('set_category')::bool THEN sqlc.narg('category')::text ELSE category END,
+  license    = CASE WHEN sqlc.narg('set_license')::bool THEN sqlc.narg('license')::text ELSE license END,
+  width      = COALESCE(sqlc.narg('width')::int, width),
+  height     = COALESCE(sqlc.narg('height')::int, height),
+  updated_at = now()
+WHERE id = sqlc.arg('id')::uuid
+RETURNING *;
+
+-- name: DeleteCustomEmoji :exec
+DELETE FROM custom_emojis
+WHERE id = $1;
+
+-- name: ListCustomEmojis :many
+SELECT * FROM custom_emojis
+ORDER BY shortcode ASC
+LIMIT $1 OFFSET $2;
+
+-- name: CountCustomEmojis :one
+SELECT COUNT(*) FROM custom_emojis;

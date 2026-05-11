@@ -5,9 +5,9 @@ import { userAtom, authStatusAtom } from "@/atoms/auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useApi } from "@/lib/api/use-api";
-import { Loader2 } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { PageContainer } from "@/components/PageContainer";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function AdminLayout({
   children,
@@ -57,7 +57,7 @@ export default function AdminLayout({
   if (isChecking || !hasAccess) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Spinner size="sm" className="text-muted-foreground" />
       </div>
     );
   }

@@ -78,6 +78,10 @@ export function WelcomeCard() {
                   <Info className="w-4 h-4" />
                   {t("welcome.aboutServer")}
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/version")}>
+                  <Info className="w-4 h-4" />
+                  {t("nav.versionInfo")}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
@@ -96,6 +100,14 @@ export function WelcomeCard() {
                   >
                     <Info className="w-4 h-4" />
                     {t("welcome.aboutServer")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={() => router.push("/version")}
+                  >
+                    <Info className="w-4 h-4" />
+                    {t("nav.versionInfo")}
                   </Button>
                 </div>
               </DrawerContent>

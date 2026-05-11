@@ -10,7 +10,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { useApi } from '@/lib/api/use-api';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Search, ExternalLink, Users } from 'lucide-react';
+import { Search, ExternalLink, Users } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { MfmRenderer } from '@/components/mfm/MfmRenderer';
@@ -139,7 +140,7 @@ export default function UsersPage() {
 
 				{isLoading && (
 					<div className="flex items-center justify-center py-12">
-						<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+						<Spinner size="sm" className="text-muted-foreground" />
 					</div>
 				)}
 

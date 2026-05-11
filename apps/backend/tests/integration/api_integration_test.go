@@ -118,15 +118,21 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 	r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
 
+	postsSvc := service.NewPostsService(store, rdb, nil)
+	timelineSvc := service.NewTimelineService(store, rdb)
+	reactionsSvc := service.NewReactionsService(store, rdb, nil)
+	postsSvc.SetReactionsService(reactionsSvc)
+	timelineSvc.SetReactionsService(reactionsSvc)
+
 	apiServer := handlers.API{
 		Items:     service.NewItemsService(repository.NewItemsRepository(sqlDB)),
 		Auth:      service.NewAuthServiceWithOptions(store, tokenManager, authOpts),
 		Admin:     service.NewAdminService(store, rdb, nil),
 		Authz:     authzSvc,
 		Users:     service.NewUsersService(store),
-		Posts:     service.NewPostsService(store, rdb, nil),
-		Timeline:  service.NewTimelineService(store, rdb),
-		Reactions: service.NewReactionsService(store, rdb, nil),
+		Posts:     postsSvc,
+		Timeline:  timelineSvc,
+		Reactions: reactionsSvc,
 		Media:     mediaSvc,
 	}
 	api.HandlerFromMuxWithBaseURL(apiServer, r, "/api/v1")

@@ -1,0 +1,464 @@
+components:
+  schemas:
+    AdminUserNote:
+      type: object
+      required:
+      - id
+      - userId
+      - content
+      - createdBy
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        content:
+          type: string
+          description: Admin note content (markdown supported)
+        createdBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this note
+        updatedBy:
+          type: string
+          format: uuid
+          description: Admin user ID who last updated this note
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateAdminUserNoteRequest:
+      type: object
+      required:
+      - content
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Admin note content
+    UpdateAdminUserNoteRequest:
+      type: object
+      required:
+      - content
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Updated admin note content
+    ModerationLog:
+      type: object
+      required:
+      - id
+      - adminUserId
+      - action
+      - targetType
+      - targetId
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        adminUserId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Admin user who performed the action (null for system actions)
+        adminUsername:
+          type: string
+          nullable: true
+          description: Username of admin who performed the action
+        adminDisplayName:
+          type: string
+          nullable: true
+          description: Display name of admin who performed the action
+        action:
+          $ref: ./enums.yml#/components/schemas/ModerationAction
+        targetType:
+          $ref: ./enums.yml#/components/schemas/ModerationTargetType
+        targetId:
+          type: string
+          description: ID of the target (format depends on target type)
+        details:
+          type: object
+          nullable: true
+          description: Additional details about the action (JSON object)
+        createdAt:
+          type: string
+          format: date-time
+    ModerationLogPage:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModerationLog'
+        total:
+          type: integer
+          description: Total number of moderation logs matching the filters
+    UserMute:
+      type: object
+      required:
+      - id
+      - userId
+      - muteType
+      - mutedBy
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: ID of the muted user
+        muteType:
+          $ref: ./enums.yml#/components/schemas/MuteType
+        mutedBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this mute
+        reason:
+          type: string
+          nullable: true
+          description: Reason for the mute
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the mute expires (null = permanent)
+        createdAt:
+          type: string
+          format: date-time
+    CreateUserMuteRequest:
+      type: object
+      required:
+      - muteType
+      properties:
+        muteType:
+          $ref: ./enums.yml#/components/schemas/MuteType
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Reason for the mute
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the mute should expire (null = permanent)
+    BannedWord:
+      type: object
+      required:
+      - id
+      - pattern
+      - appliesTo
+      - severity
+      - createdBy
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Banned word ID
+        pattern:
+          type: string
+          description: Regex or literal pattern to match
+        appliesTo:
+          $ref: ./enums.yml#/components/schemas/BannedWordAppliesTo
+        severity:
+          $ref: ./enums.yml#/components/schemas/BannedWordSeverity
+        createdBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this rule
+        createdAt:
+          type: string
+          format: date-time
+    CreateBannedWordRequest:
+      type: object
+      required:
+      - pattern
+      - appliesTo
+      - severity
+      properties:
+        pattern:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Regex or literal pattern to match
+        appliesTo:
+          $ref: ./enums.yml#/components/schemas/BannedWordAppliesTo
+        severity:
+          $ref: ./enums.yml#/components/schemas/BannedWordSeverity
+    BannedImageHash:
+      type: object
+      required:
+      - id
+      - hash
+      - hashType
+      - createdBy
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Banned image hash ID
+        hash:
+          type: string
+          description: Image hash value (hex or base64)
+        hashType:
+          $ref: ./enums.yml#/components/schemas/ImageHashType
+        reason:
+          type: string
+          nullable: true
+          description: Reason why this image is banned
+        createdBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this rule
+        createdAt:
+          type: string
+          format: date-time
+    CreateBannedImageHashRequest:
+      type: object
+      required:
+      - hash
+      - hashType
+      properties:
+        hash:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Image hash value (hex or base64)
+        hashType:
+          $ref: ./enums.yml#/components/schemas/ImageHashType
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Reason why this image is banned
+    IPBan:
+      type: object
+      required:
+      - id
+      - ipAddress
+      - bannedBy
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        ipAddress:
+          type: string
+          description: IP address (IPv4 or IPv6)
+        reason:
+          type: string
+          nullable: true
+          description: Reason for the ban
+        bannedBy:
+          type: string
+          format: uuid
+          description: Admin user ID who created this ban
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the ban expires (null = permanent)
+        createdAt:
+          type: string
+          format: date-time
+    IPBanPage:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IPBan'
+        total:
+          type: integer
+          description: Total number of IP bans
+    CreateIPBanRequest:
+      type: object
+      required:
+      - ipAddress
+      properties:
+        ipAddress:
+          type: string
+          description: IP address to ban (IPv4 or IPv6)
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Reason for the ban
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the ban should expire (null = permanent)
+    UserStats:
+      type: object
+      required:
+      - postsCount
+      - mediaCount
+      - reportsCount
+      properties:
+        postsCount:
+          type: integer
+          description: Number of posts created by user
+        mediaCount:
+          type: integer
+          description: Number of media items uploaded by user
+        reportsCount:
+          type: integer
+          description: Number of reports submitted by user
+    DashboardStats:
+      type: object
+      required:
+      - totalUsers
+      - totalPosts
+      - totalMedia
+      properties:
+        totalUsers:
+          type: integer
+          description: Total number of users (non-deleted)
+        totalPosts:
+          type: integer
+          description: Total number of posts (non-deleted)
+        totalMedia:
+          type: integer
+          description: Total number of media items (non-deleted)
+    AdminUser:
+      allOf:
+      - $ref: ./user.yml#/components/schemas/User
+      - type: object
+        properties:
+          stats:
+            $ref: '#/components/schemas/UserStats'
+    AdminUserPage:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUser'
+        total:
+          type: integer
+          description: Total number of users matching the filters
+    AdminPost:
+      allOf:
+      - $ref: ./post.yml#/components/schemas/Post
+      - type: object
+        required:
+        - visibility
+        properties:
+          visibility:
+            $ref: ./enums.yml#/components/schemas/PostVisibility
+          deletedBy:
+            type: string
+            format: uuid
+            nullable: true
+            description: Admin user ID who deleted this post
+          deletionReason:
+            type: string
+            nullable: true
+            description: Reason for deletion
+    AdminPostPage:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminPost'
+        total:
+          type: integer
+          description: Total number of posts matching the filters
+    DeletePostRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Reason for deletion
+    UpdatePostVisibilityRequest:
+      type: object
+      required:
+      - visibility
+      properties:
+        visibility:
+          $ref: ./enums.yml#/components/schemas/PostVisibility
+    AdminMedia:
+      allOf:
+      - $ref: ./media.yml#/components/schemas/Media
+      - type: object
+        properties:
+          userId:
+            type: string
+            format: uuid
+            description: User who uploaded this media
+          uploaderUsername:
+            type: string
+            nullable: true
+            description: Username of uploader
+          deletedAt:
+            type: string
+            format: date-time
+            nullable: true
+            description: When the media was deleted
+          deletedBy:
+            type: string
+            format: uuid
+            nullable: true
+            description: Admin user ID who deleted this media
+          deletionReason:
+            type: string
+            nullable: true
+            description: Reason for deletion
+          phash:
+            type: string
+            nullable: true
+            description: Perceptual hash of the image
+          usedInPostsCount:
+            type: integer
+            description: Number of posts using this media
+    AdminMediaPage:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminMedia'
+        total:
+          type: integer
+          description: Total number of media items matching the filters
+    DeleteMediaRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Reason for deletion

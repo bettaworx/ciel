@@ -1,4 +1,3 @@
-import { IBM_Plex_Sans_JP } from "next/font/google";
 import { headers } from "next/headers";
 import { Toaster } from "@/components/ui/sonner";
 import { ConditionalSidebar } from "@/components/ConditionalSidebar";
@@ -10,14 +9,9 @@ import { SetupRedirect } from "./SetupRedirect";
 import { DynamicTitle } from "@/components/DynamicTitle";
 import { ThemeColorMeta } from "@/components/ThemeColorMeta";
 import { RegisterServiceWorker } from "@/app/register-sw";
+import { getLocale } from "@/i18n/config";
+import { getFontVariableClassName } from "@/app/typography/fonts";
 import "./globals.css";
-
-const ibmPlexSansJP = IBM_Plex_Sans_JP({
-  variable: "--font-ibm-plex-sans-jp",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  display: "swap",
-});
 
 export default async function RootLayout({
   children,
@@ -28,8 +22,13 @@ export default async function RootLayout({
   // for per-request nonces. Next.js uses the x-nonce header (set by middleware)
   // to apply the nonce to its own generated script tags.
   await headers();
+  const locale = await getLocale();
   return (
-    <html lang="ja" suppressHydrationWarning>
+    <html
+      lang={locale}
+      className={getFontVariableClassName()}
+      suppressHydrationWarning
+    >
       <head>
         <link rel="manifest" href="/pwa/manifest.json" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -38,7 +37,7 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Ciel" />
         <link rel="apple-touch-icon" href="/pwa/icon-192" />
       </head>
-      <body className={`${ibmPlexSansJP.className} antialiased`} suppressHydrationWarning>
+      <body className="antialiased" suppressHydrationWarning>
         <Providers>
           <DynamicTitle titleKey="meta.title" />
           <ThemeColorMeta />

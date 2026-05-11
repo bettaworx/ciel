@@ -30,13 +30,13 @@ export function CharacterCounter({
   const circumference = 2 * Math.PI * radius;
 
   const getColorClass = () => {
-    if (percentage > 100) return "stroke-destructive";
+    if (percentage >= 100) return "stroke-destructive";
     if (percentage >= WARNING_THRESHOLD) return "stroke-yellow-500";
     return "stroke-c-1";
   };
 
   const getTextColorClass = () => {
-    if (percentage > 100) return "text-destructive";
+    if (percentage >= 100) return "text-destructive";
     if (percentage >= WARNING_THRESHOLD) return "text-yellow-600";
     return "text-foreground";
   };
@@ -69,12 +69,12 @@ export function CharacterCounter({
                 strokeLinecap="round"
               />
             </svg>
-            {/* Character count text (shown when >= 75%) */}
+            {/* Remaining character count text (shown when >= 50%) */}
             {showCount && (
               <span
                 className={`absolute inset-0 flex items-center justify-center text-[10px] font-medium ${getTextColorClass()}`}
               >
-                {current}
+                {max - current}
               </span>
             )}
           </div>

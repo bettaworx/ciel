@@ -17,6 +17,7 @@ import type { Locale } from "@/i18n/constants";
 import { MoreHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 type User = components["schemas"]["User"];
 type MenuView = "main" | "theme" | "language";
@@ -41,9 +42,7 @@ interface DesktopUserMenuProps {
   onUserInfoClick: () => void;
   /** サイドバー展開時にユーザー名を表示するか */
   isExpanded?: boolean;
-  /** ピン止め時のホバーカラー制御用 */
-  isPinned?: boolean;
-  /** アニメーション可能か */
+/** アニメーション可能か */
   canAnimate?: boolean;
 }
 
@@ -69,7 +68,6 @@ export function DesktopUserMenu({
   canAnimate = true,
 }: DesktopUserMenuProps) {
   const tNav = useTranslations("nav");
-  const hoverBg = "hover:bg-sidebar-hover";
 
   return (
     <>
@@ -78,6 +76,7 @@ export function DesktopUserMenu({
           <SidebarActionButton
             icon={
               <motion.div
+                initial={false}
                 animate={{
                   width: isExpanded ? 36 : 48,
                   height: isExpanded ? 36 : 48,
@@ -88,7 +87,10 @@ export function DesktopUserMenu({
                     ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
                     : { duration: 0 }
                 }
-                className="shrink-0 overflow-hidden"
+                className={cn(
+                  "shrink-0 overflow-hidden",
+                  isExpanded ? "h-9 w-9" : "h-12 w-12",
+                )}
               >
                 <Avatar className="w-full h-full rounded-none">
                   {user.avatarUrl && (
@@ -118,7 +120,7 @@ export function DesktopUserMenu({
             trailingIcon={<MoreHorizontal className="w-4 h-4" />}
             isExpanded={isExpanded}
             canAnimate={canAnimate}
-            hoverBg={hoverBg}
+
             className={isExpanded ? "w-full min-w-[180px]" : undefined}
             aria-label={tNav("openUserMenu")}
           />

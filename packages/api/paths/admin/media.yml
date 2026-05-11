@@ -1,0 +1,91 @@
+/admin/media:
+  get:
+    tags:
+    - Admin
+    summary: List media (admin view)
+    description: List all media with filtering and admin-only fields
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    - name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    - name: userId
+      in: query
+      schema:
+        type: string
+        format: uuid
+      description: Filter by user ID
+    - name: deleted
+      in: query
+      schema:
+        type: boolean
+      description: Filter by deletion status
+    responses:
+      '200':
+        description: List of media
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/admin.yml#/components/schemas/AdminMediaPage
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_media_read permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/media/{mediaId}:
+  delete:
+    tags:
+    - Admin
+    summary: Delete media (admin)
+    description: Permanently delete media with optional reason
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: mediaId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/admin.yml#/components/schemas/DeleteMediaRequest
+    responses:
+      '204':
+        description: Media deleted
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - requires admin_media_delete permission
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Media not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error

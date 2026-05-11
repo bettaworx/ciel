@@ -41,6 +41,10 @@ export class ApiHttpError extends Error {
 
 const DEFAULT_BASE_URL = '/api/v1';
 
+type RefreshResult = ApiResult<components['schemas']['RefreshResponse']>;
+
+const refreshPromises = new Map<string, Promise<RefreshResult>>();
+
 function resolveBaseUrl(explicit?: string): string {
 	const raw = (explicit ?? DEFAULT_BASE_URL).trim();
 	if (!raw) return DEFAULT_BASE_URL;
@@ -81,11 +85,46 @@ async function parseJsonIfAny<T>(res: Response): Promise<T | undefined> {
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+function refreshSession(baseUrl: string): Promise<RefreshResult> {
+	const existing = refreshPromises.get(baseUrl);
+	if (existing) return existing;
+
+	const promise = (async (): Promise<RefreshResult> => {
+		try {
+			const res = await fetch(`${baseUrl}/auth/refresh`, {
+				method: 'POST',
+				credentials: 'include',
+			});
+
+			if (!res.ok) {
+				const { errorText, errorJson } = await readBody(res);
+				return { ok: false, status: res.status, errorText, errorJson, headers: res.headers };
+			}
+
+			if (res.status === 204) {
+				return { ok: true, status: res.status, data: undefined as unknown as components['schemas']['RefreshResponse'], headers: res.headers };
+			}
+
+			const data = await parseJsonIfAny<components['schemas']['RefreshResponse']>(res);
+			return { ok: true, status: res.status, data: data as components['schemas']['RefreshResponse'], headers: res.headers };
+		} catch (error) {
+			return {
+				ok: false,
+				status: 0,
+				errorText: error instanceof Error ? error.message : 'Failed to refresh session',
+				headers: new Headers(),
+			};
+		} finally {
+			refreshPromises.delete(baseUrl);
+		}
+	})();
+
+	refreshPromises.set(baseUrl, promise);
+	return promise;
+}
+
 export function createApiClient(options: ApiClientOptions = {}) {
 	const baseUrl = resolveBaseUrl(options.baseUrl);
-
-	// Shared promise to prevent multiple concurrent refresh attempts
-	let refreshPromise: Promise<boolean> | null = null;
 
 	/**
 	 * Before declaring the server offline, confirm by hitting the health endpoint.
@@ -133,21 +172,8 @@ export function createApiClient(options: ApiClientOptions = {}) {
 	}
 
 	async function attemptRefresh(): Promise<boolean> {
-		if (refreshPromise) return refreshPromise;
-		refreshPromise = (async () => {
-			try {
-				const res = await fetch(`${baseUrl}/auth/refresh`, {
-					method: 'POST',
-					credentials: 'include',
-				});
-				return res.ok;
-			} catch {
-				return false;
-			} finally {
-				refreshPromise = null;
-			}
-		})();
-		return refreshPromise;
+		const result = await refreshSession(baseUrl);
+		return result.ok;
 	}
 
 	async function request<T>(
@@ -259,6 +285,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		// Server information (public endpoint)
 		serverInfo: () => request<components['schemas']['ServerInfo']>('GET', '/server/info'),
+		serverConfig: () => request<components['schemas']['ServerConfig']>('GET', '/server/config'),
 
 		register: (body: components['schemas']['RegisterRequest']) =>
 			request<components['schemas']['User']>('POST', '/auth/register', { body }),
@@ -275,7 +302,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		stepupFinish: (body: components['schemas']['StepupFinishRequest']) =>
 			request<components['schemas']['StepupFinishResponse']>('POST', '/auth/stepup/finish', { body }),
 
-		refresh: () => request<components['schemas']['RefreshResponse']>('POST', '/auth/refresh', { _skipRefresh: true }),
+		refresh: () => refreshSession(baseUrl),
 
 		logout: () => request<void>('POST', '/auth/logout'),
 
@@ -331,6 +358,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			if (params?.cursor) qs.set('cursor', params.cursor);
 			const suffix = qs.size ? `?${qs.toString()}` : '';
 			return request<components['schemas']['TimelinePage']>('GET', `/timeline${suffix}`);
+		},
+
+		listCustomEmojis: (params?: { limit?: number; offset?: number }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.offset !== undefined) qs.set('offset', String(params.offset));
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['EmojiListResponse']>('GET', `/emojis${suffix}`);
 		},
 
 		reactionCounts: (postId: components['schemas']['PostId']) =>
@@ -515,6 +550,27 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		adminDeleteMedia: (mediaId: components['schemas']['MediaId'], body?: components['schemas']['DeleteMediaRequest']) =>
 			request<void>('DELETE', `/admin/media/${mediaId}`, { body }),
+
+		// Admin - Emojis
+		adminListEmojis: (params?: {
+			limit?: number;
+			offset?: number;
+		}) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.offset !== undefined) qs.set('offset', String(params.offset));
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['AdminEmojiListResponse']>('GET', `/admin/emojis${suffix}`);
+		},
+
+		adminCreateEmoji: (form: FormData) =>
+			requestForm<components['schemas']['AdminEmoji']>('POST', '/admin/emojis', { form }),
+
+		adminUpdateEmoji: (emojiId: components['schemas']['EmojiId'], form: FormData) =>
+			requestForm<components['schemas']['AdminEmoji']>('PUT', `/admin/emojis/${emojiId}`, { form }),
+
+		adminDeleteEmoji: (emojiId: components['schemas']['EmojiId']) =>
+			request<void>('DELETE', `/admin/emojis/${emojiId}`),
 
 		// Admin - User Mutes
 		adminGetUserMutes: (userId: components['schemas']['UserId']) =>

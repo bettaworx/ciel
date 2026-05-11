@@ -485,7 +485,9 @@
     "home": "ホーム",
     "openUserMenu": "ユーザーメニュー",
     "pinSidebar": "サイドバーを固定",
-    "unpinSidebar": "サイドバーのピンを解除"
+    "unpinSidebar": "サイドバーのピンを解除",
+    "serverInfo": "サーバーについて",
+    "versionInfo": "アプリ情報"
   },
   "videoPlayer": {
     "play": "再生",
@@ -724,6 +726,7 @@
       "users": "ユーザー管理",
       "posts": "投稿管理",
       "media": "メディア管理",
+      "emojis": "絵文字管理",
       "contentFilters": "コンテンツフィルター",
       "invites": "招待コード管理",
       "agreements": "契約書管理",
@@ -813,6 +816,64 @@
       "bytes": "バイト",
       "kb": "KB",
       "mb": "MB"
+    },
+    "emojis": {
+      "title": "カスタム絵文字管理",
+      "createTitle": "カスタム絵文字を追加",
+      "createDescription": "新しいカスタム絵文字をアップロードします。",
+      "editTitle": "カスタム絵文字を編集",
+      "editDescription": "絵文字のメタデータや画像を更新できます。",
+      "cropTitle": "絵文字画像をトリミング",
+      "table": {
+        "preview": "プレビュー",
+        "shortcode": "shortcode",
+        "name": "表示名",
+        "category": "カテゴリ",
+        "dimensions": "サイズ",
+        "updatedAt": "更新日時",
+        "actions": "操作"
+      },
+      "form": {
+        "image": "画像",
+        "noImage": "画像未選択",
+        "imageHint": "静止画像は正方形にトリミングされます。GIF はアニメーション保持のためそのままアップロードされます。",
+        "shortcode": "shortcode",
+        "shortcodePlaceholder": "blobcat",
+        "shortcodeHint": "英数字とアンダースコアのみ使用できます。",
+        "name": "表示名",
+        "namePlaceholder": "例: Blob Cat",
+        "category": "カテゴリ",
+        "categoryPlaceholder": "例: reactions",
+        "license": "ライセンス",
+        "licensePlaceholder": "例: CC BY 4.0"
+      },
+      "actions": {
+        "add": "絵文字を追加",
+        "create": "作成",
+        "save": "保存",
+        "edit": "編集",
+        "delete": "削除",
+        "selectImage": "画像を選択",
+        "replaceImage": "画像を差し替え"
+      },
+      "messages": {
+        "createSuccess": "カスタム絵文字を追加しました",
+        "createError": "カスタム絵文字の追加に失敗しました",
+        "updateSuccess": "カスタム絵文字を更新しました",
+        "updateError": "カスタム絵文字の更新に失敗しました",
+        "deleteSuccess": "カスタム絵文字を削除しました",
+        "deleteError": "カスタム絵文字の削除に失敗しました"
+      },
+      "confirm": {
+        "deleteTitle": "カスタム絵文字を削除しますか？",
+        "deleteDescription": ":{shortcode}: を削除します。この操作は元に戻せません。"
+      },
+      "validation": {
+        "shortcodeRequired": "shortcode は必須です",
+        "shortcodeInvalid": "shortcode は英数字とアンダースコアのみ使用できます",
+        "imageRequired": "画像を選択してください",
+        "imageType": "画像ファイルを選択してください"
+      }
     },
     "contentFilters": {
       "title": "コンテンツフィルター",
@@ -1029,6 +1090,10 @@
         "description": "フィルター条件を変更してください",
         "clearFilters": "フィルターをクリア"
       },
+      "emojis": {
+        "title": "カスタム絵文字がありません",
+        "description": "追加した絵文字はここに表示されます"
+      },
       "contentFilters": {
         "title": "フィルターが設定されていません",
         "description": "コンテンツフィルターはコミュニティを安全に保つのに役立ちます"
@@ -1112,5 +1177,41 @@
     "apply": "トリミングして適用",
     "cancel": "キャンセル",
     "processing": "処理中..."
+  },
+  "about": {
+    "title": "このシステムについて",
+    "version": "バージョン",
+    "commit": "コミット",
+    "branch": "ブランチ",
+    "tabs": {
+      "server": "サーバー",
+      "frontend": "フロントエンド"
+    },
+    "appVersion": "バージョン",
+    "appCommit": "コミット",
+    "appBranch": "ブランチ",
+    "licenses": {
+      "title": "ライセンス",
+      "linkLabel": "ライセンス"
+    },
+    "sourceCode": "ソースコード",
+    "versionInfo": "バージョン情報"
+  },
+  "emojiPicker": {
+    "searchPlaceholder": "絵文字を検索...",
+    "searchResults": "検索結果",
+    "changeSkinTone": "肌の色を変更",
+    "clearSearch": "検索をクリア",
+    "noEmojiFound": "絵文字が見つかりません",
+    "recentlyUsed": "最近使用した絵文字",
+    "custom": "カスタム",
+    "skinTone": {
+      "default": "デフォルト",
+      "light": "薄い肌色",
+      "mediumLight": "やや薄い肌色",
+      "medium": "中間の肌色",
+      "mediumDark": "やや濃い肌色",
+      "dark": "濃い肌色"
+    }
   }
 }

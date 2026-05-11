@@ -14,6 +14,7 @@ import (
 	"backend/internal/config"
 	"backend/internal/db/sqlc"
 	"backend/internal/logging"
+	"backend/internal/realtime"
 	"backend/internal/repository"
 
 	"github.com/google/uuid"
@@ -35,6 +36,7 @@ type AuthService struct {
 	now            func() time.Time
 	configMgr      *config.Manager
 	inviteSvc      InviteServiceInterface
+	publisher      realtime.Publisher
 }
 
 func NewAuthService(store *repository.Store, tokens *auth.TokenManager) *AuthService {
@@ -97,6 +99,11 @@ func (s *AuthService) SetInviteService(inviteSvc InviteServiceInterface) {
 	s.inviteSvc = inviteSvc
 }
 
+// SetPublisher sets the realtime event publisher.
+func (s *AuthService) SetPublisher(publisher realtime.Publisher) {
+	s.publisher = publisher
+}
+
 // validateRegistrationInput validates username and password from registration request
 func validateRegistrationInput(req api.RegisterRequest) (string, error) {
 	username := strings.TrimSpace(string(req.Username))
@@ -153,6 +160,9 @@ func (s *AuthService) checkServerSettings(ctx context.Context, req api.RegisterR
 	}
 
 	// Validate agreement versions match current server versions
+	if req.TermsVersion != int(settings.TermsVersion) {
+		return sqlc.ServerSetting{}, NewError(http.StatusBadRequest, "invalid_request", "terms version mismatch")
+	}
 	if req.PrivacyVersion != int(settings.PrivacyVersion) {
 		return sqlc.ServerSetting{}, NewError(http.StatusBadRequest, "invalid_request", "privacy version mismatch")
 	}
@@ -323,7 +333,13 @@ func (s *AuthService) Register(ctx context.Context, req api.RegisterRequest) (ap
 		return api.User{}, err
 	}
 
-	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt), nil
+	if s.publisher != nil {
+		if err := s.publisher.Publish(ctx, realtime.Event{Type: realtime.EventUserRegistered}); err != nil {
+			slog.Warn("failed to publish user_registered event", "error", err)
+		}
+	}
+
+	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt), nil
 }
 
 func (s *AuthService) LoginStart(ctx context.Context, req api.LoginStartRequest) (api.LoginStartResponse, error) {
@@ -462,7 +478,7 @@ func (s *AuthService) LoginFinish(ctx context.Context, req api.LoginFinishReques
 		AccessToken:      token,
 		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
 		ExpiresInSeconds: expiresIn,
-		User:             mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt),
+		User:             mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt),
 	}, rawRefreshToken, nil
 }
 

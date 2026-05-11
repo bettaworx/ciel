@@ -485,7 +485,9 @@
     "home": "Home",
     "openUserMenu": "User menu",
     "pinSidebar": "Pin sidebar",
-    "unpinSidebar": "Unpin sidebar"
+    "unpinSidebar": "Unpin sidebar",
+    "serverInfo": "About this server",
+    "versionInfo": "App information"
   },
   "videoPlayer": {
     "play": "Play",
@@ -724,6 +726,7 @@
       "users": "Users",
       "posts": "Posts",
       "media": "Media",
+      "emojis": "Emojis",
       "contentFilters": "Content Filters",
       "invites": "Invite Codes",
       "agreements": "Agreements",
@@ -813,6 +816,64 @@
       "bytes": "bytes",
       "kb": "KB",
       "mb": "MB"
+    },
+    "emojis": {
+      "title": "Custom Emoji Management",
+      "createTitle": "Add Custom Emoji",
+      "createDescription": "Upload a new custom emoji for this server.",
+      "editTitle": "Edit Custom Emoji",
+      "editDescription": "Update emoji metadata or replace its image.",
+      "cropTitle": "Crop Emoji Image",
+      "table": {
+        "preview": "Preview",
+        "shortcode": "Shortcode",
+        "name": "Name",
+        "category": "Category",
+        "dimensions": "Dimensions",
+        "updatedAt": "Updated",
+        "actions": "Actions"
+      },
+      "form": {
+        "image": "Image",
+        "noImage": "No image selected",
+        "imageHint": "Static images are cropped to a square. GIFs are uploaded as-is to preserve animation.",
+        "shortcode": "Shortcode",
+        "shortcodePlaceholder": "blobcat",
+        "shortcodeHint": "Letters, numbers, and underscores only.",
+        "name": "Display name",
+        "namePlaceholder": "e.g. Blob Cat",
+        "category": "Category",
+        "categoryPlaceholder": "e.g. reactions",
+        "license": "License",
+        "licensePlaceholder": "e.g. CC BY 4.0"
+      },
+      "actions": {
+        "add": "Add Emoji",
+        "create": "Create",
+        "save": "Save",
+        "edit": "Edit",
+        "delete": "Delete",
+        "selectImage": "Select Image",
+        "replaceImage": "Replace Image"
+      },
+      "messages": {
+        "createSuccess": "Custom emoji created",
+        "createError": "Failed to create custom emoji",
+        "updateSuccess": "Custom emoji updated",
+        "updateError": "Failed to update custom emoji",
+        "deleteSuccess": "Custom emoji deleted",
+        "deleteError": "Failed to delete custom emoji"
+      },
+      "confirm": {
+        "deleteTitle": "Delete custom emoji?",
+        "deleteDescription": "Delete :{shortcode}:. This action cannot be undone."
+      },
+      "validation": {
+        "shortcodeRequired": "Shortcode is required",
+        "shortcodeInvalid": "Shortcode can only contain letters, numbers, and underscores",
+        "imageRequired": "Please select an image",
+        "imageType": "Please select an image file"
+      }
     },
     "contentFilters": {
       "title": "Content Filters",
@@ -1029,6 +1090,10 @@
         "description": "Try adjusting your filters to see more results",
         "clearFilters": "Clear Filters"
       },
+      "emojis": {
+        "title": "No custom emojis yet",
+        "description": "Uploaded emojis will appear here"
+      },
       "contentFilters": {
         "title": "No filters configured",
         "description": "Content filters help keep your community safe"
@@ -1112,5 +1177,41 @@
     "apply": "Crop & Apply",
     "cancel": "Cancel",
     "processing": "Processing..."
+  },
+  "about": {
+    "title": "About this server",
+    "version": "Version",
+    "commit": "Commit",
+    "branch": "Branch",
+    "tabs": {
+      "server": "Server",
+      "frontend": "Frontend"
+    },
+    "appVersion": "Version",
+    "appCommit": "Commit",
+    "appBranch": "Branch",
+    "licenses": {
+      "title": "Licenses",
+      "linkLabel": "Licenses"
+    },
+    "sourceCode": "Source code",
+    "versionInfo": "Version info"
+  },
+  "emojiPicker": {
+    "searchPlaceholder": "Search emoji...",
+    "searchResults": "Search results",
+    "changeSkinTone": "Change skin tone",
+    "clearSearch": "Clear search",
+    "noEmojiFound": "No emoji found.",
+    "recentlyUsed": "Recently Used",
+    "custom": "Custom",
+    "skinTone": {
+      "default": "Default",
+      "light": "Light",
+      "mediumLight": "Medium-Light",
+      "medium": "Medium",
+      "mediumDark": "Medium-Dark",
+      "dark": "Dark"
+    }
   }
 }

@@ -33,6 +33,16 @@ export function PasswordStep({
         onSubmit={handleSubmit}
         className="flex flex-col h-full min-h-0"
       >
+        <Input
+          type="text"
+          value={username}
+          readOnly
+          autoComplete="username"
+          tabIndex={-1}
+          className="sr-only"
+          aria-hidden="true"
+        />
+
         <div className="flex-1 flex flex-col justify-center">
           <div className="mb-6">
             <h2 className="text-2xl font-bold">
@@ -53,6 +63,7 @@ export function PasswordStep({
               placeholder={t("password")}
               required
               autoFocus
+              autoComplete="current-password"
               disabled={loading}
               className="transition-colors duration-160 ease"
             />

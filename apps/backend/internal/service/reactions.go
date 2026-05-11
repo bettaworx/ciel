@@ -34,9 +34,18 @@ func (s *ReactionsService) List(ctx context.Context, postID api.PostId, userID *
 	if s.store == nil {
 		return api.ReactionCounts{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
-	if counts, ok := s.getReactionCache(ctx, postID); ok && userID == nil {
-		// Only use cache for anonymous requests (no user-specific data)
-		return counts, nil
+	if counts, ok := s.getReactionCache(ctx, postID); ok {
+		if userID == nil {
+			return counts, nil
+		}
+		selfByPost, err := s.listSelfReactionsForPosts(ctx, []api.PostId{postID}, *userID)
+		if err == nil {
+			self := selfByPost[postID]
+			for i := range counts.Reactions {
+				_, counts.Reactions[i].ReactedByCurrentUser = self[string(counts.Reactions[i].Emoji)]
+			}
+			return counts, nil
+		}
 	}
 	if err := s.ensurePostVisible(ctx, postID); err != nil {
 		return api.ReactionCounts{}, err
@@ -50,6 +59,81 @@ func (s *ReactionsService) List(ctx context.Context, postID api.PostId, userID *
 		s.setReactionCache(ctx, counts)
 	}
 	return counts, nil
+}
+
+func (s *ReactionsService) ListForPosts(ctx context.Context, postIDs []api.PostId, userID *api.UserId) (map[api.PostId][]api.ReactionCount, error) {
+	result := make(map[api.PostId][]api.ReactionCount, len(postIDs))
+	if len(postIDs) == 0 {
+		return result, nil
+	}
+	if s.store == nil {
+		return nil, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+
+	unique := make([]api.PostId, 0, len(postIDs))
+	seen := make(map[api.PostId]struct{}, len(postIDs))
+	for _, postID := range postIDs {
+		if _, ok := seen[postID]; ok {
+			continue
+		}
+		seen[postID] = struct{}{}
+		unique = append(unique, postID)
+		result[postID] = []api.ReactionCount{}
+	}
+
+	missingCounts := make([]api.PostId, 0)
+	for _, postID := range unique {
+		counts, ok := s.getReactionCache(ctx, postID)
+		if !ok {
+			missingCounts = append(missingCounts, postID)
+			continue
+		}
+		result[postID] = counts.Reactions
+	}
+
+	if len(missingCounts) > 0 {
+		ids := make([]uuid.UUID, 0, len(missingCounts))
+		for _, postID := range missingCounts {
+			ids = append(ids, uuid.UUID(postID))
+		}
+		rows, err := s.store.Q.ListReactionCountsForPosts(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			postID := api.PostId(row.PostID)
+			result[postID] = append(result[postID], api.ReactionCount{
+				Emoji:                row.Emoji,
+				Count:                int(row.Count),
+				ReactedByCurrentUser: false,
+			})
+		}
+		for _, postID := range missingCounts {
+			s.setReactionCache(ctx, api.ReactionCounts{PostId: postID, Reactions: result[postID]})
+		}
+	}
+
+	if userID != nil {
+		selfByPost, err := s.listSelfReactionsForPosts(ctx, unique, *userID)
+		if err != nil {
+			return nil, err
+		}
+		for postID, self := range selfByPost {
+			if len(self) == 0 {
+				continue
+			}
+			existing := result[postID]
+			if len(existing) == 0 {
+				continue
+			}
+			for i := range existing {
+				_, existing[i].ReactedByCurrentUser = self[string(existing[i].Emoji)]
+			}
+			result[postID] = existing
+		}
+	}
+
+	return result, nil
 }
 
 type ReactionUsersCursor struct {
@@ -109,6 +193,7 @@ func (s *ReactionsService) ListUsers(ctx context.Context, postID api.PostId, emo
 			row.AvatarMediaID,
 			row.AvatarExt,
 			uuid.NullUUID{},
+			sql.NullString{},
 			sql.NullString{},
 			0,
 			0,
@@ -226,7 +311,8 @@ func (s *ReactionsService) Add(ctx context.Context, user auth.User, postID api.P
 	if err != nil {
 		return api.ReactionCounts{}, err
 	}
-	s.setReactionCache(ctx, counts)
+	s.setReactionCache(ctx, anonymizeReactionCounts(counts))
+	s.setUserReactionCache(ctx, user.ID, postID, selfReactionEmojis(counts))
 	s.publish(ctx, counts)
 	return counts, nil
 }
@@ -272,7 +358,8 @@ func (s *ReactionsService) Remove(ctx context.Context, user auth.User, postID ap
 	if err != nil {
 		return api.ReactionCounts{}, err
 	}
-	s.setReactionCache(ctx, counts)
+	s.setReactionCache(ctx, anonymizeReactionCounts(counts))
+	s.setUserReactionCache(ctx, user.ID, postID, selfReactionEmojis(counts))
 	s.publish(ctx, counts)
 	return counts, nil
 }
@@ -281,7 +368,8 @@ func (s *ReactionsService) publish(ctx context.Context, counts api.ReactionCount
 	if s.publisher == nil {
 		return
 	}
-	_ = s.publisher.Publish(ctx, realtime.Event{Type: realtime.EventReactionUpdated, ReactionCounts: &counts})
+	anonymized := anonymizeReactionCounts(counts)
+	_ = s.publisher.Publish(ctx, realtime.Event{Type: realtime.EventReactionUpdated, ReactionCounts: &anonymized})
 }
 
 func encodeReactionUsersCursor(c ReactionUsersCursor) string {
@@ -317,9 +405,14 @@ func DecodeReactionUsersCursor(cursor *string) (*ReactionUsersCursor, error) {
 }
 
 const reactionCacheTTL = 6 * time.Hour
+const userReactionCacheTTL = 6 * time.Hour
 
 func reactionCacheKey(postID api.PostId) string {
 	return "reactions:post:" + postID.String()
+}
+
+func userReactionCacheKey(userID api.UserId, postID api.PostId) string {
+	return "reactions:user:" + userID.String() + ":post:" + postID.String()
 }
 
 func (s *ReactionsService) getReactionCache(ctx context.Context, postID api.PostId) (api.ReactionCounts, bool) {
@@ -340,6 +433,7 @@ func (s *ReactionsService) getReactionCache(ctx context.Context, postID api.Post
 	if counts.Reactions == nil {
 		counts.Reactions = []api.ReactionCount{}
 	}
+	counts = anonymizeReactionCounts(counts)
 	return counts, true
 }
 
@@ -352,4 +446,111 @@ func (s *ReactionsService) setReactionCache(ctx context.Context, counts api.Reac
 		return
 	}
 	_ = s.cache.Set(ctx, reactionCacheKey(counts.PostId), string(payload), reactionCacheTTL)
+}
+
+func (s *ReactionsService) getUserReactionCache(ctx context.Context, userID api.UserId, postID api.PostId) ([]api.Emoji, bool) {
+	if s.cache == nil {
+		return nil, false
+	}
+	payload, err := s.cache.Get(ctx, userReactionCacheKey(userID, postID))
+	if err != nil {
+		return nil, false
+	}
+	var emojis []api.Emoji
+	if err := json.Unmarshal([]byte(payload), &emojis); err != nil {
+		return nil, false
+	}
+	if emojis == nil {
+		emojis = []api.Emoji{}
+	}
+	return emojis, true
+}
+
+func (s *ReactionsService) setUserReactionCache(ctx context.Context, userID api.UserId, postID api.PostId, emojis []api.Emoji) {
+	if s.cache == nil {
+		return
+	}
+	if emojis == nil {
+		emojis = []api.Emoji{}
+	}
+	payload, err := json.Marshal(emojis)
+	if err != nil {
+		return
+	}
+	_ = s.cache.Set(ctx, userReactionCacheKey(userID, postID), string(payload), userReactionCacheTTL)
+}
+
+func (s *ReactionsService) listSelfReactionsForPosts(ctx context.Context, postIDs []api.PostId, userID api.UserId) (map[api.PostId]map[string]struct{}, error) {
+	result := make(map[api.PostId]map[string]struct{}, len(postIDs))
+	missing := make([]api.PostId, 0)
+	for _, postID := range postIDs {
+		emojis, ok := s.getUserReactionCache(ctx, userID, postID)
+		if !ok {
+			missing = append(missing, postID)
+			continue
+		}
+		result[postID] = emojiSet(emojis)
+	}
+	if len(missing) == 0 {
+		return result, nil
+	}
+
+	ids := make([]uuid.UUID, 0, len(missing))
+	for _, postID := range missing {
+		ids = append(ids, uuid.UUID(postID))
+		result[postID] = map[string]struct{}{}
+	}
+	rows, err := s.store.Q.ListReactionEventsForUserAndPosts(ctx, sqlc.ListReactionEventsForUserAndPostsParams{
+		UserID:  userID,
+		PostIds: ids,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		postID := api.PostId(row.PostID)
+		if result[postID] == nil {
+			result[postID] = map[string]struct{}{}
+		}
+		result[postID][row.Emoji] = struct{}{}
+	}
+	for _, postID := range missing {
+		s.setUserReactionCache(ctx, userID, postID, setToEmojis(result[postID]))
+	}
+	return result, nil
+}
+
+func anonymizeReactionCounts(counts api.ReactionCounts) api.ReactionCounts {
+	out := api.ReactionCounts{PostId: counts.PostId, Reactions: make([]api.ReactionCount, len(counts.Reactions))}
+	for i, reaction := range counts.Reactions {
+		reaction.ReactedByCurrentUser = false
+		out.Reactions[i] = reaction
+	}
+	return out
+}
+
+func selfReactionEmojis(counts api.ReactionCounts) []api.Emoji {
+	emojis := make([]api.Emoji, 0)
+	for _, reaction := range counts.Reactions {
+		if reaction.ReactedByCurrentUser {
+			emojis = append(emojis, reaction.Emoji)
+		}
+	}
+	return emojis
+}
+
+func emojiSet(emojis []api.Emoji) map[string]struct{} {
+	set := make(map[string]struct{}, len(emojis))
+	for _, emoji := range emojis {
+		set[string(emoji)] = struct{}{}
+	}
+	return set
+}
+
+func setToEmojis(set map[string]struct{}) []api.Emoji {
+	emojis := make([]api.Emoji, 0, len(set))
+	for emoji := range set {
+		emojis = append(emojis, api.Emoji(emoji))
+	}
+	return emojis
 }

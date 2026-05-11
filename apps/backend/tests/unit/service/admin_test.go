@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"database/sql"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"backend/internal/api"
 	"backend/internal/cache"
+	"backend/internal/config"
 	"backend/internal/db/sqlc"
 	"backend/internal/repository"
 	"backend/internal/service"
@@ -27,7 +29,7 @@ func TestListRoles(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	mock.ExpectQuery(`SELECT id FROM roles`).
 		WillReturnRows(
@@ -59,7 +61,7 @@ func TestListPermissions(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	mock.ExpectQuery(`SELECT id FROM permissions`).
 		WillReturnRows(
@@ -91,15 +93,15 @@ func TestGetUserRoles(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	userID := uuid.New()
 
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Mock GetUserRoles
@@ -132,7 +134,7 @@ func TestGetUserRoles_UserNotFound(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	userID := uuid.New()
 
@@ -162,7 +164,7 @@ func TestUpdateUserRoles(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	userID := uuid.New()
 	newRoles := []api.RoleId{"admin", "moderator"}
@@ -170,8 +172,8 @@ func TestUpdateUserRoles(t *testing.T) {
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Mock transaction
@@ -209,15 +211,15 @@ func TestGetUserPermissionOverrides(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	userID := uuid.New()
 
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Mock GetUserPermissionOverrides
@@ -253,7 +255,7 @@ func TestUpdateUserPermissionOverrides(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	userID := uuid.New()
 	overrides := []api.PermissionOverride{
@@ -263,8 +265,8 @@ func TestUpdateUserPermissionOverrides(t *testing.T) {
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Mock transaction
@@ -298,17 +300,18 @@ func TestGetServerSettings(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	configMgr := newTestConfigManager(t, false)
+	svc := service.NewAdminService(store, nil, configMgr, nil)
 
 	// Mock EnsureServerSettings
 	mock.ExpectExec(`INSERT INTO server_settings`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	// Mock GetServerSettings
-	mock.ExpectQuery(`SELECT id, signup_enabled, terms_version, privacy_version FROM server_settings WHERE id`).
+	mock.ExpectQuery(`SELECT id, terms_version, privacy_version FROM server_settings WHERE id`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "signup_enabled", "terms_version", "privacy_version"}).
-				AddRow(int32(1), true, int32(1), int32(1)),
+			sqlmock.NewRows([]string{"id", "terms_version", "privacy_version"}).
+				AddRow(int32(1), int32(1), int32(1)),
 		)
 
 	settings, err := svc.GetServerSettings(context.Background())
@@ -339,18 +342,18 @@ func TestUpdateSignupEnabled(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	configMgr := newTestConfigManager(t, false)
+	svc := service.NewAdminService(store, nil, configMgr, nil)
 
 	// Mock EnsureServerSettings
 	mock.ExpectExec(`INSERT INTO server_settings`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	// Mock UpdateSignupEnabled
-	mock.ExpectQuery(`UPDATE server_settings SET signup_enabled`).
-		WithArgs(false).
+	// Mock GetServerSettings after the config update
+	mock.ExpectQuery(`SELECT id, terms_version, privacy_version FROM server_settings WHERE id`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "signup_enabled", "terms_version", "privacy_version"}).
-				AddRow(int32(1), false, int32(1), int32(1)),
+			sqlmock.NewRows([]string{"id", "terms_version", "privacy_version"}).
+				AddRow(int32(1), int32(1), int32(1)),
 		)
 
 	settings, err := svc.UpdateSignupEnabled(context.Background(), false)
@@ -374,7 +377,7 @@ func TestUpdateAgreementVersions(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	termsVersion := 2
 	privacyVersion := 3
@@ -417,7 +420,7 @@ func TestUpdateAgreementVersions_ValidationErrors(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	tests := []struct {
 		name    string
@@ -477,15 +480,15 @@ func TestBanUser(t *testing.T) {
 	cacheImpl := cache.NewRedisCache(rdb)
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, cacheImpl, nil)
+	svc := service.NewAdminService(store, cacheImpl, nil, nil)
 
 	userID := uuid.New()
 
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Note: Testing Redis operations requires a running Redis instance or miniredis
@@ -516,15 +519,15 @@ func TestBanUser_InvalidTTL(t *testing.T) {
 	rdb := redis.NewClient(&redis.Options{})
 	cacheImpl := cache.NewRedisCache(rdb)
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, cacheImpl, nil)
+	svc := service.NewAdminService(store, cacheImpl, nil, nil)
 
 	userID := uuid.New()
 
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Test zero TTL
@@ -553,15 +556,15 @@ func TestBanUser_ExceedsMaxTTL(t *testing.T) {
 	rdb := redis.NewClient(&redis.Options{})
 	cacheImpl := cache.NewRedisCache(rdb)
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, cacheImpl, nil)
+	svc := service.NewAdminService(store, cacheImpl, nil, nil)
 
 	userID := uuid.New()
 
 	// Mock GetUserByID (ensureUserExists)
 	mock.ExpectQuery(`-- name: GetUserByID`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext"}).
-				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}),
+			sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash"}).
+				AddRow(userID, "testuser", "Test User", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, mockTime(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}),
 		)
 
 	// Test TTL exceeding 1 year
@@ -588,7 +591,7 @@ func TestGetDashboardStats(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil)
+	svc := service.NewAdminService(store, nil, nil, nil)
 
 	// Mock GetDashboardStats query
 	mock.ExpectQuery(`-- name: GetDashboardStats`).
@@ -614,6 +617,25 @@ func TestGetDashboardStats(t *testing.T) {
 // Helper functions
 func intPtr(v int) *int {
 	return &v
+}
+
+func newTestConfigManager(t *testing.T, inviteOnly bool) *config.Manager {
+	t.Helper()
+
+	manager, err := config.NewManager(filepath.Join(t.TempDir(), "config.yaml"))
+	if err != nil {
+		t.Fatalf("config.NewManager: %v", err)
+	}
+	if err := manager.Update(func(cfg *config.Config) error {
+		cfg.Auth.InviteOnly = inviteOnly
+		return nil
+	}); err != nil {
+		t.Fatalf("config.Manager.Update: %v", err)
+	}
+	t.Cleanup(func() {
+		config.SetGlobalConfig(nil)
+	})
+	return manager
 }
 
 func mockTime() time.Time {

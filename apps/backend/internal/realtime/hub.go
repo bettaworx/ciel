@@ -11,7 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const timelineChannel = "realtime:timeline"
+const eventsChannel = "realtime:events"
 
 // Publisher broadcasts realtime events.
 type Publisher interface {
@@ -100,7 +100,7 @@ func (h *Hub) Publish(ctx context.Context, event Event) error {
 		}
 	}
 	if h.rdb != nil {
-		if err := h.rdb.Publish(ctx, timelineChannel, wirePayload).Err(); err != nil {
+		if err := h.rdb.Publish(ctx, eventsChannel, wirePayload).Err(); err != nil {
 			h.enqueue(payload)
 			return err
 		}
@@ -118,7 +118,7 @@ func (h *Hub) enqueue(payload []byte) {
 }
 
 func (h *Hub) subscribeRedis(ctx context.Context) {
-	pubsub := h.rdb.Subscribe(ctx, timelineChannel)
+	pubsub := h.rdb.Subscribe(ctx, eventsChannel)
 	defer func() {
 		_ = pubsub.Close()
 	}()

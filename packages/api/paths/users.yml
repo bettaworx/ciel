@@ -1,0 +1,291 @@
+/me:
+  get:
+    tags:
+    - Users
+    summary: Get current user
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/User
+      '401':
+        description: Unauthorized
+  delete:
+    tags:
+    - Users
+    summary: Delete current user (step-up required)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Short-lived step-up token.
+    responses:
+      '204':
+        description: Deleted
+      '401':
+        description: Unauthorized / step-up required
+/me/username:
+  patch:
+    tags:
+    - Users
+    summary: Change username (step-up required)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Short-lived step-up token.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/user.yml#/components/schemas/UpdateUsernameRequest
+    responses:
+      '200':
+        description: Username updated. Returns a new access token.
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/LoginFinishResponse
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized / step-up required
+      '409':
+        description: Username already taken
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/profile:
+  patch:
+    tags:
+    - Users
+    summary: Update current user profile
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/user.yml#/components/schemas/UpdateProfileRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/User
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+/me/avatar:
+  post:
+    tags:
+    - Users
+    summary: Update current user avatar
+    description: "Upload an avatar image for the current user.\n\n**Allowed formats:** PNG, JPG, JPEG, WebP, GIF  \n**File size limit:** 15 MiB (increased from 12 MiB)\n**Input dimension limits:** 16384x16384 pixels, 100 megapixels total  \n**Output resolution:** 400x400px (square, center-cropped)  \n**Quality:** 50 (optimized for file size)\n\n**Processing:**\n- Images scaled to cover 400x400\n- Center-cropped to square aspect ratio\n- Metadata stripped (EXIF/XMP/GPS)\n- Converted to static WebP format\n\n**GIF handling:**\n- Animated GIFs accepted as input\n- Only the first frame is used (static output)\n- Final result is a 400x400px static WebP image\n\n**Auto-cleanup:**\n- Previous avatar automatically deleted after successful upload\n"
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+            - file
+            properties:
+              file:
+                type: string
+                format: binary
+                description: Image file (PNG/JPG/WebP/GIF)
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/User
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '413':
+        description: Payload too large (>15 MiB)
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '415':
+        description: Unsupported media type
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/banner:
+  post:
+    tags:
+    - Users
+    summary: Update current user banner
+    description: "Upload a profile banner image for the current user.\n\n**Allowed formats:** PNG, JPG, JPEG, WebP, GIF  \n**File size limit:** 15 MiB  \n**Input dimension limits:** 16384x16384 pixels, 100 megapixels total  \n**Output resolution:** 1500x500px (center-cropped)  \n**Quality:** Configurable via `media.banner` in config.yaml\n\n**Processing:**\n- Images scaled to cover 1500x500\n- Center-cropped to 3:1 aspect ratio\n- Metadata stripped (EXIF/XMP/GPS)\n- Converted to WebP format\n\n**GIF handling:**\n- Animated GIFs accepted as input\n- Converted to animated WebP\n- All frames preserved\n\n**Auto-cleanup:**\n- Previous banner automatically deleted after successful upload\n"
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+            - file
+            properties:
+              file:
+                type: string
+                format: binary
+                description: Banner image file (PNG/JPG/WebP/GIF)
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/User
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '413':
+        description: Payload too large (>15 MiB)
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '415':
+        description: Unsupported media type
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/agreements:
+  post:
+    tags:
+    - Users
+    summary: Accept agreements
+    description: Record user acceptance of Terms of Service and/or Privacy Policy
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/agreements.yml#/components/schemas/AcceptAgreementsRequest
+    responses:
+      '204':
+        description: Agreements accepted
+      '400':
+        description: Bad request (versions don't match current)
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+/users/{username}:
+  get:
+    tags:
+    - Users
+    summary: Get user by username
+    parameters:
+    - name: username
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/common.yml#/components/schemas/Username
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/User
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/users/{username}/posts:
+  get:
+    tags:
+    - Users
+    summary: List posts by user
+    parameters:
+    - name: username
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/common.yml#/components/schemas/Username
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Cursor returned by previous call.
+    - name: mediaType
+      in: query
+      required: false
+      schema:
+        $ref: ../schemas/enums.yml#/components/schemas/PostMediaFilter
+      description: Filter posts by attached media type.
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/post.yml#/components/schemas/UserPostsPage
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

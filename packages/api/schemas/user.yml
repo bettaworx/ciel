@@ -1,0 +1,74 @@
+components:
+  schemas:
+    User:
+      type: object
+      required:
+      - id
+      - username
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          $ref: ./common.yml#/components/schemas/Username
+        createdAt:
+          type: string
+          format: date-time
+        displayName:
+          type: string
+          maxLength: 50
+          nullable: true
+        bio:
+          type: string
+          maxLength: 200
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        bannerUrl:
+          type: string
+          format: uri
+          nullable: true
+        bannerBlurhash:
+          type: string
+          nullable: true
+          description: BlurHash placeholder for the banner image. Null when no banner is set or generation failed.
+        isAdmin:
+          type: boolean
+          description: Whether user has admin.all permission
+        termsVersion:
+          type: integer
+          description: Version of Terms of Service accepted by user (0 = not accepted)
+        privacyVersion:
+          type: integer
+          description: Version of Privacy Policy accepted by user (0 = not accepted)
+        termsAcceptedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When user accepted Terms of Service
+        privacyAcceptedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When user accepted Privacy Policy
+    UpdateProfileRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          maxLength: 50
+          nullable: true
+        bio:
+          type: string
+          maxLength: 200
+          nullable: true
+    UpdateUsernameRequest:
+      type: object
+      required:
+      - username
+      properties:
+        username:
+          $ref: ./common.yml#/components/schemas/Username

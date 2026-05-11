@@ -1,0 +1,140 @@
+components:
+  schemas:
+    PermissionOverride:
+      type: object
+      required:
+      - permissionId
+      - scope
+      - effect
+      properties:
+        permissionId:
+          $ref: ./common.yml#/components/schemas/PermissionId
+        scope:
+          $ref: ./enums.yml#/components/schemas/PermissionScope
+        effect:
+          $ref: ./enums.yml#/components/schemas/PermissionEffect
+    RoleList:
+      type: array
+      items:
+        $ref: ./common.yml#/components/schemas/RoleId
+    PermissionList:
+      type: array
+      items:
+        $ref: ./common.yml#/components/schemas/PermissionId
+    UserRolesUpdateRequest:
+      type: object
+      required:
+      - roles
+      properties:
+        roles:
+          type: array
+          items:
+            $ref: ./common.yml#/components/schemas/RoleId
+    UserPermissionOverrides:
+      type: object
+      required:
+      - overrides
+      properties:
+        overrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionOverride'
+    Role:
+      type: object
+      required:
+      - id
+      - name
+      - description
+      properties:
+        id:
+          $ref: ./common.yml#/components/schemas/RoleId
+        name:
+          type: string
+          description: Display name of the role
+        description:
+          type: string
+          description: Description of the role
+    CreateRoleRequest:
+      type: object
+      required:
+      - id
+      - name
+      - description
+      properties:
+        id:
+          $ref: ./common.yml#/components/schemas/RoleId
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Display name of the role
+        description:
+          type: string
+          maxLength: 500
+          description: Description of the role
+    UpdateRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          nullable: true
+          description: Display name of the role
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Description of the role
+    RolePermissions:
+      type: object
+      required:
+      - roleId
+      - permissions
+      properties:
+        roleId:
+          $ref: ./common.yml#/components/schemas/RoleId
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionOverride'
+    RoleUser:
+      type: object
+      required:
+      - id
+      - username
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+    RoleUsersPage:
+      type: object
+      required:
+      - roleId
+      - users
+      - total
+      properties:
+        roleId:
+          $ref: ./common.yml#/components/schemas/RoleId
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleUser'
+        total:
+          type: integer
+          description: Total number of users with this role
+    BanUserRequest:
+      type: object
+      properties:
+        ttlSeconds:
+          type: integer
+          minimum: 1

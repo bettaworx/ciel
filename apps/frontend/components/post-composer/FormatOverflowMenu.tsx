@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type RefObject } from "react";
+import { useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import {
   Ellipsis,
@@ -52,6 +52,7 @@ import {
   removeDecoration,
 } from "./TextFormatButton";
 import { insertCenterDecoration } from "./centerDecoration";
+import type { TextSelectionRange, TextSelectionRangeSetter } from "./types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,6 +62,8 @@ interface FormatOverflowMenuProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   setContent: (value: string) => void;
   content: string;
+  selectionRange: TextSelectionRange;
+  setSelectionRange: TextSelectionRangeSetter;
   /** Whether to include Font/Size in the mobile Drawer (default: true) */
   includeFontSize?: boolean;
   className?: string;
@@ -75,42 +78,15 @@ export function FormatOverflowMenu({
   textareaRef,
   setContent,
   content,
+  selectionRange,
+  setSelectionRange,
   includeFontSize = true,
   className,
   iconClassName,
 }: FormatOverflowMenuProps) {
   const t = useTranslations();
   const isDesktop = useMediaQuery("(min-width: 640px)");
-  const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 });
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const update = () => {
-      setSelectionRange({
-        start: textarea.selectionStart,
-        end: textarea.selectionEnd,
-      });
-    };
-
-    textarea.addEventListener("select", update);
-    textarea.addEventListener("keyup", update);
-    textarea.addEventListener("mouseup", update);
-    textarea.addEventListener("click", update);
-    textarea.addEventListener("focus", update);
-    textarea.addEventListener("input", update);
-
-    return () => {
-      textarea.removeEventListener("select", update);
-      textarea.removeEventListener("keyup", update);
-      textarea.removeEventListener("mouseup", update);
-      textarea.removeEventListener("click", update);
-      textarea.removeEventListener("focus", update);
-      textarea.removeEventListener("input", update);
-    };
-  }, [textareaRef]);
 
   const { start, end } = selectionRange;
 

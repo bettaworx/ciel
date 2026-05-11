@@ -1,0 +1,89 @@
+components:
+  schemas:
+    ServerSettings:
+      type: object
+      required:
+      - signupEnabled
+      properties:
+        signupEnabled:
+          type: boolean
+        termsVersion:
+          type: integer
+          description: Current version of Terms of Service
+        privacyVersion:
+          type: integer
+          description: Current version of Privacy Policy
+    UpdateSignupEnabledRequest:
+      type: object
+      required:
+      - signupEnabled
+      properties:
+        signupEnabled:
+          type: boolean
+    ServerInfo:
+      type: object
+      required:
+      - stats
+      properties:
+        serverName:
+          type: string
+          nullable: true
+          description: Display name of the server instance
+        serverDescription:
+          type: string
+          nullable: true
+          description: Description/about text of the server
+        serverIconUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Public URL of the server icon/logo
+        commit:
+          type: string
+          description: Build version identifier (commit hash or "dev")
+          example: a1b2c3d
+        branch:
+          type: string
+          description: Git branch name (or "dev" in development)
+          example: main
+        version:
+          type: string
+          description: Semantic version of the server (e.g. "0.1.0")
+          example: 0.1.0
+        stats:
+          $ref: '#/components/schemas/ServerStats'
+    ServerStats:
+      type: object
+      required:
+      - userCount
+      - postCount
+      properties:
+        userCount:
+          type: integer
+          format: int64
+          description: Total number of registered users
+        postCount:
+          type: integer
+          format: int64
+          description: Total number of active (non-deleted) posts
+    ServerConfig:
+      type: object
+      required:
+      - signupEnabled
+      - configVersion
+      - mediaLimits
+      - maxPostContentLength
+      properties:
+        signupEnabled:
+          type: boolean
+          description: Whether new user signups are currently allowed
+        configVersion:
+          type: integer
+          format: int64
+          description: Unix timestamp of last config update (for cache busting)
+        mediaLimits:
+          $ref: ./media.yml#/components/schemas/MediaLimits
+        maxPostContentLength:
+          type: integer
+          description: Maximum number of Unicode characters allowed in a post
+          example: 1000

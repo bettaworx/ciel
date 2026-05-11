@@ -1,0 +1,99 @@
+components:
+  schemas:
+    RealtimeEvent:
+      oneOf:
+        - $ref: '#/components/schemas/PostCreatedEvent'
+        - $ref: '#/components/schemas/PostDeletedEvent'
+        - $ref: '#/components/schemas/ReactionUpdatedEvent'
+        - $ref: '#/components/schemas/UserRegisteredEvent'
+        - $ref: '#/components/schemas/UserDeletedEvent'
+        - $ref: '#/components/schemas/ServerInfoUpdatedEvent'
+        - $ref: '#/components/schemas/ServerConfigUpdatedEvent'
+      discriminator:
+        propertyName: type
+        mapping:
+          post_created: '#/components/schemas/PostCreatedEvent'
+          post_deleted: '#/components/schemas/PostDeletedEvent'
+          reaction_updated: '#/components/schemas/ReactionUpdatedEvent'
+          user_registered: '#/components/schemas/UserRegisteredEvent'
+          user_deleted: '#/components/schemas/UserDeletedEvent'
+          server_info_updated: '#/components/schemas/ServerInfoUpdatedEvent'
+          server_config_updated: '#/components/schemas/ServerConfigUpdatedEvent'
+
+    PostCreatedEvent:
+      type: object
+      required:
+        - type
+        - post
+      properties:
+        type:
+          type: string
+          enum: [post_created]
+        post:
+          $ref: ./post.yml#/components/schemas/Post
+
+    PostDeletedEvent:
+      type: object
+      required:
+        - type
+        - postId
+      properties:
+        type:
+          type: string
+          enum: [post_deleted]
+        postId:
+          $ref: ./common.yml#/components/schemas/PostId
+
+    ReactionUpdatedEvent:
+      type: object
+      required:
+        - type
+        - reactionCounts
+      properties:
+        type:
+          type: string
+          enum: [reaction_updated]
+        reactionCounts:
+          $ref: ./reactions.yml#/components/schemas/ReactionCounts
+
+    UserRegisteredEvent:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [user_registered]
+
+    UserDeletedEvent:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [user_deleted]
+
+    ServerInfoUpdatedEvent:
+      type: object
+      required:
+        - type
+        - serverInfo
+      properties:
+        type:
+          type: string
+          enum: [server_info_updated]
+        serverInfo:
+          $ref: ./server.yml#/components/schemas/ServerInfo
+
+    ServerConfigUpdatedEvent:
+      type: object
+      required:
+        - type
+        - serverConfig
+      properties:
+        type:
+          type: string
+          enum: [server_config_updated]
+        serverConfig:
+          $ref: ./server.yml#/components/schemas/ServerConfig

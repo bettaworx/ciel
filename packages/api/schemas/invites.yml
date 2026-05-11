@@ -1,0 +1,182 @@
+components:
+  schemas:
+    CreateInviteCodeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          nullable: true
+          pattern: ^[a-zA-Z0-9_-]{1,32}$
+          minLength: 1
+          maxLength: 32
+          description: 'Optional custom invite code (1-32 characters, alphanumeric with underscore/hyphen).
+
+            If not provided or null, an 8-character code will be auto-generated.
+
+            '
+          example: welcome-2026
+        maxUses:
+          type: integer
+          nullable: true
+          description: Maximum number of times this code can be used. null = unlimited
+          minimum: 1
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Expiration date/time in ISO 8601 format. null = never expires
+        note:
+          type: string
+          nullable: true
+          description: Optional note about this invite code (e.g., "For beta testers")
+          maxLength: 500
+    UpdateInviteCodeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          nullable: true
+          pattern: ^[a-zA-Z0-9_-]{1,32}$
+          minLength: 1
+          maxLength: 32
+          description: 'Updated invite code (1-32 characters, alphanumeric with underscore/hyphen).
+
+            Must be unique. Omit this field to keep the existing code.
+
+            '
+          example: welcome-2026-updated
+        maxUses:
+          type: integer
+          nullable: true
+          description: 'Maximum number of times this code can be used. null = unlimited.
+
+            Omit this field to keep the existing value.
+
+            '
+          minimum: 1
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 'Expiration date/time in ISO 8601 format. null = never expires.
+
+            Omit this field to keep the existing value.
+
+            '
+        note:
+          type: string
+          nullable: true
+          description: 'Updated note about this invite code (e.g., "For beta testers").
+
+            null = clear the note. Omit this field to keep the existing value.
+
+            '
+          maxLength: 500
+    InviteCode:
+      type: object
+      required:
+      - id
+      - code
+      - createdBy
+      - createdAt
+      - useCount
+      - disabled
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          pattern: ^[a-zA-Z0-9_-]{1,32}$
+          description: Invite code (auto-generated 8-char or custom up to 32 chars)
+          example: aB3cD4eF
+        createdBy:
+          type: string
+          format: uuid
+          description: User ID of creator
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        useCount:
+          type: integer
+          description: Number of times this code has been used
+        maxUses:
+          type: integer
+          nullable: true
+          description: Maximum allowed uses. null = unlimited
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Expiration date. null = never expires
+        disabled:
+          type: boolean
+          description: Whether this code has been disabled
+        note:
+          type: string
+          nullable: true
+          description: Optional note about this invite code
+    InviteCodeWithCreator:
+      allOf:
+      - $ref: '#/components/schemas/InviteCode'
+      - type: object
+        required:
+        - creatorUsername
+        properties:
+          creatorUsername:
+            type: string
+            description: Username of the creator
+          creatorDisplayName:
+            type: string
+            nullable: true
+            description: Display name of the creator
+    InviteCodesListResponse:
+      type: object
+      required:
+      - invites
+      - total
+      properties:
+        invites:
+          type: array
+          items:
+            $ref: '#/components/schemas/InviteCodeWithCreator'
+        total:
+          type: integer
+          description: Total number of invite codes
+    InviteCodeUse:
+      type: object
+      required:
+      - id
+      - inviteCodeId
+      - userId
+      - usedAt
+      - username
+      properties:
+        id:
+          type: string
+          format: uuid
+        inviteCodeId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        usedAt:
+          type: string
+          format: date-time
+        username:
+          type: string
+          description: Username of user who used the code
+        displayName:
+          type: string
+          nullable: true
+          description: Display name of user who used the code
+        avatarMediaId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Avatar media ID of user who used the code

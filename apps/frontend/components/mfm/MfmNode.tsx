@@ -1,7 +1,12 @@
 import type { MfmNode as MfmNodeType } from "mfm-js";
 import type { ReactNode } from "react";
-import { ExternalLink, Search } from "lucide-react";
+import { useState } from "react";
+import { Copy, Check, ExternalLink, Search } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import { MfmFn } from "@/components/mfm/MfmFn";
+import { Twemoji } from "@/components/Twemoji";
+import { CustomEmoji } from "@/components/CustomEmoji";
 
 interface MfmNodeProps {
   node: MfmNodeType;
@@ -16,7 +21,18 @@ export function MfmNode({ node }: MfmNodeProps) {
   switch (node.type) {
     // --- Plain text ---
     case "text": {
-      return <>{node.props.text}</>;
+      const parts = node.props.text.split("\n");
+      if (parts.length === 1) return <>{node.props.text}</>;
+      return (
+        <>
+          {parts.map((part, i) => (
+            <span key={i}>
+              {part}
+              {i < parts.length - 1 && <br />}
+            </span>
+          ))}
+        </>
+      );
     }
 
     // --- Plain (escape formatting) ---
@@ -68,11 +84,7 @@ export function MfmNode({ node }: MfmNodeProps) {
 
     // --- Code block ---
     case "blockCode": {
-      return (
-        <pre className="mfm-code-block">
-          <code>{node.props.code}</code>
-        </pre>
-      );
+      return <CodeBlock code={node.props.code} />;
     }
 
     // --- Inline code ---
@@ -144,12 +156,12 @@ export function MfmNode({ node }: MfmNodeProps) {
 
     // --- Unicode emoji ---
     case "unicodeEmoji": {
-      return <span>{node.props.emoji}</span>;
+      return <Twemoji emoji={node.props.emoji} />;
     }
 
     // --- Custom emoji code (stub) ---
     case "emojiCode": {
-      return <span className="mfm-emoji-code">:{node.props.name}:</span>;
+      return <CustomEmoji shortcode={node.props.name} />;
     }
 
     // --- Mention (stub) ---
@@ -252,6 +264,58 @@ function formatDisplayUrl(rawUrl: string): UrlSegment[] {
   }
   segs.push({ text: "…", dim: false });
   return segs;
+}
+
+function CodeBlock({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
+  };
+
+  return (
+    <div className="mfm-code-block-wrapper">
+      <pre className="mfm-code-block">
+        <code>{code}</code>
+      </pre>
+      <Button
+        variant="ghost"
+        size="icon"
+        rounded="md"
+        className="mfm-code-copy-button m-[.175em] sm:m-[.35em] h-8 w-8 text-muted-foreground!"
+        onClick={handleCopy}
+        aria-label="Copy code"
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          {copied ? (
+            <motion.span
+              key="check"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "backOut" }}
+              className="flex"
+            >
+              <Check size={14} />
+            </motion.span>
+          ) : (
+            <motion.span
+              key="copy"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "backOut" }}
+              className="flex"
+            >
+              <Copy size={14} />
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </Button>
+    </div>
+  );
 }
 
 /**

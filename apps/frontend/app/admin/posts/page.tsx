@@ -5,11 +5,12 @@ import { useTranslations } from 'next-intl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { FileText, Loader2 } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
 import {
 	Select,
 	SelectContent,
@@ -232,7 +233,7 @@ export default function PostsPage() {
 				{/* Table */}
 				{isLoading ? (
 					<div className="flex items-center justify-center py-12">
-						<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+						<Spinner size="sm" className="text-muted-foreground" />
 					</div>
 				) : error ? (
 					<div className="py-12 text-center text-sm text-destructive">{tCommon('error')}</div>

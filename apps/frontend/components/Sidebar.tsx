@@ -1,12 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAtomValue, useAtom } from "jotai";
-import { Home, SquarePen, Pin, PinOff } from "lucide-react";
+import { Home, SquarePen, Pin, PinOff, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SidebarAvatar } from "@/components/SidebarAvatar";
 import { SidebarActionButton } from "@/components/SidebarActionButton";
 import { CreatePostDialog } from "@/components/CreatePostDialog";
@@ -27,6 +32,7 @@ export function Sidebar() {
   const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
   const isAuthenticated = useAtomValue(isAuthenticatedAtom);
+  const router = useRouter();
   const [isPinned, setIsPinned] = useAtom(sidebarPinnedAtom);
   const [, setIsExpanded] = useAtom(sidebarExpandedAtom);
   const isMenuOpen = useAtomValue(sidebarMenuOpenAtom);
@@ -52,6 +58,14 @@ export function Sidebar() {
 
   const [pinIconRef, animatePinIcon] = useAnimate();
   const hoverBg = "hover:bg-sidebar-hover";
+
+  const handleHomeClick = () => {
+    if (pathname === "/") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      router.push("/");
+    }
+  };
 
   const handlePinToggle = () => {
     const y = isPinned ? -3 : 3;
@@ -83,27 +97,40 @@ export function Sidebar() {
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex items-center h-12 gap-3">
-          <Link href="/" aria-label={tNav("home")}>
-            <div
-              className={cn(
-                "flex items-center justify-center w-[48px] h-[48px] rounded-2xl cursor-pointer shrink-0 overflow-hidden",
-                hoverBg,
-              )}
-            >
-              {serverInfo?.serverIconUrl ? (
-                <Image
-                  src={serverInfo.serverIconUrl}
-                  alt="Server icon"
-                  width={48}
-                  height={48}
-                  unoptimized
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-primary rounded-2xl" />
-              )}
-            </div>
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div
+                className={cn(
+                  "flex items-center justify-center w-[48px] h-[48px] rounded-2xl cursor-pointer shrink-0 overflow-hidden",
+                  hoverBg,
+                )}
+                aria-label={tNav("serverInfo")}
+              >
+                {serverInfo?.serverIconUrl ? (
+                  <Image
+                    src={serverInfo.serverIconUrl}
+                    alt="Server icon"
+                    width={48}
+                    height={48}
+                    unoptimized
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-primary rounded-2xl" />
+                )}
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start">
+              <DropdownMenuItem onClick={() => router.push("/about")}>
+                <Info className="w-4 h-4" />
+                {tNav("serverInfo")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/version")}>
+                <Info className="w-4 h-4" />
+                {tNav("versionInfo")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <motion.div
             animate={{ opacity: isTopControlsVisible ? 1 : 0 }}
@@ -117,7 +144,7 @@ export function Sidebar() {
           >
             <Button
               variant="ghost"
-              rounded="lg"
+              rounded="md"
               className={cn(
                 "w-10 h-10 transition-none",
                 isPinned && "bg-accent/60",
@@ -140,7 +167,7 @@ export function Sidebar() {
 
         <div className="flex flex-col gap-3 grow">
           <SidebarActionButton
-            href="/"
+            onClick={handleHomeClick}
             icon={<Home className="w-5 h-5 shrink-0" />}
             label={tNav("home")}
             isActive={pathname === "/"}

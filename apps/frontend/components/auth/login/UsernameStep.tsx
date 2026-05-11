@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { useApi } from "@/lib/api/use-api";
 
 interface UsernameStepProps {
@@ -18,6 +18,8 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
   const [username, setUsername] = useState(initialValue);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const autofillAttemptedRef = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +55,56 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
     }
   };
 
+  useEffect(() => {
+    if (initialValue || autofillAttemptedRef.current) {
+      return;
+    }
+
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+
+    const syncAutofilledValue = () => {
+      const autofilledUsername = input.value.trim();
+
+      if (!autofilledUsername || autofillAttemptedRef.current || isVerifying) {
+        return;
+      }
+
+      autofillAttemptedRef.current = true;
+      setUsername(autofilledUsername);
+      setError(null);
+      void (async () => {
+        setIsVerifying(true);
+
+        try {
+          const result = await api.userByUsername(autofilledUsername);
+
+          if (result.ok) {
+            onNext(autofilledUsername);
+          } else if (result.status === 404) {
+            setError(t("login.wizard.username.notFound"));
+          } else {
+            setError(t("login.wizard.username.error"));
+          }
+        } catch {
+          setError(t("login.wizard.username.error"));
+        } finally {
+          setIsVerifying(false);
+        }
+      })();
+    };
+
+    const animationFrameId = window.requestAnimationFrame(syncAutofilledValue);
+    const timeoutId = window.setTimeout(syncAutofilledValue, 300);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [api, initialValue, isVerifying, onNext, t]);
+
   return (
     <div className="flex flex-col h-full min-h-0">
       <form
@@ -74,6 +126,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
             <Input
               id="username"
               type="text"
+              ref={inputRef}
               value={username}
               onChange={(e) => {
                 setUsername(e.target.value);
@@ -83,6 +136,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
               placeholder={t("username")}
               required
               autoFocus
+              autoComplete="username"
               disabled={isVerifying}
               className="transition-colors duration-160 ease"
             />
@@ -97,7 +151,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
             {/* Loading message */}
             {isVerifying && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner size="xs" />
                 <span>{t("login.wizard.username.checkingAvailability")}</span>
               </div>
             )}

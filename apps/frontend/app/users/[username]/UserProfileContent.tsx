@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
@@ -38,12 +38,15 @@ import {
 import { PageContainer } from "@/components/PageContainer";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
+import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Spinner } from "@/components/Spinner";
+import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
+import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { toast } from "sonner";
 
 type UserProfileContentProps = {
@@ -67,6 +70,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     error: postsError,
     fetchNextPage,
     hasNextPage,
+    isFetchingNextPage,
   } = useUserPosts(username);
   const {
     data: mediaData,
@@ -74,6 +78,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     error: mediaError,
     fetchNextPage: fetchNextMediaPage,
     hasNextPage: hasNextMediaPage,
+    isFetchingNextPage: isFetchingNextMediaPage,
   } = useUserPosts(username, { mediaType: "media" });
 
   // Edit mode state
@@ -121,6 +126,23 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     normalizedBio !== (user?.bio ?? null);
   const hasImageChanges = Boolean(selectedAvatarFile || selectedBannerFile);
   const canSaveProfile = hasTextChanges || hasImageChanges;
+  const postsInfiniteScrollRef = useInfiniteScroll({
+    enabled: Boolean(hasNextPage),
+    hasNextPage: Boolean(hasNextPage),
+    isFetchingNextPage,
+    fetchNextPage,
+  });
+  const mediaInfiniteScrollRef = useInfiniteScroll({
+    enabled: Boolean(hasNextMediaPage),
+    hasNextPage: Boolean(hasNextMediaPage),
+    isFetchingNextPage: isFetchingNextMediaPage,
+    fetchNextPage: fetchNextMediaPage,
+  });
+
+  const bannerBlurhashDataUrl = useMemo(
+    () => getBlurhashDataUrl(user?.bannerBlurhash),
+    [user?.bannerBlurhash],
+  );
 
   const handleEditStart = () => {
     if (!user) return;
@@ -287,7 +309,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
       header={
         <PageHeader>
           <MfmRenderer
-            text={user.displayName || user.username}
+            text={user.displayName || `@${user.username}`}
             allowList={DISPLAY_NAME_ALLOW_LIST}
           />
         </PageHeader>
@@ -298,11 +320,20 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
         <div className="select-none bg-card rounded-2xl overflow-hidden mb-3">
           {/* Banner */}
           <div
-            className={`w-full aspect-[3/1] bg-muted relative ${isEditing ? "cursor-pointer" : ""}`}
+            className={`w-full aspect-[3/1] bg-muted relative overflow-hidden ${isEditing ? "cursor-pointer" : ""}`}
             onClick={
               isEditing ? () => bannerFileInputRef.current?.click() : undefined
             }
           >
+            {!isEditing && user.bannerUrl && bannerBlurhashDataUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={bannerBlurhashDataUrl}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              />
+            )}
             {(isEditing ? bannerPreview || user.bannerUrl : user.bannerUrl) && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -312,7 +343,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                     : user.bannerUrl) ?? undefined
                 }
                 alt=""
-                className="w-full h-full object-cover"
+                className="relative w-full h-full object-cover"
               />
             )}
             {isEditing && (
@@ -526,14 +557,16 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                 ) : (
                   <h1 className="text-xl font-bold text-foreground">
                     <MfmRenderer
-                      text={user.displayName || user.username}
+                      text={user.displayName || `@${user.username}`}
                       allowList={DISPLAY_NAME_ALLOW_LIST}
                     />
                   </h1>
                 )}
-                <p className="text-sm text-muted-foreground">
-                  @{user.username}
-                </p>
+                {user.displayName && (
+                  <p className="text-sm text-muted-foreground">
+                    @{user.username}
+                  </p>
+                )}
               </div>
 
               <div className="pb-3">
@@ -610,16 +643,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               </div>
             )}
 
-            {hasNextPage && (
-              <div className="mt-8 text-center">
-                <Button
-                  onClick={() => fetchNextPage()}
-                  className="transition-colors duration-160 ease"
-                >
-                  {t("timeline.loadMore")}
-                </Button>
-              </div>
-            )}
+            <InfiniteScrollTrigger
+              sentinelRef={postsInfiniteScrollRef}
+              hasNextPage={Boolean(hasNextPage)}
+              isFetchingNextPage={isFetchingNextPage}
+            />
           </TabsContent>
 
           <TabsContent value="media">
@@ -656,16 +684,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               </div>
             )}
 
-            {hasNextMediaPage && (
-              <div className="mt-8 text-center">
-                <Button
-                  onClick={() => fetchNextMediaPage()}
-                  className="transition-colors duration-160 ease"
-                >
-                  {t("timeline.loadMore")}
-                </Button>
-              </div>
-            )}
+            <InfiniteScrollTrigger
+              sentinelRef={mediaInfiniteScrollRef}
+              hasNextPage={Boolean(hasNextMediaPage)}
+              isFetchingNextPage={isFetchingNextMediaPage}
+            />
           </TabsContent>
         </Tabs>
       </div>

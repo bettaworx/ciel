@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_BUILD_COMMIT: process.env.BUILD_COMMIT || "dev",
     NEXT_PUBLIC_BUILD_BRANCH: process.env.BUILD_BRANCH || "dev",
+    NEXT_PUBLIC_BUILD_VERSION: process.env.npm_package_version || "0.1.0",
   },
 
   // Allow dev HMR requests from other origins (e.g. Tailscale IPs, LAN access).

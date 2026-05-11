@@ -2,9 +2,9 @@
 
 import { useTranslations } from "next-intl";
 import { useServerInfo, useAdminSettings } from "@/lib/hooks/use-queries";
-import { Loader2 } from "lucide-react";
 import { ServerProfileSection } from "@/components/admin/config/ServerProfileSection";
 import { SignupSettingsSection } from "@/components/admin/config/SignupSettingsSection";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function AdminConfigPage() {
   const t = useTranslations("admin.config");
@@ -15,7 +15,7 @@ export default function AdminConfigPage() {
   if (loadingInfo || loadingSettings) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Spinner size="sm" className="text-muted-foreground" />
       </div>
     );
   }

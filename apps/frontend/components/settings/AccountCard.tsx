@@ -34,11 +34,13 @@ export function AccountCard() {
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="font-semibold truncate">
-            <MfmRenderer text={user.displayName || user.username} allowList={DISPLAY_NAME_ALLOW_LIST} />
+            <MfmRenderer text={user.displayName || `@${user.username}`} allowList={DISPLAY_NAME_ALLOW_LIST} />
           </div>
-          <div className="text-sm text-muted-foreground truncate">
-            @{user.username}
-          </div>
+          {user.displayName && (
+            <div className="text-sm text-muted-foreground truncate">
+              @{user.username}
+            </div>
+          )}
         </div>
       </div>
     </button>

@@ -18,6 +18,8 @@ import type { OgpApiResponse } from "@/lib/ogp/types";
 export const queryKeys = {
   me: ["me"] as const,
   serverInfo: ["serverInfo"] as const,
+  serverConfig: ["serverConfig"] as const,
+  customEmojis: ["customEmojis"] as const,
   adminSettings: ["adminSettings"] as const,
   timeline: ["timeline"] as const,
   post: (id: string) => ["post", id] as const,
@@ -43,6 +45,8 @@ export const queryKeys = {
   adminInviteCode: (id: string) => ["adminInviteCode", id] as const,
   adminInviteUsageHistory: (id: string) =>
     ["adminInviteUsageHistory", id] as const,
+  adminEmojis: (params?: { limit?: number; offset?: number }) =>
+    ["adminEmojis", params] as const,
   ogp: (url: string) => ["ogp", url] as const,
 };
 
@@ -69,6 +73,8 @@ export function useMe() {
 }
 
 // Server information (public endpoint)
+// Updates are pushed via WebSocket (server_info_updated, user_registered/deleted, post_created/deleted).
+// Re-synced to authoritative values on WebSocket connect/reconnect.
 export function useServerInfo() {
   const api = useApi();
 
@@ -79,41 +85,74 @@ export function useServerInfo() {
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
     },
-    staleTime: 1000 * 30, // 30秒 - configVersion変更を検知するため短縮
-    refetchInterval: 1000 * 30, // 30秒ごとにポーリング
+    staleTime: Infinity,
   });
 }
 
-// Media limits from server info
+// Server configuration (public endpoint)
+// Updates are pushed via WebSocket (server_config_updated).
+// Re-synced to authoritative values on WebSocket connect/reconnect.
+export function useServerConfig() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.serverConfig,
+    queryFn: async () => {
+      const result = await api.serverConfig();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    staleTime: Infinity,
+  });
+}
+
+export function useCustomEmojis() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.customEmojis,
+    queryFn: async () => {
+      const result = await api.listCustomEmojis({ limit: 200 });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.emojis;
+    },
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
+  });
+}
+
+// Media limits from server config
 export function useMediaLimits() {
-  const { data: serverInfo } = useServerInfo();
+  const { data: serverConfig } = useServerConfig();
 
   return {
-    maxUploadSizeMB: serverInfo?.mediaLimits?.maxUploadSizeMB ?? 15,
+    maxUploadSizeMB: serverConfig?.mediaLimits?.maxUploadSizeMB ?? 15,
     maxUploadSizeBytes:
-      (serverInfo?.mediaLimits?.maxUploadSizeMB ?? 15) * 1024 * 1024,
-    allowedExtensions: serverInfo?.mediaLimits?.allowedExtensions ?? [
+      (serverConfig?.mediaLimits?.maxUploadSizeMB ?? 15) * 1024 * 1024,
+    allowedExtensions: serverConfig?.mediaLimits?.allowedExtensions ?? [
       "png",
       "jpg",
       "jpeg",
       "webp",
       "gif",
     ],
-    postStaticMaxSize: serverInfo?.mediaLimits?.post?.static?.maxSize ?? 2048,
-    postGifMaxSize: serverInfo?.mediaLimits?.post?.gif?.maxSize ?? 1024,
-    avatarSize: serverInfo?.mediaLimits?.avatar?.size ?? 400,
+    postStaticMaxSize: serverConfig?.mediaLimits?.post?.static?.maxSize ?? 2048,
+    postGifMaxSize: serverConfig?.mediaLimits?.post?.gif?.maxSize ?? 1024,
+    avatarSize: serverConfig?.mediaLimits?.avatar?.size ?? 400,
     serverIconStaticSize:
-      serverInfo?.mediaLimits?.serverIcon?.static?.size ?? 512,
+      serverConfig?.mediaLimits?.serverIcon?.static?.size ?? 512,
     serverIconGifMaxSize:
-      serverInfo?.mediaLimits?.serverIcon?.gif?.maxSize ?? 512,
+      serverConfig?.mediaLimits?.serverIcon?.gif?.maxSize ?? 512,
     // Video limits
     videoMaxUploadSizeMB:
-      serverInfo?.mediaLimits?.video?.maxUploadSizeMB ?? 100,
+      serverConfig?.mediaLimits?.video?.maxUploadSizeMB ?? 100,
     videoMaxUploadSizeBytes:
-      (serverInfo?.mediaLimits?.video?.maxUploadSizeMB ?? 100) * 1024 * 1024,
+      (serverConfig?.mediaLimits?.video?.maxUploadSizeMB ?? 100) * 1024 * 1024,
     videoMaxDurationSeconds:
-      serverInfo?.mediaLimits?.video?.maxDurationSeconds ?? 300,
-    videoMaxSize: serverInfo?.mediaLimits?.video?.maxSize ?? 1920,
+      serverConfig?.mediaLimits?.video?.maxDurationSeconds ?? 300,
+    videoMaxSize: serverConfig?.mediaLimits?.video?.maxSize ?? 1920,
+    // Post content limits
+    maxPostContentLength: serverConfig?.maxPostContentLength ?? 1000,
   };
 }
 
@@ -629,6 +668,83 @@ export function useAdminDuplicateAgreementDocument(documentId: string) {
       queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === "adminAgreementDocuments",
       });
+    },
+  });
+}
+
+// ==================== Admin - Invite Codes ====================
+
+// ==================== Admin - Emojis ====================
+
+export function useAdminEmojis(params?: {
+  limit?: number;
+  offset?: number;
+}) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.adminEmojis(params),
+    queryFn: async () => {
+      const result = await api.adminListEmojis(params);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    staleTime: 1000 * 60,
+  });
+}
+
+export function useAdminCreateEmoji() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (form: FormData) => {
+      const result = await api.adminCreateEmoji(form);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "adminEmojis",
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customEmojis });
+    },
+  });
+}
+
+export function useAdminUpdateEmoji(emojiId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (form: FormData) => {
+      const result = await api.adminUpdateEmoji(emojiId, form);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "adminEmojis",
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customEmojis });
+    },
+  });
+}
+
+export function useAdminDeleteEmoji() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (emojiId: string) => {
+      const result = await api.adminDeleteEmoji(emojiId);
+      if (!result.ok) throw new Error(result.errorText);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "adminEmojis",
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customEmojis });
     },
   });
 }

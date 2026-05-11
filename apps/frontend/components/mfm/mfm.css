@@ -467,9 +467,14 @@
   text-align: center;
 }
 
+.mfm-code-block-wrapper {
+  position: relative;
+  margin: 0.5em 0;
+}
+
 .mfm-code-block {
   display: block;
-  margin: 0.5em 0;
+  margin: 0;
   padding: 0.75em 1em;
   background: var(--muted);
   border-radius: var(--radius);
@@ -486,6 +491,12 @@
   font-size: 0.875em;
   line-height: 1.5;
   white-space: pre;
+}
+
+.mfm-code-copy-button {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 .mfm-inline-code {
@@ -586,6 +597,30 @@
 
 .mfm-emoji-code {
   /* Placeholder for custom emoji - show as badge-like text */
+}
+
+.mfm-inline-emoji {
+  display: inline-block;
+  line-height: 1;
+  vertical-align: -0.2em;
+}
+
+.mfm-custom-emoji-placeholder {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.twemoji {
+  height: 1.25em;
+  width: 1.25em;
+  display: block;
+}
+
+.mfm-custom-emoji-image {
+  height: 1.25em;
+  width: auto;
+  max-width: none;
+  display: block;
 }
 
 .mfm-search {

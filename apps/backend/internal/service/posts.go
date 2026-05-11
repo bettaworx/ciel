@@ -12,6 +12,7 @@ import (
 	"backend/internal/api"
 	"backend/internal/auth"
 	"backend/internal/cache"
+	"backend/internal/config"
 	"backend/internal/db/sqlc"
 	"backend/internal/realtime"
 	"backend/internal/repository"
@@ -20,17 +21,22 @@ import (
 )
 
 const (
-	maxPostContentRunes = 300
+	defaultMaxPostContentRunes = 1000
 )
 
 type PostsService struct {
 	store     *repository.Store
 	cache     cache.Cache
 	publisher realtime.Publisher
+	reactions *ReactionsService
 }
 
 func NewPostsService(store *repository.Store, cache cache.Cache, publisher realtime.Publisher) *PostsService {
 	return &PostsService{store: store, cache: cache, publisher: publisher}
+}
+
+func (s *PostsService) SetReactionsService(reactions *ReactionsService) {
+	s.reactions = reactions
 }
 
 func (s *PostsService) Create(ctx context.Context, user auth.User, req api.CreatePostRequest) (api.Post, error) {
@@ -55,8 +61,12 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 	}
 
 	// Check content length (Unicode characters, not bytes)
-	if content != "" && utf8.RuneCountInString(content) > maxPostContentRunes {
-		return api.Post{}, NewError(http.StatusBadRequest, "invalid_request", fmt.Sprintf("content exceeds maximum length of %d characters", maxPostContentRunes))
+	maxRunes := defaultMaxPostContentRunes
+	if cfg := config.GetGlobalConfig(); cfg != nil {
+		maxRunes = cfg.Post.MaxContentLength
+	}
+	if content != "" && utf8.RuneCountInString(content) > maxRunes {
+		return api.Post{}, NewError(http.StatusBadRequest, "invalid_request", fmt.Sprintf("content exceeds maximum length of %d characters", maxRunes))
 	}
 
 	var created sqlc.CreatePostRow
@@ -106,7 +116,7 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 	return post, nil
 }
 
-func (s *PostsService) Get(ctx context.Context, postID api.PostId) (api.Post, error) {
+func (s *PostsService) Get(ctx context.Context, postID api.PostId, userID *api.UserId) (api.Post, error) {
 	if s.store == nil {
 		return api.Post{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
@@ -124,10 +134,14 @@ func (s *PostsService) Get(ctx context.Context, postID api.PostId) (api.Post, er
 	if err := s.attachMediaToPost(ctx, &post); err != nil {
 		return api.Post{}, err
 	}
-	return post, nil
+	posts := []api.Post{post}
+	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+		return api.Post{}, err
+	}
+	return posts[0], nil
 }
 
-func (s *PostsService) ListByUsername(ctx context.Context, username api.Username, params api.GetUsersUsernamePostsParams) (api.UserPostsPage, error) {
+func (s *PostsService) ListByUsername(ctx context.Context, username api.Username, params api.GetUsersUsernamePostsParams, userID *api.UserId) (api.UserPostsPage, error) {
 	if s.store == nil {
 		return api.UserPostsPage{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
@@ -188,6 +202,9 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 	if err := s.attachMediaToPosts(ctx, items); err != nil {
 		return api.UserPostsPage{}, err
 	}
+	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
+		return api.UserPostsPage{}, err
+	}
 
 	if len(rows) == 0 {
 		if _, err := s.store.Q.GetUserByUsername(ctx, uname); err != nil {
@@ -207,6 +224,29 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 	return api.UserPostsPage{Items: items, NextCursor: nextCursor}, nil
 }
 
+func (s *PostsService) attachReactionsToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+	for i := range posts {
+		posts[i].Reactions = []api.ReactionCount{}
+	}
+	if s.reactions == nil || len(posts) == 0 {
+		return nil
+	}
+	ids := make([]api.PostId, 0, len(posts))
+	for _, post := range posts {
+		ids = append(ids, post.Id)
+	}
+	byPost, err := s.reactions.ListForPosts(ctx, ids, userID)
+	if err != nil {
+		return err
+	}
+	for i := range posts {
+		if reactions, ok := byPost[posts[i].Id]; ok {
+			posts[i].Reactions = reactions
+		}
+	}
+	return nil
+}
+
 func (s *PostsService) attachMediaToPost(ctx context.Context, post *api.Post) error {
 	if s.store == nil {
 		return nil
@@ -222,6 +262,7 @@ func (s *PostsService) attachMediaToPost(ctx context.Context, post *api.Post) er
 			Type:      api.MediaType(row.Type),
 			Width:     int(row.Width),
 			Height:    int(row.Height),
+			Blurhash:  nullStringToPtr(row.Blurhash),
 			CreatedAt: row.CreatedAt,
 		}
 
@@ -274,6 +315,7 @@ func (s *PostsService) attachMediaToPosts(ctx context.Context, posts []api.Post)
 			Type:      api.MediaType(row.Type),
 			Width:     int(row.Width),
 			Height:    int(row.Height),
+			Blurhash:  nullStringToPtr(row.Blurhash),
 			CreatedAt: row.CreatedAt,
 		}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"backend/internal/cache"
 	"backend/internal/config"
 	"backend/internal/db/sqlc"
+	"backend/internal/realtime"
 	"backend/internal/repository"
 
 	"github.com/google/uuid"
@@ -22,10 +24,11 @@ type AdminService struct {
 	store     *repository.Store
 	cache     cache.Cache
 	configMgr *config.Manager
+	publisher realtime.Publisher
 }
 
-func NewAdminService(store *repository.Store, cache cache.Cache, configMgr *config.Manager) *AdminService {
-	return &AdminService{store: store, cache: cache, configMgr: configMgr}
+func NewAdminService(store *repository.Store, cache cache.Cache, configMgr *config.Manager, publisher realtime.Publisher) *AdminService {
+	return &AdminService{store: store, cache: cache, configMgr: configMgr, publisher: publisher}
 }
 
 func (s *AdminService) ListRoles(ctx context.Context) ([]api.RoleId, error) {
@@ -222,6 +225,20 @@ func (s *AdminService) UpdateSignupEnabled(ctx context.Context, enabled bool) (a
 
 	if err != nil {
 		return api.ServerSettings{}, NewError(http.StatusInternalServerError, "config_update_failed", "failed to update config")
+	}
+
+	// Publish config update to all connected WebSocket clients
+	if s.publisher != nil {
+		cfg := config.GetGlobalConfig()
+		if cfg != nil {
+			serverConfig := BuildServerConfig(cfg)
+			if err := s.publisher.Publish(ctx, realtime.Event{
+				Type:         realtime.EventServerConfigUpdated,
+				ServerConfig: &serverConfig,
+			}); err != nil {
+				slog.Warn("failed to publish server_config_updated event", "error", err)
+			}
+		}
 	}
 
 	// Return current settings (read from config + DB)

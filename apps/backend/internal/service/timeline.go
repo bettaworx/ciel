@@ -19,12 +19,17 @@ import (
 )
 
 type TimelineService struct {
-	store *repository.Store
-	cache cache.Cache
+	store     *repository.Store
+	cache     cache.Cache
+	reactions *ReactionsService
 }
 
 func NewTimelineService(store *repository.Store, cache cache.Cache) *TimelineService {
 	return &TimelineService{store: store, cache: cache}
+}
+
+func (s *TimelineService) SetReactionsService(reactions *ReactionsService) {
+	s.reactions = reactions
 }
 
 type timelineCursor struct {
@@ -52,7 +57,7 @@ func (s *TimelineService) ListFromRedis(ctx context.Context, limit int, cursor *
 	return s.listFromRedis(ctx, limit, cursor)
 }
 
-func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams) (api.TimelinePage, error) {
+func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams, userID *api.UserId) (api.TimelinePage, error) {
 	if s.store == nil {
 		return api.TimelinePage{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
@@ -78,6 +83,9 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams)
 				return api.TimelinePage{}, err
 			}
 			if err := s.attachMediaToPosts(ctx, posts); err != nil {
+				return api.TimelinePage{}, err
+			}
+			if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
 				return api.TimelinePage{}, err
 			}
 			page := api.TimelinePage{Items: posts}
@@ -112,6 +120,9 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams)
 	if err := s.attachMediaToPosts(ctx, items); err != nil {
 		return api.TimelinePage{}, err
 	}
+	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
+		return api.TimelinePage{}, err
+	}
 
 	var nextCursor *string
 	if len(rows) == limit {
@@ -120,6 +131,29 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams)
 		nextCursor = &n
 	}
 	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
+}
+
+func (s *TimelineService) attachReactionsToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+	for i := range posts {
+		posts[i].Reactions = []api.ReactionCount{}
+	}
+	if s.reactions == nil || len(posts) == 0 {
+		return nil
+	}
+	ids := make([]api.PostId, 0, len(posts))
+	for _, post := range posts {
+		ids = append(ids, post.Id)
+	}
+	byPost, err := s.reactions.ListForPosts(ctx, ids, userID)
+	if err != nil {
+		return err
+	}
+	for i := range posts {
+		if reactions, ok := byPost[posts[i].Id]; ok {
+			posts[i].Reactions = reactions
+		}
+	}
+	return nil
 }
 
 func (s *TimelineService) listFromRedis(ctx context.Context, limit int, cursor *timelineCursor) (postIDs []uuid.UUID, next *timelineCursor, ok bool) {
@@ -242,6 +276,7 @@ func (s *TimelineService) attachMediaToPosts(ctx context.Context, posts []api.Po
 			Type:      api.MediaType(row.Type),
 			Width:     int(row.Width),
 			Height:    int(row.Height),
+			Blurhash:  nullStringToPtr(row.Blurhash),
 			CreatedAt: row.CreatedAt,
 		}
 
@@ -296,10 +331,11 @@ func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 		Id:        row.ID,
 		Content:   row.Content,
 		Media:     []api.Media{},
+		Reactions: []api.ReactionCount{},
 		CreatedAt: row.CreatedAt,
 		DeletedAt: nil,
 		// Note: Timeline post author doesn't include agreement fields (not needed for display)
-		Author: mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author: mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
 	}
 }
 
@@ -308,9 +344,10 @@ func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 		Id:        row.ID,
 		Content:   row.Content,
 		Media:     []api.Media{},
+		Reactions: []api.ReactionCount{},
 		CreatedAt: row.CreatedAt,
 		DeletedAt: nil,
 		// Note: Post author doesn't include agreement fields (not needed for display)
-		Author: mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author: mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
 	}
 }

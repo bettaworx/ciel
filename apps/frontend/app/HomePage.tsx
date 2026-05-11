@@ -4,21 +4,35 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
+import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { useTimeline } from "@/lib/hooks/use-queries";
-import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
 import { WelcomeCard } from "@/components/WelcomeCard";
 import { ComposeCard } from "@/components/ComposeCard";
-import { Spinner } from "@/components/Spinner";
+import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
+import { Spinner } from "@/components/ui/spinner";
 
 export function HomePage() {
   const t = useTranslations();
   const router = useRouter();
   const auth = useAtomValue(authAtom);
-  const { data, isLoading, error, fetchNextPage, hasNextPage } = useTimeline();
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTimeline();
 
   const posts = data?.pages.flatMap((page) => page.items ?? []) ?? [];
+  const infiniteScrollRef = useInfiniteScroll({
+    enabled: posts.length > 0,
+    hasNextPage: Boolean(hasNextPage),
+    isFetchingNextPage,
+    fetchNextPage,
+  });
 
   return (
     <PageContainer maxWidth="2xl">
@@ -49,13 +63,11 @@ export function HomePage() {
           )}
         </div>
 
-        {hasNextPage && (
-          <div className="mt-8 text-center">
-            <Button onClick={() => fetchNextPage()}>
-              {t("timeline.loadMore")}
-            </Button>
-          </div>
-        )}
+        <InfiniteScrollTrigger
+          sentinelRef={infiniteScrollRef}
+          hasNextPage={Boolean(hasNextPage)}
+          isFetchingNextPage={isFetchingNextPage}
+        />
       </div>
     </PageContainer>
   );

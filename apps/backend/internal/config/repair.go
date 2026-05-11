@@ -176,6 +176,48 @@ func repairDefaults(cfg *Config, rawData []byte) []string {
 		repaired = append(repaired, "media.server_icon.gif.quality")
 	}
 
+	// media.emoji.static/gif
+	if cfg.Media.Emoji.Static.Height == 0 {
+		if cfg.Media.Emoji.Height != 0 {
+			cfg.Media.Emoji.Static.Height = cfg.Media.Emoji.Height
+		} else {
+			cfg.Media.Emoji.Static.Height = defaults.Media.Emoji.Static.Height
+		}
+		repaired = append(repaired, "media.emoji.static.height")
+	}
+	if cfg.Media.Emoji.Static.Quality == 0 {
+		if cfg.Media.Emoji.Quality != 0 {
+			cfg.Media.Emoji.Static.Quality = cfg.Media.Emoji.Quality
+		} else {
+			cfg.Media.Emoji.Static.Quality = defaults.Media.Emoji.Static.Quality
+		}
+		repaired = append(repaired, "media.emoji.static.quality")
+	}
+	if cfg.Media.Emoji.Gif.Height == 0 {
+		if cfg.Media.Emoji.Height != 0 {
+			cfg.Media.Emoji.Gif.Height = cfg.Media.Emoji.Height
+		} else {
+			cfg.Media.Emoji.Gif.Height = defaults.Media.Emoji.Gif.Height
+		}
+		repaired = append(repaired, "media.emoji.gif.height")
+	}
+	if cfg.Media.Emoji.Gif.Quality == 0 {
+		if cfg.Media.Emoji.Quality != 0 {
+			cfg.Media.Emoji.Gif.Quality = cfg.Media.Emoji.Quality
+		} else {
+			cfg.Media.Emoji.Gif.Quality = defaults.Media.Emoji.Gif.Quality
+		}
+		repaired = append(repaired, "media.emoji.gif.quality")
+	}
+	cfg.Media.Emoji.Height = 0
+	cfg.Media.Emoji.Quality = 0
+
+	// post.max_content_length
+	if cfg.Post.MaxContentLength == 0 {
+		cfg.Post.MaxContentLength = defaults.Post.MaxContentLength
+		repaired = append(repaired, "post.max_content_length")
+	}
+
 	// media.video.*
 	// 注意: media.video.crf のデフォルトは 23。CRF=0 は技術的に有効(ロスレス)だが、
 	// 実運用で意図的に設定されることは稀なため、0 は未設定として扱う。

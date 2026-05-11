@@ -1,0 +1,91 @@
+/admin/settings:
+  get:
+    tags:
+    - Admin
+    summary: Get server settings
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/server.yml#/components/schemas/ServerSettings
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/settings/signup:
+  patch:
+    tags:
+    - Admin
+    summary: Update signup enabled
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/server.yml#/components/schemas/UpdateSignupEnabledRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/server.yml#/components/schemas/ServerSettings
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/settings/agreements:
+  patch:
+    tags:
+    - Admin
+    summary: Update agreement versions
+    description: Update Terms of Service and/or Privacy Policy versions (admin only)
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../schemas/agreements.yml#/components/schemas/UpdateAgreementVersionsRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/agreements.yml#/components/schemas/AgreementVersions
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden - not admin
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error

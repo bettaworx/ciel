@@ -23,7 +23,7 @@ import type { AnimationDirection } from "@/lib/config/setup-animation";
 import { createApiClient } from "@/lib/api/client";
 import type { components } from "@/lib/api/api";
 
-type ServerInfo = components["schemas"]["ServerInfo"];
+type ServerConfig = components["schemas"]["ServerConfig"];
 
 const apiClient = createApiClient();
 
@@ -39,8 +39,8 @@ export function SignupWizard() {
   const { register } = useAuth();
   const { data: agreementVersions } = useAgreementVersions();
 
-  // Server info state
-  const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
+  // Server config state
+  const [serverInfo, setServerInfo] = useState<ServerConfig | null>(null);
   const [loadingServerInfo, setLoadingServerInfo] = useState(true);
 
   // Agreement content state
@@ -67,22 +67,22 @@ export function SignupWizard() {
   const [termsChecked, setTermsChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
 
-  // Fetch server info on mount
+  // Fetch server config on mount to determine invite-only mode
   useEffect(() => {
-    const fetchServerInfo = async () => {
+    const fetchServerConfig = async () => {
       try {
-        const result = await apiClient.serverInfo();
+        const result = await apiClient.serverConfig();
         if (result.ok) {
           setServerInfo(result.data);
         }
       } catch (error) {
-        console.error("Failed to fetch server info:", error);
+        console.error("Failed to fetch server config:", error);
       } finally {
         setLoadingServerInfo(false);
       }
     };
 
-    fetchServerInfo();
+    fetchServerConfig();
   }, []);
 
   // Load agreement content from API

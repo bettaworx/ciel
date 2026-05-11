@@ -105,7 +105,8 @@ CREATE TABLE IF NOT EXISTS media (
   deleted_at TIMESTAMPTZ,
   deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
   deletion_reason TEXT,
-  phash TEXT
+  phash TEXT,
+  blurhash TEXT
 );
 
 DO $$
@@ -290,6 +291,21 @@ CREATE TABLE IF NOT EXISTS agreement_documents (
   UNIQUE(document_type, version, language)
 );
 
+-- Custom emojis uploaded by admins
+CREATE TABLE IF NOT EXISTS custom_emojis (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  shortcode  TEXT        NOT NULL UNIQUE,
+  name       TEXT,
+  category   TEXT,
+  license    TEXT,
+  width      INT         NOT NULL,
+  height     INT         NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_custom_emojis_shortcode ON custom_emojis (shortcode);
+
 -- Refresh tokens for persistent session management (30-day TTL, rotate on use)
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -375,7 +391,10 @@ INSERT INTO permissions (id, name, description) VALUES
   ('admin:moderation:view_reports', 'Admin moderation view reports', 'View reports and report details'),
   
   -- Moderation - Logs
-  ('admin:moderation:view_logs', 'Admin moderation view logs', 'View moderation logs')
+  ('admin:moderation:view_logs', 'Admin moderation view logs', 'View moderation logs'),
+
+  -- Emoji management
+  ('admin:emojis:manage', 'Admin emojis manage', 'Create, update, and delete custom emojis')
 ON CONFLICT (id) DO NOTHING;
 
 -- Grant permissions to user role

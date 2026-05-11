@@ -130,6 +130,11 @@ func (m *Manager) load() error {
 		return fmt.Errorf("invalid media configuration: %w", err)
 	}
 
+	// Validate post configuration
+	if err := cfg.Post.Validate(); err != nil {
+		return fmt.Errorf("invalid post configuration: %w", err)
+	}
+
 	m.config = &cfg
 	return nil
 }

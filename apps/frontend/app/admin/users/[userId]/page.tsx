@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useApi } from '@/lib/api/use-api';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, ArrowLeft, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, User as UserIcon } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { use } from 'react';
@@ -67,7 +68,7 @@ export default function UserDetailPage({
 		return (
 			<div>
 				<div className="flex items-center justify-center py-12">
-					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+					<Spinner size="sm" className="text-muted-foreground" />
 				</div>
 			</div>
 		);

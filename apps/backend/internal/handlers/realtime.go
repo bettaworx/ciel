@@ -30,9 +30,9 @@ type WebSocketOptions struct {
 	MaxConnectionsPerIP int
 }
 
-// NewTimelineWebSocketHandler serves realtime timeline events.
-// Authentication is optional - unauthenticated users can receive public timeline events.
-func NewTimelineWebSocketHandler(hub *realtime.Hub, tokenManager *auth.TokenManager, opts WebSocketOptions) http.HandlerFunc {
+// NewWebSocketHandler serves realtime events (timeline, server info, config updates).
+// Authentication is optional - unauthenticated users can receive public events.
+func NewWebSocketHandler(hub *realtime.Hub, tokenManager *auth.TokenManager, opts WebSocketOptions) http.HandlerFunc {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,

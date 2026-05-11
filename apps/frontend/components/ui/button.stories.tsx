@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, fn, userEvent, within } from "storybook/test";
-import { Mail, Loader2, ChevronRight } from "lucide-react";
+import { Mail, ChevronRight } from "lucide-react";
 import { Button } from "./button";
+import { Spinner } from "./spinner";
 
 const meta = {
   title: "UI/Button",
@@ -15,6 +16,7 @@ const meta = {
       control: "select",
       options: [
         "default",
+        "contrast",
         "primary",
         "primary_disabled",
         "destructive",
@@ -50,6 +52,13 @@ export const Primary: Story = {
   args: {
     children: "Primary",
     variant: "primary",
+  },
+};
+
+export const Contrast: Story = {
+  args: {
+    children: "Contrast",
+    variant: "contrast",
   },
 };
 
@@ -118,7 +127,7 @@ export const Loading: Story = {
     disabled: true,
     children: (
       <>
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Spinner size="xs" />
         Please wait
       </>
     ),
@@ -150,12 +159,21 @@ export const AllVariants: Story = {
   render: () => (
     <div className="flex flex-wrap items-center gap-4">
       <Button variant="default">Default</Button>
+      <Button variant="contrast">Contrast</Button>
       <Button variant="primary">Primary</Button>
       <Button variant="destructive">Destructive</Button>
       <Button variant="outline">Outline</Button>
       <Button variant="secondary">Secondary</Button>
       <Button variant="ghost">Ghost</Button>
       <Button variant="link">Link</Button>
+    </div>
+  ),
+};
+
+export const OnBackground: Story = {
+  render: () => (
+    <div className="bg-background p-6">
+      <Button variant="contrast">Load more</Button>
     </div>
   ),
 };

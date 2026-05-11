@@ -1,0 +1,73 @@
+components:
+  schemas:
+    Post:
+      type: object
+      required:
+      - id
+      - author
+      - content
+      - createdAt
+      - media
+      - reactions
+      properties:
+        id:
+          $ref: ./common.yml#/components/schemas/PostId
+        author:
+          $ref: ./user.yml#/components/schemas/User
+        content:
+          type: string
+          minLength: 1
+          maxLength: 300
+        media:
+          type: array
+          maxItems: 4
+          items:
+            $ref: ./media.yml#/components/schemas/Media
+        reactions:
+          type: array
+          items:
+            $ref: ./reactions.yml#/components/schemas/ReactionCount
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+    TimelinePage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        nextCursor:
+          type: string
+          nullable: true
+    UserPostsPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        nextCursor:
+          type: string
+          nullable: true
+    CreatePostRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 300
+        mediaIds:
+          type: array
+          description: Media IDs to attach to the post (in order).
+          maxItems: 4
+          items:
+            $ref: ./common.yml#/components/schemas/MediaId
