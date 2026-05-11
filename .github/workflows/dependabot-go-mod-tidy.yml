@@ -1,0 +1,50 @@
+name: Dependabot go mod tidy
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - 'apps/backend/go.mod'
+      - 'apps/backend/go.sum'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  tidy:
+    name: Commit go mod tidy for Dependabot
+    if: >
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - name: Run go mod tidy
+        working-directory: apps/backend
+        run: go mod tidy
+
+      - name: Commit tidy result
+        run: |
+          if git diff --quiet -- apps/backend/go.mod apps/backend/go.sum; then
+            echo "go.mod and go.sum are already tidy."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/backend/go.mod apps/backend/go.sum
+          git commit -m "chore(deps): run go mod tidy"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
