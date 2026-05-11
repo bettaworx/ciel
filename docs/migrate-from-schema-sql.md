@@ -36,7 +36,7 @@ Use `migrate force` to record the current version without re-running any SQL:
 **With Docker** (build the image first if not already done):
 
 ```bash
-docker compose build
+# docker compose build (or pull the latest image)
 docker compose run --rm backend /app/migrate-db force 20260501
 ```
 
@@ -79,7 +79,7 @@ docker compose run --rm backend /app/migrate-db up
 No special steps needed. Follow the standard setup in [README.md](../README.md):
 
 ```bash
-docker compose build
+# docker compose build (or pull the latest image)
 docker compose run --rm backend /app/migrate-db up
 docker compose up
 ```

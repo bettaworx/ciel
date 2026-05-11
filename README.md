@@ -64,53 +64,5 @@ docker compose run --rm backend /app/migrate-db down 1
 docker compose run --rm backend /app/migrate-db down -all
 ```
 
-## Setup without Docker
-
-**Prerequisites:** node (22.16.0+), go (1.26.0+), pnpm (10.28.0+), PostgreSQL
-
-```bash
-git clone https://github.com/bettaworx/ciel
-cd ciel
-cp .env.example .env
-cp apps/backend/config/config.yaml.example apps/backend/config/config.yaml
-```
-
-Edit `.env` and set `DATABASE_URL` to point to your local PostgreSQL instance.
-
-Install dependencies:
-
-```bash
-pnpm install
-cd apps/backend && go mod download && cd ../..
-```
-
-Generate code:
-
-```bash
-pnpm run gen:openapi && pnpm run gen:openapi:ts
-pnpm run gen:sqlc
-```
-
-Initialize the database:
-
-```bash
-pnpm migrate:init
-```
-
-### Database management (local)
-
-```bash
-# Apply all pending migrations  (alias: pnpm migrate:init)
-pnpm migrate:up
-
-# Roll back the latest migration
-pnpm migrate:down
-
-# Roll back all migrations
-pnpm migrate:down:all
-```
-
-> **Note:** These commands require `DATABASE_URL` to be set in your environment or `.env` file.
-
 # License
 [MIT License](https://opensource.org/license/MIT)
