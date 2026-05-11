@@ -1,9 +1,6 @@
 name: Build and Release
 
 on:
-  pull_request:
-    branches:
-      - development
   workflow_dispatch:
     inputs:
       build_target:
@@ -44,55 +41,15 @@ permissions:
   packages: write
 
 jobs:
-  backend:
-    name: Backend
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: apps/backend/go.mod
-          cache-dependency-path: apps/backend/go.sum
-
-      - name: Build backend
-        working-directory: apps/backend
-        run: go build ./...
-
-  frontend:
-    name: Frontend
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Enable pnpm
-        run: |
-          corepack enable pnpm
-          corepack prepare pnpm@10.28.0 --activate
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build frontend
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
-        run: pnpm -C apps/frontend build
-
   docker-release:
     name: Docker Build and Release
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       REGISTRY: ghcr.io
-      OWNER: bettaworx
-      BACKEND_IMAGE: ghcr.io/bettaworx/ciel-backend
-      FRONTEND_IMAGE: ghcr.io/bettaworx/ciel-frontend
+      OWNER: ${{ github.repository_owner }}
+      BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/ciel-backend
+      FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/ciel-frontend
       BUILD_TARGET: ${{ inputs.build_target }}
       PLATFORM: ${{ inputs.platform }}
       INPUT_TAG: ${{ inputs.tag }}
@@ -117,7 +74,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push backend
