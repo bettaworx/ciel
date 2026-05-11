@@ -372,40 +372,70 @@ err := store.WithTx(ctx, func(q *sqlc.Queries) error {
 
 ### Migrations
 
-**Location**: `db/migrations/*.sql`
+**Location**: `db/migrations/`
 
-**Pattern**: Idempotent SQL with version numbers
+**Tool**: [golang-migrate](https://github.com/golang-migrate/migrate)
+
+Each schema change requires a **pair** of files:
+
+```
+db/migrations/
+├── YYYYMMDD_feature_name.up.sql    ← apply changes
+└── YYYYMMDD_feature_name.down.sql  ← roll back changes
+```
+
+**Example pair** (`20260601_add_notifications`):
 
 ```sql
--- db/migrations/004_add_user_profile.sql
-ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_media_id UUID REFERENCES media(id);
+-- 20260601_add_notifications.up.sql
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    data JSONB NOT NULL DEFAULT '{}',
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id
+    ON notifications(user_id, created_at DESC);
+```
 
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+```sql
+-- 20260601_add_notifications.down.sql
+DROP TABLE IF EXISTS notifications;
+```
+
+**Apply / roll back**:
+
+```bash
+# Docker (recommended)
+docker compose run --rm backend /app/migrate-db up
+docker compose run --rm backend /app/migrate-db down 1
+
+# Host (requires Go)
+pnpm migrate:up
+pnpm migrate:down
 ```
 
 **Best Practices**:
-- Use `IF NOT EXISTS` for idempotency
-- One migration per feature
-- Never modify past migrations
-- Test rollback scenarios
+- Use `IF NOT EXISTS` / `IF EXISTS` guards so re-running is safe after a partial failure
+- One migration per feature or logical change
+- Never modify or delete past migration files — add a new one instead
+- Keep `.down.sql` accurate so rollbacks are safe in production
 
 ### Database Change Workflow
 
-**IMPORTANT**: When making database changes, you MUST update BOTH:
-1. Create a migration file in `db/migrations/`
-2. Update `db/schema.sql` to reflect the change
+**IMPORTANT**: When making database changes, update **all three** of the following:
 
-This dual approach ensures:
-- **Existing databases**: Can be upgraded via migration files
-- **New databases**: Get the complete schema from `schema.sql` alone
+1. Create a migration pair in `db/migrations/` (`YYYYMMDD_*.up.sql` + `.down.sql`)
+2. Update `db/schema.sql` to reflect the final state — used by sqlc for code generation
+3. Add/update queries in `db/queries.sql` if needed, then run `pnpm run gen:sqlc`
 
-**Example Workflow** - Adding a new admin permission:
+**Example Workflow** — Adding a new admin permission:
 
-**Step 1**: Create migration file `db/migrations/010_add_new_permission.sql`:
+**Step 1**: Create `db/migrations/20260601_add_new_permission.up.sql`:
+
 ```sql
--- Add new admin permission
 INSERT INTO permissions (id, name, description) VALUES
   ('admin:new_feature:manage', 'Admin new feature', 'Manage new feature')
 ON CONFLICT (id) DO NOTHING;
@@ -415,41 +445,38 @@ VALUES ('admin', 'admin:new_feature:manage', 'global', 'allow')
 ON CONFLICT (role_id, permission_id, scope) DO NOTHING;
 ```
 
-**Step 2**: Update `db/schema.sql` - add to the "Admin permissions" section:
+**Step 1b**: Create `db/migrations/20260601_add_new_permission.down.sql`:
+
 ```sql
--- Admin permissions (colon-style naming for granular access control)
+DELETE FROM role_permissions WHERE permission_id = 'admin:new_feature:manage';
+DELETE FROM permissions WHERE id = 'admin:new_feature:manage';
+```
+
+**Step 2**: Update `db/schema.sql` — add the permission to the initial data section so new databases get it:
+
+```sql
 INSERT INTO permissions (id, name, description) VALUES
   ...
-  -- New feature management
   ('admin:new_feature:manage', 'Admin new feature', 'Manage new feature')
 ON CONFLICT (id) DO NOTHING;
 ```
 
-**Step 3**: Apply migration to existing databases:
-```bash
-# Option A: Run migration file directly
-psql $DATABASE_URL -f db/migrations/010_add_new_permission.sql
+**Step 3**: Apply the migration:
 
-# Option B: Use migration script (if exists)
-go run scripts/apply_migration.go
+```bash
+# Docker
+docker compose run --rm backend /app/migrate-db up
+
+# Host
+pnpm migrate:up
 ```
 
-**Step 4**: Verify new databases work:
+**Step 4**: Verify migration state:
+
 ```bash
-# Drop and recreate test database
-psql -c "DROP DATABASE IF EXISTS ciel_test;"
-psql -c "CREATE DATABASE ciel_test;"
-psql ciel_test < db/schema.sql
-
-# Verify permissions exist
-psql ciel_test -c "SELECT id FROM permissions WHERE id LIKE 'admin:%' ORDER BY id;"
+docker exec ciel-db psql -U ciel -d ciel \
+  -c "SELECT version, dirty FROM schema_migrations;"
 ```
-
-**Why This Approach**:
-- Developers setting up for the first time only need `schema.sql`
-- Production databases can be upgraded incrementally via migrations
-- `schema.sql` serves as the definitive reference for the complete schema
-- No need for migration tracking tools or version tables
 
 ## Middleware Chain
 
@@ -582,25 +609,34 @@ go list -m -u all
 ### New Database Table
 
 **Steps**:
-1. Create migration in `db/migrations/00X_feature_name.sql`
-2. Update `db/schema.sql` (for reference)
+1. Create a migration pair in `db/migrations/`:
+   - `YYYYMMDD_feature_name.up.sql` — create table, indexes, seed data
+   - `YYYYMMDD_feature_name.down.sql` — drop table / undo changes
+2. Update `db/schema.sql` to reflect the final state (used by sqlc)
 3. Add queries to `db/queries.sql`
 4. Run `pnpm run gen:sqlc`
-5. Update service layer to use new queries
+5. Apply the migration: `docker compose run --rm backend /app/migrate-db up`
+6. Update service layer to use new queries
 
 **Example Migration**:
 ```sql
--- db/migrations/005_add_notifications.sql
-CREATE TABLE notifications (
+-- db/migrations/20260601_add_notifications.up.sql
+CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
-    data JSONB NOT NULL,
+    data JSONB NOT NULL DEFAULT '{}',
     read_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_notifications_user_id ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id
+    ON notifications(user_id, created_at DESC);
+```
+
+```sql
+-- db/migrations/20260601_add_notifications.down.sql
+DROP TABLE IF EXISTS notifications;
 ```
 
 ### New Service
