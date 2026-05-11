@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS invite_code_uses;
+DROP TABLE IF EXISTS invite_codes;
+DROP TABLE IF EXISTS post_reaction_counts;
+DROP TABLE IF EXISTS post_reaction_events;
+DROP TABLE IF EXISTS post_media;
+DROP TABLE IF EXISTS media;
+DROP TABLE IF EXISTS posts;
+DROP TABLE IF EXISTS auth_credentials;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS items;
+DROP EXTENSION IF EXISTS "pgcrypto";

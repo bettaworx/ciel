@@ -17,7 +17,8 @@
     "test:kotodoki": "pnpm -C packages/kotodoki run test",
     "migrate:up": "cd apps/backend && go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate -path ./db/migrations -database \"$DATABASE_URL\" up",
     "migrate:down": "cd apps/backend && go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate -path ./db/migrations -database \"$DATABASE_URL\" down 1",
-    "migrate:down:all": "cd apps/backend && go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate -path ./db/migrations -database \"$DATABASE_URL\" down -all"
+    "migrate:down:all": "cd apps/backend && go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate -path ./db/migrations -database \"$DATABASE_URL\" down -all",
+    "migrate:init": "pnpm migrate:up"
   },
   "keywords": [],
   "author": "",

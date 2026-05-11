@@ -30,12 +30,21 @@ RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
     -ldflags="-s -w -X backend/internal/version.Commit=${BUILD_COMMIT} -X backend/internal/version.Branch=${BUILD_BRANCH}" \
     -o /out/backend .
 
+RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
+    --mount=type=cache,id=go-build,target=/root/.cache/go-build \
+    GOOS=linux GOARCH=${TARGETARCH} go build -tags postgres -trimpath \
+    -o /out/migrate github.com/golang-migrate/migrate/v4/cmd/migrate
+
 FROM debian:bookworm-slim
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /out/backend /app/backend
+COPY --from=build /out/migrate /app/migrate
+COPY --from=build /src/db/migrations /app/db/migrations
+COPY apps/backend/scripts/migrate-db.sh /app/migrate-db
+RUN chmod +x /app/migrate-db
 EXPOSE 6137
 ENV PORT=6137
 ENTRYPOINT ["/app/backend"]

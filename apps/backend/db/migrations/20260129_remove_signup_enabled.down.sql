@@ -1,0 +1,2 @@
+ALTER TABLE server_settings
+  ADD COLUMN IF NOT EXISTS signup_enabled BOOLEAN NOT NULL DEFAULT TRUE;
