@@ -7,7 +7,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { FixedSizeGrid, type GridChildComponentProps } from "react-window";
+import { Grid, type CellComponentProps } from "react-window";
 
 import { cn } from "@/lib/utils";
 import { useEmojiPickerData } from "@/lib/emoji-picker/use-emoji-picker-data";
@@ -427,10 +427,15 @@ function EmojiGridCell({
   columnIndex,
   rowIndex,
   style,
-  data,
-}: GridChildComponentProps<EmojiGridData>) {
-  const itemIndex = rowIndex * data.columns + columnIndex;
-  const item = data.items[itemIndex];
+  items,
+  columns,
+  rowCount,
+  onSelect,
+  columnGap,
+  rowGap,
+}: CellComponentProps<EmojiGridData>) {
+  const itemIndex = rowIndex * columns + columnIndex;
+  const item = items[itemIndex];
 
   if (!item) {
     return null;
@@ -441,14 +446,12 @@ function EmojiGridCell({
       style={{
         ...style,
         boxSizing: "border-box",
-        paddingRight:
-          columnIndex === data.columns - 1 ? 0 : data.columnGap,
-        paddingBottom:
-          rowIndex === data.rowCount - 1 ? 0 : data.rowGap,
+        paddingRight: columnIndex === columns - 1 ? 0 : columnGap,
+        paddingBottom: rowIndex === rowCount - 1 ? 0 : rowGap,
       }}
     >
       <div style={{ width: "100%", height: "100%" }}>
-        <EmojiButton item={item} onSelect={data.onSelect} />
+        <EmojiButton item={item} onSelect={onSelect} />
       </div>
     </div>
   );
@@ -505,18 +508,18 @@ function EmojiGrid({
       className="px-3 sm:px-1"
       data-grid-item-count={items.length}
     >
-      <FixedSizeGrid
+      <Grid
+        cellComponent={EmojiGridCell}
+        cellProps={itemData}
         columnCount={columns}
         columnWidth={metrics.cellSize}
-        height={rowCount * metrics.cellSize}
-        itemData={itemData}
-        overscanRowCount={GRID_OVERSCAN_COUNT}
+        defaultHeight={rowCount * metrics.cellSize}
+        defaultWidth={gridWidth}
+        overscanCount={GRID_OVERSCAN_COUNT}
         rowCount={rowCount}
         rowHeight={metrics.cellSize}
-        width={gridWidth}
-      >
-        {EmojiGridCell}
-      </FixedSizeGrid>
+        style={{ height: rowCount * metrics.cellSize, width: gridWidth }}
+      />
     </div>
   );
 }
