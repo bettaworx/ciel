@@ -1265,17 +1265,17 @@ func (s *MediaService) probeDimensions(ctx context.Context, path string) (int, i
 		slog.Error("unexpected ffprobe output format", "output", line, "path", path)
 		return 0, 0, fmt.Errorf("unexpected ffprobe output: %q", line)
 	}
-	w, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	w64, err := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 32)
 	if err != nil {
 		slog.Error("failed to parse width", "width", parts[0], "error", err, "path", path)
 		return 0, 0, err
 	}
-	h, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	h64, err := strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 32)
 	if err != nil {
 		slog.Error("failed to parse height", "height", parts[1], "error", err, "path", path)
 		return 0, 0, err
 	}
-	return w, h, nil
+	return int(w64), int(h64), nil
 }
 
 func probeWebPDimensions(path string) (int, int, error) {
