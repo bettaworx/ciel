@@ -70,7 +70,7 @@ ciel/
 
 - **Frontend**: `pnpm` (workspace configured in `pnpm-workspace.yaml`)
 - **Backend**: Go modules (`apps/backend/go.mod`)
-- **Database**: PostgreSQL with SQLC
+- **Database**: PostgreSQL with SQLC + golang-migrate for schema migrations
 - **Cache/Pub-Sub**: Redis
 
 ## Common Commands
@@ -97,6 +97,26 @@ go run main.go                      # Start API server (port 6137)
 go test ./tests/unit/...            # Run unit tests
 go test ./...                       # Run all tests (fast)
 ```
+
+### Database Migrations
+```bash
+# Docker (recommended — migrate binary is baked into the backend image)
+docker compose run --rm backend /app/migrate-db up        # Apply all pending
+docker compose run --rm backend /app/migrate-db down 1    # Roll back one step
+docker compose run --rm backend /app/migrate-db down -all # Roll back all
+
+# Host (requires Go)
+pnpm migrate:init    # First-time setup (alias for migrate:up)
+pnpm migrate:up      # Apply all pending
+pnpm migrate:down    # Roll back one step
+
+# Check current migration version
+docker exec ciel-db psql -U ciel -d ciel -c "SELECT version, dirty FROM schema_migrations;"
+```
+
+Migration files live in `apps/backend/db/migrations/` as paired
+`YYYYMMDD_name.up.sql` / `YYYYMMDD_name.down.sql` files.
+See `docs/migrate-from-schema-sql.md` if upgrading from the legacy schema.sql setup.
 
 ### Code Generation
 ```bash
