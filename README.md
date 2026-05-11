@@ -9,6 +9,10 @@ We do our best to avoid that since we operate a real server. But sometimes we ha
 
 We recommend using Docker. Local setup (without Docker) is also supported for development.
 
+> **Upgrading from an older installation?** If your database was previously initialized via
+> `schema.sql` (before the golang-migrate migration system was introduced), see
+> [docs/migrate-from-schema-sql.md](docs/migrate-from-schema-sql.md) for upgrade steps.
+
 ## Setup with Docker
 
 **Prerequisites:** Docker
