@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -1103,6 +1104,11 @@ func (s *MediaService) convertAndSaveImage(ctx context.Context, user auth.User, 
 
 	// Compute BlurHash placeholder from the converted output. Failure is non-fatal.
 	blurhashStr := computeBlurhashForImage(outPath)
+
+	if wOut > math.MaxInt32 || hOut > math.MaxInt32 {
+		cleanupOut()
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "converted image dimensions are out of range")
+	}
 
 	// Create database record
 	row, err := s.store.Q.CreateMedia(ctx, sqlc.CreateMediaParams{
