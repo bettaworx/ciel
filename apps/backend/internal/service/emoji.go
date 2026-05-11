@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log/slog"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"strings"
@@ -71,6 +72,10 @@ func (s *EmojiService) Create(ctx context.Context, p EmojiCreateParams) (sqlc.Cu
 	w, h, err := s.mediaSvc.UploadEmojiImage(ctx, p.File, p.Header, id)
 	if err != nil {
 		return sqlc.CustomEmoji{}, err
+	}
+	if w <= 0 || w > math.MaxInt32 || h <= 0 || h > math.MaxInt32 {
+		s.mediaSvc.DeleteEmojiImage(id)
+		return sqlc.CustomEmoji{}, NewError(http.StatusBadRequest, "invalid_dimensions", "invalid emoji image dimensions")
 	}
 
 	params := sqlc.CreateCustomEmojiParams{
