@@ -47,4 +47,4 @@ COPY apps/backend/scripts/migrate-db.sh /app/migrate-db
 RUN chmod +x /app/migrate-db
 EXPOSE 6137
 ENV PORT=6137
-ENTRYPOINT ["/app/backend"]
+CMD ["/app/backend"]
