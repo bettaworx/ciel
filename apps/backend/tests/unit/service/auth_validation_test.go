@@ -3,11 +3,13 @@ package service_test
 import (
 	"context"
 	"net/http"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"backend/internal/api"
 	"backend/internal/auth"
+	"backend/internal/config"
 	"backend/internal/repository"
 	"backend/internal/service"
 
@@ -58,17 +60,7 @@ func TestAuthService_Register_SignupDisabled(t *testing.T) {
 	store := repository.NewStore(db)
 	tm := auth.NewTokenManager([]byte("secret"), time.Minute)
 	svc := service.NewAuthService(store, tm)
-
-	// Mock EnsureServerSettings
-	mock.ExpectExec(`-- name: EnsureServerSettings`).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-
-	// Mock GetServerSettings with signup_enabled = false
-	mock.ExpectQuery(`-- name: GetServerSettings`).
-		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "signup_enabled", "terms_version", "privacy_version"}).
-				AddRow(int32(1), false, int32(1), int32(1)),
-		)
+	svc.SetConfigManager(newTestConfigManager(t, true))
 
 	_, err = svc.Register(context.Background(), api.RegisterRequest{
 		Username:       "alice",
@@ -76,7 +68,7 @@ func TestAuthService_Register_SignupDisabled(t *testing.T) {
 		TermsVersion:   1,
 		PrivacyVersion: 1,
 	})
-	assertServiceError(t, err, http.StatusForbidden, "signup_disabled")
+	assertServiceError(t, err, http.StatusForbidden, "invite_required")
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectations: %v", err)
@@ -101,8 +93,8 @@ func TestAuthService_Register_TermsVersionMismatch(t *testing.T) {
 	// Mock GetServerSettings with terms_version = 2
 	mock.ExpectQuery(`-- name: GetServerSettings`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "signup_enabled", "terms_version", "privacy_version"}).
-				AddRow(int32(1), true, int32(2), int32(1)),
+			sqlmock.NewRows([]string{"id", "terms_version", "privacy_version"}).
+				AddRow(int32(1), int32(2), int32(1)),
 		)
 
 	_, err = svc.Register(context.Background(), api.RegisterRequest{
@@ -136,8 +128,8 @@ func TestAuthService_Register_PrivacyVersionMismatch(t *testing.T) {
 	// Mock GetServerSettings with privacy_version = 2
 	mock.ExpectQuery(`-- name: GetServerSettings`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "signup_enabled", "terms_version", "privacy_version"}).
-				AddRow(int32(1), true, int32(1), int32(2)),
+			sqlmock.NewRows([]string{"id", "terms_version", "privacy_version"}).
+				AddRow(int32(1), int32(1), int32(2)),
 		)
 
 	_, err = svc.Register(context.Background(), api.RegisterRequest{
@@ -225,6 +217,25 @@ func newAuthServiceWithMockStore(t *testing.T) (*service.AuthService, func()) {
 		_ = db.Close()
 	}
 	return svc, cleanup
+}
+
+func newTestConfigManager(t *testing.T, inviteOnly bool) *config.Manager {
+	t.Helper()
+
+	manager, err := config.NewManager(filepath.Join(t.TempDir(), "config.yaml"))
+	if err != nil {
+		t.Fatalf("config.NewManager: %v", err)
+	}
+	if err := manager.Update(func(cfg *config.Config) error {
+		cfg.Auth.InviteOnly = inviteOnly
+		return nil
+	}); err != nil {
+		t.Fatalf("config.Manager.Update: %v", err)
+	}
+	t.Cleanup(func() {
+		config.SetGlobalConfig(nil)
+	})
+	return manager
 }
 
 func assertServiceError(t *testing.T, err error, status int, code string) {

@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"database/sql"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"backend/internal/api"
 	"backend/internal/cache"
+	"backend/internal/config"
 	"backend/internal/db/sqlc"
 	"backend/internal/repository"
 	"backend/internal/service"
@@ -298,17 +300,18 @@ func TestGetServerSettings(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil, nil)
+	configMgr := newTestConfigManager(t, false)
+	svc := service.NewAdminService(store, nil, configMgr, nil)
 
 	// Mock EnsureServerSettings
 	mock.ExpectExec(`INSERT INTO server_settings`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	// Mock GetServerSettings
-	mock.ExpectQuery(`SELECT id, signup_enabled, terms_version, privacy_version FROM server_settings WHERE id`).
+	mock.ExpectQuery(`SELECT id, terms_version, privacy_version FROM server_settings WHERE id`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "signup_enabled", "terms_version", "privacy_version"}).
-				AddRow(int32(1), true, int32(1), int32(1)),
+			sqlmock.NewRows([]string{"id", "terms_version", "privacy_version"}).
+				AddRow(int32(1), int32(1), int32(1)),
 		)
 
 	settings, err := svc.GetServerSettings(context.Background())
@@ -339,18 +342,18 @@ func TestUpdateSignupEnabled(t *testing.T) {
 	defer db.Close()
 
 	store := repository.NewStore(db)
-	svc := service.NewAdminService(store, nil, nil, nil)
+	configMgr := newTestConfigManager(t, false)
+	svc := service.NewAdminService(store, nil, configMgr, nil)
 
 	// Mock EnsureServerSettings
 	mock.ExpectExec(`INSERT INTO server_settings`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	// Mock UpdateSignupEnabled
-	mock.ExpectQuery(`UPDATE server_settings SET signup_enabled`).
-		WithArgs(false).
+	// Mock GetServerSettings after the config update
+	mock.ExpectQuery(`SELECT id, terms_version, privacy_version FROM server_settings WHERE id`).
 		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "signup_enabled", "terms_version", "privacy_version"}).
-				AddRow(int32(1), false, int32(1), int32(1)),
+			sqlmock.NewRows([]string{"id", "terms_version", "privacy_version"}).
+				AddRow(int32(1), int32(1), int32(1)),
 		)
 
 	settings, err := svc.UpdateSignupEnabled(context.Background(), false)
@@ -614,6 +617,25 @@ func TestGetDashboardStats(t *testing.T) {
 // Helper functions
 func intPtr(v int) *int {
 	return &v
+}
+
+func newTestConfigManager(t *testing.T, inviteOnly bool) *config.Manager {
+	t.Helper()
+
+	manager, err := config.NewManager(filepath.Join(t.TempDir(), "config.yaml"))
+	if err != nil {
+		t.Fatalf("config.NewManager: %v", err)
+	}
+	if err := manager.Update(func(cfg *config.Config) error {
+		cfg.Auth.InviteOnly = inviteOnly
+		return nil
+	}); err != nil {
+		t.Fatalf("config.Manager.Update: %v", err)
+	}
+	t.Cleanup(func() {
+		config.SetGlobalConfig(nil)
+	})
+	return manager
 }
 
 func mockTime() time.Time {
