@@ -7,7 +7,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { FixedSizeGrid, type GridChildComponentProps } from "react-window";
+import { Grid, type CellComponentProps } from "react-window";
 
 import { cn } from "@/lib/utils";
 import { useEmojiPickerData } from "@/lib/emoji-picker/use-emoji-picker-data";
@@ -428,7 +428,7 @@ function EmojiGridCell({
   rowIndex,
   style,
   data,
-}: GridChildComponentProps<EmojiGridData>) {
+}: CellComponentProps<EmojiGridData>) {
   const itemIndex = rowIndex * data.columns + columnIndex;
   const item = data.items[itemIndex];
 
@@ -505,18 +505,18 @@ function EmojiGrid({
       className="px-3 sm:px-1"
       data-grid-item-count={items.length}
     >
-      <FixedSizeGrid
+      <Grid
+        cellComponent={EmojiGridCell}
+        cellProps={itemData}
         columnCount={columns}
         columnWidth={metrics.cellSize}
-        height={rowCount * metrics.cellSize}
-        itemData={itemData}
-        overscanRowCount={GRID_OVERSCAN_COUNT}
+        defaultHeight={rowCount * metrics.cellSize}
+        defaultWidth={gridWidth}
+        overscanCount={GRID_OVERSCAN_COUNT}
         rowCount={rowCount}
         rowHeight={metrics.cellSize}
-        width={gridWidth}
-      >
-        {EmojiGridCell}
-      </FixedSizeGrid>
+        style={{ height: rowCount * metrics.cellSize, width: gridWidth }}
+      />
     </div>
   );
 }
