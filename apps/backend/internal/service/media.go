@@ -1201,6 +1201,10 @@ func (s *MediaService) uploadServerIconWithBothVersions(ctx context.Context, use
 		cleanupOut()
 		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "failed to read converted image")
 	}
+	if wOut <= 0 || hOut <= 0 || wOut > math.MaxInt32 || hOut > math.MaxInt32 {
+		cleanupOut()
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "invalid converted image dimensions")
+	}
 
 	// Compute BlurHash placeholder from the static (single-frame) version.
 	// Animated WebP cannot be decoded by the standard Go image package.
