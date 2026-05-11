@@ -427,10 +427,15 @@ function EmojiGridCell({
   columnIndex,
   rowIndex,
   style,
-  data,
+  items,
+  columns,
+  rowCount,
+  onSelect,
+  columnGap,
+  rowGap,
 }: CellComponentProps<EmojiGridData>) {
-  const itemIndex = rowIndex * data.columns + columnIndex;
-  const item = data.items[itemIndex];
+  const itemIndex = rowIndex * columns + columnIndex;
+  const item = items[itemIndex];
 
   if (!item) {
     return null;
@@ -441,14 +446,12 @@ function EmojiGridCell({
       style={{
         ...style,
         boxSizing: "border-box",
-        paddingRight:
-          columnIndex === data.columns - 1 ? 0 : data.columnGap,
-        paddingBottom:
-          rowIndex === data.rowCount - 1 ? 0 : data.rowGap,
+        paddingRight: columnIndex === columns - 1 ? 0 : columnGap,
+        paddingBottom: rowIndex === rowCount - 1 ? 0 : rowGap,
       }}
     >
       <div style={{ width: "100%", height: "100%" }}>
-        <EmojiButton item={item} onSelect={data.onSelect} />
+        <EmojiButton item={item} onSelect={onSelect} />
       </div>
     </div>
   );
