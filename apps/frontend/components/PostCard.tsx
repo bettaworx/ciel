@@ -278,9 +278,8 @@ export function PostCard({
         onClick={handleUserClick}
         className={cn(
           "font-semibold text-foreground hover:underline focus:underline focus:outline-none truncate",
-          verticalIdentity
-            ? "text-base sm:text-lg leading-tight"
-            : "text-sm sm:text-base",
+          "text-sm sm:text-base",
+          verticalIdentity && "leading-tight",
         )}
       >
         <MfmRenderer
@@ -291,7 +290,7 @@ export function PostCard({
       {hasDisplayName && (
         <span
           className={cn(
-            "text-muted-foreground text-xs sm:text-sm truncate",
+            "text-muted-foreground text-sm sm:text-base truncate",
             verticalIdentity && "leading-tight",
           )}
         >
