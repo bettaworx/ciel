@@ -402,7 +402,8 @@
       "settingsAccount": "アカウント",
       "settingsSecurity": "セキュリティ",
       "setup": "プロフィール設定",
-      "adminSetup": "サーバー初期設定"
+      "adminSetup": "サーバー初期設定",
+      "postDetail": "投稿"
     }
   },
   "timeline": {
@@ -553,7 +554,11 @@
     "success": "プロフィールを保存しました",
     "error": "保存に失敗しました"
   },
+  "postDetail": {
+    "notFound": "投稿が見つかりません"
+  },
   "postCard": {
+    "openDetail": "投稿の詳細を開く",
     "justNow": "たった今",
     "minutesAgo": "{count}分前",
     "hoursAgo": "{count}時間前",

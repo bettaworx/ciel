@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
@@ -63,6 +64,8 @@ export interface PostCardProps {
   onUserClick?: (username: string) => void;
   className?: string;
   isLast?: boolean;
+  linkToDetail?: boolean;
+  verticalIdentity?: boolean;
 }
 
 export function PostCard({
@@ -70,6 +73,8 @@ export function PostCard({
   onUserClick,
   className,
   isLast = false,
+  linkToDetail = true,
+  verticalIdentity = false,
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -168,6 +173,8 @@ export function PostCard({
     }
   }, [onUserClick, post.author?.username]);
 
+  const detailHref = `/posts/${post.id}`;
+
   const displayName =
     post.author?.displayName ||
     (post.author?.username ? `@${post.author.username}` : tUser("unknown"));
@@ -251,11 +258,29 @@ export function PostCard({
           {/* Group 1: Header + Text */}
           <div className="mb-1 sm:mb-1.5">
             {/* User Info */}
-            <div className="flex justify-between items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5">
+            <div
+              className={cn(
+                "flex justify-between gap-2",
+                verticalIdentity
+                  ? "items-stretch h-11 sm:h-12"
+                  : "items-center flex-wrap",
+              )}
+            >
+              <div
+                className={cn(
+                  verticalIdentity
+                    ? "flex flex-col justify-center min-w-0 py-0.5 gap-0.5"
+                    : "flex items-center gap-1.5 min-w-0",
+                )}
+              >
                 <button
                   onClick={handleUserClick}
-                  className="font-semibold text-sm sm:text-base text-foreground hover:underline focus:underline focus:outline-none truncate"
+                  className={cn(
+                    "font-semibold text-foreground hover:underline focus:underline focus:outline-none truncate",
+                    verticalIdentity
+                      ? "text-base sm:text-lg leading-tight"
+                      : "text-sm sm:text-base",
+                  )}
                 >
                   <MfmRenderer
                     text={displayName}
@@ -263,32 +288,77 @@ export function PostCard({
                   />
                 </button>
                 {hasDisplayName && (
-                  <span className="text-muted-foreground text-xs sm:text-sm truncate">
+                  <span
+                    className={cn(
+                      "text-muted-foreground text-xs sm:text-sm truncate",
+                      verticalIdentity && "leading-tight",
+                    )}
+                  >
                     @{username}
                   </span>
                 )}
               </div>
-              <span
-                className="text-muted-foreground text-xs"
-                aria-label={createdAt.toLocaleString(locale)}
-              >
-                {timeAgo}
-              </span>
+              {linkToDetail ? (
+                <Button
+                  asChild
+                  variant="link"
+                  size="sm"
+                  rounded="none"
+                  className={cn(
+                    "h-auto p-0 text-xs font-normal text-muted-foreground",
+                    verticalIdentity && "self-start",
+                  )}
+                >
+                  <Link
+                    href={detailHref}
+                    aria-label={createdAt.toLocaleString(locale)}
+                  >
+                    {timeAgo}
+                  </Link>
+                </Button>
+              ) : (
+                <span
+                  className={cn(
+                    "text-muted-foreground text-xs",
+                    verticalIdentity && "self-start",
+                  )}
+                  aria-label={createdAt.toLocaleString(locale)}
+                >
+                  {timeAgo}
+                </span>
+              )}
             </div>
 
             {/* Post Content */}
             {post.content && (
               <>
                 <div
-                  ref={contentRef}
                   className={cn(
-                    "text-foreground whitespace-pre-wrap break-words text-sm sm:text-base",
-                    !isContentExpanded &&
-                      isContentOverflowing &&
-                      "max-h-32 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_50%,transparent_100%)]",
+                    "relative",
+                    verticalIdentity && "mt-1 sm:mt-1.5",
                   )}
                 >
-                  <MfmRenderer text={post.content} />
+                  {linkToDetail && (
+                    <Link
+                      href={detailHref}
+                      aria-label={t("openDetail")}
+                      tabIndex={-1}
+                      className="absolute inset-0 z-0"
+                    />
+                  )}
+                  <div
+                    ref={contentRef}
+                    className={cn(
+                      "relative text-foreground whitespace-pre-wrap break-words text-sm sm:text-base",
+                      linkToDetail &&
+                        'select-none pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_.mfm-blur]:pointer-events-auto [&_[role="button"]]:pointer-events-auto',
+                      !isContentExpanded &&
+                        isContentOverflowing &&
+                        "max-h-32 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_50%,transparent_100%)]",
+                    )}
+                  >
+                    <MfmRenderer text={post.content} />
+                  </div>
                 </div>
                 {isContentOverflowing && (
                   <div className="flex justify-start mt-1">
