@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
       animation: localeController,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Ciel Native App',
+          title: 'Ciel',
           onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
           theme: AppTheme.light(),
           locale: localeController.locale,
