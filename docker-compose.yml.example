@@ -76,8 +76,6 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
-      # 初回起動時のみ自動実行（DBが空のとき）
-      - ./apps/backend/db/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ciel} -d ${POSTGRES_DB:-ciel}"]
       interval: 3s

@@ -15,6 +15,7 @@ const protocol = url.protocol.replace(":", "") as "http" | "https";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  output: "standalone",
 
   // Inject build version info (defaults to "dev" for local development)
   env: {
