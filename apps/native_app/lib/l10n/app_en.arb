@@ -1,0 +1,9 @@
+{
+  "appTitle": "Ciel Native App",
+  "homeAppBarTitle": "Ciel",
+  "notoSansTitle": "Noto Sans",
+  "notoSansDescription": "The quick brown fox jumps over the lazy dog.",
+  "notoSansJpTitle": "Noto Sans JP",
+  "notoSansJpDescription": "A quick brown fox jumps over a lazy dog in Japanese.",
+  "incrementTooltip": "Increment counter"
+}
