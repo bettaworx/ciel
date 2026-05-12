@@ -179,7 +179,7 @@ Check URL: <https://example.com>
             const Text('Rendered by mfm package:'),
             const SizedBox(height: 8),
             Mfm(
-              _controller.text,
+              mfmText: _controller.text,
               shrinkWrap: true,
             ),
           ],
