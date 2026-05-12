@@ -180,7 +180,6 @@ Check URL: <https://example.com>
             const SizedBox(height: 8),
             Mfm(
               mfmText: _controller.text,
-              shrinkWrap: true,
             ),
           ],
         ),
