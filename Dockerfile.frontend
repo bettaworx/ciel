@@ -41,7 +41,14 @@ RUN pnpm run build
 # Remove source maps from the build output to avoid exposing source structure
 RUN find .next -name "*.map" -delete
 
-FROM node:22-bookworm-slim@sha256:868499d55378719bffa87b0ed1f099591823c029b543043c09c2483468e93201 AS runner
+# Install sharp for the runtime platform ($TARGETPLATFORM).
+# The deps/builder stages run on $BUILDPLATFORM, so the sharp binary in the
+# standalone output is for the build host. This stage fetches the correct one.
+FROM --platform=$TARGETPLATFORM node:22-bookworm-slim AS sharp-target
+WORKDIR /sharp
+RUN npm install --prefer-optional --no-package-lock sharp@0.34.5
+
+FROM --platform=$TARGETPLATFORM node:22-bookworm-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -54,9 +61,16 @@ RUN addgroup --system --gid 1001 nodejs \
 ENV HOME=/home/nextjs
 ENV COREPACK_HOME=/home/nextjs/.cache/node/corepack
 
-COPY --from=builder /app/apps/frontend/.next/standalone ./
-COPY --from=builder /app/apps/frontend/.next/static ./apps/frontend/.next/static
-COPY --from=builder /app/apps/frontend/public ./apps/frontend/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/static ./apps/frontend/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/public ./apps/frontend/public
+
+# Replace the build-platform sharp binary with the target-platform binary.
+# Cover both locations the standalone output may place it in a pnpm monorepo.
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/sharp ./node_modules/sharp
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/@img ./node_modules/@img
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/sharp ./apps/frontend/node_modules/sharp
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/@img ./apps/frontend/node_modules/@img
 
 USER nextjs
 

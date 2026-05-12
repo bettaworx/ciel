@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
+import Link from "next/link";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -31,6 +33,13 @@ export function WelcomeCard() {
   const router = useRouter();
   const { data: serverInfo } = useServerInfo();
   const isDesktop = useMediaQuery("(min-width: 640px)");
+
+  useEffect(() => {
+    router.prefetch("/login");
+    router.prefetch("/signup");
+    router.prefetch("/about");
+    router.prefetch("/version");
+  }, [router]);
 
   const handleLanguageChange = (newLocale: Locale) => {
     setClientLocale(newLocale);
@@ -137,11 +146,15 @@ export function WelcomeCard() {
           </DropdownMenu>
         </div>
         <div className="flex flex-row gap-3">
-          <Button onClick={() => router.push("/login")}>
-            {t("login.title")}
+          <Button asChild>
+            <Link href="/login" prefetch>
+              {t("login.title")}
+            </Link>
           </Button>
-          <Button variant="primary" onClick={() => router.push("/signup")}>
-            {t("signup.createAccount")}
+          <Button asChild variant="primary">
+            <Link href="/signup" prefetch>
+              {t("signup.createAccount")}
+            </Link>
           </Button>
         </div>
       </div>
