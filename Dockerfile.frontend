@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS base
+FROM --platform=$BUILDPLATFORM node:22-bookworm-slim@sha256:868499d55378719bffa87b0ed1f099591823c029b543043c09c2483468e93201 AS base
 
 FROM base AS deps
 WORKDIR /app
@@ -9,8 +9,9 @@ COPY .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/frontend/package.json ./apps/frontend/package.json
 COPY packages/kotodoki/package.json ./packages/kotodoki/package.json
 
+# CI/release builds require an up-to-date pnpm-lock.yaml; fail fast on lockfile drift.
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    corepack enable pnpm && pnpm install --no-frozen-lockfile
+    corepack enable pnpm && pnpm install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app
@@ -40,8 +41,15 @@ RUN pnpm run build
 # Remove source maps from the build output to avoid exposing source structure
 RUN find .next -name "*.map" -delete
 
-FROM node:22-bookworm-slim AS runner
-WORKDIR /app/apps/frontend
+# Install sharp for the runtime platform ($TARGETPLATFORM).
+# The deps/builder stages run on $BUILDPLATFORM, so the sharp binary in the
+# standalone output is for the build host. This stage fetches the correct one.
+FROM --platform=$TARGETPLATFORM node:22-bookworm-slim AS sharp-target
+WORKDIR /sharp
+RUN npm install --prefer-optional --no-package-lock sharp@0.34.5
+
+FROM --platform=$TARGETPLATFORM node:22-bookworm-slim AS runner
+WORKDIR /app
 
 ENV NODE_ENV=production
 
@@ -53,20 +61,20 @@ RUN addgroup --system --gid 1001 nodejs \
 ENV HOME=/home/nextjs
 ENV COREPACK_HOME=/home/nextjs/.cache/node/corepack
 
-RUN corepack enable pnpm \
-  && corepack prepare pnpm@10.28.2 --activate
+COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/static ./apps/frontend/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/public ./apps/frontend/public
 
-COPY --from=builder /app/apps/frontend/package.json ./package.json
-COPY --from=builder /app/node_modules /app/node_modules
-COPY --from=builder /app/apps/frontend/node_modules ./node_modules
-COPY --from=builder /app/packages/kotodoki/package.json /app/packages/kotodoki/package.json
-COPY --from=builder /app/packages/kotodoki/dist /app/packages/kotodoki/dist
-COPY --from=builder /app/apps/frontend/public ./public
-COPY --from=builder /app/apps/frontend/.next ./.next
+# Replace the build-platform sharp binary with the target-platform binary.
+# Cover both locations the standalone output may place it in a pnpm monorepo.
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/sharp ./node_modules/sharp
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/@img ./node_modules/@img
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/sharp ./apps/frontend/node_modules/sharp
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/@img ./apps/frontend/node_modules/@img
 
 USER nextjs
 
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-CMD ["pnpm", "start"]
+CMD ["node", "apps/frontend/server.js"]

@@ -698,7 +698,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           open={cropDialogOpen}
           onOpenChange={setCropDialogOpen}
           imageSrc={cropImageSrc}
-          aspect={cropAspect}
+          aspectMode={{ mode: "fixed", aspect: cropAspect }}
           title={cropTitle}
           originalFile={pendingCropFile}
           onCropComplete={handleCropComplete}

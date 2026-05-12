@@ -492,9 +492,12 @@ export function PostComposerContent({
             open={cropDialogOpen}
             onOpenChange={handleCropDialogOpenChange}
             imageSrc={cropImageSrc}
+            aspectMode={{ mode: "selectable", defaultId: "free" }}
             title={t("createPost.cropTitle")}
             originalFile={pendingCropImage.originalFile}
             initialCrop={pendingCropImage.crop}
+            initialTransform={pendingCropImage.cropTransform}
+            initialAspectId={pendingCropImage.cropAspectId}
             contentClassName={cropDialogZIndexClass}
             overlayClassName="z-[65]"
             onCropComplete={handleCropComplete}
@@ -533,10 +536,12 @@ export function PostComposerContent({
           open={cropDialogOpen}
           onOpenChange={handleCropDialogOpenChange}
           imageSrc={cropImageSrc}
-          aspect={1}
+          aspectMode={{ mode: "selectable", defaultId: "free" }}
           title={t("createPost.cropTitle")}
           originalFile={pendingCropImage.originalFile}
           initialCrop={pendingCropImage.crop}
+          initialTransform={pendingCropImage.cropTransform}
+          initialAspectId={pendingCropImage.cropAspectId}
           contentClassName={cropDialogZIndexClass}
           overlayClassName="z-[65]"
           onCropComplete={handleCropComplete}

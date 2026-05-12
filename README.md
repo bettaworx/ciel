@@ -6,63 +6,83 @@ This project is under development and is very unstable; there may be breaking ch
 We do our best to avoid that since we operate a real server. But sometimes we have to make difficult choices.
 
 # Running Ciel
-We recommend using it with a container, such as Docker or Podman. But it's cool to build an environment from scratch.
 
-The required libraries are:
-- node (22.16.0+)
-- go (1.26.0+)
-- pnpm (10.28.0+)
+We recommend using Docker. Local setup (without Docker) is also supported for development.
 
-Clone the repository:
+> **Upgrading from an older installation?** If your database was previously initialized via
+> `schema.sql` (before the golang-migrate migration system was introduced), see
+> [docs/migrate-from-schema-sql.md](docs/migrate-from-schema-sql.md) for upgrade steps.
+
+## Setup with Docker
+
+**Prerequisites:** Docker
+
+Clone the repository and set up config files:
+
 ```bash
 git clone https://github.com/bettaworx/ciel
 cd ciel
+cp .env.example .env
+cp docker-compose.yml.example docker-compose.yml
+cp apps/backend/config/config.yaml.example apps/backend/config/config.yaml
 ```
 
-Install the dependencies (node):
-```
-pnpm install
-```
+Edit `.env` and set the required secrets (passwords, JWT secret, etc.):
 
-Install the dependencies (go):
-```
-cd ./apps/backend/ && go install
-```
-
-Generate the code from the OpenAPI Scheme:
-```
-pnpm run gen:openapi && pnpm run gen:openapi:ts
-```
-
-Generate the code from the SQL query:
-```
-pnpm run gen:sqlc
-```
-
-Create `.env` file:
 ```bash
-mv ./.env.example ./.env
+nano .env
 ```
 
-Ciel requires passwords for the databases, an initial setup, a JWT secret, and a real-time signing secret. Open the .env file and set the secrets:
+Build the images:
+
 ```bash
-nano ./.env
+docker compose build
 ```
 
-Create `config.yaml` file:
-```bash
-mv ./apps/backend/config/config.yaml.example ./apps/backend/config/config.yaml
-```
-If you want to change anything at that point, do so; most things will be auto-configured by the backend.
+### Base image digest update policy
 
-Create `docker-compose.yml` file:
+`Dockerfile.frontend` pins `node:22-bookworm-slim` by digest to keep image layers reproducible.
+
+- Update the digest when you intentionally bump Node 22 slim base contents (security patches or monthly maintenance).
+- Keep `base` and `runner` on the same digest in `Dockerfile.frontend`.
+- Recommended update flow:
+
 ```bash
-mv ./docker-compose.yml.example ./docker-compose.yml
+# 1) Fetch current amd64 digest for node:22-bookworm-slim
+TOKEN=$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/node:pull" | jq -r .token)
+curl -fsSL -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/vnd.oci.image.index.v1+json" \
+  https://registry-1.docker.io/v2/library/node/manifests/22-bookworm-slim \
+  | jq -r '.manifests[] | select(.platform.architecture=="amd64" and .platform.os=="linux") | .digest'
+
+# 2) Replace both FROM lines in Dockerfile.frontend
+# 3) Rebuild and verify
+docker compose build frontend
 ```
 
-Build images and compose containers:
+Initialize the database (run once on first setup):
+
 ```bash
-docker compose up --build
+docker compose run --rm backend /app/migrate-db up
+```
+
+Start all services:
+
+```bash
+docker compose up
+```
+
+### Database management (Docker)
+
+```bash
+# Apply all pending migrations
+docker compose run --rm backend /app/migrate-db up
+
+# Roll back the latest migration
+docker compose run --rm backend /app/migrate-db down 1
+
+# Roll back all migrations
+docker compose run --rm backend /app/migrate-db down -all
 ```
 
 # License

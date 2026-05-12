@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,7 +12,7 @@ import { useMediaQuery } from "@/lib/hooks/use-media-query";
 
 // Atoms
 import { isAuthenticatedAtom, userAtom } from "@/atoms/auth";
-import { themeAtom, type Theme } from "@/atoms/theme";
+import { themeAtom } from "@/atoms/theme";
 
 // i18n
 import { LOCALE_STORAGE_KEY, locales, defaultLocale, type Locale } from "@/i18n/constants";
@@ -99,6 +100,16 @@ export function AuthButtons() {
     router.push("/settings");
   };
 
+  useEffect(() => {
+    router.prefetch("/login");
+    router.prefetch("/signup");
+    router.prefetch("/settings");
+
+    if (user?.username) {
+      router.prefetch(`/users/${user.username}`);
+    }
+  }, [router, user?.username]);
+
   if (isAuthenticated && user) {
     const initials = (user.displayName?.[0] || user.username[0]).toUpperCase();
 
@@ -159,11 +170,15 @@ export function AuthButtons() {
   // 未認証ユーザー
   return (
     <>
-      <Button variant="secondary" onClick={() => router.push("/login")}>
-        {t("login.title")}
+      <Button asChild variant="secondary">
+        <Link href="/login" prefetch>
+          {t("login.title")}
+        </Link>
       </Button>
-      <Button variant="primary" onClick={() => router.push("/signup")}>
-        {t("signup.createAccount")}
+      <Button asChild variant="primary">
+        <Link href="/signup" prefetch>
+          {t("signup.createAccount")}
+        </Link>
       </Button>
     </>
   );
