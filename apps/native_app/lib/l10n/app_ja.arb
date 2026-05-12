@@ -1,9 +1,28 @@
 {
   "appTitle": "Ciel ネイティブアプリ",
-  "homeAppBarTitle": "Ciel",
-  "notoSansTitle": "Noto Sans",
-  "notoSansDescription": "素早い茶色の狐が怠惰な犬を飛び越える。",
-  "notoSansJpTitle": "Noto Sans JP",
-  "notoSansJpDescription": "日本語の表示サンプルです。",
+  "homeTitle": "ローカライズ確認",
+  "localizationTestDescription": "このページで翻訳文言と言語切り替えを確認できます。",
+  "counterPrompt": "ボタンを押した回数:",
+  "counterValue": "{count, plural, =0{0回} =1{1回} other{{count}回}}",
+  "@counterValue": {
+    "description": "ボタン押下回数",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "languageSwitcherTitle": "言語",
+  "currentLocaleLabel": "現在のロケール: {locale}",
+  "@currentLocaleLabel": {
+    "description": "現在選択中のロケール",
+    "placeholders": {
+      "locale": {
+        "type": "String"
+      }
+    }
+  },
+  "languageEnglish": "英語",
+  "languageJapanese": "日本語",
   "incrementTooltip": "カウンターを増やす"
 }
