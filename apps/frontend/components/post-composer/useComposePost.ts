@@ -31,6 +31,8 @@ import {
   ACCEPTED_VIDEO_TYPES,
 } from "./constants";
 import type { Crop } from "react-image-crop";
+import type { AspectRatioId } from "@/components/shared/image-crop/aspectRatios";
+import type { Transform } from "@/components/shared/image-crop/transforms";
 
 /** Debounce delay (ms) for OGP URL extraction from content. */
 const OGP_DEBOUNCE_MS = 400;
@@ -349,6 +351,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
             croppedFile: null,
             croppedPreviewUrl: null,
             crop: null,
+            cropTransform: null,
+            cropAspectId: null,
             file,
             previewUrl,
             isAnimated: isAnimatedImageFile(file),
@@ -505,7 +509,12 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   };
 
   const handleCropComplete = useCallback(
-    async (croppedFile: File, crop?: Crop) => {
+    async (
+      croppedFile: File,
+      crop?: Crop,
+      transform?: Transform,
+      aspectId?: AspectRatioId,
+    ) => {
       if (!pendingCropImageId) return;
 
       const croppedPreviewUrl = URL.createObjectURL(croppedFile);
@@ -530,6 +539,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
             croppedFile,
             croppedPreviewUrl,
             crop: crop ?? img.crop,
+            cropTransform: transform ?? img.cropTransform,
+            cropAspectId: aspectId ?? img.cropAspectId,
             file: croppedFile,
             previewUrl: croppedPreviewUrl,
             width,

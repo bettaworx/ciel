@@ -1,5 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { Crop } from "react-image-crop";
+import type { AspectRatioId } from "@/components/shared/image-crop/aspectRatios";
+import type { Transform } from "@/components/shared/image-crop/transforms";
 
 /**
  * Types for post composition
@@ -12,6 +14,8 @@ export interface LocalImage {
   croppedFile: File | null;
   croppedPreviewUrl: string | null; // Object URL (blob:) for current cropped file
   crop: Crop | null;
+  cropTransform: Transform | null;
+  cropAspectId: AspectRatioId | null;
   file: File;
   previewUrl: string; // Object URL (blob:)
   isAnimated: boolean; // true for GIF and other animated image formats
