@@ -2,34 +2,50 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
+import 'locale/locale_controller.dart';
 import 'theme/app_theme.dart';
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final localeController = LocaleController();
+  await localeController.init();
+
+  runApp(MyApp(localeController: localeController));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.localeController});
+
+  final LocaleController localeController;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
-      theme: AppTheme.light(),
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ],
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: const HomePage(),
+    return AnimatedBuilder(
+      animation: localeController,
+      builder: (context, _) {
+        return MaterialApp(
+          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+          theme: AppTheme.light(),
+          locale: localeController.locale,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+          ],
+          supportedLocales: LocaleController.supportedLocales,
+          home: HomePage(localeController: localeController),
+        );
+      },
     );
   }
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, required this.localeController});
+
+  final LocaleController localeController;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +73,20 @@ class HomePage extends StatelessWidget {
             Text(
               l10n.notoSansJpDescription,
               style: textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 8,
+              children: [
+                FilledButton(
+                  onPressed: () => localeController.setLocale(const Locale('en')),
+                  child: const Text('English'),
+                ),
+                FilledButton(
+                  onPressed: () => localeController.setLocale(const Locale('ja')),
+                  child: const Text('日本語'),
+                ),
+              ],
             ),
           ],
         ),
