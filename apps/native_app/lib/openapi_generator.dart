@@ -1,3 +1,4 @@
+// Openapi Generator last run: : 2026-05-12T12:52:28.021024
 import 'package:openapi_generator_annotations/openapi_generator_annotations.dart';
 
 @Openapi(
@@ -6,7 +7,7 @@ import 'package:openapi_generator_annotations/openapi_generator_annotations.dart
     pubAuthor: 'Ciel',
     pubVersion: '1.0.0',
   ),
-  inputSpec: LocalSpec(path: '../../packages/api/openapi.yml'),
+  inputSpec: InputSpec(path: '../../packages/api/openapi.bundled.yml'),
   generatorName: Generator.dio,
   outputDirectory: 'lib/api',
   runSourceGenOnOutput: true,
