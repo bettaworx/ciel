@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -32,6 +33,13 @@ export function WelcomeCard() {
   const router = useRouter();
   const { data: serverInfo } = useServerInfo();
   const isDesktop = useMediaQuery("(min-width: 640px)");
+
+  useEffect(() => {
+    router.prefetch("/login");
+    router.prefetch("/signup");
+    router.prefetch("/about");
+    router.prefetch("/version");
+  }, [router]);
 
   const handleLanguageChange = (newLocale: Locale) => {
     setClientLocale(newLocale);

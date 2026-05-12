@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -99,6 +99,16 @@ export function AuthButtons() {
     setIsMenuOpen(false);
     router.push("/settings");
   };
+
+  useEffect(() => {
+    router.prefetch("/login");
+    router.prefetch("/signup");
+    router.prefetch("/settings");
+
+    if (user?.username) {
+      router.prefetch(`/users/${user.username}`);
+    }
+  }, [router, user?.username]);
 
   if (isAuthenticated && user) {
     const initials = (user.displayName?.[0] || user.username[0]).toUpperCase();
