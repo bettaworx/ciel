@@ -28,6 +28,11 @@ import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { authAtom } from "@/atoms/auth";
 import {
+  POST_CONTENT_COLLAPSE_HEIGHT,
+  shouldCollapsePostContent,
+  shouldShowPostContentToggle,
+} from "@/lib/post-content";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -66,6 +71,7 @@ export interface PostCardProps {
   isLast?: boolean;
   linkToDetail?: boolean;
   verticalIdentity?: boolean;
+  collapseContent?: boolean;
 }
 
 export function PostCard({
@@ -75,6 +81,7 @@ export function PostCard({
   isLast = false,
   linkToDetail = true,
   verticalIdentity = false,
+  collapseContent = true,
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -102,10 +109,15 @@ export function PostCard({
   const hasReactions = reactions.length > 0;
 
   useEffect(() => {
+    if (!collapseContent) {
+      setIsContentOverflowing(false);
+      return;
+    }
+
     const el = contentRef.current;
     if (!el) return;
-    setIsContentOverflowing(el.scrollHeight > 128);
-  }, [post.content]);
+    setIsContentOverflowing(el.scrollHeight > POST_CONTENT_COLLAPSE_HEIGHT);
+  }, [collapseContent, post.content]);
 
   const handleToggleReaction = useCallback(
     (emoji: string) => {
@@ -206,6 +218,15 @@ export function PostCard({
     () =>
       media.length === 0 && post.content ? extractFirstUrl(post.content) : null,
     [media.length, post.content],
+  );
+  const shouldCollapseContent = shouldCollapsePostContent({
+    collapseContent,
+    isExpanded: isContentExpanded,
+    isOverflowing: isContentOverflowing,
+  });
+  const shouldShowContentToggle = shouldShowPostContentToggle(
+    collapseContent,
+    isContentOverflowing,
   );
 
   // Generate initials for avatar fallback
@@ -326,15 +347,14 @@ export function PostCard({
             "relative text-foreground whitespace-pre-wrap break-words text-sm sm:text-base",
             linkToDetail &&
               'select-none pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_.mfm-blur]:pointer-events-auto [&_[role="button"]]:pointer-events-auto',
-            !isContentExpanded &&
-              isContentOverflowing &&
+            shouldCollapseContent &&
               "max-h-32 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_50%,transparent_100%)]",
           )}
         >
           <MfmRenderer text={post.content} />
         </div>
       </div>
-      {isContentOverflowing && (
+      {shouldShowContentToggle && (
         <div className="flex justify-start mt-1">
           <Button
             variant="link"

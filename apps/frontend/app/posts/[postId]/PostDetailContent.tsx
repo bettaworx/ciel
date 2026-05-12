@@ -49,6 +49,7 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
             isLast
             linkToDetail={false}
             verticalIdentity
+            collapseContent={false}
             onUserClick={(username) => router.push(`/users/${username}`)}
           />
         </div>
