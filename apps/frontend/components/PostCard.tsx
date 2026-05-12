@@ -270,7 +270,7 @@ export function PostCard({
     <div
       className={cn(
         verticalIdentity
-          ? "flex flex-col justify-center min-w-0 py-0.5 gap-0.5"
+          ? "flex flex-col justify-center min-w-0"
           : "flex items-center gap-1.5 min-w-0",
       )}
     >
