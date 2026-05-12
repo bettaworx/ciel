@@ -61,16 +61,16 @@ RUN addgroup --system --gid 1001 nodejs \
 ENV HOME=/home/nextjs
 ENV COREPACK_HOME=/home/nextjs/.cache/node/corepack
 
-COPY --from=builder /app/apps/frontend/.next/standalone ./
-COPY --from=builder /app/apps/frontend/.next/static ./apps/frontend/.next/static
-COPY --from=builder /app/apps/frontend/public ./apps/frontend/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/static ./apps/frontend/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/public ./apps/frontend/public
 
 # Replace the build-platform sharp binary with the target-platform binary.
 # Cover both locations the standalone output may place it in a pnpm monorepo.
-COPY --from=sharp-target /sharp/node_modules/sharp ./node_modules/sharp
-COPY --from=sharp-target /sharp/node_modules/@img ./node_modules/@img
-COPY --from=sharp-target /sharp/node_modules/sharp ./apps/frontend/node_modules/sharp
-COPY --from=sharp-target /sharp/node_modules/@img ./apps/frontend/node_modules/@img
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/sharp ./node_modules/sharp
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/@img ./node_modules/@img
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/sharp ./apps/frontend/node_modules/sharp
+COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/@img ./apps/frontend/node_modules/@img
 
 USER nextjs
 
