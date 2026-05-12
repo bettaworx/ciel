@@ -1,9 +1,28 @@
 {
   "appTitle": "Ciel Native App",
-  "homeAppBarTitle": "Ciel",
-  "notoSansTitle": "Noto Sans",
-  "notoSansDescription": "The quick brown fox jumps over the lazy dog.",
-  "notoSansJpTitle": "Noto Sans JP",
-  "notoSansJpDescription": "A quick brown fox jumps over a lazy dog in Japanese.",
+  "homeTitle": "Localization Test",
+  "localizationTestDescription": "Use this page to verify localized text and language switching.",
+  "counterPrompt": "You have pushed the button this many times:",
+  "counterValue": "{count, plural, =0{0 times} =1{1 time} other{{count} times}}",
+  "@counterValue": {
+    "description": "Current number of button presses",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "languageSwitcherTitle": "Language",
+  "currentLocaleLabel": "Current locale: {locale}",
+  "@currentLocaleLabel": {
+    "description": "Currently selected locale",
+    "placeholders": {
+      "locale": {
+        "type": "String"
+      }
+    }
+  },
+  "languageEnglish": "English",
+  "languageJapanese": "Japanese",
   "incrementTooltip": "Increment counter"
 }

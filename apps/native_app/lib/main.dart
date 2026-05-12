@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import 'locale/locale_controller.dart';
@@ -25,16 +24,12 @@ class MyApp extends StatelessWidget {
       animation: localeController,
       builder: (context, _) {
         return MaterialApp(
+          title: 'Ciel Native App',
           onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
           theme: AppTheme.light(),
           locale: localeController.locale,
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-          ],
-          supportedLocales: LocaleController.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: HomePage(localeController: localeController),
         );
       },
@@ -42,49 +37,60 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.localeController});
 
   final LocaleController localeController;
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int _counter = 0;
+
+  void _incrementCounter() {
+    setState(() {
+      _counter++;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.homeAppBarTitle),
+        title: Text(l10n.homeTitle),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.notoSansTitle, style: textTheme.headlineSmall),
+            Text(l10n.localizationTestDescription, style: Theme.of(context).textTheme.bodyLarge),
+            const SizedBox(height: 24),
+            Text(l10n.counterPrompt, style: Theme.of(context).textTheme.bodyLarge),
+            const SizedBox(height: 8),
+            Text(l10n.counterValue(_counter), style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 24),
+            Text(l10n.languageSwitcherTitle, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
-              l10n.notoSansDescription,
-              style: textTheme.bodyLarge,
+              l10n.currentLocaleLabel(Localizations.localeOf(context).toLanguageTag()),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 24),
-            Text(l10n.notoSansJpTitle, style: textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(
-              l10n.notoSansJpDescription,
-              style: textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               children: [
                 FilledButton(
-                  onPressed: () => localeController.setLocale(const Locale('en')),
-                  child: const Text('English'),
+                  onPressed: () => widget.localeController.setLocale(const Locale('en')),
+                  child: Text(l10n.languageEnglish),
                 ),
                 FilledButton(
-                  onPressed: () => localeController.setLocale(const Locale('ja')),
-                  child: const Text('日本語'),
+                  onPressed: () => widget.localeController.setLocale(const Locale('ja')),
+                  child: Text(l10n.languageJapanese),
                 ),
               ],
             ),
@@ -92,7 +98,7 @@ class HomePage extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: _incrementCounter,
         tooltip: l10n.incrementTooltip,
         child: const Icon(Icons.add),
       ),
