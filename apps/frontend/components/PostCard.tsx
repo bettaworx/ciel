@@ -353,7 +353,7 @@ export function PostCard({
     <div
       className={cn(
         "mb-3 sm:mb-3",
-        verticalIdentity && "mt-1 sm:mt-1.5",
+        verticalIdentity && "mt-3 sm:mt-3",
       )}
     >
       {/* OGP Link Preview – only when no media is attached */}
