@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Ciel Native App';
+  String get appTitle => 'Ciel';
 
   @override
   String get homeTitle => 'Localization Test';
