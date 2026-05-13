@@ -543,7 +543,8 @@
       "description": "Upload a profile picture",
       "upload": "Choose Image",
       "change": "Change Image",
-      "uploading": "Uploading..."
+      "uploading": "Uploading...",
+      "cropTitle": "Crop Avatar"
     },
     "bio": {
       "title": "Tell Us About Yourself",

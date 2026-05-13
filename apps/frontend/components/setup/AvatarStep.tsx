@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { User, Upload } from "lucide-react";
 import Image from "next/image";
 
@@ -20,19 +21,30 @@ export function AvatarStep({
   const t = useTranslations();
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Preview
     const reader = new FileReader();
     reader.onloadend = () => {
-      setPreview(reader.result as string);
+      setCropImageSrc(reader.result as string);
+      setPendingCropFile(file);
+      setCropDialogOpen(true);
     };
     reader.readAsDataURL(file);
-    setSelectedFile(file);
+  };
+
+  const handleCropComplete = (croppedFile: File) => {
+    setPreview(URL.createObjectURL(croppedFile));
+    setSelectedFile(croppedFile);
+    setCropDialogOpen(false);
+    setCropImageSrc(null);
+    setPendingCropFile(null);
   };
 
   const handleUploadClick = () => {
@@ -97,6 +109,18 @@ export function AvatarStep({
           </div>
         </div>
       </form>
+
+      {cropDialogOpen && cropImageSrc && pendingCropFile && (
+        <ImageCropDialog
+          open={cropDialogOpen}
+          onOpenChange={setCropDialogOpen}
+          imageSrc={cropImageSrc}
+          aspectMode={{ mode: "fixed", aspect: 1 }}
+          title={t("setup.avatar.cropTitle")}
+          originalFile={pendingCropFile}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </div>
   );
 }
