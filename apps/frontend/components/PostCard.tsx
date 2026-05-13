@@ -337,7 +337,7 @@ export function PostCard({
   );
 
   const standaloneTimestampNode = (
-    <div className="mt-2 mb-2 text-left">
+    <div className="mb-2 text-left">
       <span
         className="text-muted-foreground text-xs"
         aria-label={fullTimestamp}
