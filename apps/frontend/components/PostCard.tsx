@@ -358,7 +358,7 @@ export function PostCard({
       <div
         className={cn(
           "relative",
-          verticalIdentity && "mt-2 sm:mt-3 mb-1 sm:mb-1.5",
+          verticalIdentity && "mt-3 mb-1 sm:mb-1.5",
         )}
       >
         {linkToDetail && (
