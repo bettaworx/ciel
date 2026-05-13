@@ -285,14 +285,15 @@ export function PostCard({
     <div
       className={cn(
         verticalIdentity
-          ? "flex flex-col justify-center min-w-0"
-          : "flex items-center gap-1.5 min-w-0",
+          ? "flex max-w-full min-w-0 flex-1 flex-col justify-center"
+          : "flex max-w-full min-w-0 items-center gap-1.5 overflow-hidden",
       )}
     >
       <button
         onClick={handleUserClick}
+        title={displayName}
         className={cn(
-          "font-semibold text-foreground hover:underline focus:underline focus:outline-none truncate",
+          "block max-w-full min-w-0 truncate overflow-hidden whitespace-nowrap text-left font-semibold text-foreground hover:underline focus:underline focus:outline-none",
           "text-sm sm:text-base",
           verticalIdentity && "leading-tight",
         )}
@@ -300,12 +301,14 @@ export function PostCard({
         <MfmRenderer
           text={displayName}
           allowList={DISPLAY_NAME_ALLOW_LIST}
+          className="block max-w-full min-w-0 truncate overflow-hidden whitespace-nowrap [&_*]:max-w-full"
         />
       </button>
       {hasDisplayName && (
         <span
+          title={`@${username}`}
           className={cn(
-            "text-muted-foreground text-sm sm:text-base truncate",
+            "block max-w-full min-w-0 truncate overflow-hidden whitespace-nowrap text-muted-foreground text-sm sm:text-base",
             verticalIdentity && "leading-tight",
           )}
         >
@@ -321,7 +324,7 @@ export function PostCard({
       variant="link"
       size="sm"
       rounded="none"
-      className="h-auto p-0 text-xs font-normal text-muted-foreground shrink-0"
+      className="ml-auto h-auto p-0 text-xs font-normal text-muted-foreground shrink-0"
     >
       <Link
         href={detailHref}
@@ -579,7 +582,7 @@ export function PostCard({
         <>
           {/* Identity row with avatar embedded — full width, no avatar indent below */}
           <div className="flex justify-between items-start gap-2">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex max-w-full min-w-0 flex-1 items-center gap-3">
               {avatarNode}
               {identityStackNode}
             </div>
@@ -595,7 +598,7 @@ export function PostCard({
           {avatarNode}
           <div className="flex-1 min-w-0 flex flex-col">
             <div className="mb-1 sm:mb-1.5">
-              <div className="flex justify-between items-center flex-wrap gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 {identityStackNode}
                 {timestampPlacement === "header" && timestampNode}
               </div>
