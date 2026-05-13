@@ -543,7 +543,8 @@
       "description": "プロフィール画像をアップロードしてください",
       "upload": "画像を選択",
       "change": "画像を変更",
-      "uploading": "アップロード中..."
+      "uploading": "アップロード中...",
+      "cropTitle": "アバターをトリミング"
     },
     "bio": {
       "title": "自己紹介を設定",
