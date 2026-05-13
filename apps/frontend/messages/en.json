@@ -402,7 +402,8 @@
       "settingsAccount": "Account",
       "settingsSecurity": "Security",
       "setup": "Setup Profile",
-      "adminSetup": "Server Setup"
+      "adminSetup": "Server Setup",
+      "postDetail": "Post"
     }
   },
   "timeline": {
@@ -553,7 +554,11 @@
     "success": "Profile saved successfully",
     "error": "Failed to save profile"
   },
+  "postDetail": {
+    "notFound": "Post not found"
+  },
   "postCard": {
+    "openDetail": "Open post details",
     "justNow": "just now",
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
