@@ -25,11 +25,35 @@ const bundle: EmojibaseDataBundle = {
       subgroup: 0,
     },
     {
+      emoji: "©️",
+      label: "著作権",
+      group: 0,
+      subgroup: 0,
+    },
+    {
       emoji: "👋",
       label: "手を振る",
       group: 1,
       subgroup: 0,
       skins: [{ tone: 1, emoji: "👋🏻" }],
+    },
+    {
+      emoji: "👍️",
+      label: "サムズアップ",
+      group: 1,
+      subgroup: 0,
+    },
+    {
+      emoji: "❓️",
+      label: "赤い疑問符",
+      group: 1,
+      subgroup: 0,
+    },
+    {
+      emoji: "❌️",
+      label: "バツ",
+      group: 1,
+      subgroup: 0,
     },
     {
       emoji: "🏻",
@@ -62,6 +86,7 @@ describe("emojibase data helpers", () => {
     ]);
     expect(categories[0].emojis.map((emoji) => emoji.label)).toEqual([
       "にっこり笑う",
+      "著作権",
     ]);
     expect(categories[0].emojis[0].searchText).toContain("スマイル");
     expect(categories[1].emojis[0].skins).toEqual([{ tone: 1, emoji: "👋🏻" }]);
@@ -71,6 +96,13 @@ describe("emojibase data helpers", () => {
     const categories = buildStandardEmojiCategories(bundle);
     const allItems = categories.flatMap((category) => category.emojis);
 
-    expect(allItems.map((emoji) => emoji.emoji)).toEqual(["😀", "👋"]);
+    expect(allItems.map((emoji) => emoji.emoji)).toEqual([
+      "😀",
+      "©️",
+      "👋",
+      "👍",
+      "❓",
+      "❌",
+    ]);
   });
 });

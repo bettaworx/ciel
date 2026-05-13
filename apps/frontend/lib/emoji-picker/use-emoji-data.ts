@@ -13,7 +13,7 @@ import { CATEGORY_META } from "./constants";
 import {
   buildEmojiSearchText,
   getEmojiSrc,
-  isSingleTwemojiEmoji,
+  normalizeTwemojiEmoji,
 } from "./helpers";
 import type { EmojiCategory, EmojiItem } from "./types";
 
@@ -119,7 +119,7 @@ export function resolveEmoji(item: EmojiItem, tone: number): string {
     Array.isArray(s.tone) ? s.tone[0] === tone : s.tone === tone,
   );
   if (!skin) return base;
-  return isSingleTwemojiEmoji(skin.emoji) ? skin.emoji : base;
+  return normalizeTwemojiEmoji(skin.emoji) ?? base;
 }
 
 function isSelectableEmojibaseEntry(
@@ -137,21 +137,22 @@ function isSelectableEmojibaseEntry(
     return false;
   }
 
-  return isSingleTwemojiEmoji(entry.emoji);
+  return normalizeTwemojiEmoji(entry.emoji) !== null;
 }
 
 function buildStandardEmojiItem(entry: EmojibaseEntry & { group: number }): EmojiItem {
+  const emoji = normalizeTwemojiEmoji(entry.emoji) ?? entry.emoji;
   const searchParts = [entry.label, ...(entry.tags ?? [])];
 
   return {
-    key: `standard:${entry.emoji}`,
+    key: `standard:${emoji}`,
     type: "standard",
-    emoji: entry.emoji,
+    emoji,
     label: entry.label,
     searchText: buildEmojiSearchText(searchParts.join(" ")),
     group: entry.group,
     skins: entry.skins,
-    src: getEmojiSrc(entry.emoji, "png"),
+    src: getEmojiSrc(emoji, "png"),
   };
 }
 
