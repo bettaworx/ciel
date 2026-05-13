@@ -61,21 +61,19 @@ import type { components } from "@/lib/api/api";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { PostMediaPreview } from "@/components/PostMediaPreview";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
+import {
+  getPostCardDisplayConfig,
+  type PostCardVariant,
+} from "@/components/post-card-display";
 
 type Post = components["schemas"]["Post"];
-type TimestampVariant = "relative" | "full";
-type TimestampPlacement = "header" | "afterContent";
 
 export interface PostCardProps {
   post: Post;
   onUserClick?: (username: string) => void;
   className?: string;
   isLast?: boolean;
-  linkToDetail?: boolean;
-  verticalIdentity?: boolean;
-  collapseContent?: boolean;
-  timestampVariant?: TimestampVariant;
-  timestampPlacement?: TimestampPlacement;
+  variant?: PostCardVariant;
 }
 
 export function PostCard({
@@ -83,11 +81,7 @@ export function PostCard({
   onUserClick,
   className,
   isLast = false,
-  linkToDetail = true,
-  verticalIdentity = false,
-  collapseContent = true,
-  timestampVariant = "relative",
-  timestampPlacement = "header",
+  variant = "timeline",
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -113,6 +107,14 @@ export function PostCard({
   const contentRef = useRef<HTMLDivElement>(null);
   const isOwner = auth.user?.id === post.author?.id;
   const hasReactions = reactions.length > 0;
+  const displayConfig = getPostCardDisplayConfig(variant);
+  const {
+    linkToDetail,
+    collapseContent,
+    timestampFormat,
+    timestampPlacement,
+  } = displayConfig;
+  const verticalIdentity = displayConfig.identityLayout === "vertical";
 
   useEffect(() => {
     if (!collapseContent) {
@@ -202,7 +204,7 @@ export function PostCard({
   const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
   const fullTimestamp = formatFullTimestamp(createdAt, locale);
   const timestampText =
-    timestampVariant === "full"
+    timestampFormat === "full"
       ? fullTimestamp
       : formatTimeAgo(createdAt, locale);
   const media = useMemo(() => post.media || [], [post.media]);

@@ -47,11 +47,7 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
           <PostCard
             post={post}
             isLast
-            linkToDetail={false}
-            verticalIdentity
-            collapseContent={false}
-            timestampVariant="full"
-            timestampPlacement="afterContent"
+            variant="detail"
             onUserClick={(username) => router.push(`/users/${username}`)}
           />
         </div>
