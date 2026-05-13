@@ -1,42 +1,116 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { EMOJIBASE_CDN, CATEGORY_META } from "./constants";
+import type { LucideIcon } from "lucide-react";
+import { Smile } from "lucide-react";
+
+import {
+  defaultLocale,
+  locales,
+  type Locale,
+} from "@/i18n/constants";
+import { CATEGORY_META } from "./constants";
 import {
   buildEmojiSearchText,
   getEmojiSrc,
   isSingleTwemojiEmoji,
 } from "./helpers";
-import type { EmojiItem, EmojiCategory } from "./types";
-import type { LucideIcon } from "lucide-react";
-import { Smile } from "lucide-react";
+import type { EmojiCategory, EmojiItem } from "./types";
 
-// ---------------------------------------------------------------------------
-// Emojibase raw types
-// ---------------------------------------------------------------------------
+export type EmojibaseLocale = Locale;
 
-interface EmojibaseEntry {
+export interface EmojibaseSkin {
+  tone: number | number[];
   emoji: string;
-  label: string;
-  group: number;
-  subgroup?: number;
-  skins?: Array<{ tone: number | number[]; emoji: string }>;
 }
 
-interface EmojibaseGroupMessage {
+export interface EmojibaseEntry {
+  emoji: string;
+  label: string;
+  group?: number;
+  subgroup?: number;
+  tags?: string[];
+  skins?: EmojibaseSkin[];
+}
+
+export interface EmojibaseMessage {
   key: string;
   message: string;
   order: number;
 }
 
-interface EmojibaseMessages {
-  groups: EmojibaseGroupMessage[];
-  skinTones: Record<string, string>;
+export interface EmojibaseMessages {
+  groups: EmojibaseMessage[];
+  skinTones: Array<Pick<EmojibaseMessage, "key" | "message">>;
+  subgroups?: EmojibaseMessage[];
 }
 
-// ---------------------------------------------------------------------------
-// Skin tone resolution (same logic as app/test/emoji/page.tsx)
-// ---------------------------------------------------------------------------
+export interface EmojibaseDataBundle {
+  locale: EmojibaseLocale;
+  emojis: EmojibaseEntry[];
+  messages: EmojibaseMessages;
+}
+
+export interface EmojiData extends EmojibaseDataBundle {
+  categories: EmojiCategory[];
+}
+
+type JsonModule<T> = { default: T };
+type EmojibaseDataLoader = () => Promise<{
+  emojis: EmojibaseEntry[];
+  messages: EmojibaseMessages;
+}>;
+
+const emojibaseDataLoaders: Record<EmojibaseLocale, EmojibaseDataLoader> = {
+  en: async () => {
+    const [emojis, messages] = await Promise.all([
+      import("emojibase-data/en/data.json").then(
+        (module) => (module as JsonModule<EmojibaseEntry[]>).default,
+      ),
+      import("emojibase-data/en/messages.json").then(
+        (module) => (module as JsonModule<EmojibaseMessages>).default,
+      ),
+    ]);
+
+    return { emojis, messages };
+  },
+  ja: async () => {
+    const [emojis, messages] = await Promise.all([
+      import("emojibase-data/ja/data.json").then(
+        (module) => (module as JsonModule<EmojibaseEntry[]>).default,
+      ),
+      import("emojibase-data/ja/messages.json").then(
+        (module) => (module as JsonModule<EmojibaseMessages>).default,
+      ),
+    ]);
+
+    return { emojis, messages };
+  },
+};
+
+export function normalizeEmojibaseLocale(
+  locale: string | null | undefined,
+): EmojibaseLocale {
+  const normalized = locale?.toLowerCase().split("-")[0];
+
+  if (locales.includes(normalized as Locale)) {
+    return normalized as EmojibaseLocale;
+  }
+
+  return defaultLocale;
+}
+
+export async function loadEmojibaseData(
+  locale: string | null | undefined,
+): Promise<EmojibaseDataBundle> {
+  const normalizedLocale = normalizeEmojibaseLocale(locale);
+  const data = await emojibaseDataLoaders[normalizedLocale]();
+
+  return {
+    locale: normalizedLocale,
+    ...data,
+  };
+}
 
 export function resolveEmoji(item: EmojiItem, tone: number): string {
   const base = item.emoji ?? "";
@@ -48,83 +122,97 @@ export function resolveEmoji(item: EmojiItem, tone: number): string {
   return isSingleTwemojiEmoji(skin.emoji) ? skin.emoji : base;
 }
 
-// ---------------------------------------------------------------------------
-// Fetch & process emojibase data
-// ---------------------------------------------------------------------------
+function isSelectableEmojibaseEntry(
+  entry: EmojibaseEntry,
+  componentGroupOrder: number | undefined,
+): entry is EmojibaseEntry & { group: number } {
+  if (entry.group === undefined) {
+    return false;
+  }
 
-async function fetchEmojiData(): Promise<{
-  categories: EmojiCategory[];
-}> {
-  const [data, messages] = await Promise.all([
-    fetch(`${EMOJIBASE_CDN}/en/data.json`).then(
-      (r) => r.json() as Promise<EmojibaseEntry[]>,
-    ),
-    fetch(`${EMOJIBASE_CDN}/en/messages.json`).then(
-      (r) => r.json() as Promise<EmojibaseMessages>,
-    ),
-  ]);
+  if (
+    componentGroupOrder !== undefined &&
+    entry.group === componentGroupOrder
+  ) {
+    return false;
+  }
 
-  // Exclude the "component" group (skin tone modifier characters etc.)
-  const componentGroupOrder = messages.groups.find(
-    (g) => g.key === "component",
+  return isSingleTwemojiEmoji(entry.emoji);
+}
+
+function buildStandardEmojiItem(entry: EmojibaseEntry & { group: number }): EmojiItem {
+  const searchParts = [entry.label, ...(entry.tags ?? [])];
+
+  return {
+    key: `standard:${entry.emoji}`,
+    type: "standard",
+    emoji: entry.emoji,
+    label: entry.label,
+    searchText: buildEmojiSearchText(searchParts.join(" ")),
+    group: entry.group,
+    skins: entry.skins,
+    src: getEmojiSrc(entry.emoji, "png"),
+  };
+}
+
+export function buildStandardEmojiCategories(
+  bundle: EmojibaseDataBundle,
+): EmojiCategory[] {
+  const componentGroupOrder = bundle.messages.groups.find(
+    (group) => group.key === "component",
   )?.order;
+  const validEmojis = bundle.emojis.filter((entry) =>
+    isSelectableEmojibaseEntry(entry, componentGroupOrder),
+  );
+  const emojisByGroup = new Map<number, Array<EmojibaseEntry & { group: number }>>();
 
-  // Only keep emojis that twemoji 16.x recognises as a single unit
-  const valid = data.filter((e) => {
-    if (!("group" in e)) return false;
-    if (
-      componentGroupOrder !== undefined &&
-      e.group === componentGroupOrder
-    )
-      return false;
-    return isSingleTwemojiEmoji(e.emoji);
-  });
+  for (const emoji of validEmojis) {
+    const group = emojisByGroup.get(emoji.group);
+    if (group) {
+      group.push(emoji);
+    } else {
+      emojisByGroup.set(emoji.group, [emoji]);
+    }
+  }
 
-  // Build sorted group list
-  const sortedGroups = messages.groups
-    .filter((g) => g.key !== "component")
-    .sort((a, b) => a.order - b.order);
+  return bundle.messages.groups
+    .filter((group) => group.key !== "component")
+    .sort((left, right) => left.order - right.order)
+    .map((group) => {
+      const emojis = emojisByGroup.get(group.order);
+      if (!emojis || emojis.length === 0) return null;
 
-  const categories: EmojiCategory[] = sortedGroups
-    .map((g) => {
-      const emojis = valid.filter((e) => e.group === g.order);
-      if (emojis.length === 0) return null;
-
-      const meta = CATEGORY_META[g.order];
+      const meta = CATEGORY_META[group.order];
       const icon: LucideIcon = meta?.icon ?? Smile;
-      const id = meta?.id ?? g.key;
+      const id = meta?.id ?? group.key;
 
       return {
         id,
-        label: g.message,
+        label: group.message,
         icon,
-        emojis: emojis.map(
-          (e): EmojiItem => ({
-            key: `standard:${e.emoji}`,
-            type: "standard" as const,
-            emoji: e.emoji,
-            label: e.label,
-            searchText: buildEmojiSearchText(e.label),
-            group: e.group,
-            skins: e.skins,
-            src: getEmojiSrc(e.emoji, "png"),
-          }),
-        ),
+        emojis: emojis.map(buildStandardEmojiItem),
       } satisfies EmojiCategory;
     })
-    .filter((c): c is EmojiCategory => c !== null);
-
-  return { categories };
+    .filter((category): category is EmojiCategory => category !== null);
 }
 
-// ---------------------------------------------------------------------------
-// React Query hook
-// ---------------------------------------------------------------------------
+export async function getEmojiData(
+  locale: string | null | undefined,
+): Promise<EmojiData> {
+  const bundle = await loadEmojibaseData(locale);
 
-export function useEmojiData() {
+  return {
+    ...bundle,
+    categories: buildStandardEmojiCategories(bundle),
+  };
+}
+
+export function useEmojiData(locale: string | null | undefined) {
+  const normalizedLocale = normalizeEmojibaseLocale(locale);
+
   return useQuery({
-    queryKey: ["emojibase-data"],
-    queryFn: fetchEmojiData,
+    queryKey: ["emojibase-data", normalizedLocale],
+    queryFn: () => getEmojiData(normalizedLocale),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
   });

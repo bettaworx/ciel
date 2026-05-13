@@ -27,6 +27,14 @@ const standardCategories: EmojiCategory[] = [
         searchText: "face with tears of joy",
         src: "https://example.com/joy.svg",
       },
+      {
+        key: "standard:😊",
+        type: "standard",
+        emoji: "😊",
+        label: "にこにこ",
+        searchText: "にこにこ スマイル",
+        src: "https://example.com/smile.svg",
+      },
     ],
   },
   {
@@ -89,6 +97,14 @@ describe("emoji picker search dataset", () => {
     expect(searchEmojiDataset(dataset, "face").map((item) => item.key)).toEqual([
       "standard:😀",
       "standard:😂",
+    ]);
+  });
+
+  it("finds standard emojis by localized search text", () => {
+    const dataset = buildEmojiSearchDataset(standardCategories, customEmojis);
+
+    expect(searchEmojiDataset(dataset, "スマイル").map((item) => item.key)).toEqual([
+      "standard:😊",
     ]);
   });
 

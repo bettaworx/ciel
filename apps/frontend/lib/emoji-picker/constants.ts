@@ -13,9 +13,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export const EMOJIBASE_CDN =
-  "https://cdn.jsdelivr.net/npm/emojibase-data@latest";
-
 // ---------------------------------------------------------------------------
 // Twemoji CDN — pinned to match @twemoji/parser@16.0.0
 // ---------------------------------------------------------------------------
