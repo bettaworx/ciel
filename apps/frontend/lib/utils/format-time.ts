@@ -44,3 +44,17 @@ export function formatTimeAgo(date: Date | string, locale: string): string {
   
   return locale === 'ja' ? `${year}/${month}/${day}` : `${month}/${day}/${year}`
 }
+
+const fullTimestampFormatOptions: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+}
+
+export function formatFullTimestamp(date: Date | string, locale: string): string {
+  const value = typeof date === 'string' ? new Date(date) : date
+
+  return value.toLocaleDateString(locale, fullTimestampFormatOptions)
+}

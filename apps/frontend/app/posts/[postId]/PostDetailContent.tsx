@@ -50,6 +50,8 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
             linkToDetail={false}
             verticalIdentity
             collapseContent={false}
+            timestampVariant="full"
+            timestampPlacement="afterContent"
             onUserClick={(username) => router.push(`/users/${username}`)}
           />
         </div>

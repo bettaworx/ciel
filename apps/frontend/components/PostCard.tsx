@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
 import { ReactionUsersDialog } from "@/components/ReactionUsersDialog";
 import { ReactionPicker } from "@/components/ReactionPicker";
-import { formatTimeAgo } from "@/lib/utils/format-time";
+import { formatFullTimestamp, formatTimeAgo } from "@/lib/utils/format-time";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import { useReactions } from "@/lib/hooks/use-reactions";
@@ -63,6 +63,8 @@ import { PostMediaPreview } from "@/components/PostMediaPreview";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
 
 type Post = components["schemas"]["Post"];
+type TimestampVariant = "relative" | "full";
+type TimestampPlacement = "header" | "afterContent";
 
 export interface PostCardProps {
   post: Post;
@@ -72,6 +74,8 @@ export interface PostCardProps {
   linkToDetail?: boolean;
   verticalIdentity?: boolean;
   collapseContent?: boolean;
+  timestampVariant?: TimestampVariant;
+  timestampPlacement?: TimestampPlacement;
 }
 
 export function PostCard({
@@ -82,6 +86,8 @@ export function PostCard({
   linkToDetail = true,
   verticalIdentity = false,
   collapseContent = true,
+  timestampVariant = "relative",
+  timestampPlacement = "header",
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -194,7 +200,11 @@ export function PostCard({
   const hasDisplayName = Boolean(post.author?.displayName);
   const avatarUrl = post.author?.avatarUrl;
   const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
-  const timeAgo = formatTimeAgo(createdAt, locale);
+  const fullTimestamp = formatFullTimestamp(createdAt, locale);
+  const timestampText =
+    timestampVariant === "full"
+      ? fullTimestamp
+      : formatTimeAgo(createdAt, locale);
   const media = useMemo(() => post.media || [], [post.media]);
   const hasAuthorId = Boolean(post.author?.id);
 
@@ -310,18 +320,29 @@ export function PostCard({
     >
       <Link
         href={detailHref}
-        aria-label={createdAt.toLocaleString(locale)}
+        aria-label={fullTimestamp}
       >
-        {timeAgo}
+        {timestampText}
       </Link>
     </Button>
   ) : (
     <span
       className="text-muted-foreground text-xs shrink-0"
-      aria-label={createdAt.toLocaleString(locale)}
+      aria-label={fullTimestamp}
     >
-      {timeAgo}
+      {timestampText}
     </span>
+  );
+
+  const standaloneTimestampNode = (
+    <div className="mt-2 mb-2 text-left">
+      <span
+        className="text-muted-foreground text-xs"
+        aria-label={fullTimestamp}
+      >
+        {timestampText}
+      </span>
+    </div>
   );
 
   const bodyNode = post.content && (
@@ -371,8 +392,7 @@ export function PostCard({
   const mediaNode = (ogpUrl || previewMedia.length > 0) && (
     <div
       className={cn(
-        "mb-3 sm:mb-3",
-        verticalIdentity && "mt-3 sm:mt-3",
+        verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
       )}
     >
       {/* OGP Link Preview – only when no media is attached */}
@@ -558,10 +578,11 @@ export function PostCard({
               {avatarNode}
               {identityStackNode}
             </div>
-            {timestampNode}
+            {timestampPlacement === "header" && timestampNode}
           </div>
           {bodyNode}
           {mediaNode}
+          {timestampPlacement === "afterContent" && standaloneTimestampNode}
           {reactionsRowNode}
         </>
       ) : (
@@ -571,11 +592,12 @@ export function PostCard({
             <div className="mb-1 sm:mb-1.5">
               <div className="flex justify-between items-center flex-wrap gap-2">
                 {identityStackNode}
-                {timestampNode}
+                {timestampPlacement === "header" && timestampNode}
               </div>
               {bodyNode}
             </div>
             {mediaNode}
+            {timestampPlacement === "afterContent" && standaloneTimestampNode}
             {reactionsRowNode}
           </div>
         </div>
