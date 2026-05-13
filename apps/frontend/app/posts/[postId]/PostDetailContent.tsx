@@ -49,6 +49,7 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
             isLast
             variant="detail"
             onUserClick={(username) => router.push(`/users/${username}`)}
+            onDeleteSuccess={() => router.back()}
           />
         </div>
       )}

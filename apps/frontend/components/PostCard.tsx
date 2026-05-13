@@ -71,6 +71,7 @@ type Post = components["schemas"]["Post"];
 export interface PostCardProps {
   post: Post;
   onUserClick?: (username: string) => void;
+  onDeleteSuccess?: () => void;
   className?: string;
   isLast?: boolean;
   variant?: PostCardVariant;
@@ -79,6 +80,7 @@ export interface PostCardProps {
 export function PostCard({
   post,
   onUserClick,
+  onDeleteSuccess,
   className,
   isLast = false,
   variant = "timeline",
@@ -180,12 +182,13 @@ export function PostCard({
       onSuccess: () => {
         toast.success(t("deleteSuccess"));
         setConfirmOpen(false);
+        onDeleteSuccess?.();
       },
       onError: () => {
         toast.error(t("deleteError"));
       },
     });
-  }, [deletePost, post.id, t]);
+  }, [deletePost, onDeleteSuccess, post.id, t]);
 
   const handleUserClick = useCallback(() => {
     if (onUserClick && post.author?.username) {
