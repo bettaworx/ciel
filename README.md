@@ -24,9 +24,12 @@ git clone https://github.com/bettaworx/ciel
 cd ciel
 cp .env.example .env
 cp docker-compose.yml.example docker-compose.yml
-cp nginx.conf.example nginx.conf
 cp apps/backend/config/config.yaml.example apps/backend/config/config.yaml
 ```
+
+> **Reverse proxy:** A host-level reverse proxy (nginx, Caddy, etc.) is required to route
+> traffic to the frontend (port 3000) and backend (port 6137). See
+> [nginx.conf.example](nginx.conf.example) for a reference configuration.
 
 Edit `.env` and set the required secrets (passwords, JWT secret, etc.):
 
