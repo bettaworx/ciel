@@ -4,13 +4,14 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./i18n/config.ts");
 
-// Parse API_BASE_URL to allow dynamic hostname configuration
-const publicBaseUrl =
-  process.env.API_BASE_URL || "http://localhost:6137";
-const url = new URL(publicBaseUrl);
-const hostname = url.hostname;
-const port = url.port;
-const protocol = url.protocol.replace(":", "") as "http" | "https";
+// API_BASE_URL: internal backend URL used by the Next.js server for SSR fetches.
+// PUBLIC_BASE_URL: public-facing URL (nginx address) used by the browser to load media.
+// Both are needed as remote patterns — the server fetches originals via the internal URL,
+// while media hrefs in API responses point to the public URL.
+const apiBaseUrl = process.env.API_BASE_URL || "http://localhost:6137";
+const publicBaseUrl = process.env.PUBLIC_BASE_URL || apiBaseUrl;
+const apiUrl = new URL(apiBaseUrl);
+const publicUrl = new URL(publicBaseUrl);
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -68,39 +69,25 @@ const nextConfig: NextConfig = {
 
   images: {
     remotePatterns: [
+      // Internal backend URL: Next.js server fetches originals via Docker network
       {
-        protocol,
-        hostname,
-        port,
+        protocol: apiUrl.protocol.replace(":", "") as "http" | "https",
+        hostname: apiUrl.hostname,
+        port: apiUrl.port,
         pathname: "/media/**",
       },
-      // Also allow localhost explicitly for development
-      ...(hostname !== "localhost"
+      // Public-facing URL: media hrefs in API responses use this origin
+      ...(publicUrl.hostname !== apiUrl.hostname || publicUrl.port !== apiUrl.port
         ? [
             {
-              protocol: "http" as const,
-              hostname: "localhost",
-              port: "6137",
+              protocol: publicUrl.protocol.replace(":", "") as "http" | "https",
+              hostname: publicUrl.hostname,
+              port: publicUrl.port,
               pathname: "/media/**",
             },
           ]
         : []),
     ],
-  },
-
-  // Proxy API and WebSocket requests to the backend (runtime URL injection)
-  async rewrites() {
-    const backendUrl = process.env.API_BASE_URL || "http://localhost:6137";
-    return [
-      {
-        source: "/api/v1/:path*",
-        destination: `${backendUrl}/api/v1/:path*`,
-      },
-      {
-        source: "/ws/:path*",
-        destination: `${backendUrl}/ws/:path*`,
-      },
-    ];
   },
 
   // Redirect /favicon.ico to /icon for dynamic favicon

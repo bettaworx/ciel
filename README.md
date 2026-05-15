@@ -24,6 +24,7 @@ git clone https://github.com/bettaworx/ciel
 cd ciel
 cp .env.example .env
 cp docker-compose.yml.example docker-compose.yml
+cp nginx.conf.example nginx.conf
 cp apps/backend/config/config.yaml.example apps/backend/config/config.yaml
 ```
 
