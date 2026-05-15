@@ -69,27 +69,68 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		return api.Post{}, NewError(http.StatusBadRequest, "invalid_request", fmt.Sprintf("content exceeds maximum length of %d characters", maxRunes))
 	}
 
+	mentionNames := ExtractMentions(content, MaxMentionsPerPost)
+
 	var created sqlc.CreatePostRow
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
-		c, err := q.CreatePost(ctx, sqlc.CreatePostParams{UserID: user.ID, Content: content})
+		var parentID, rootID uuid.NullUUID
+		if req.ParentId != nil {
+			parent, err := q.GetPostThreadInfoByID(ctx, *req.ParentId)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return NewError(http.StatusNotFound, "not_found", "parent post not found")
+				}
+				return err
+			}
+			if parent.DeletedAt.Valid {
+				return NewError(http.StatusNotFound, "not_found", "parent post not found")
+			}
+			parentID = uuid.NullUUID{UUID: parent.ID, Valid: true}
+			if parent.RootID.Valid {
+				rootID = parent.RootID
+			} else {
+				rootID = uuid.NullUUID{UUID: parent.ID, Valid: true}
+			}
+		}
+
+		c, err := q.CreatePost(ctx, sqlc.CreatePostParams{
+			UserID:   user.ID,
+			Content:  content,
+			ParentID: parentID,
+			RootID:   rootID,
+		})
 		if err != nil {
 			return err
 		}
 		created = c
 
-		if len(mediaIDs) == 0 {
-			return nil
-		}
-		count, err := q.CountOwnedMediaByIDs(ctx, sqlc.CountOwnedMediaByIDsParams{UserID: user.ID, Column2: mediaIDs})
-		if err != nil {
-			return err
-		}
-		if int(count) != len(mediaIDs) {
-			return NewError(http.StatusBadRequest, "invalid_request", "invalid mediaIds")
-		}
-		for i, mid := range mediaIDs {
-			if err := q.AttachMediaToPost(ctx, sqlc.AttachMediaToPostParams{PostID: created.ID, MediaID: mid, SortOrder: int32(i)}); err != nil {
+		if len(mediaIDs) > 0 {
+			count, err := q.CountOwnedMediaByIDs(ctx, sqlc.CountOwnedMediaByIDsParams{UserID: user.ID, Column2: mediaIDs})
+			if err != nil {
 				return err
+			}
+			if int(count) != len(mediaIDs) {
+				return NewError(http.StatusBadRequest, "invalid_request", "invalid mediaIds")
+			}
+			for i, mid := range mediaIDs {
+				if err := q.AttachMediaToPost(ctx, sqlc.AttachMediaToPostParams{PostID: created.ID, MediaID: mid, SortOrder: int32(i)}); err != nil {
+					return err
+				}
+			}
+		}
+
+		if len(mentionNames) > 0 {
+			found, err := q.FindUsersByUsernames(ctx, mentionNames)
+			if err != nil {
+				return err
+			}
+			for _, u := range found {
+				if err := q.InsertPostMention(ctx, sqlc.InsertPostMentionParams{
+					PostID:          created.ID,
+					MentionedUserID: u.ID,
+				}); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -105,6 +146,14 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 	if err := s.attachMediaToPost(ctx, &post); err != nil {
 		return api.Post{}, err
 	}
+	posts := []api.Post{post}
+	if err := s.attachMentionsToPosts(ctx, posts); err != nil {
+		return api.Post{}, err
+	}
+	if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
+		return api.Post{}, err
+	}
+	post = posts[0]
 
 	if s.cache != nil {
 		key := timelineKeyGlobal()
@@ -136,6 +185,12 @@ func (s *PostsService) Get(ctx context.Context, postID api.PostId, userID *api.U
 	}
 	posts := []api.Post{post}
 	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+		return api.Post{}, err
+	}
+	if err := s.attachMentionsToPosts(ctx, posts); err != nil {
+		return api.Post{}, err
+	}
+	if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
 		return api.Post{}, err
 	}
 	return posts[0], nil
@@ -203,6 +258,12 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 		return api.UserPostsPage{}, err
 	}
 	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
+		return api.UserPostsPage{}, err
+	}
+	if err := s.attachMentionsToPosts(ctx, items); err != nil {
+		return api.UserPostsPage{}, err
+	}
+	if err := s.attachReplyCountsToPosts(ctx, items); err != nil {
 		return api.UserPostsPage{}, err
 	}
 
@@ -394,6 +455,151 @@ func (s *PostsService) Delete(ctx context.Context, user auth.User, postID api.Po
 	pid := postID
 	s.publish(ctx, realtime.Event{Type: realtime.EventPostDeleted, PostId: &pid})
 	return nil
+}
+
+func (s *PostsService) attachMentionsToPosts(ctx context.Context, posts []api.Post) error {
+	for i := range posts {
+		posts[i].Mentions = []api.MentionUser{}
+	}
+	if s.store == nil || len(posts) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, 0, len(posts))
+	index := make(map[uuid.UUID]int, len(posts))
+	for i := range posts {
+		ids = append(ids, posts[i].Id)
+		index[posts[i].Id] = i
+	}
+	rows, err := s.store.Q.ListMentionsForPosts(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		pi, ok := index[row.PostID]
+		if !ok {
+			continue
+		}
+		mu := api.MentionUser{
+			Id:       row.UserID,
+			Username: row.Username,
+		}
+		if row.DisplayName.Valid {
+			if v := strings.TrimSpace(row.DisplayName.String); v != "" {
+				mu.DisplayName = &v
+			}
+		}
+		if row.AvatarMediaID.Valid {
+			ext := ""
+			if row.AvatarExt.Valid {
+				ext = row.AvatarExt.String
+			}
+			url := mediaImageURL(row.AvatarMediaID.UUID, ext)
+			mu.AvatarUrl = &url
+		}
+		posts[pi].Mentions = append(posts[pi].Mentions, mu)
+	}
+	return nil
+}
+
+func (s *PostsService) attachReplyCountsToPosts(ctx context.Context, posts []api.Post) error {
+	if s.store == nil || len(posts) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, 0, len(posts))
+	index := make(map[uuid.UUID]int, len(posts))
+	for i := range posts {
+		ids = append(ids, posts[i].Id)
+		index[posts[i].Id] = i
+		posts[i].ReplyCount = 0
+	}
+	rows, err := s.store.Q.CountRepliesByParentIDs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		pi, ok := index[row.ParentID.UUID]
+		if !ok {
+			continue
+		}
+		posts[pi].ReplyCount = int(row.ReplyCount)
+	}
+	return nil
+}
+
+func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, params api.GetPostsPostIdRepliesParams, userID *api.UserId) (api.TimelinePage, error) {
+	if s.store == nil {
+		return api.TimelinePage{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+
+	parent, err := s.store.Q.GetPostThreadInfoByID(ctx, parentID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return api.TimelinePage{}, NewError(http.StatusNotFound, "not_found", "post not found")
+		}
+		return api.TimelinePage{}, err
+	}
+	if parent.DeletedAt.Valid {
+		return api.TimelinePage{}, NewError(http.StatusNotFound, "not_found", "post not found")
+	}
+
+	limit := 30
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	if limit < 1 || limit > 100 {
+		return api.TimelinePage{}, NewError(http.StatusBadRequest, "invalid_request", "limit must be 1..100")
+	}
+
+	cursor, err := decodeCursor(params.Cursor)
+	if err != nil {
+		return api.TimelinePage{}, NewError(http.StatusBadRequest, "invalid_request", "invalid cursor")
+	}
+
+	var cTime sql.NullTime
+	var cID uuid.NullUUID
+	if cursor != nil {
+		ct := time.UnixMilli(cursor.Score).UTC()
+		cTime = sql.NullTime{Time: ct, Valid: true}
+		uid, perr := uuid.Parse(cursor.ID)
+		if perr == nil {
+			cID = uuid.NullUUID{UUID: uid, Valid: true}
+		}
+	}
+
+	rows, err := s.store.Q.ListRepliesByParentID(ctx, sqlc.ListRepliesByParentIDParams{
+		ParentID:   uuid.NullUUID{UUID: parentID, Valid: true},
+		CursorTime: cTime,
+		CursorID:   cID,
+		Limit:      int32(limit),
+	})
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
+
+	items := make([]api.Post, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, mapRepliesRow(row))
+	}
+	if err := s.attachMediaToPosts(ctx, items); err != nil {
+		return api.TimelinePage{}, err
+	}
+	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
+		return api.TimelinePage{}, err
+	}
+	if err := s.attachMentionsToPosts(ctx, items); err != nil {
+		return api.TimelinePage{}, err
+	}
+	if err := s.attachReplyCountsToPosts(ctx, items); err != nil {
+		return api.TimelinePage{}, err
+	}
+
+	var nextCursor *string
+	if len(rows) == limit {
+		last := rows[len(rows)-1]
+		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String()})
+		nextCursor = &n
+	}
+	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
 }
 
 func timelineKeyGlobal() string { return "timeline:global" }

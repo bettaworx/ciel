@@ -332,6 +332,9 @@ func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 		Content:   row.Content,
 		Media:     []api.Media{},
 		Reactions: []api.ReactionCount{},
+		Mentions:  []api.MentionUser{},
+		ParentId:  nullUUIDToPostIDPtr(row.ParentID),
+		RootId:    nullUUIDToPostIDPtr(row.RootID),
 		CreatedAt: row.CreatedAt,
 		DeletedAt: nil,
 		// Note: Timeline post author doesn't include agreement fields (not needed for display)
@@ -345,6 +348,9 @@ func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 		Content:   row.Content,
 		Media:     []api.Media{},
 		Reactions: []api.ReactionCount{},
+		Mentions:  []api.MentionUser{},
+		ParentId:  nullUUIDToPostIDPtr(row.ParentID),
+		RootId:    nullUUIDToPostIDPtr(row.RootID),
 		CreatedAt: row.CreatedAt,
 		DeletedAt: nil,
 		// Note: Post author doesn't include agreement fields (not needed for display)

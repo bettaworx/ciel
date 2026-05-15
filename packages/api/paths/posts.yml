@@ -79,3 +79,41 @@
           application/json:
             schema:
               $ref: ../schemas/common.yml#/components/schemas/Error
+/posts/{postId}/replies:
+  get:
+    tags:
+    - Posts
+    summary: List direct replies to a post
+    description: Returns direct replies (children whose parent_id equals postId) ordered by creation time ascending. Excludes soft-deleted replies. Returns 404 if the parent post does not exist or has been soft-deleted.
+    parameters:
+    - name: postId
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/common.yml#/components/schemas/PostId
+    - name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/post.yml#/components/schemas/TimelinePage
+      '404':
+        description: Parent post not found or deleted
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

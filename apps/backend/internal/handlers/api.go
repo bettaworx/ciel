@@ -580,6 +580,24 @@ func (h API) GetPostsPostId(w http.ResponseWriter, r *http.Request, postId api.P
 	writeJSON(w, http.StatusOK, post)
 }
 
+func (h API) GetPostsPostIdReplies(w http.ResponseWriter, r *http.Request, postId api.PostId, params api.GetPostsPostIdRepliesParams) {
+	if h.Posts == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "posts not configured"})
+		return
+	}
+	user, ok := auth.UserFromContext(r.Context())
+	var userID *api.UserId
+	if ok {
+		userID = &user.ID
+	}
+	page, err := h.Posts.ListReplies(r.Context(), postId, params, userID)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}
+
 func (h API) DeletePostsPostId(w http.ResponseWriter, r *http.Request, postId api.PostId) {
 	if h.Posts == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "posts not configured"})

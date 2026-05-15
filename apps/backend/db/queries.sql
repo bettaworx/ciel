@@ -225,15 +225,17 @@ DELETE FROM users
 WHERE id = $1;
 
 -- name: CreatePost :one
-INSERT INTO posts (user_id, content)
-VALUES ($1, $2)
-RETURNING id, user_id, content, created_at, deleted_at;
+INSERT INTO posts (user_id, content, parent_id, root_id)
+VALUES ($1, $2, sqlc.narg('parent_id'), sqlc.narg('root_id'))
+RETURNING id, user_id, content, parent_id, root_id, created_at, deleted_at;
 
 -- name: GetPostWithAuthorByID :one
 SELECT
 	p.id,
 	p.user_id,
 	p.content,
+	p.parent_id,
+	p.root_id,
 	p.created_at,
 	p.deleted_at,
 	u.username,
@@ -251,6 +253,70 @@ WHERE p.id = $1;
 SELECT user_id
 FROM posts
 WHERE id = $1;
+
+-- name: GetPostThreadInfoByID :one
+SELECT id, parent_id, root_id, deleted_at
+FROM posts
+WHERE id = $1;
+
+-- name: ListRepliesByParentID :many
+SELECT
+	p.id,
+	p.user_id,
+	p.content,
+	p.parent_id,
+	p.root_id,
+	p.created_at,
+	p.deleted_at,
+	u.username,
+	u.display_name,
+	u.bio,
+	u.avatar_media_id,
+	u.created_at AS user_created_at,
+	m.ext AS avatar_ext
+FROM posts p
+JOIN users u ON u.id = p.user_id
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE p.deleted_at IS NULL
+	AND p.parent_id = $1
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR p.created_at > sqlc.narg('cursor_time')
+		OR (p.created_at = sqlc.narg('cursor_time') AND p.id > sqlc.narg('cursor_id'))
+	)
+ORDER BY p.created_at ASC, p.id ASC
+LIMIT sqlc.arg('limit');
+
+-- name: CountRepliesByParentIDs :many
+SELECT parent_id, COUNT(*)::int AS reply_count
+FROM posts
+WHERE parent_id = ANY($1::uuid[])
+	AND deleted_at IS NULL
+GROUP BY parent_id;
+
+-- name: FindUsersByUsernames :many
+SELECT id, username
+FROM users
+WHERE username = ANY($1::text[]);
+
+-- name: InsertPostMention :exec
+INSERT INTO post_mentions (post_id, mentioned_user_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING;
+
+-- name: ListMentionsForPosts :many
+SELECT
+	pm.post_id,
+	u.id AS user_id,
+	u.username,
+	u.display_name,
+	u.avatar_media_id,
+	m.ext AS avatar_ext
+FROM post_mentions pm
+JOIN users u ON u.id = pm.mentioned_user_id
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE pm.post_id = ANY($1::uuid[])
+ORDER BY pm.post_id ASC, u.username ASC;
 
 -- name: MarkPostDeleted :one
 UPDATE posts
@@ -345,6 +411,8 @@ SELECT
 	p.id,
 	p.user_id,
 	p.content,
+	p.parent_id,
+	p.root_id,
 	p.created_at,
 	p.deleted_at,
 	u.username,
@@ -370,6 +438,8 @@ SELECT
 	p.id,
 	p.user_id,
 	p.content,
+	p.parent_id,
+	p.root_id,
 	p.created_at,
 	p.deleted_at,
 	u.username,
@@ -429,6 +499,8 @@ SELECT
 	p.id,
 	p.user_id,
 	p.content,
+	p.parent_id,
+	p.root_id,
 	p.created_at,
 	p.deleted_at,
 	u.username,

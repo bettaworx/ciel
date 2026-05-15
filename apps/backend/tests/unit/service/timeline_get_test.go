@@ -38,8 +38,8 @@ func TestTimelineService_Get_UsesRedis(t *testing.T) {
 	}
 
 	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "avatar_ext"}).
-			AddRow(postID, userID, "hello", created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, sql.NullString{}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "avatar_ext"}).
+			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, sql.NullString{}))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
 
@@ -69,8 +69,8 @@ func TestTimelineService_Get_FallsBackToDB(t *testing.T) {
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
 	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "avatar_ext"}).
-			AddRow(postID, userID, "hello", created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, sql.NullString{}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "avatar_ext"}).
+			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, sql.NullString{}))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
 

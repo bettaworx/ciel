@@ -84,12 +84,16 @@ CREATE TABLE IF NOT EXISTS posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
+  parent_id UUID REFERENCES posts(id) ON DELETE SET NULL,
+  root_id UUID REFERENCES posts(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ NULL,
   visibility TEXT NOT NULL DEFAULT 'public',
   deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
   deletion_reason TEXT,
-  CHECK (visibility IN ('public', 'hidden', 'deleted'))
+  CHECK (visibility IN ('public', 'hidden', 'deleted')),
+  CHECK (parent_id IS NULL OR parent_id <> id),
+  CHECK (root_id IS NULL OR root_id <> id)
 );
 
 -- Uploaded media (images and videos). Images stored as WebP, videos as MP4.
@@ -147,6 +151,17 @@ CREATE INDEX IF NOT EXISTS idx_post_media_post_order ON post_media (post_id, sor
 
 CREATE INDEX IF NOT EXISTS idx_posts_timeline ON posts (created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_user_created ON posts (user_id, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_parent ON posts(parent_id) WHERE parent_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_root ON posts(root_id) WHERE root_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS post_mentions (
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  mentioned_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (post_id, mentioned_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_mentions_user ON post_mentions(mentioned_user_id, post_id);
 
 CREATE TABLE IF NOT EXISTS post_reaction_events (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
