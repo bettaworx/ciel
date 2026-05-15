@@ -414,6 +414,7 @@
   "createPost": {
     "title": "Create Post",
     "placeholder": "What's happening?",
+    "replyPlaceholder": "Write a reply",
     "post": "Post",
     "posting": "Posting...",
     "formatBold": "Bold",

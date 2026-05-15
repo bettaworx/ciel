@@ -414,6 +414,7 @@
   "createPost": {
     "title": "投稿する",
     "placeholder": "いまどうしてる?",
+    "replyPlaceholder": "返信を書く",
     "post": "投稿",
     "posting": "投稿中...",
     "formatBold": "太字",

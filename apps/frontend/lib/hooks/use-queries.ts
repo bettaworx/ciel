@@ -23,6 +23,7 @@ export const queryKeys = {
   adminSettings: ["adminSettings"] as const,
   timeline: ["timeline"] as const,
   post: (id: string) => ["post", id] as const,
+  replies: (postId: string) => ["replies", postId] as const,
   user: (username: string) => ["user", username] as const,
   userPosts: (username: string) => ["userPosts", username] as const,
   reactions: (postId: string) => ["reactions", postId] as const,
@@ -173,6 +174,34 @@ export function useTimeline(params?: { limit?: number }) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     maxPages: 5,
+    staleTime: 1000 * 60, // 1分
+  });
+}
+
+// Replies to a post with infinite scroll
+export function useReplies(
+  postId: string | undefined,
+  params?: { limit?: number },
+) {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: postId
+      ? [...queryKeys.replies(postId), params]
+      : ["replies", "null"],
+    queryFn: async ({ pageParam }) => {
+      if (!postId) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
+      const result = await api.listReplies(postId, {
+        limit: params?.limit ?? 30,
+        cursor: pageParam ?? null,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    maxPages: 5,
+    enabled: !!postId,
     staleTime: 1000 * 60, // 1分
   });
 }
