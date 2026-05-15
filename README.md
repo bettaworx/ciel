@@ -41,24 +41,9 @@ docker compose build
 
 ### Base image digest update policy
 
-`Dockerfile.frontend` pins `node:22-bookworm-slim` by digest to keep image layers reproducible.
+To keep setup instructions focused, detailed policy guidance is documented separately:
 
-- Update the digest when you intentionally bump Node 22 slim base contents (security patches or monthly maintenance).
-- Keep `base` and `runner` on the same digest in `Dockerfile.frontend`.
-- Recommended update flow:
-
-```bash
-# 1) Fetch current amd64 digest for node:22-bookworm-slim
-TOKEN=$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/node:pull" | jq -r .token)
-curl -fsSL -H "Authorization: Bearer $TOKEN" \
-  -H "Accept: application/vnd.oci.image.index.v1+json" \
-  https://registry-1.docker.io/v2/library/node/manifests/22-bookworm-slim \
-  | jq -r '.manifests[] | select(.platform.architecture=="amd64" and .platform.os=="linux") | .digest'
-
-# 2) Replace both FROM lines in Dockerfile.frontend
-# 3) Rebuild and verify
-docker compose build frontend
-```
+- [docs/base-image-digest-update-policy.md](docs/base-image-digest-update-policy.md)
 
 Initialize the database (run once on first setup):
 
