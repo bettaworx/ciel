@@ -6,6 +6,50 @@ function sanitize(value: string): string {
   return value.replace(/[\r\n]/g, '')
 }
 
+function originSource(value: string | undefined): string[] {
+  const raw = value?.trim()
+  if (!raw) return []
+
+  try {
+    return [new URL(raw).origin]
+  } catch {
+    return []
+  }
+}
+
+function websocketSource(value: string | undefined): string[] {
+  const raw = value?.trim()
+  if (!raw) return []
+
+  try {
+    const url = new URL(raw)
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    url.pathname = ''
+    url.search = ''
+    url.hash = ''
+    return [url.origin]
+  } catch {
+    return []
+  }
+}
+
+function sourceList(...sources: string[][]): string {
+  const unique = [...new Set(sources.flat().map(sanitize))]
+  return unique.length ? ' ' + unique.join(' ') : ''
+}
+
+function backendHttpSources(): string[] {
+  const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:6137'
+  return [
+    ...originSource(apiBaseUrl),
+    ...originSource(process.env.PUBLIC_BASE_URL),
+  ]
+}
+
+function backendWebSocketSources(): string[] {
+  return websocketSource(process.env.API_BASE_URL || 'http://localhost:6137')
+}
+
 function buildCsp(nonce: string): string {
   const d = (key: string, fallback: string) =>
     sanitize(process.env[key] || fallback)
@@ -23,10 +67,10 @@ function buildCsp(nonce: string): string {
     `default-src ${d('CSP_DEFAULT_SRC', "'self'")}`,
     `script-src ${scriptSrc}`,
     `style-src ${d('CSP_STYLE_SRC', "'self' 'unsafe-inline'")}${extra('style-src')}`,
-    `img-src ${d('CSP_IMG_SRC', "'self' data: blob:")}${extra('img-src')}`,
+    `img-src ${d('CSP_IMG_SRC', "'self' data: blob:")}${extra('img-src')}${sourceList(backendHttpSources())}`,
     `font-src ${d('CSP_FONT_SRC', "'self' data:")}${extra('font-src')}`,
-    `connect-src ${d('CSP_CONNECT_SRC', "'self'")}${extra('connect-src')}`,
-    `media-src ${d('CSP_MEDIA_SRC', "'self' blob:")}${extra('media-src')}`,
+    `connect-src ${d('CSP_CONNECT_SRC', "'self'")}${extra('connect-src')}${sourceList(backendHttpSources(), backendWebSocketSources())}`,
+    `media-src ${d('CSP_MEDIA_SRC', "'self' blob:")}${extra('media-src')}${sourceList(backendHttpSources())}`,
     `object-src ${d('CSP_OBJECT_SRC', "'none'")}`,
     `frame-src ${d('CSP_FRAME_SRC', "'self'")}${extra('frame-src')}`,
     `base-uri ${d('CSP_BASE_URI', "'self'")}`,

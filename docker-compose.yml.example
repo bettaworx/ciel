@@ -21,14 +21,14 @@ services:
       ENV: ${ENV:-development}
       DISABLE_DOTENV: ${DISABLE_DOTENV:-1}
       PORT: ${BACKEND_PORT:-6137}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://127.0.0.1}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       TRUST_PROXY: ${TRUST_PROXY:-true}
       STEPUP_TOKEN_TTL_SECONDS: ${STEPUP_TOKEN_TTL_SECONDS:-300}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       MEDIA_DIR: ${MEDIA_DIR:-/var/lib/ciel/media}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:6137}
       REALTIME_SIGNING_SECRET: ${REALTIME_SIGNING_SECRET:?REALTIME_SIGNING_SECRET must be set}
       REALTIME_WS_MAX_CONNECTIONS: ${REALTIME_WS_MAX_CONNECTIONS:-1000}
       REALTIME_WS_MAX_CONNECTIONS_PER_IP: ${REALTIME_WS_MAX_CONNECTIONS_PER_IP:-50}
@@ -55,7 +55,8 @@ services:
         condition: service_started
     environment:
       API_BASE_URL: ${API_BASE_URL:-http://localhost:6137}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost}
+      INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://ciel-backend:6137}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:6137}
       PORT: ${FRONTEND_PORT:-3000}
       CSP_DEFAULT_SRC: ${CSP_DEFAULT_SRC:-}
       CSP_SCRIPT_SRC: ${CSP_SCRIPT_SRC:-}

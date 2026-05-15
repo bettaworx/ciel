@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { fetchServerIcon, generateDefaultIcon } from '@/lib/pwa/icon-generator';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 export const revalidate = 30;
 
 /**

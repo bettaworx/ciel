@@ -4,15 +4,6 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./i18n/config.ts");
 
-// API_BASE_URL: internal backend URL used by the Next.js server for SSR fetches.
-// PUBLIC_BASE_URL: public-facing URL (nginx address) used by the browser to load media.
-// Both are needed as remote patterns — the server fetches originals via the internal URL,
-// while media hrefs in API responses point to the public URL.
-const apiBaseUrl = process.env.API_BASE_URL || "http://localhost:6137";
-const publicBaseUrl = process.env.PUBLIC_BASE_URL || apiBaseUrl;
-const apiUrl = new URL(apiBaseUrl);
-const publicUrl = new URL(publicBaseUrl);
-
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
@@ -46,7 +37,7 @@ const nextConfig: NextConfig = {
   },
 
   // Remove absolute paths from chunk names for security
-  webpack: (config, { isServer }) => {
+  webpack: (config) => {
     // Override chunk naming to use relative paths only
     if (config.optimization?.chunkIds !== 'named') {
       config.optimization = config.optimization || {};
@@ -69,24 +60,16 @@ const nextConfig: NextConfig = {
 
   images: {
     remotePatterns: [
-      // Internal backend URL: Next.js server fetches originals via Docker network
       {
-        protocol: apiUrl.protocol.replace(":", "") as "http" | "https",
-        hostname: apiUrl.hostname,
-        port: apiUrl.port,
+        protocol: "http",
+        hostname: "**",
         pathname: "/media/**",
       },
-      // Public-facing URL: media hrefs in API responses use this origin
-      ...(publicUrl.hostname !== apiUrl.hostname || publicUrl.port !== apiUrl.port
-        ? [
-            {
-              protocol: publicUrl.protocol.replace(":", "") as "http" | "https",
-              hostname: publicUrl.hostname,
-              port: publicUrl.port,
-              pathname: "/media/**",
-            },
-          ]
-        : []),
+      {
+        protocol: "https",
+        hostname: "**",
+        pathname: "/media/**",
+      },
     ],
   },
 

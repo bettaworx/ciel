@@ -1,6 +1,7 @@
 'use client';
 
 import type { components } from '@/lib/api/api';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 
 export type ApiError = components['schemas']['Error'];
 
@@ -39,25 +40,9 @@ export class ApiHttpError extends Error {
 	}
 }
 
-const DEFAULT_BASE_URL = '/api/v1';
-
 type RefreshResult = ApiResult<components['schemas']['RefreshResponse']>;
 
 const refreshPromises = new Map<string, Promise<RefreshResult>>();
-
-function resolveBaseUrl(explicit?: string): string {
-	const raw = (explicit ?? DEFAULT_BASE_URL).trim();
-	if (!raw) return DEFAULT_BASE_URL;
-	const noTrailingSlash = raw.replace(/\/+$/, '');
-
-	// If the user provides just an origin like http://localhost:6137, assume the API lives under /api/v1.
-	// This keeps the UI forgiving while still allowing explicit overrides.
-	if (/^https?:\/\//.test(noTrailingSlash) && !/\/api\/v1$/.test(noTrailingSlash)) {
-		return `${noTrailingSlash}/api/v1`;
-	}
-
-	return noTrailingSlash;
-}
 
 async function readBody(res: Response): Promise<{ errorText: string; errorJson?: unknown }> {
 	const contentType = res.headers.get('content-type') ?? '';
@@ -124,7 +109,7 @@ function refreshSession(baseUrl: string): Promise<RefreshResult> {
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
-	const baseUrl = resolveBaseUrl(options.baseUrl);
+	const baseUrl = resolveApiBaseUrl(options.baseUrl);
 
 	/**
 	 * Before declaring the server offline, confirm by hitting the health endpoint.

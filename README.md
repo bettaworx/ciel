@@ -27,9 +27,10 @@ cp docker-compose.yml.example docker-compose.yml
 cp apps/backend/config/config.yaml.example apps/backend/config/config.yaml
 ```
 
-> **Reverse proxy:** A host-level reverse proxy (nginx, Caddy, etc.) is required to route
-> traffic to the frontend (port 3000) and backend (port 6137). See
-> [nginx.conf.example](nginx.conf.example) for a reference configuration.
+By default, the frontend and backend run independently: frontend on port 3000
+and backend on port 6137. Set `API_BASE_URL` in `.env` to the backend URL that
+browsers can reach. A host-level reverse proxy is optional deployment
+infrastructure, not required by the application containers.
 
 Edit `.env` and set the required secrets (passwords, JWT secret, etc.):
 
