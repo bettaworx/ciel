@@ -48,8 +48,6 @@ services:
       backend:
         condition: service_started
     environment:
-      NODE_ENV: ${FRONTEND_NODE_ENV:-production}
-      HOSTNAME: ${FRONTEND_HOSTNAME:-0.0.0.0}
       API_BASE_URL: ${API_BASE_URL:?API_BASE_URL must be set}
       INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://ciel-backend:6137}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL must be set}

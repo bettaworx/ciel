@@ -71,5 +71,8 @@ COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/@img ./apps/f
 
 USER nextjs
 
+ENV NODE_ENV=production
+ENV HOSTNAME="0.0.0.0"
+
 EXPOSE 3000
 CMD ["node", "apps/frontend/server.js"]
