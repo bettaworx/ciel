@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { parse as parseTwemoji } from "@twemoji/parser";
+import { useState } from "react";
+import { useLocale } from "next-intl";
+
 import { Twemoji } from "@/components/Twemoji";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -12,27 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const EMOJIBASE_CDN = "https://cdn.jsdelivr.net/npm/emojibase-data@latest";
-
-interface EmojiEntry {
-  emoji: string;
-  label: string;
-  group: number;
-  subgroup: number;
-  skins?: Array<{ tone: number | number[]; emoji: string }>;
-}
-
-interface GroupMessage {
-  key: string;
-  message: string;
-  order: number;
-}
-
-interface EmojibaseMessages {
-  groups: GroupMessage[];
-  skinTones: Record<string, string>;
-}
+import type { Locale } from "@/i18n/constants";
+import {
+  resolveEmoji,
+  useEmojiData,
+} from "@/lib/emoji-picker/use-emoji-data";
 
 const SKIN_TONE_OPTIONS = [
   { value: "0", label: "デフォルト", sample: "👋" },
@@ -43,114 +28,47 @@ const SKIN_TONE_OPTIONS = [
   { value: "5", label: "濃い肌色", sample: "👋🏿" },
 ];
 
-function resolveEmoji(entry: EmojiEntry, tone: number): string {
-  if (tone === 0 || !entry.skins) return entry.emoji;
-  const skin = entry.skins.find((s) =>
-    Array.isArray(s.tone) ? s.tone[0] === tone : s.tone === tone,
-  );
-  if (!skin) return entry.emoji;
-  // Validate that the skin variant is recognised as a single unit by the parser.
-  // Multi-person emojis (👯, 🤼 etc.) don't accept a lone skin modifier —
-  // the parser would decompose "👯🏻" into 2 entries, causing broken display.
-  // In such cases fall back to the unmodified base emoji.
-  return parseTwemoji(skin.emoji).length === 1 ? skin.emoji : entry.emoji;
-}
-
-interface GroupedEmoji {
-  label: string;
-  emojis: EmojiEntry[];
-}
-
 export default function EmojiTestPage() {
-  const [grouped, setGrouped] = useState<GroupedEmoji[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
+  const locale = useLocale() as Locale;
+  const { data, isLoading, error } = useEmojiData(locale);
   const [tone, setTone] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    Promise.all([
-      fetch(`${EMOJIBASE_CDN}/en/data.json`, { signal: controller.signal }).then(
-        (r) => r.json() as Promise<EmojiEntry[]>,
-      ),
-      fetch(`${EMOJIBASE_CDN}/en/messages.json`, {
-        signal: controller.signal,
-      }).then((r) => r.json() as Promise<EmojibaseMessages>),
-    ])
-      .then(([data, messages]) => {
-        // Find the "component" group (skin tone swatches etc.) to exclude.
-        const componentGroupOrder = messages.groups.find(
-          (g) => g.key === "component",
-        )?.order;
-
-        // Constrain to twemoji 16.x: only keep emoji that @twemoji/parser@16.0.0
-        // recognises as a single unit. This filters out:
-        //  - ZWJ sequences not yet in the 16.x regex (would render as doubles)
-        //  - Unicode 17+ emoji the parser doesn't know about
-        //  - Standalone component/modifier characters
-        const valid = data.filter((e) => {
-          if (!("group" in e)) return false;
-          if (componentGroupOrder !== undefined && e.group === componentGroupOrder)
-            return false;
-          return parseTwemoji(e.emoji).length === 1;
-        });
-
-        const sortedGroups = messages.groups
-          .filter((g) => g.key !== "component")
-          .sort((a, b) => a.order - b.order);
-
-        setGrouped(
-          sortedGroups
-            .map((g) => ({
-              label: g.message,
-              emojis: valid.filter((e) => e.group === g.order),
-            }))
-            .filter((g) => g.emojis.length > 0),
-        );
-        setTotalCount(valid.length);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          setError(String(err));
-          setLoading(false);
-        }
-      });
-
-    return () => controller.abort();
-  }, []);
+  const categories = data?.categories ?? [];
+  const totalCount = categories.reduce(
+    (count, category) => count + category.emojis.length,
+    0,
+  );
+  const errorMessage = error
+    ? error instanceof Error
+      ? error.message
+      : String(error)
+    : null;
 
   return (
     <PageContainer
       maxWidth="6xl"
       header={<PageHeader>Twemoji テスト</PageHeader>}
     >
-      {/* Controls bar */}
-      <div className="flex items-center justify-between gap-4 mb-6 pt-2">
+      <div className="mb-6 flex items-center justify-between gap-4 pt-2">
         <p className="text-sm text-muted-foreground">
-          {loading
-            ? "読み込み中…"
-            : `${totalCount} 個の絵文字 (twemoji 16.x 対応)`}
+          {isLoading ? "読み込み中..." : `${totalCount} 個の絵文字`}
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground whitespace-nowrap">
+          <span className="whitespace-nowrap text-sm text-muted-foreground">
             肌の色
           </span>
           <Select
             value={String(tone)}
-            onValueChange={(v) => setTone(Number(v))}
+            onValueChange={(value) => setTone(Number(value))}
           >
             <SelectTrigger className="w-52">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SKIN_TONE_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
+              {SKIN_TONE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
                   <span className="flex items-center gap-2">
-                    <Twemoji emoji={opt.sample} />
-                    <span>{opt.label}</span>
+                    <Twemoji emoji={option.sample} />
+                    <span>{option.label}</span>
                   </span>
                 </SelectItem>
               ))}
@@ -159,24 +77,22 @@ export default function EmojiTestPage() {
         </div>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="rounded-lg bg-destructive/10 text-destructive px-4 py-3 text-sm mb-6">
-          データの取得に失敗しました: {error}
+      {errorMessage && (
+        <div className="mb-6 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          データの取得に失敗しました: {errorMessage}
         </div>
       )}
 
-      {/* Loading skeleton */}
-      {loading && !error && (
+      {isLoading && !errorMessage && (
         <div className="flex flex-col gap-8">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i}>
-              <div className="h-5 w-32 bg-muted rounded mb-3 animate-pulse" />
+          {Array.from({ length: 6 }).map((_, sectionIndex) => (
+            <div key={sectionIndex}>
+              <div className="mb-3 h-5 w-32 animate-pulse rounded bg-muted" />
               <div className="flex flex-wrap gap-1">
-                {Array.from({ length: 24 }).map((_, j) => (
+                {Array.from({ length: 24 }).map((_, itemIndex) => (
                   <div
-                    key={j}
-                    className="w-9 h-9 bg-muted rounded animate-pulse"
+                    key={itemIndex}
+                    className="size-9 animate-pulse rounded bg-muted"
                   />
                 ))}
               </div>
@@ -185,25 +101,26 @@ export default function EmojiTestPage() {
         </div>
       )}
 
-      {/* Emoji grid grouped by category */}
-      {!loading && !error && (
+      {!isLoading && !errorMessage && (
         <div className="flex flex-col gap-8 pb-8">
-          {grouped.map((group) => (
-            <section key={group.label}>
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                {group.label}
+          {categories.map((category) => (
+            <section key={category.id}>
+              <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                {category.label}
               </h2>
               <div className="flex flex-wrap gap-0.5">
-                {group.emojis.map((entry) => {
-                  const emojiStr = resolveEmoji(entry, tone);
+                {category.emojis.map((item) => {
+                  const emoji = resolveEmoji(item, tone);
+
                   return (
                     <button
-                      key={entry.emoji}
-                      title={entry.label}
-                      aria-label={entry.label}
-                      className="w-9 h-9 flex items-center justify-center rounded hover:bg-muted transition-colors text-xl"
+                      key={item.key}
+                      type="button"
+                      title={item.label}
+                      aria-label={item.label}
+                      className="flex size-9 items-center justify-center rounded text-xl transition-colors hover:bg-muted"
                     >
-                      <Twemoji emoji={emojiStr} />
+                      <Twemoji emoji={emoji} />
                     </button>
                   );
                 })}

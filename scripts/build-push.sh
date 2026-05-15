@@ -6,7 +6,7 @@ OWNER="bettaworx"
 BACKEND_IMAGE="${REGISTRY}/${OWNER}/ciel-backend"
 FRONTEND_IMAGE="${REGISTRY}/${OWNER}/ciel-frontend"
 
-# ビルドに埋め込む git 情報
+# ビルド証跡としてイメージに埋め込む git 情報
 BUILD_COMMIT="${BUILD_COMMIT:-$(git rev-parse --short HEAD)}"
 BUILD_BRANCH="${BUILD_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
 TAG="${TAG:-sha-$(git rev-parse --short HEAD)}"

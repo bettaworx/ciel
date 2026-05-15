@@ -9,6 +9,16 @@ import type { EmojiItem } from "./types";
 
 const emojiSrcCache = new Map<string, string | null>();
 const twemojiEmojiCache = new Map<string, boolean>();
+const normalizedTwemojiEmojiCache = new Map<string, string | null>();
+
+function parseSingleTwemojiEmoji(emoji: string): boolean {
+  const entries = parseTwemoji(emoji, {
+    buildUrl: (codepoints) => buildTwemojiUrl(codepoints, "svg"),
+    assetType: "svg",
+  });
+
+  return entries.length === 1;
+}
 
 export function isSingleTwemojiEmoji(emoji: string): boolean {
   const cached = twemojiEmojiCache.get(emoji);
@@ -16,13 +26,31 @@ export function isSingleTwemojiEmoji(emoji: string): boolean {
     return cached;
   }
 
-  const entries = parseTwemoji(emoji, {
-    buildUrl: (codepoints) => buildTwemojiUrl(codepoints, "svg"),
-    assetType: "svg",
-  });
-  const valid = entries.length === 1;
+  const valid = parseSingleTwemojiEmoji(emoji);
   twemojiEmojiCache.set(emoji, valid);
   return valid;
+}
+
+export function normalizeTwemojiEmoji(emoji: string): string | null {
+  const cached = normalizedTwemojiEmojiCache.get(emoji);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  if (isSingleTwemojiEmoji(emoji)) {
+    normalizedTwemojiEmojiCache.set(emoji, emoji);
+    return emoji;
+  }
+
+  const withoutVariationSelectors = emoji.replace(/\uFE0F/g, "");
+  const normalized =
+    withoutVariationSelectors !== emoji &&
+    isSingleTwemojiEmoji(withoutVariationSelectors)
+      ? withoutVariationSelectors
+      : null;
+
+  normalizedTwemojiEmojiCache.set(emoji, normalized);
+  return normalized;
 }
 
 export function getEmojiSrc(

@@ -7,6 +7,7 @@ import { userAtom } from '@/atoms/auth';
 import { queryKeys } from '@/lib/hooks/use-queries';
 import { useActivityTracker } from '@/lib/hooks/use-activity-tracker';
 import { WebSocketDisconnectAlert } from '@/components/realtime/WebSocketDisconnectAlert';
+import { resolveWebSocketUrl } from '@/lib/api/base-url';
 import {
 	mergeReactionCountsForCurrentUser,
 	reactionSelfQueryKey,
@@ -295,9 +296,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	const connect = useCallback(() => {
 		if (typeof window === 'undefined') return;
 
-		// Construct WebSocket URL (proxied via Next.js rewrites)
-		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-		const wsUrl = `${protocol}//${window.location.host}/ws/events`;
+		const wsUrl = resolveWebSocketUrl();
 
 		try {
 			// Note: WebSocket automatically sends cookies (including httpOnly cookies)

@@ -17,7 +17,6 @@ RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
 COPY packages/api /packages/api
 COPY apps/backend ./
 
-ENV CGO_ENABLED=0
 RUN go generate ./internal/db/sqlc
 RUN go generate ./internal/api
 
@@ -26,16 +25,21 @@ ARG BUILD_COMMIT=dev
 ARG BUILD_BRANCH=dev
 RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
     --mount=type=cache,id=go-build,target=/root/.cache/go-build \
-    GOOS=linux GOARCH=${TARGETARCH} go build -trimpath \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -trimpath \
     -ldflags="-s -w -X backend/internal/version.Commit=${BUILD_COMMIT} -X backend/internal/version.Branch=${BUILD_BRANCH}" \
     -o /out/backend .
 
 RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
     --mount=type=cache,id=go-build,target=/root/.cache/go-build \
-    GOOS=linux GOARCH=${TARGETARCH} go build -tags postgres -trimpath \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -tags postgres -trimpath \
     -o /out/migrate github.com/golang-migrate/migrate/v4/cmd/migrate
 
 FROM debian:bookworm-slim
+ARG BUILD_COMMIT=dev
+ARG BUILD_BRANCH=dev
+LABEL org.opencontainers.image.revision=${BUILD_COMMIT}
+LABEL org.opencontainers.image.ref.name=${BUILD_BRANCH}
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
   && rm -rf /var/lib/apt/lists/*
@@ -46,5 +50,4 @@ COPY --from=build /src/db/migrations /app/db/migrations
 COPY apps/backend/scripts/migrate-db.sh /app/migrate-db
 RUN chmod +x /app/migrate-db
 EXPOSE 6137
-ENV PORT=6137
 CMD ["/app/backend"]

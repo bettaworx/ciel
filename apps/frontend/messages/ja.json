@@ -402,7 +402,8 @@
       "settingsAccount": "アカウント",
       "settingsSecurity": "セキュリティ",
       "setup": "プロフィール設定",
-      "adminSetup": "サーバー初期設定"
+      "adminSetup": "サーバー初期設定",
+      "postDetail": "投稿"
     }
   },
   "timeline": {
@@ -542,7 +543,8 @@
       "description": "プロフィール画像をアップロードしてください",
       "upload": "画像を選択",
       "change": "画像を変更",
-      "uploading": "アップロード中..."
+      "uploading": "アップロード中...",
+      "cropTitle": "アバターをトリミング"
     },
     "bio": {
       "title": "自己紹介を設定",
@@ -553,7 +555,11 @@
     "success": "プロフィールを保存しました",
     "error": "保存に失敗しました"
   },
+  "postDetail": {
+    "notFound": "投稿が見つかりません"
+  },
   "postCard": {
+    "openDetail": "投稿の詳細を開く",
     "justNow": "たった今",
     "minutesAgo": "{count}分前",
     "hoursAgo": "{count}時間前",

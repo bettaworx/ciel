@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo } from "react";
+import { useLocale } from "next-intl";
 import { useEmojiData, resolveEmoji } from "./use-emoji-data";
 import { useCustomEmojis } from "@/lib/hooks/use-queries";
 import {
@@ -39,7 +40,8 @@ function resolveEmojiItemTone(item: EmojiItem, skinTone: number): EmojiItem {
 // ---------------------------------------------------------------------------
 
 export function useEmojiPickerData(searchQuery: string) {
-  const { data: emojiData, isLoading: emojiLoading } = useEmojiData();
+  const locale = useLocale();
+  const { data: emojiData, isLoading: emojiLoading } = useEmojiData(locale);
   const { data: customEmojis } = useCustomEmojis();
   const recentKeys = normalizeRecentEmojis(useRecentEmojis());
   const skinTone = useEmojiSkinTone();
