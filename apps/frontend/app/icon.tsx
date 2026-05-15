@@ -1,39 +1,19 @@
-import { readFile } from 'fs/promises';
-import { join } from 'path';
+import { ImageResponse } from 'next/og';
+import {
+	getInternalApiBaseUrl,
+	rewriteBackendUrlForServerFetch,
+} from '@/lib/server/api-base-url';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 export const revalidate = 30; // 30秒キャッシュ（設定変更を早期反映）
 
 const size = { width: 48, height: 48 };
 export { size };
 
-function resolveApiBaseUrl(): string {
-	const fromEnv = process.env.API_BASE_URL as string | undefined;
-	const DEFAULT_BASE_URL = 'http://localhost:6137/api/v1';
-	const raw = (fromEnv ?? DEFAULT_BASE_URL).trim();
-	if (!raw) return DEFAULT_BASE_URL;
-	const noTrailingSlash = raw.replace(/\/+$/, '');
-
-	// If the user provides just an origin like http://localhost:6137, assume the API lives under /api/v1.
-	if (/^https?:\/\//.test(noTrailingSlash) && !/\/api\/v1$/.test(noTrailingSlash)) {
-		return `${noTrailingSlash}/api/v1`;
-	}
-
-	return noTrailingSlash;
-}
-
 async function fetchServerIcon(): Promise<ArrayBuffer | null> {
 	try {
-		const baseUrl = resolveApiBaseUrl();
-		
-		// Build absolute URL for server-side fetch
-		let apiUrl = baseUrl;
-		if (apiUrl.startsWith('/')) {
-			// Relative URL - need to make it absolute for server-side fetch
-			const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-			const host = process.env.VERCEL_URL || 'localhost:3000';
-			apiUrl = `${protocol}://${host}${baseUrl}`;
-		}
+		const apiUrl = getInternalApiBaseUrl();
 
 		const serverInfoResponse = await fetch(`${apiUrl}/server/info`, {
 			next: { revalidate: 30 },
@@ -53,10 +33,11 @@ async function fetchServerIcon(): Promise<ArrayBuffer | null> {
 
 		// For animated server icons (GIFs converted to WebP), try to fetch the static version first
 		// The static version (first frame only) is better for favicons
-		const staticIconUrl = iconUrl.replace('/image.webp', '/image_static.webp').replace('/image.png', '/image_static.png');
+		const serverFetchIconUrl = rewriteBackendUrlForServerFetch(iconUrl);
+		const staticIconUrl = serverFetchIconUrl.replace('/image.webp', '/image_static.webp').replace('/image.png', '/image_static.png');
 		
 		// Try static version first
-		if (staticIconUrl !== iconUrl) {
+		if (staticIconUrl !== serverFetchIconUrl) {
 			const staticIconResponse = await fetch(staticIconUrl, {
 				next: { revalidate: 30 },
 			});
@@ -67,7 +48,7 @@ async function fetchServerIcon(): Promise<ArrayBuffer | null> {
 		}
 
 		// Fetch the actual icon image (fallback to animated version if static doesn't exist)
-		const iconResponse = await fetch(iconUrl, {
+		const iconResponse = await fetch(serverFetchIconUrl, {
 			next: { revalidate: 30 },
 		});
 
@@ -83,10 +64,19 @@ async function fetchServerIcon(): Promise<ArrayBuffer | null> {
 	}
 }
 
-async function getFallbackIcon(): Promise<ArrayBuffer> {
-	const faviconPath = join(process.cwd(), 'app', 'favicon.ico');
-	const buffer = await readFile(faviconPath);
-	return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+function getFallbackIcon() {
+	return new ImageResponse(
+		(
+			<div
+				style={{
+					width: size.width,
+					height: size.height,
+					background: '#444444',
+				}}
+			/>
+		),
+		size,
+	);
 }
 
 export default async function Icon() {
@@ -118,28 +108,9 @@ export default async function Icon() {
 		}
 
 		// Fallback to default favicon.ico
-		const fallbackBuffer = await getFallbackIcon();
-		return new Response(fallbackBuffer, {
-			headers: {
-				'Content-Type': 'image/x-icon',
-				'Cache-Control': 'public, max-age=30, immutable',
-			},
-		});
+		return getFallbackIcon();
 	} catch (error) {
 		console.error('Error generating icon:', error);
-		
-		// Ultimate fallback - try to return default favicon
-		try {
-			const fallbackBuffer = await getFallbackIcon();
-			return new Response(fallbackBuffer, {
-				headers: {
-					'Content-Type': 'image/x-icon',
-					'Cache-Control': 'public, max-age=30, immutable',
-				},
-			});
-		} catch {
-			// If even fallback fails, return empty response
-			return new Response(null, { status: 404 });
-		}
+		return getFallbackIcon();
 	}
 }

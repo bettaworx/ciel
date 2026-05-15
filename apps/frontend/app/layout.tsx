@@ -8,6 +8,7 @@ import { ConfigWatcher } from "@/components/providers/ConfigWatcher";
 import { SetupRedirect } from "./SetupRedirect";
 import { DynamicTitle } from "@/components/DynamicTitle";
 import { ThemeColorMeta } from "@/components/ThemeColorMeta";
+import { RuntimeConfigScript } from "@/components/RuntimeConfigScript";
 import { RegisterServiceWorker } from "@/app/register-sw";
 import { getLocale } from "@/i18n/config";
 import { getFontVariableClassName } from "@/app/typography/fonts";
@@ -21,7 +22,8 @@ export default async function RootLayout({
   // Reading headers opts into dynamic rendering per request, which is required
   // for per-request nonces. Next.js uses the x-nonce header (set by middleware)
   // to apply the nonce to its own generated script tags.
-  await headers();
+  const requestHeaders = await headers();
+  const nonce = requestHeaders.get("x-nonce") ?? undefined;
   const locale = await getLocale();
   return (
     <html
@@ -31,6 +33,7 @@ export default async function RootLayout({
     >
       <head>
         <link rel="manifest" href="/pwa/manifest.json" />
+        <RuntimeConfigScript nonce={nonce} />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

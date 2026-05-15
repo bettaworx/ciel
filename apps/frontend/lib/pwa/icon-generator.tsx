@@ -1,5 +1,9 @@
 import { ImageResponse } from 'next/og';
 import sharp from 'sharp';
+import {
+	getInternalApiBaseUrl,
+	rewriteBackendUrlForServerFetch,
+} from '@/lib/server/api-base-url';
 
 /**
  * Fetch and resize server icon from backend API
@@ -13,9 +17,9 @@ import sharp from 'sharp';
  */
 export async function fetchServerIcon(size: number): Promise<Buffer | null> {
 	try {
-		const baseUrl = process.env.API_BASE_URL || 'http://localhost:6137';
+		const baseUrl = getInternalApiBaseUrl();
 		
-		const serverInfoRes = await fetch(`${baseUrl}/api/v1/server/info`, {
+		const serverInfoRes = await fetch(`${baseUrl}/server/info`, {
 			cache: 'no-store'
 		});
 		
@@ -33,14 +37,15 @@ export async function fetchServerIcon(size: number): Promise<Buffer | null> {
 		
 		// For animated server icons (GIFs converted to WebP), try to fetch the static version first
 		// The static version (first frame only) is better for favicons and PWA icons
-		const staticIconUrl = iconUrl
+		const serverFetchIconUrl = rewriteBackendUrlForServerFetch(iconUrl);
+		const staticIconUrl = serverFetchIconUrl
 			.replace('/image.webp', '/image_static.webp')
 			.replace('/image.png', '/image_static.png');
 		
 		let imageBuffer: ArrayBuffer | null = null;
 		
 		// Try static version first
-		if (staticIconUrl !== iconUrl) {
+		if (staticIconUrl !== serverFetchIconUrl) {
 			const staticIconRes = await fetch(staticIconUrl, {
 				cache: 'no-store',
 			});
@@ -52,7 +57,7 @@ export async function fetchServerIcon(size: number): Promise<Buffer | null> {
 
 		// Fetch the actual icon image (fallback to animated version if static doesn't exist)
 		if (!imageBuffer) {
-			const iconRes = await fetch(iconUrl, {
+			const iconRes = await fetch(serverFetchIconUrl, {
 				cache: 'no-store',
 			});
 

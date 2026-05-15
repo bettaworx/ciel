@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { getInternalApiBaseUrl } from '@/lib/server/api-base-url';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 export const revalidate = 300; // 5分キャッシュ
 
 /**
@@ -17,9 +19,9 @@ export const revalidate = 300; // 5分キャッシュ
 export async function GET() {
 	try {
 		// 1. Fetch server info from backend
-		const baseUrl = process.env.API_BASE_URL || 'http://localhost:6137';
+		const baseUrl = getInternalApiBaseUrl();
 		
-		const serverInfoRes = await fetch(`${baseUrl}/api/v1/server/info`, {
+		const serverInfoRes = await fetch(`${baseUrl}/server/info`, {
 			next: { revalidate: 300 }
 		});
 		
