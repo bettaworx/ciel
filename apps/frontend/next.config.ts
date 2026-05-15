@@ -9,7 +9,8 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   output: "standalone",
 
-  // Inject build version info (defaults to "dev" for local development)
+  // Build provenance. These are embedded intentionally so running frontend
+  // images can be matched back to their source commit and branch.
   env: {
     NEXT_PUBLIC_BUILD_COMMIT: process.env.BUILD_COMMIT || "dev",
     NEXT_PUBLIC_BUILD_BRANCH: process.env.BUILD_BRANCH || "dev",
@@ -46,7 +47,7 @@ const nextConfig: NextConfig = {
         process.env.NODE_ENV === 'production' ? 'deterministic' : 'named';
     }
 
-    // Override module naming for better security
+    // Override module naming for better security.
     if (config.output) {
       config.output.devtoolModuleFilenameTemplate = (info: any) => {
         // Use relative paths from project root instead of absolute paths

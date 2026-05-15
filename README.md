@@ -32,6 +32,15 @@ and backend on port 6137. Set `API_BASE_URL` in `.env` to the backend URL that
 browsers can reach. A host-level reverse proxy is optional deployment
 infrastructure, not required by the application containers.
 
+The frontend container does not proxy backend REST or WebSocket traffic. Browser
+clients call the backend directly using `API_BASE_URL`; the Next.js server uses
+`INTERNAL_API_BASE_URL` only for server-rendered assets such as icons and the
+web app manifest.
+
+Operational settings are provided at runtime through Docker Compose and `.env`.
+Build provenance is the exception: frontend and backend images intentionally
+embed the source commit and branch so a running deployment can be verified.
+
 Edit `.env` and set the required secrets (passwords, JWT secret, etc.):
 
 ```bash

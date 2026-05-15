@@ -16,9 +16,6 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 FROM base AS builder
 WORKDIR /app
 
-# Disable Next.js telemetry during build
-ENV NEXT_TELEMETRY_DISABLED=1
-
 ARG BUILD_COMMIT=dev
 ARG BUILD_BRANCH=dev
 ENV BUILD_COMMIT=${BUILD_COMMIT}
@@ -51,15 +48,15 @@ RUN npm install --prefer-optional --no-package-lock sharp@0.34.5
 FROM --platform=$TARGETPLATFORM node:22-bookworm-slim AS runner
 WORKDIR /app
 
-ENV NODE_ENV=production
+ARG BUILD_COMMIT=dev
+ARG BUILD_BRANCH=dev
+LABEL org.opencontainers.image.revision=${BUILD_COMMIT}
+LABEL org.opencontainers.image.ref.name=${BUILD_BRANCH}
 
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 --home /home/nextjs nextjs \
   && mkdir -p /home/nextjs/.cache/node/corepack \
   && chown -R nextjs:nodejs /home/nextjs
-
-ENV HOME=/home/nextjs
-ENV COREPACK_HOME=/home/nextjs/.cache/node/corepack
 
 COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/static ./apps/frontend/.next/static
@@ -75,6 +72,4 @@ COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/@img ./apps/f
 USER nextjs
 
 EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 CMD ["node", "apps/frontend/server.js"]

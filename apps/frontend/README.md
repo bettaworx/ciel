@@ -22,13 +22,18 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## API Routes
 
+The frontend does not provide a backend API proxy. Backend REST and WebSocket
+calls are made directly to `API_BASE_URL` from the browser. Server-side
+frontend code may use `INTERNAL_API_BASE_URL` only for frontend-owned assets
+that need backend metadata, such as `/icon` and `/pwa/manifest.json`.
+
 ### OGP Preview API
 
 The OGP (Open Graph Protocol) preview API is available at `/internal/ogp` instead of `/api/ogp` to avoid conflicts with the backend REST API routes.
 
 **Endpoints:**
 - `GET /internal/ogp?url=<url>` - Fetch OGP metadata for a given URL
-- `GET /internal/ogp/image?url=<url>` - Proxy images from external sites (with SSRF protection)
+- `GET /internal/ogp/image?url=<url>` - Fetch external preview images (with SSRF protection)
 
 **Note:** These routes are internal Next.js API routes. Backend REST calls use `API_BASE_URL` and the backend `/api/v1/` endpoints directly.
 
