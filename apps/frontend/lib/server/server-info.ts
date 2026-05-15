@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { getInternalApiBaseUrl } from '@/lib/server/api-base-url';
 
 type ServerInfo = {
 	serverName: string;
@@ -12,13 +13,13 @@ type ServerInfo = {
  */
 export const getServerInfo = cache(async (): Promise<ServerInfo | null> => {
 	try {
-		const apiUrl = process.env.API_BASE_URL || 'http://localhost:6137';
+		const apiUrl = getInternalApiBaseUrl();
 		
 		// タイムアウト付きでfetch（ビルド時の遅延を防ぐ）
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒タイムアウト
 
-		const response = await fetch(`${apiUrl}/api/v1/server/info`, {
+		const response = await fetch(`${apiUrl}/server/info`, {
 			signal: controller.signal,
 			next: { revalidate: 30 }, // 30秒間キャッシュ
 		});

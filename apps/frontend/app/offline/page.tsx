@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { Moon, Globe } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardHeader,
@@ -20,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { type Locale } from "@/i18n/constants";
 import { setClientLocale } from "@/i18n/client-locale";
+import { resolveApiBaseUrl } from "@/lib/api/base-url";
 
 const HEALTH_CHECK_INTERVAL_MS = 5000;
 
@@ -38,7 +38,7 @@ export default function OfflinePage() {
   useEffect(() => {
     const check = async () => {
       try {
-        const res = await fetch("/api/v1/health", {
+        const res = await fetch(`${resolveApiBaseUrl()}/health`, {
           method: "GET",
           credentials: "include",
           signal: AbortSignal.timeout(4000),

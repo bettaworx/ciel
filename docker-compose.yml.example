@@ -1,11 +1,17 @@
 name: ciel
 
+networks:
+  ciel-net:
+    driver: bridge
+
 services:
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
     container_name: ciel-backend
+    networks:
+      - ciel-net
     depends_on:
       db:
         condition: service_healthy
@@ -42,11 +48,15 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     container_name: ciel-frontend
+    networks:
+      - ciel-net
     depends_on:
       backend:
         condition: service_started
     environment:
-      API_BASE_URL: ${API_BASE_URL:-http://ciel-backend:6137}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:6137}
+      INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://ciel-backend:6137}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:6137}
       PORT: ${FRONTEND_PORT:-3000}
       CSP_DEFAULT_SRC: ${CSP_DEFAULT_SRC:-}
       CSP_SCRIPT_SRC: ${CSP_SCRIPT_SRC:-}
@@ -65,6 +75,8 @@ services:
   db:
     image: postgres:16-alpine
     container_name: ciel-db
+    networks:
+      - ciel-net
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ciel}
       POSTGRES_USER: ${POSTGRES_USER:-ciel}
@@ -85,6 +97,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: ciel-redis
+    networks:
+      - ciel-net
     # SECURITY: Add password protection for Redis
     command: >
       sh -c "

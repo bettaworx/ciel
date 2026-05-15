@@ -955,7 +955,7 @@ export function useUpdateSignupSettings() {
 const OGP_STALE_TIME = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
- * Fetch OGP metadata for a URL via the frontend proxy API.
+ * Fetch OGP metadata for a URL via the frontend OGP preview endpoint.
  *
  * - Only executes when `url` is non-null.
  * - Aggressively caches (24 h staleTime + gcTime).
