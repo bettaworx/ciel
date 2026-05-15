@@ -54,7 +54,7 @@ services:
       backend:
         condition: service_started
     environment:
-      API_BASE_URL: ${API_BASE_URL:-http://ciel-backend:6137}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:6137}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost}
       PORT: ${FRONTEND_PORT:-3000}
       CSP_DEFAULT_SRC: ${CSP_DEFAULT_SRC:-}
