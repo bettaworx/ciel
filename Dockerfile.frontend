@@ -24,6 +24,12 @@ ARG BUILD_BRANCH=dev
 ENV BUILD_COMMIT=${BUILD_COMMIT}
 ENV BUILD_BRANCH=${BUILD_BRANCH}
 
+# Backend URL used by Next.js rewrites (evaluated at build time).
+# Pass http://ciel-backend:6137 when building via Docker Compose so
+# the server-side proxy reaches the backend over the Docker network.
+ARG API_BASE_URL=http://localhost:6137
+ENV API_BASE_URL=${API_BASE_URL}
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/frontend/node_modules ./apps/frontend/node_modules
 COPY --from=deps /app/packages/kotodoki/node_modules ./packages/kotodoki/node_modules

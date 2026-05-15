@@ -47,6 +47,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        API_BASE_URL: ${API_BASE_URL:-http://ciel-backend:6137}
     container_name: ciel-frontend
     networks:
       - ciel-net
