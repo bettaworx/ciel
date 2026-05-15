@@ -25,9 +25,11 @@ describe("emoji-picker recent emojis", () => {
     expect(normalizeRecentEmojiKey("✅")).toBe("✅");
     expect(normalizeRecentEmojiKey("❗")).toBe("❗️");
     expect(normalizeRecentEmojiKey("?")).toBe("❓");
+    expect(normalizeRecentEmojiKey("❓️")).toBe("❓");
     expect(normalizeRecentEmojiKey("⭕")).toBe("⭕️");
     expect(normalizeRecentEmojiKey("✖")).toBe("❌");
     expect(normalizeRecentEmojiKey("❌")).toBe("❌");
+    expect(normalizeRecentEmojiKey("❌️")).toBe("❌");
   });
 
   it("adds a new emoji to the front using defaults as the baseline", () => {

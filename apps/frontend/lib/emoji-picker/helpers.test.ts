@@ -7,6 +7,7 @@ import {
   dedupeCustomEmojis,
   getEmojiSrc,
   isSingleTwemojiEmoji,
+  normalizeTwemojiEmoji,
 } from "./helpers";
 
 describe("emoji picker helpers", () => {
@@ -22,6 +23,15 @@ describe("emoji picker helpers", () => {
   it("checks whether an emoji is supported independently from asset type", () => {
     expect(isSingleTwemojiEmoji("😀")).toBe(true);
     expect(isSingleTwemojiEmoji("A")).toBe(false);
+  });
+
+  it("normalizes redundant variation selectors without dropping required ones", () => {
+    expect(normalizeTwemojiEmoji("👍️")).toBe("👍");
+    expect(normalizeTwemojiEmoji("❓️")).toBe("❓");
+    expect(normalizeTwemojiEmoji("❌️")).toBe("❌");
+    expect(normalizeTwemojiEmoji("©️")).toBe("©️");
+    expect(normalizeTwemojiEmoji("⭕️")).toBe("⭕️");
+    expect(normalizeTwemojiEmoji("A")).toBeNull();
   });
 
   it("dedupes custom emojis by shortcode while preserving first occurrence", () => {
