@@ -142,7 +142,9 @@ export function PostCard({
   );
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [isContentOverflowing, setIsContentOverflowing] = useState(false);
+  const [isCompactOverflowing, setIsCompactOverflowing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const articleRef = useRef<HTMLElement>(null);
   const isOwner = auth.user?.id === post.author?.id;
   const hasReactions = reactions.length > 0;
   const displayConfig = getPostCardDisplayConfig(variant);
@@ -151,8 +153,10 @@ export function PostCard({
     collapseContent,
     timestampFormat,
     timestampPlacement,
+    showReactions,
   } = displayConfig;
   const verticalIdentity = displayConfig.identityLayout === "vertical";
+  const isCompact = variant === "compact";
 
   const showAboveLine = threadLine === "above" || threadLine === "both";
   const wantsBelowLine = threadLine === "below" || threadLine === "both";
@@ -181,6 +185,22 @@ export function PostCard({
     if (!el) return;
     setIsContentOverflowing(el.scrollHeight > POST_CONTENT_COLLAPSE_HEIGHT);
   }, [collapseContent, post.content]);
+
+  useEffect(() => {
+    if (!isCompact) {
+      setIsCompactOverflowing(false);
+      return;
+    }
+    const el = articleRef.current;
+    if (!el) return;
+    const measure = () => {
+      setIsCompactOverflowing(el.scrollHeight > el.clientHeight);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isCompact, post.content, post.media?.length]);
 
   const handleToggleReaction = useCallback(
     (emoji: string) => {
@@ -625,9 +645,11 @@ export function PostCard({
 
   return (
     <article
+      ref={articleRef}
       className={cn(
         "relative text-card-foreground p-3 transition-colors",
         !isLast && !showBelowLine && "border-b border-border",
+        isCompact && "max-h-48 overflow-hidden",
         className,
       )}
     >
@@ -647,7 +669,7 @@ export function PostCard({
           {bodyNode}
           {mediaNode}
           {timestampPlacement === "afterContent" && standaloneTimestampNode}
-          {reactionsRowNode}
+          {showReactions && reactionsRowNode}
         </>
       ) : (
         <div className="flex items-start gap-3">
@@ -662,9 +684,15 @@ export function PostCard({
             </div>
             {mediaNode}
             {timestampPlacement === "afterContent" && standaloneTimestampNode}
-            {reactionsRowNode}
+            {showReactions && reactionsRowNode}
           </div>
         </div>
+      )}
+      {isCompact && isCompactOverflowing && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent"
+        />
       )}
       <ImageLightbox
         images={lightboxImages}
