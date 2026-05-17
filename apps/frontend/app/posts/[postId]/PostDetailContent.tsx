@@ -12,16 +12,42 @@ import { PostCard } from "@/components/PostCard";
 import { ComposeCard } from "@/components/ComposeCard";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type PostDetailContentProps = {
   postId: string;
 };
+
+function ParentPostSkeleton() {
+  return (
+    <article aria-hidden className="relative p-3 text-card-foreground">
+      <span className="absolute left-8 sm:left-9 top-14 sm:top-16 bottom-0 w-0.5 -translate-x-1/2 bg-border" />
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-11 w-11 sm:h-12 sm:w-12 rounded-full shrink-0" />
+        <div className="min-w-0 flex-1 space-y-2 pt-1">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-14" />
+          </div>
+          <Skeleton className="h-4 w-full max-w-sm" />
+          <Skeleton className="h-4 w-2/3 max-w-xs" />
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export function PostDetailContent({ postId }: PostDetailContentProps) {
   const t = useTranslations();
   const router = useRouter();
   const auth = useAtomValue(authAtom);
   const { data: post, isLoading, error } = usePost(postId);
+  const parentId = post?.parentId ?? undefined;
+  const {
+    data: parentPost,
+    isLoading: isParentLoading,
+    isFetching: isParentFetching,
+  } = usePost(parentId);
   const {
     data: repliesData,
     fetchNextPage,
@@ -30,6 +56,9 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
   } = useReplies(post ? postId : undefined);
 
   const replies = repliesData?.pages.flatMap((page) => page.items ?? []) ?? [];
+  const showParentSkeleton =
+    Boolean(parentId) && !parentPost && (isParentLoading || isParentFetching);
+  const hasVisibleParent = Boolean(parentPost || showParentSkeleton);
   const infiniteScrollRef = useInfiniteScroll({
     enabled: replies.length > 0,
     hasNextPage: Boolean(hasNextPage),
@@ -65,10 +94,22 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
       {post && (
         <div className="space-y-3">
           <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
+            {parentPost ? (
+              <PostCard
+                post={parentPost}
+                isLast={false}
+                variant="compact"
+                threadLine="below"
+                onUserClick={(username) => router.push(`/users/${username}`)}
+              />
+            ) : (
+              showParentSkeleton && <ParentPostSkeleton />
+            )}
             <PostCard
               post={post}
               isLast
               variant="detail"
+              threadLine={hasVisibleParent ? "above" : "none"}
               onUserClick={(username) => router.push(`/users/${username}`)}
               onDeleteSuccess={() => router.back()}
             />
