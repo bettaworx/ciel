@@ -73,6 +73,14 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     isFetchingNextPage,
   } = useUserPosts(username);
   const {
+    data: repliesData,
+    isLoading: repliesLoading,
+    error: repliesError,
+    fetchNextPage: fetchNextRepliesPage,
+    hasNextPage: hasNextRepliesPage,
+    isFetchingNextPage: isFetchingNextRepliesPage,
+  } = useUserPosts(username, { onlyReplies: true });
+  const {
     data: mediaData,
     isLoading: mediaLoading,
     error: mediaError,
@@ -131,6 +139,12 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     hasNextPage: Boolean(hasNextPage),
     isFetchingNextPage,
     fetchNextPage,
+  });
+  const repliesInfiniteScrollRef = useInfiniteScroll({
+    enabled: Boolean(hasNextRepliesPage),
+    hasNextPage: Boolean(hasNextRepliesPage),
+    isFetchingNextPage: isFetchingNextRepliesPage,
+    fetchNextPage: fetchNextRepliesPage,
   });
   const mediaInfiniteScrollRef = useInfiniteScroll({
     enabled: Boolean(hasNextMediaPage),
@@ -301,6 +315,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   }
 
   const posts = postsData?.pages.flatMap((page) => page.items ?? []) ?? [];
+  const replies = repliesData?.pages.flatMap((page) => page.items ?? []) ?? [];
   const media = mediaData?.pages.flatMap((page) => page.items ?? []) ?? [];
 
   return (
@@ -602,10 +617,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           </div>
         </div>
 
-        {/* Posts / Media Tabs */}
+        {/* Posts / Replies / Media Tabs */}
         <Tabs defaultValue="posts">
           <TabsList className="mb-3 w-full">
             <TabsTrigger value="posts">{t("user.posts")}</TabsTrigger>
+            <TabsTrigger value="replies">{t("user.replies")}</TabsTrigger>
             <TabsTrigger value="media">{t("user.media")}</TabsTrigger>
           </TabsList>
 
@@ -647,6 +663,47 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               sentinelRef={postsInfiniteScrollRef}
               hasNextPage={Boolean(hasNextPage)}
               isFetchingNextPage={isFetchingNextPage}
+            />
+          </TabsContent>
+
+          <TabsContent value="replies">
+            {repliesLoading && replies.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <Spinner variant="theme" label={t("loading")} />
+              </div>
+            )}
+
+            {repliesError && (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-destructive">
+                  {t("error.title")}: {repliesError.message}
+                </p>
+              </div>
+            )}
+
+            {!repliesLoading && !repliesError && replies.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-muted-foreground">{t("user.noReplies")}</p>
+              </div>
+            )}
+
+            {replies.length > 0 && (
+              <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
+                {replies.map((post, index) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onUserClick={(username) => router.push(`/users/${username}`)}
+                    isLast={index === replies.length - 1}
+                  />
+                ))}
+              </div>
+            )}
+
+            <InfiniteScrollTrigger
+              sentinelRef={repliesInfiniteScrollRef}
+              hasNextPage={Boolean(hasNextRepliesPage)}
+              isFetchingNextPage={isFetchingNextRepliesPage}
             />
           </TabsContent>
 

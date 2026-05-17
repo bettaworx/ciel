@@ -487,6 +487,10 @@ WHERE p.deleted_at IS NULL
 		)
 	)
 	AND (
+		sqlc.narg('only_replies')::boolean IS NULL
+		OR p.parent_id IS NOT NULL
+	)
+	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
 		OR p.created_at < sqlc.narg('cursor_time')
 		OR (p.created_at = sqlc.narg('cursor_time') AND p.id < sqlc.narg('cursor_id'))

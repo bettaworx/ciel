@@ -239,12 +239,18 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 		}
 	}
 
+	var onlyReplies sql.NullBool
+	if params.OnlyReplies != nil && *params.OnlyReplies {
+		onlyReplies = sql.NullBool{Bool: true, Valid: true}
+	}
+
 	rows, err := s.store.Q.ListPostsByUsername(ctx, sqlc.ListPostsByUsernameParams{
-		Username:   uname,
-		MediaType:  mediaType,
-		CursorTime: cTime,
-		CursorID:   cID,
-		Limit:      int32(limit),
+		Username:    uname,
+		MediaType:   mediaType,
+		OnlyReplies: onlyReplies,
+		CursorTime:  cTime,
+		CursorID:    cID,
+		Limit:       int32(limit),
 	})
 	if err != nil {
 		return api.UserPostsPage{}, err
