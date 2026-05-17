@@ -1,9 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
 import { ReactionUsersDialog } from "@/components/ReactionUsersDialog";
 import { ReactionPicker } from "@/components/ReactionPicker";
@@ -85,18 +92,28 @@ export type PostCardThreadLine = "none" | "above" | "below" | "both";
 // avatar wrapper is h-10 / sm:h-12. A 4px (Tailwind unit 1) gap separates
 // the line ends from the avatar.
 function ThreadConnectorLine({
+  anchor = "avatar",
   position,
+  variant = "solid",
 }: {
+  anchor?: "avatar" | "center";
   position: "above" | "below";
+  variant?: "solid" | "dashed";
 }) {
   return (
     <span
       aria-hidden
       className={cn(
-        "absolute left-8 sm:left-9 w-0.5 -translate-x-1/2 bg-border",
-        position === "above"
-          ? "top-0 h-2"
-          : "top-14 sm:top-16 bottom-0",
+        "absolute left-8 sm:left-9 -translate-x-1/2",
+        variant === "solid"
+          ? "w-0.5 bg-border"
+          : "w-0 border-l border-dashed border-border",
+        anchor === "avatar" &&
+          (position === "above"
+            ? "top-0 h-2"
+            : "top-14 sm:top-16 bottom-0"),
+        anchor === "center" &&
+          (position === "above" ? "top-0 bottom-1/2" : "top-1/2 bottom-0"),
       )}
     />
   );
@@ -110,6 +127,79 @@ export interface PostCardProps {
   isLast?: boolean;
   variant?: PostCardVariant;
   threadLine?: PostCardThreadLine;
+}
+
+export interface PostTreeActionButtonProps {
+  children: ReactNode;
+  onClick?: ButtonProps["onClick"];
+  className?: string;
+  isLast?: boolean;
+  threadLine?: PostCardThreadLine;
+  buttonProps?: Omit<ButtonProps, "children" | "onClick">;
+}
+
+export function PostTreeActionButton({
+  children,
+  onClick,
+  className,
+  isLast = false,
+  threadLine = "none",
+  buttonProps,
+}: PostTreeActionButtonProps) {
+  const showAboveLine = threadLine === "above" || threadLine === "both";
+  const showBelowLine = threadLine === "below" || threadLine === "both";
+  const {
+    className: buttonClassName,
+    variant,
+    size,
+    ...restButtonProps
+  } = buttonProps ?? {};
+
+  return (
+    <article
+      className={cn(
+        "relative p-3 text-card-foreground transition-colors",
+        !isLast && !showBelowLine && "border-b border-border",
+        className,
+      )}
+    >
+      {showAboveLine && (
+        <ThreadConnectorLine
+          anchor="center"
+          position="above"
+          variant="dashed"
+        />
+      )}
+      {showBelowLine && (
+        <ThreadConnectorLine
+          anchor="center"
+          position="below"
+          variant="dashed"
+        />
+      )}
+
+      <div className="flex items-center gap-3">
+        <div
+          aria-hidden
+          className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
+        />
+        <div className="min-w-0 flex-1">
+          <Button
+            {...restButtonProps}
+            variant={variant ?? "ghost"}
+            size={size ?? "sm"}
+            className={cn(
+              "max-w-full justify-start overflow-hidden text-muted-foreground",
+              buttonClassName,
+            )}
+            onClick={onClick}
+          >
+            {children}
+          </Button>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export function PostCard({
