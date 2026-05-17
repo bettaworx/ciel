@@ -415,6 +415,116 @@ export function PostCard({
     </span>
   );
 
+  const moreMenuNode = isDesktop ? (
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size={verticalIdentity ? "sm" : "xs"}
+          className={cn(verticalIdentity && "w-8 p-0", "text-muted-foreground hover:text-foreground transition-colors duration-160 ease")}
+          aria-label={t("actions.more")}
+        >
+          <MoreHorizontal className="h-5 w-5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {hasReactions && (
+          <DropdownMenuItem
+            onSelect={() => {
+              setReactionDialogEmoji(reactions[0]?.emoji ?? null);
+              setReactionDialogOpen(true);
+            }}
+          >
+            <Eye className="h-4 w-4" />
+            {t("actions.viewReactions")}
+          </DropdownMenuItem>
+        )}
+        {post.content && (
+          <DropdownMenuItem onSelect={handleCopyText}>
+            <ClipboardCopy className="h-4 w-4" />
+            {t("actions.copyText")}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem
+          onSelect={handleCopyUserId}
+          disabled={!hasAuthorId}
+        >
+          <Clipboard className="h-4 w-4" />
+          {t("actions.copyUserId")}
+        </DropdownMenuItem>
+        {isOwner && (
+          <DropdownMenuItem
+            onSelect={handleOpenDelete}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+            {t("actions.delete")}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : (
+    <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+      <DrawerTrigger asChild>
+        <Button
+          variant="ghost"
+          size={verticalIdentity ? "sm" : "xs"}
+          className={cn(verticalIdentity && "w-8 p-0", "text-muted-foreground hover:text-foreground transition-colors duration-160 ease")}
+          aria-label={t("actions.more")}
+        >
+          <MoreHorizontal className="h-5 w-5" />
+        </Button>
+      </DrawerTrigger>
+      <DrawerContent>
+        <div className="flex flex-col gap-2 p-2 pb-4">
+          {hasReactions && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setReactionDialogEmoji(reactions[0]?.emoji ?? null);
+                setReactionDialogOpen(true);
+                setMenuOpen(false);
+              }}
+            >
+              <Eye className="h-4 w-4" />
+              {t("actions.viewReactions")}
+            </Button>
+          )}
+          {post.content && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={handleCopyText}
+            >
+              <ClipboardCopy className="h-4 w-4" />
+              {t("actions.copyText")}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2"
+            onClick={handleCopyUserId}
+            disabled={!hasAuthorId}
+          >
+            <Clipboard className="h-4 w-4" />
+            {t("actions.copyUserId")}
+          </Button>
+          {isOwner && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2 text-destructive"
+              onClick={handleOpenDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+              {t("actions.delete")}
+            </Button>
+          )}
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+
   const standaloneTimestampNode = (
     <div className="mb-2 text-left">
       <span
@@ -502,143 +612,30 @@ export function PostCard({
       {/* Reactions + Reaction Picker */}
       <div
         className={cn(
-          "flex items-end justify-between gap-2",
+          "flex items-center flex-wrap gap-1.5",
           verticalIdentity && "mt-1 sm:mt-1.5",
         )}
       >
-        <div className="flex items-center flex-wrap gap-1.5">
-          {hasReactions &&
-            reactions.map((reaction) => (
-              <ReactionBadge
-                key={reaction.emoji}
-                emoji={reaction.emoji}
-                count={reaction.count}
-                isReacted={reaction.isReacted}
-                onToggle={() => handleToggleReaction(reaction.emoji)}
-                disabled={isPending}
-                postId={post.id}
-                onOpenDialog={(emoji) => {
-                  setReactionDialogEmoji(emoji);
-                  setReactionDialogOpen(true);
-                }}
-              />
-            ))}
-          <ReactionPicker
-            onEmojiSelect={handleToggleReaction}
-            disabled={isPending}
-          />
-        </div>
-        <div className="shrink-0">
-          {isDesktop ? (
-            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
-                  aria-label={t("actions.more")}
-                >
-                  <MoreHorizontal className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {hasReactions && (
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setReactionDialogEmoji(reactions[0]?.emoji ?? null);
-                      setReactionDialogOpen(true);
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                    {t("actions.viewReactions")}
-                  </DropdownMenuItem>
-                )}
-                {post.content && (
-                  <DropdownMenuItem onSelect={handleCopyText}>
-                    <ClipboardCopy className="h-4 w-4" />
-                    {t("actions.copyText")}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  onSelect={handleCopyUserId}
-                  disabled={!hasAuthorId}
-                >
-                  <Clipboard className="h-4 w-4" />
-                  {t("actions.copyUserId")}
-                </DropdownMenuItem>
-                {isOwner && (
-                  <DropdownMenuItem
-                    onSelect={handleOpenDelete}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    {t("actions.delete")}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
-              <DrawerTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
-                  aria-label={t("actions.more")}
-                >
-                  <MoreHorizontal className="h-5 w-5" />
-                </Button>
-              </DrawerTrigger>
-              <DrawerContent>
-                <div className="flex flex-col gap-2 p-2 pb-4">
-                  {hasReactions && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start gap-2"
-                      onClick={() => {
-                        setReactionDialogEmoji(reactions[0]?.emoji ?? null);
-                        setReactionDialogOpen(true);
-                        setMenuOpen(false);
-                      }}
-                    >
-                      <Eye className="h-4 w-4" />
-                      {t("actions.viewReactions")}
-                    </Button>
-                  )}
-                  {post.content && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start gap-2"
-                      onClick={handleCopyText}
-                    >
-                      <ClipboardCopy className="h-4 w-4" />
-                      {t("actions.copyText")}
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-2"
-                    onClick={handleCopyUserId}
-                    disabled={!hasAuthorId}
-                  >
-                    <Clipboard className="h-4 w-4" />
-                    {t("actions.copyUserId")}
-                  </Button>
-                  {isOwner && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start gap-2 text-destructive"
-                      onClick={handleOpenDelete}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {t("actions.delete")}
-                    </Button>
-                  )}
-                </div>
-              </DrawerContent>
-            </Drawer>
-          )}
-        </div>
+        {hasReactions &&
+          reactions.map((reaction) => (
+            <ReactionBadge
+              key={reaction.emoji}
+              emoji={reaction.emoji}
+              count={reaction.count}
+              isReacted={reaction.isReacted}
+              onToggle={() => handleToggleReaction(reaction.emoji)}
+              disabled={isPending}
+              postId={post.id}
+              onOpenDialog={(emoji) => {
+                setReactionDialogEmoji(emoji);
+                setReactionDialogOpen(true);
+              }}
+            />
+          ))}
+        <ReactionPicker
+          onEmojiSelect={handleToggleReaction}
+          disabled={isPending}
+        />
       </div>
     </>
   );
@@ -664,7 +661,10 @@ export function PostCard({
               {avatarNode}
               {identityStackNode}
             </div>
-            {timestampPlacement === "header" && timestampNode}
+            <div className="flex items-center gap-1 shrink-0">
+              {timestampPlacement === "header" && timestampNode}
+              {moreMenuNode}
+            </div>
           </div>
           {bodyNode}
           {mediaNode}
@@ -679,6 +679,7 @@ export function PostCard({
               <div className="flex min-w-0 items-center gap-2">
                 {identityStackNode}
                 {timestampPlacement === "header" && timestampNode}
+                {moreMenuNode}
               </div>
               {bodyNode}
             </div>
