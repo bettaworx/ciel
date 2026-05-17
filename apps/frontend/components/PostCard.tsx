@@ -68,6 +68,40 @@ import {
 
 type Post = components["schemas"]["Post"];
 
+/**
+ * Controls the rendering of vertical thread connector lines that hug the
+ * avatar's horizontal center.
+ *
+ * - "above": line spans from the article top edge down to the avatar's top
+ * - "below": line spans from the avatar's bottom down to the article bottom
+ *   (NOT supported with `variant="detail"` — silently omitted there)
+ * - "both": both of the above
+ * - "none" (default): no line is rendered
+ */
+export type PostCardThreadLine = "none" | "above" | "below" | "both";
+
+// Vertical thread connector line, absolutely positioned within a PostCard
+// article. Positions assume the surrounding article has p-3 padding and the
+// avatar wrapper is h-10 / sm:h-12. A 4px (Tailwind unit 1) gap separates
+// the line ends from the avatar.
+function ThreadConnectorLine({
+  position,
+}: {
+  position: "above" | "below";
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "absolute left-8 sm:left-9 w-0.5 -translate-x-1/2 bg-border",
+        position === "above"
+          ? "top-0 h-2"
+          : "top-14 sm:top-16 bottom-0",
+      )}
+    />
+  );
+}
+
 export interface PostCardProps {
   post: Post;
   onUserClick?: (username: string) => void;
@@ -75,6 +109,7 @@ export interface PostCardProps {
   className?: string;
   isLast?: boolean;
   variant?: PostCardVariant;
+  threadLine?: PostCardThreadLine;
 }
 
 export function PostCard({
@@ -84,6 +119,7 @@ export function PostCard({
   className,
   isLast = false,
   variant = "timeline",
+  threadLine = "none",
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -117,6 +153,23 @@ export function PostCard({
     timestampPlacement,
   } = displayConfig;
   const verticalIdentity = displayConfig.identityLayout === "vertical";
+
+  const showAboveLine = threadLine === "above" || threadLine === "both";
+  const wantsBelowLine = threadLine === "below" || threadLine === "both";
+  // The below-line cannot be used in the detail layout: in that layout the
+  // content extends to the full card width below the avatar, so a vertical
+  // line passing through the content area would be visually misleading.
+  const showBelowLine = wantsBelowLine && !verticalIdentity;
+
+  if (
+    process.env.NODE_ENV !== "production" &&
+    wantsBelowLine &&
+    verticalIdentity
+  ) {
+    console.warn(
+      'PostCard: threadLine "below"/"both" is not supported with variant="detail" — the line below the avatar will be omitted.',
+    );
+  }
 
   useEffect(() => {
     if (!collapseContent) {
@@ -573,11 +626,14 @@ export function PostCard({
   return (
     <article
       className={cn(
-        "text-card-foreground p-3 transition-colors",
-        !isLast && "border-b border-border",
+        "relative text-card-foreground p-3 transition-colors",
+        !isLast && !showBelowLine && "border-b border-border",
         className,
       )}
     >
+      {showAboveLine && <ThreadConnectorLine position="above" />}
+      {showBelowLine && <ThreadConnectorLine position="below" />}
+
       {verticalIdentity ? (
         <>
           {/* Identity row with avatar embedded — full width, no avatar indent below */}
