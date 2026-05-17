@@ -755,6 +755,7 @@ export function PostCard({
         open={replyDialogOpen}
         onOpenChange={setReplyDialogOpen}
         parentId={post.id}
+        contentPrefix={post.author?.username ? `@${post.author.username} ` : undefined}
       />
     </>
   );
