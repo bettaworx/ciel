@@ -692,7 +692,7 @@ export function PostCard({
       {isCompact && isCompactOverflowing && (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent"
+          className="pointer-events-none absolute bottom-0 left-16 right-0 h-16 bg-gradient-to-t from-card to-transparent sm:left-[4.5rem]"
         />
       )}
       <ImageLightbox
