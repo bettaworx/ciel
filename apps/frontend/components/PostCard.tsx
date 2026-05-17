@@ -737,11 +737,17 @@ export function PostCard({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
+          className={cn(
+            "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
+            post.replyCount > 0 ? "px-2 gap-1" : "w-8 p-0",
+          )}
           aria-label={t("createPost.replyTitle")}
           onClick={() => setReplyDialogOpen(true)}
         >
           <MessageCircle className="h-5 w-5" />
+          {post.replyCount > 0 && (
+            <span className="text-xs tabular-nums">{post.replyCount}</span>
+          )}
         </Button>
       </div>
 
