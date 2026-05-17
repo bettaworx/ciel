@@ -148,48 +148,43 @@ export function PostTreeActionButton({
 }: PostTreeActionButtonProps) {
   const showAboveLine = threadLine === "above" || threadLine === "both";
   const showBelowLine = threadLine === "below" || threadLine === "both";
+  const showThreadDot = showAboveLine || showBelowLine;
   const {
     className: buttonClassName,
     variant,
     size,
     ...restButtonProps
   } = buttonProps ?? {};
-
   return (
     <article
       className={cn(
-        "relative p-3 text-card-foreground transition-colors",
+        "relative px-3 text-card-foreground transition-colors",
+        showAboveLine ? "pt-0" : "pt-3",
+        showBelowLine ? "pb-0" : "pb-3",
         !isLast && !showBelowLine && "border-b border-border",
         className,
       )}
     >
-      {showAboveLine && (
-        <ThreadConnectorLine
-          anchor="center"
-          position="above"
-          variant="dashed"
-        />
-      )}
-      {showBelowLine && (
-        <ThreadConnectorLine
-          anchor="center"
-          position="below"
-          variant="dashed"
-        />
-      )}
-
       <div className="flex items-center gap-3">
         <div
           aria-hidden
-          className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
-        />
+          className="flex h-6 w-10 shrink-0 items-center justify-center sm:w-12"
+        >
+          {showThreadDot && (
+            <span className="flex flex-col gap-0.5">
+              <span className="h-0.5 w-0.5 bg-border" />
+              <span className="h-0.5 w-0.5 bg-border" />
+              <span className="h-0.5 w-0.5 bg-border" />
+            </span>
+          )}
+        </div>
         <div className="min-w-0 flex-1">
           <Button
             {...restButtonProps}
             variant={variant ?? "ghost"}
             size={size ?? "sm"}
             className={cn(
-              "max-w-full justify-start overflow-hidden text-muted-foreground",
+              "h-6 max-w-full justify-start overflow-hidden px-2 py-0 text-sm leading-none text-muted-foreground",
               buttonClassName,
             )}
             onClick={onClick}

@@ -9,16 +9,46 @@ export type FetchRepliesPage = (
 ) => Promise<TimelinePage>;
 
 const OWNER_REPLY_THREAD_PAGE_LIMIT = 100;
+const OWNER_REPLY_THREAD_CHUNK_DEPTH = 3;
+
+export type OwnerReplyThreadChunk = {
+  replies: Post[];
+  continuationParentIds: string[];
+};
+
+export type CollectOwnerReplyThreadChunkOptions = {
+  depthLimit?: number;
+  visitedPostIds?: Iterable<string>;
+};
 
 export async function collectOwnerReplyThread(
   rootPost: Post,
   fetchRepliesPage: FetchRepliesPage,
 ): Promise<Post[]> {
-  const ownerId = rootPost.author?.id;
-  if (!ownerId) return [];
+  const result = await collectOwnerReplyThreadChunk(rootPost, fetchRepliesPage, {
+    depthLimit: Number.MAX_SAFE_INTEGER,
+  });
+  return result.replies;
+}
 
-  const visitedPostIds = new Set<string>([rootPost.id]);
+export async function collectOwnerReplyThreadChunk(
+  rootPost: Post,
+  fetchRepliesPage: FetchRepliesPage,
+  options: CollectOwnerReplyThreadChunkOptions = {},
+): Promise<OwnerReplyThreadChunk> {
+  const ownerId = rootPost.author?.id;
+  if (!ownerId) {
+    return { replies: [], continuationParentIds: [] };
+  }
+
+  const depthLimit = Math.max(
+    1,
+    Math.floor(options.depthLimit ?? OWNER_REPLY_THREAD_CHUNK_DEPTH),
+  );
+  const visitedPostIds = new Set<string>(options.visitedPostIds ?? []);
+  visitedPostIds.add(rootPost.id);
   const collected: Post[] = [];
+  const continuationParentIds = new Set<string>();
 
   async function fetchAllDirectReplies(parentId: string): Promise<Post[]> {
     const replies: Post[] = [];
@@ -36,7 +66,17 @@ export async function collectOwnerReplyThread(
     return replies;
   }
 
-  async function visitOwnerReplies(parentId: string): Promise<void> {
+  async function hasUnvisitedOwnerReply(parentId: string): Promise<boolean> {
+    const replies = await fetchAllDirectReplies(parentId);
+    return replies.some(
+      (reply) => !visitedPostIds.has(reply.id) && reply.author?.id === ownerId,
+    );
+  }
+
+  async function visitOwnerReplies(
+    parentId: string,
+    depth: number,
+  ): Promise<void> {
     const replies = await fetchAllDirectReplies(parentId);
 
     for (const reply of replies) {
@@ -50,12 +90,25 @@ export async function collectOwnerReplyThread(
       }
 
       collected.push(reply);
-      await visitOwnerReplies(reply.id);
+      if (depth >= depthLimit) {
+        if (
+          reply.replyCount > 0 &&
+          (await hasUnvisitedOwnerReply(reply.id))
+        ) {
+          continuationParentIds.add(reply.id);
+        }
+        continue;
+      }
+
+      await visitOwnerReplies(reply.id, depth + 1);
     }
   }
 
-  await visitOwnerReplies(rootPost.id);
-  return collected;
+  await visitOwnerReplies(rootPost.id, 1);
+  return {
+    replies: collected,
+    continuationParentIds: Array.from(continuationParentIds),
+  };
 }
 
 export function groupOwnerReplyThreads(

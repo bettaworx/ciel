@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import {
   useQuery,
   useMutation,
@@ -9,7 +10,7 @@ import {
 import { useApi } from "@/lib/api/use-api";
 import type { components } from "@/lib/api/api";
 import { ApiHttpError } from "@/lib/api/client";
-import { collectOwnerReplyThread } from "@/lib/post-thread";
+import { collectOwnerReplyThreadChunk } from "@/lib/post-thread";
 import { useSetAtom, useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { ERROR_CODES } from "@/lib/errors";
@@ -226,22 +227,35 @@ export function usePost(postId: string | undefined) {
 
 export function useOwnerReplyThread(post: components["schemas"]["Post"] | undefined) {
   const api = useApi();
+  const fetchOwnerReplyThreadChunk = useCallback(
+    async (
+      parentPost: components["schemas"]["Post"],
+      visitedPostIds?: Iterable<string>,
+    ) =>
+      collectOwnerReplyThreadChunk(parentPost, async (parentId, params) => {
+        const result = await api.listReplies(parentId, params);
+        if (!result.ok) throw new Error(result.errorText);
+        return result.data;
+      }, { visitedPostIds }),
+    [api],
+  );
 
-  return useQuery({
+  const query = useQuery({
     queryKey: post
       ? queryKeys.ownerReplyThread(post.id)
       : ["ownerReplyThread", "null"],
     queryFn: async () => {
       if (!post) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
-      return collectOwnerReplyThread(post, async (parentId, params) => {
-        const result = await api.listReplies(parentId, params);
-        if (!result.ok) throw new Error(result.errorText);
-        return result.data;
-      });
+      return fetchOwnerReplyThreadChunk(post);
     },
     enabled: Boolean(post?.author?.id) && (post?.replyCount ?? 0) > 0,
     staleTime: 1000 * 60,
   });
+
+  return {
+    ...query,
+    fetchOwnerReplyThreadChunk,
+  };
 }
 
 // User by username

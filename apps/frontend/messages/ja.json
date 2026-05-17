@@ -557,7 +557,8 @@
     "error": "保存に失敗しました"
   },
   "postDetail": {
-    "notFound": "投稿が見つかりません"
+    "notFound": "投稿が見つかりません",
+    "loadMoreOwnerThread": "さらに表示"
   },
   "postCard": {
     "openDetail": "投稿の詳細を開く",

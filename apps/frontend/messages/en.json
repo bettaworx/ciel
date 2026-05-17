@@ -557,7 +557,8 @@
     "error": "Failed to save profile"
   },
   "postDetail": {
-    "notFound": "Post not found"
+    "notFound": "Post not found",
+    "loadMoreOwnerThread": "Show more"
   },
   "postCard": {
     "openDetail": "Open post details",

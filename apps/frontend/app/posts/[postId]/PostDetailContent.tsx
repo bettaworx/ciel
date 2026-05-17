@@ -1,8 +1,10 @@
 "use client";
 
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
+import { toast } from "sonner";
 import { authAtom } from "@/atoms/auth";
 import {
   useOwnerReplyThread,
@@ -12,12 +14,19 @@ import {
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { PostCard, type PostCardThreadLine } from "@/components/PostCard";
+import {
+  PostCard,
+  PostTreeActionButton,
+  type PostCardThreadLine,
+} from "@/components/PostCard";
 import { ComposeCard } from "@/components/ComposeCard";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { groupOwnerReplyThreads } from "@/lib/post-thread";
+import type { components } from "@/lib/api/api";
+
+type Post = components["schemas"]["Post"];
 
 type PostDetailContentProps = {
   postId: string;
@@ -59,15 +68,35 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
     hasNextPage,
     isFetchingNextPage,
   } = useReplies(post ? postId : undefined);
-  const { data: ownerThreadReplies = [] } = useOwnerReplyThread(post);
+  const {
+    data: ownerThreadResult,
+    fetchOwnerReplyThreadChunk,
+  } = useOwnerReplyThread(post);
+  const [ownerThreadReplies, setOwnerThreadReplies] = useState<Post[]>([]);
+  const [
+    ownerThreadContinuationParentIds,
+    setOwnerThreadContinuationParentIds,
+  ] = useState<Set<string>>(() => new Set());
+  const [loadingOwnerThreadParentId, setLoadingOwnerThreadParentId] =
+    useState<string | null>(null);
+
+  useEffect(() => {
+    setOwnerThreadReplies(ownerThreadResult?.replies ?? []);
+    setOwnerThreadContinuationParentIds(
+      new Set(ownerThreadResult?.continuationParentIds ?? []),
+    );
+    setLoadingOwnerThreadParentId(null);
+  }, [ownerThreadResult, post?.id]);
 
   const replies = repliesData?.pages.flatMap((page) => page.items ?? []) ?? [];
-  const ownerThreadReplyIds = new Set(
-    ownerThreadReplies.map((reply) => reply.id),
+  const ownerThreadReplyIds = useMemo(
+    () => new Set(ownerThreadReplies.map((reply) => reply.id)),
+    [ownerThreadReplies],
   );
-  const ownerThreadGroups = post
-    ? groupOwnerReplyThreads(post.id, ownerThreadReplies)
-    : [];
+  const ownerThreadGroups = useMemo(
+    () => (post ? groupOwnerReplyThreads(post.id, ownerThreadReplies) : []),
+    [ownerThreadReplies, post],
+  );
   const visibleReplies = replies.filter(
     (reply) => !ownerThreadReplyIds.has(reply.id),
   );
@@ -82,14 +111,60 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
     fetchNextPage,
   });
   const getOwnerThreadLine = (
-    index: number,
-    threadLength: number,
+    hasPrevious: boolean,
+    hasNext: boolean,
   ): PostCardThreadLine => {
-    if (threadLength <= 1) return "none";
-    if (index === 0) return "below";
-    if (index === threadLength - 1) return "above";
-    return "both";
+    if (hasPrevious && hasNext) return "both";
+    if (hasPrevious) return "above";
+    if (hasNext) return "below";
+    return "none";
   };
+  const handleLoadMoreOwnerThread = useCallback(
+    async (parentReply: Post) => {
+      if (!post || loadingOwnerThreadParentId) return;
+
+      setLoadingOwnerThreadParentId(parentReply.id);
+      try {
+        const visitedPostIds = [
+          post.id,
+          ...ownerThreadReplies.map((reply) => reply.id),
+        ];
+        const chunk = await fetchOwnerReplyThreadChunk(
+          parentReply,
+          visitedPostIds,
+        );
+
+        setOwnerThreadReplies((currentReplies) => {
+          const seenPostIds = new Set(
+            currentReplies.map((reply) => reply.id),
+          );
+          const newReplies = chunk.replies.filter(
+            (reply) => !seenPostIds.has(reply.id),
+          );
+          return [...currentReplies, ...newReplies];
+        });
+        setOwnerThreadContinuationParentIds((currentParentIds) => {
+          const nextParentIds = new Set(currentParentIds);
+          nextParentIds.delete(parentReply.id);
+          for (const parentId of chunk.continuationParentIds) {
+            nextParentIds.add(parentId);
+          }
+          return nextParentIds;
+        });
+      } catch {
+        toast.error(t("error.generic"));
+      } finally {
+        setLoadingOwnerThreadParentId(null);
+      }
+    },
+    [
+      fetchOwnerReplyThreadChunk,
+      loadingOwnerThreadParentId,
+      ownerThreadReplies,
+      post,
+      t,
+    ],
+  );
 
   return (
     <PageContainer
@@ -150,30 +225,62 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
 
           {hasReplyList && (
             <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-              {ownerThreadGroups.map((thread, threadIndex) =>
-                thread.map((reply, replyIndex) => {
-                  const isLastThread =
-                    threadIndex === ownerThreadGroups.length - 1;
-                  const isLastReplyInThread =
-                    replyIndex === thread.length - 1;
-                  const isLast =
-                    isLastThread &&
-                    isLastReplyInThread &&
-                    visibleReplies.length === 0;
+              {ownerThreadGroups.map((thread, threadIndex) => (
+                <Fragment key={thread[0]?.id ?? `thread-${threadIndex}`}>
+                  {thread.map((reply, replyIndex) => {
+                    const isLastThread =
+                      threadIndex === ownerThreadGroups.length - 1;
+                    const hasContinuation =
+                      ownerThreadContinuationParentIds.has(reply.id);
+                    const hasPreviousReplyInThread = replyIndex > 0;
+                    const hasNextReplyInThread =
+                      replyIndex < thread.length - 1;
+                    const hasRowsAfterReply =
+                      hasContinuation ||
+                      hasNextReplyInThread ||
+                      !isLastThread ||
+                      visibleReplies.length > 0;
+                    const isLoadingContinuation =
+                      loadingOwnerThreadParentId === reply.id;
 
-                  return (
-                    <PostCard
-                      key={reply.id}
-                      post={reply}
-                      onUserClick={(username) =>
-                        router.push(`/users/${username}`)
-                      }
-                      isLast={isLast}
-                      threadLine={getOwnerThreadLine(replyIndex, thread.length)}
-                    />
-                  );
-                }),
-              )}
+                    return (
+                      <Fragment key={reply.id}>
+                        <PostCard
+                          post={reply}
+                          onUserClick={(username) =>
+                            router.push(`/users/${username}`)
+                          }
+                          isLast={!hasRowsAfterReply}
+                          threadLine={getOwnerThreadLine(
+                            hasPreviousReplyInThread,
+                            hasContinuation || hasNextReplyInThread,
+                          )}
+                        />
+                        {hasContinuation && (
+                          <PostTreeActionButton
+                            onClick={() => handleLoadMoreOwnerThread(reply)}
+                            isLast={
+                              !hasNextReplyInThread &&
+                              isLastThread &&
+                              visibleReplies.length === 0
+                            }
+                            threadLine={getOwnerThreadLine(
+                              true,
+                              hasNextReplyInThread,
+                            )}
+                            buttonProps={{
+                              disabled: loadingOwnerThreadParentId !== null,
+                              "aria-busy": isLoadingContinuation,
+                            }}
+                          >
+                            {t("postDetail.loadMoreOwnerThread")}
+                          </PostTreeActionButton>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </Fragment>
+              ))}
               {visibleReplies.map((reply, index) => (
                 <PostCard
                   key={reply.id}
