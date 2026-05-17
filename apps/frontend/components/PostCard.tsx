@@ -183,7 +183,7 @@ export function PostTreeActionButton({
         <div className="min-w-0 flex-1">
           <Button
             {...restButtonProps}
-            variant={variant ?? "ghost"}
+            variant={variant ?? "link"}
             size={size ?? "sm"}
             className={cn(
               "h-6 max-w-full justify-start overflow-hidden px-2 py-0 text-sm leading-none text-muted-foreground",
