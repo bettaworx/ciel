@@ -244,13 +244,19 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 		onlyReplies = sql.NullBool{Bool: true, Valid: true}
 	}
 
+	var excludeForeignReplies sql.NullBool
+	if params.ExcludeForeignReplies != nil && *params.ExcludeForeignReplies {
+		excludeForeignReplies = sql.NullBool{Bool: true, Valid: true}
+	}
+
 	rows, err := s.store.Q.ListPostsByUsername(ctx, sqlc.ListPostsByUsernameParams{
-		Username:    uname,
-		MediaType:   mediaType,
-		OnlyReplies: onlyReplies,
-		CursorTime:  cTime,
-		CursorID:    cID,
-		Limit:       int32(limit),
+		Username:              uname,
+		MediaType:             mediaType,
+		OnlyReplies:           onlyReplies,
+		ExcludeForeignReplies: excludeForeignReplies,
+		CursorTime:            cTime,
+		CursorID:              cID,
+		Limit:                 int32(limit),
 	})
 	if err != nil {
 		return api.UserPostsPage{}, err

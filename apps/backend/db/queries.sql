@@ -451,6 +451,7 @@ SELECT
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN posts pp ON pp.id = p.parent_id
 WHERE p.deleted_at IS NULL
 	AND u.username = $1
 	AND (
@@ -489,6 +490,11 @@ WHERE p.deleted_at IS NULL
 	AND (
 		sqlc.narg('only_replies')::boolean IS NULL
 		OR p.parent_id IS NOT NULL
+	)
+	AND (
+		sqlc.narg('exclude_foreign_replies')::boolean IS NULL
+		OR p.parent_id IS NULL
+		OR pp.user_id = u.id
 	)
 	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL

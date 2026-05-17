@@ -282,6 +282,12 @@
       schema:
         type: boolean
       description: If true, return only reply posts (posts with a parent).
+    - name: excludeForeignReplies
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: If true, exclude reply posts whose parent was authored by a different user.
     responses:
       '200':
         description: OK

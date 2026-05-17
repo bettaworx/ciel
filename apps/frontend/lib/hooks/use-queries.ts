@@ -277,7 +277,7 @@ export function useUser(username: string | undefined) {
 // User posts with infinite scroll
 export function useUserPosts(
   username: string | undefined,
-  params?: { limit?: number; mediaType?: "image" | "video" | "media"; onlyReplies?: boolean },
+  params?: { limit?: number; mediaType?: "image" | "video" | "media"; onlyReplies?: boolean; excludeForeignReplies?: boolean },
 ) {
   const api = useApi();
 
@@ -292,6 +292,7 @@ export function useUserPosts(
         cursor: pageParam ?? null,
         mediaType: params?.mediaType,
         onlyReplies: params?.onlyReplies,
+        excludeForeignReplies: params?.excludeForeignReplies,
       });
       if (!result.ok) throw new Error(result.errorText);
       return result.data;

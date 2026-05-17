@@ -7,12 +7,14 @@ import { useAtomValue } from "jotai";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useUser,
+  usePost,
   useUserPosts,
   useUpdateProfile,
   useUpdateAvatar,
   useUpdateBanner,
   queryKeys,
 } from "@/lib/hooks/use-queries";
+import type { components } from "@/lib/api/api";
 import { userAtom } from "@/atoms/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,9 +47,73 @@ import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { toast } from "sonner";
+
+function ProfileParentPostSkeleton() {
+  return (
+    <article aria-hidden className="relative p-3 text-card-foreground">
+      <span className="absolute left-8 sm:left-9 top-14 sm:top-16 bottom-0 w-0.5 -translate-x-1/2 bg-border" />
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-11 w-11 sm:h-12 sm:w-12 rounded-full shrink-0" />
+        <div className="min-w-0 flex-1 space-y-2 pt-1">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-14" />
+          </div>
+          <Skeleton className="h-4 w-full max-w-sm" />
+          <Skeleton className="h-4 w-2/3 max-w-xs" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+type ProfilePostItemProps = {
+  post: components["schemas"]["Post"];
+  isLast: boolean;
+  onUserClick: (username: string) => void;
+};
+
+function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
+  const parentId = post.parentId ?? undefined;
+  const {
+    data: parentPost,
+    isLoading: isParentLoading,
+    isFetching: isParentFetching,
+  } = usePost(parentId);
+  const showParentSkeleton =
+    Boolean(parentId) && !parentPost && (isParentLoading || isParentFetching);
+  const hasVisibleParent = Boolean(parentPost || showParentSkeleton);
+
+  if (!parentId || !hasVisibleParent) {
+    return <PostCard post={post} onUserClick={onUserClick} isLast={isLast} />;
+  }
+
+  return (
+    <>
+      {parentPost ? (
+        <PostCard
+          post={parentPost}
+          onUserClick={onUserClick}
+          isLast={false}
+          variant="compact"
+          threadLine="below"
+        />
+      ) : (
+        <ProfileParentPostSkeleton />
+      )}
+      <PostCard
+        post={post}
+        onUserClick={onUserClick}
+        isLast={isLast}
+        threadLine="above"
+      />
+    </>
+  );
+}
 
 type UserProfileContentProps = {
   username: string;
@@ -71,7 +137,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useUserPosts(username);
+  } = useUserPosts(username, { excludeForeignReplies: true });
   const {
     data: repliesData,
     isLoading: repliesLoading,
@@ -649,7 +715,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             {posts.length > 0 && (
               <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
                 {posts.map((post, index) => (
-                  <PostCard
+                  <ProfilePostItem
                     key={post.id}
                     post={post}
                     onUserClick={(username) => router.push(`/users/${username}`)}
@@ -690,7 +756,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             {replies.length > 0 && (
               <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
                 {replies.map((post, index) => (
-                  <PostCard
+                  <ProfilePostItem
                     key={post.id}
                     post={post}
                     onUserClick={(username) => router.push(`/users/${username}`)}
