@@ -56,6 +56,10 @@ interface PostComposerContentProps {
   onBlur?: () => void;
   /** Reuse a parent-selected placeholder so collapsed and expanded card states match. */
   placeholder?: string;
+  /** Override the submit button label (defaults to createPost.post). */
+  submitLabel?: string;
+  /** Override the submitting button label (defaults to createPost.posting). */
+  submittingLabel?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,6 +105,8 @@ export function PostComposerContent({
   closeDisabled,
   onBlur,
   placeholder: placeholderOverride,
+  submitLabel,
+  submittingLabel,
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
@@ -245,8 +251,8 @@ export function PostComposerContent({
         className={s.postButton}
       >
         {createPostMutation.isPending
-          ? t("createPost.posting")
-          : t("createPost.post")}
+          ? (submittingLabel ?? t("createPost.posting"))
+          : (submitLabel ?? t("createPost.post"))}
       </Button>
     </div>
   );

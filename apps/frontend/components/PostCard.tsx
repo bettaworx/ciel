@@ -14,6 +14,7 @@ import { Button, type ButtonProps } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
 import { ReactionUsersDialog } from "@/components/ReactionUsersDialog";
 import { ReactionPicker } from "@/components/ReactionPicker";
+import { CreateReplyDialog } from "@/components/CreateReplyDialog";
 import { formatFullTimestamp, formatTimeAgo } from "@/lib/utils/format-time";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
@@ -24,6 +25,7 @@ import { toast } from "sonner";
 import { useAtomValue } from "jotai";
 import {
   Eye,
+  MessageCircle,
   MoreHorizontal,
   Trash2,
   Clipboard,
@@ -222,6 +224,7 @@ export function PostCard({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [reactionDialogOpen, setReactionDialogOpen] = useState(false);
+  const [replyDialogOpen, setReplyDialogOpen] = useState(false);
   const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(
     null,
   );
@@ -699,7 +702,8 @@ export function PostCard({
         <div
           className={cn(
             "flex items-center flex-wrap gap-1.5",
-            verticalIdentity && "mt-1 sm:mt-1.5",
+            verticalIdentity && "mt-1 sm:mt-1.5 ",
+            (hasReactions) && "mb-2 sm:mb-3",
           )}
         >
           {reactions.map((reaction) => (
@@ -724,14 +728,28 @@ export function PostCard({
       <div
         className={cn(
           "flex items-center gap-1.5",
-          (hasReactions || verticalIdentity) && "mt-2 sm:mt-3",
         )}
       >
         <ReactionPicker
           onEmojiSelect={handleToggleReaction}
           disabled={isPending}
         />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
+          aria-label={t("createPost.replyTitle")}
+          onClick={() => setReplyDialogOpen(true)}
+        >
+          <MessageCircle className="h-5 w-5" />
+        </Button>
       </div>
+
+      <CreateReplyDialog
+        open={replyDialogOpen}
+        onOpenChange={setReplyDialogOpen}
+        parentId={post.id}
+      />
     </>
   );
 
