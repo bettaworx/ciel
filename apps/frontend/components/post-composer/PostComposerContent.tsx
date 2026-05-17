@@ -180,6 +180,14 @@ export function PostComposerContent({
   }, [content, placeholderOverride]);
 
   useEffect(() => {
+    if (layout !== "dialog") {
+      return;
+    }
+
+    textareaRef.current?.focus();
+  }, [layout, textareaRef]);
+
+  useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) {
       return;
