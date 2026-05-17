@@ -651,7 +651,7 @@ export function PostCard({
               "max-h-32 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_50%,transparent_100%)]",
           )}
         >
-          <MfmRenderer text={post.content} />
+          <MfmRenderer text={post.content} skipLeadingMention={!!post.parentId} />
         </div>
       </div>
       {shouldShowContentToggle && (
