@@ -9,6 +9,7 @@ import {
 import { useApi } from "@/lib/api/use-api";
 import type { components } from "@/lib/api/api";
 import { ApiHttpError } from "@/lib/api/client";
+import { collectOwnerReplyThread } from "@/lib/post-thread";
 import { useSetAtom, useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { ERROR_CODES } from "@/lib/errors";
@@ -24,6 +25,7 @@ export const queryKeys = {
   timeline: ["timeline"] as const,
   post: (id: string) => ["post", id] as const,
   replies: (postId: string) => ["replies", postId] as const,
+  ownerReplyThread: (postId: string) => ["ownerReplyThread", postId] as const,
   user: (username: string) => ["user", username] as const,
   userPosts: (username: string) => ["userPosts", username] as const,
   reactions: (postId: string) => ["reactions", postId] as const,
@@ -219,6 +221,26 @@ export function usePost(postId: string | undefined) {
       return result.data;
     },
     enabled: !!postId,
+  });
+}
+
+export function useOwnerReplyThread(post: components["schemas"]["Post"] | undefined) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: post
+      ? queryKeys.ownerReplyThread(post.id)
+      : ["ownerReplyThread", "null"],
+    queryFn: async () => {
+      if (!post) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
+      return collectOwnerReplyThread(post, async (parentId, params) => {
+        const result = await api.listReplies(parentId, params);
+        if (!result.ok) throw new Error(result.errorText);
+        return result.data;
+      });
+    },
+    enabled: Boolean(post?.author?.id) && (post?.replyCount ?? 0) > 0,
+    staleTime: 1000 * 60,
   });
 }
 

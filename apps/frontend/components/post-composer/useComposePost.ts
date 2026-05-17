@@ -728,6 +728,9 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.replies(parentId),
         });
+        queryClient.invalidateQueries({
+          predicate: (query) => query.queryKey[0] === "ownerReplyThread",
+        });
       }
 
       toast.success(t("createPost.success"));

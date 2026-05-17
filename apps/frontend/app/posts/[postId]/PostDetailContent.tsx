@@ -4,15 +4,20 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
-import { usePost, useReplies } from "@/lib/hooks/use-queries";
+import {
+  useOwnerReplyThread,
+  usePost,
+  useReplies,
+} from "@/lib/hooks/use-queries";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { PostCard } from "@/components/PostCard";
+import { PostCard, type PostCardThreadLine } from "@/components/PostCard";
 import { ComposeCard } from "@/components/ComposeCard";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { groupOwnerReplyThreads } from "@/lib/post-thread";
 
 type PostDetailContentProps = {
   postId: string;
@@ -54,8 +59,19 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
     hasNextPage,
     isFetchingNextPage,
   } = useReplies(post ? postId : undefined);
+  const { data: ownerThreadReplies = [] } = useOwnerReplyThread(post);
 
   const replies = repliesData?.pages.flatMap((page) => page.items ?? []) ?? [];
+  const ownerThreadReplyIds = new Set(
+    ownerThreadReplies.map((reply) => reply.id),
+  );
+  const ownerThreadGroups = post
+    ? groupOwnerReplyThreads(post.id, ownerThreadReplies)
+    : [];
+  const visibleReplies = replies.filter(
+    (reply) => !ownerThreadReplyIds.has(reply.id),
+  );
+  const hasReplyList = ownerThreadGroups.length > 0 || visibleReplies.length > 0;
   const showParentSkeleton =
     Boolean(parentId) && !parentPost && (isParentLoading || isParentFetching);
   const hasVisibleParent = Boolean(parentPost || showParentSkeleton);
@@ -65,6 +81,15 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
     isFetchingNextPage,
     fetchNextPage,
   });
+  const getOwnerThreadLine = (
+    index: number,
+    threadLength: number,
+  ): PostCardThreadLine => {
+    if (threadLength <= 1) return "none";
+    if (index === 0) return "below";
+    if (index === threadLength - 1) return "above";
+    return "both";
+  };
 
   return (
     <PageContainer
@@ -123,14 +148,38 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
             />
           )}
 
-          {replies.length > 0 && (
+          {hasReplyList && (
             <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-              {replies.map((reply, index) => (
+              {ownerThreadGroups.map((thread, threadIndex) =>
+                thread.map((reply, replyIndex) => {
+                  const isLastThread =
+                    threadIndex === ownerThreadGroups.length - 1;
+                  const isLastReplyInThread =
+                    replyIndex === thread.length - 1;
+                  const isLast =
+                    isLastThread &&
+                    isLastReplyInThread &&
+                    visibleReplies.length === 0;
+
+                  return (
+                    <PostCard
+                      key={reply.id}
+                      post={reply}
+                      onUserClick={(username) =>
+                        router.push(`/users/${username}`)
+                      }
+                      isLast={isLast}
+                      threadLine={getOwnerThreadLine(replyIndex, thread.length)}
+                    />
+                  );
+                }),
+              )}
+              {visibleReplies.map((reply, index) => (
                 <PostCard
                   key={reply.id}
                   post={reply}
                   onUserClick={(username) => router.push(`/users/${username}`)}
-                  isLast={index === replies.length - 1}
+                  isLast={index === visibleReplies.length - 1}
                 />
               ))}
             </div>
