@@ -694,15 +694,15 @@ export function PostCard({
         />
       )}
 
-      {/* Reactions + Reaction Picker */}
-      <div
-        className={cn(
-          "flex items-center flex-wrap gap-1.5",
-          verticalIdentity && "mt-1 sm:mt-1.5",
-        )}
-      >
-        {hasReactions &&
-          reactions.map((reaction) => (
+      {/* Reaction Badges */}
+      {hasReactions && (
+        <div
+          className={cn(
+            "flex items-center flex-wrap gap-1.5",
+            verticalIdentity && "mt-1 sm:mt-1.5",
+          )}
+        >
+          {reactions.map((reaction) => (
             <ReactionBadge
               key={reaction.emoji}
               emoji={reaction.emoji}
@@ -717,6 +717,16 @@ export function PostCard({
               }}
             />
           ))}
+        </div>
+      )}
+
+      {/* Action Area */}
+      <div
+        className={cn(
+          "flex items-center gap-1.5",
+          (hasReactions || verticalIdentity) && "mt-2 sm:mt-3",
+        )}
+      >
         <ReactionPicker
           onEmojiSelect={handleToggleReaction}
           disabled={isPending}
