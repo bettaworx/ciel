@@ -42,9 +42,11 @@ import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
+import { useOwnerThreadTimelineItems } from "@/lib/hooks/use-owner-thread-timeline-items";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
+import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -223,6 +225,20 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     () => getBlurhashDataUrl(user?.bannerBlurhash),
     [user?.bannerBlurhash],
   );
+  const posts = useMemo(
+    () => postsData?.pages.flatMap((page) => page.items ?? []) ?? [],
+    [postsData],
+  );
+  const replies = useMemo(
+    () => repliesData?.pages.flatMap((page) => page.items ?? []) ?? [],
+    [repliesData],
+  );
+  const media = useMemo(
+    () => mediaData?.pages.flatMap((page) => page.items ?? []) ?? [],
+    [mediaData],
+  );
+  const postItems = useOwnerThreadTimelineItems(posts);
+  const replyItems = useOwnerThreadTimelineItems(replies);
 
   const handleEditStart = () => {
     if (!user) return;
@@ -379,10 +395,6 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
       </div>
     );
   }
-
-  const posts = postsData?.pages.flatMap((page) => page.items ?? []) ?? [];
-  const replies = repliesData?.pages.flatMap((page) => page.items ?? []) ?? [];
-  const media = mediaData?.pages.flatMap((page) => page.items ?? []) ?? [];
 
   return (
     <PageContainer
@@ -714,14 +726,32 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
 
             {posts.length > 0 && (
               <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-                {posts.map((post, index) => (
-                  <ProfilePostItem
-                    key={post.id}
-                    post={post}
-                    onUserClick={(username) => router.push(`/users/${username}`)}
-                    isLast={index === posts.length - 1}
-                  />
-                ))}
+                {postItems.map((item, index) =>
+                  item.type === "post" ? (
+                    <ProfilePostItem
+                      key={item.post.id}
+                      post={item.post}
+                      onUserClick={(username) =>
+                        router.push(`/users/${username}`)
+                      }
+                      isLast={index === postItems.length - 1}
+                    />
+                  ) : (
+                    <OwnerThreadTimelineItem
+                      key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
+                      rootPost={item.rootPost}
+                      replies={item.replies}
+                      isMerged={item.isMerged}
+                      onUserClick={(username) =>
+                        router.push(`/users/${username}`)
+                      }
+                      onShowThread={() =>
+                        router.push(`/posts/${item.rootPost.id}`)
+                      }
+                      isLast={index === postItems.length - 1}
+                    />
+                  ),
+                )}
               </div>
             )}
 
@@ -755,14 +785,32 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
 
             {replies.length > 0 && (
               <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-                {replies.map((post, index) => (
-                  <ProfilePostItem
-                    key={post.id}
-                    post={post}
-                    onUserClick={(username) => router.push(`/users/${username}`)}
-                    isLast={index === replies.length - 1}
-                  />
-                ))}
+                {replyItems.map((item, index) =>
+                  item.type === "post" ? (
+                    <ProfilePostItem
+                      key={item.post.id}
+                      post={item.post}
+                      onUserClick={(username) =>
+                        router.push(`/users/${username}`)
+                      }
+                      isLast={index === replyItems.length - 1}
+                    />
+                  ) : (
+                    <OwnerThreadTimelineItem
+                      key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
+                      rootPost={item.rootPost}
+                      replies={item.replies}
+                      isMerged={item.isMerged}
+                      onUserClick={(username) =>
+                        router.push(`/users/${username}`)
+                      }
+                      onShowThread={() =>
+                        router.push(`/posts/${item.rootPost.id}`)
+                      }
+                      isLast={index === replyItems.length - 1}
+                    />
+                  ),
+                )}
               </div>
             )}
 

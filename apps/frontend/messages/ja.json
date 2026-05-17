@@ -411,7 +411,8 @@
   "timeline": {
     "title": "タイムライン",
     "noPosts": "投稿がありません",
-    "loadMore": "もっと見る"
+    "loadMore": "もっと見る",
+    "showThread": "スレッドを表示"
   },
   "createPost": {
     "title": "投稿する",

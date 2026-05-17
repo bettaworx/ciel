@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   collectOwnerReplyThread,
   collectOwnerReplyThreadChunk,
+  getTimelineOwnerThreadMergeRootIds,
   groupOwnerReplyThreads,
+  mergeTimelineOwnerThreads,
   type FetchRepliesPage,
 } from "@/lib/post-thread";
 import type { components } from "@/lib/api/api";
@@ -286,5 +288,267 @@ describe("groupOwnerReplyThreads", () => {
       ["older-thread-root", "older-thread-child"],
       ["newer-thread-root", "newer-thread-child"],
     ]);
+  });
+});
+
+describe("mergeTimelineOwnerThreads", () => {
+  function itemIds(items: ReturnType<typeof mergeTimelineOwnerThreads>) {
+    return items.map((item) => {
+      if (item.type === "post") return `post:${item.post.id}`;
+      return [
+        item.isMerged ? "merged" : "thread",
+        item.rootPost.id,
+        item.replies.map((reply) => reply.id).join(","),
+      ].join(":");
+    });
+  }
+
+  it("collapses owner-authored threads longer than three posts to root and latest reply", () => {
+    const root = post("root", owner, {
+      createdAt: "2026-05-17T00:00:00.000Z",
+    });
+    const reply1 = post("reply-1", owner, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const reply2 = post("reply-2", owner, {
+      parentId: reply1.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+    const reply3 = post("reply-3", owner, {
+      parentId: reply2.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:03:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads(
+      [reply3, reply2, reply1, root],
+      new Map(),
+    );
+
+    expect(itemIds(items)).toEqual(["merged:root:reply-3"]);
+  });
+
+  it("keeps owner-authored threads of up to three posts expanded", () => {
+    const root = post("root", owner, {
+      createdAt: "2026-05-17T00:00:00.000Z",
+    });
+    const reply1 = post("reply-1", owner, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const reply2 = post("reply-2", owner, {
+      parentId: reply1.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads(
+      [reply2, reply1, root],
+      new Map(),
+    );
+
+    expect(itemIds(items)).toEqual(["thread:root:reply-1,reply-2"]);
+  });
+
+  it("falls back to normal timeline items while the root post is unknown", () => {
+    const reply1 = post("reply-1", owner, {
+      parentId: "root",
+      rootId: "root",
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const reply2 = post("reply-2", owner, {
+      parentId: reply1.id,
+      rootId: "root",
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads([reply2, reply1], new Map());
+
+    expect(itemIds(items)).toEqual(["post:reply-2", "post:reply-1"]);
+  });
+
+  it("treats multiple direct owner replies as separate threads", () => {
+    const root = post("root", owner);
+    const reply2 = post("reply-2", owner, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+    const reply1 = post("reply-1", owner, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads(
+      [reply2, reply1, root],
+      new Map([[root.id, root]]),
+    );
+
+    expect(itemIds(items)).toEqual([
+      "thread:root:reply-2",
+      "thread:root:reply-1",
+    ]);
+  });
+
+  it("does not collapse nested replies authored by someone other than the root author", () => {
+    const root = post("root", owner);
+    const otherReply1 = post("other-reply-1", other, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const otherReply2 = post("other-reply-2", other, {
+      parentId: otherReply1.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads(
+      [otherReply2, otherReply1, root],
+      new Map([[root.id, root]]),
+    );
+
+    expect(itemIds(items)).toEqual([
+      "post:other-reply-2",
+      "post:other-reply-1",
+      "post:root",
+    ]);
+  });
+
+  it("does not group owner replies that are not connected to the owner thread chain", () => {
+    const root = post("root", owner);
+    const otherReply = post("other-reply", other, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const ownerUnderOther = post("owner-under-other", owner, {
+      parentId: otherReply.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads(
+      [ownerUnderOther, otherReply, root],
+      new Map([[root.id, root]]),
+    );
+
+    expect(itemIds(items)).toEqual([
+      "post:owner-under-other",
+      "post:other-reply",
+      "post:root",
+    ]);
+  });
+
+  it("keeps multiple owner threads under one root independent", () => {
+    const root = post("root", owner);
+    const a1 = post("a-1", owner, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const a2 = post("a-2", owner, {
+      parentId: a1.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+    const a3 = post("a-3", owner, {
+      parentId: a2.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:03:00.000Z",
+    });
+    const b1 = post("b-1", owner, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:10:00.000Z",
+    });
+    const b2 = post("b-2", owner, {
+      parentId: b1.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:11:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads(
+      [b2, b1, a3, a2, a1, root],
+      new Map([[root.id, root]]),
+    );
+
+    expect(itemIds(items)).toEqual([
+      "thread:root:b-1,b-2",
+      "merged:root:a-3",
+    ]);
+  });
+
+  it("collapses each root independently", () => {
+    const rootA = post("root-a", owner);
+    const rootB = post("root-b", owner, {
+      createdAt: "2026-05-17T00:10:00.000Z",
+    });
+    const a1 = post("a-1", owner, {
+      parentId: rootA.id,
+      rootId: rootA.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const a2 = post("a-2", owner, {
+      parentId: a1.id,
+      rootId: rootA.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+    const a3 = post("a-3", owner, {
+      parentId: a2.id,
+      rootId: rootA.id,
+      createdAt: "2026-05-17T00:03:00.000Z",
+    });
+    const b1 = post("b-1", owner, {
+      parentId: rootB.id,
+      rootId: rootB.id,
+      createdAt: "2026-05-17T00:11:00.000Z",
+    });
+    const b2 = post("b-2", owner, {
+      parentId: b1.id,
+      rootId: rootB.id,
+      createdAt: "2026-05-17T00:12:00.000Z",
+    });
+    const b3 = post("b-3", owner, {
+      parentId: b2.id,
+      rootId: rootB.id,
+      createdAt: "2026-05-17T00:13:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads(
+      [b3, b2, b1, rootB, a3, a2, a1, rootA],
+      new Map([
+        [rootA.id, rootA],
+        [rootB.id, rootB],
+      ]),
+    );
+
+    expect(itemIds(items)).toEqual([
+      "merged:root-b:b-3",
+      "merged:root-a:a-3",
+    ]);
+  });
+});
+
+describe("getTimelineOwnerThreadMergeRootIds", () => {
+  it("returns root ids for direct and nested replies", () => {
+    const root = post("root", owner);
+    const directReply = post("direct-reply", owner, {
+      parentId: root.id,
+      rootId: root.id,
+    });
+    const nestedReply = post("nested-reply", owner, {
+      parentId: directReply.id,
+      rootId: root.id,
+    });
+
+    expect(
+      getTimelineOwnerThreadMergeRootIds([nestedReply, directReply, root]),
+    ).toEqual([root.id]);
   });
 });

@@ -10,16 +10,174 @@ export type FetchRepliesPage = (
 
 const OWNER_REPLY_THREAD_PAGE_LIMIT = 100;
 const OWNER_REPLY_THREAD_CHUNK_DEPTH = 3;
+const TIMELINE_OWNER_THREAD_MAX_VISIBLE_POSTS = 3;
 
 export type OwnerReplyThreadChunk = {
   replies: Post[];
   continuationParentIds: string[];
 };
 
+export type TimelineOwnerThreadItem =
+  | {
+      type: "post";
+      post: Post;
+    }
+  | {
+      type: "owner-thread";
+      rootPost: Post;
+      replies: Post[];
+      isMerged: boolean;
+    };
+
 export type CollectOwnerReplyThreadChunkOptions = {
   depthLimit?: number;
   visitedPostIds?: Iterable<string>;
 };
+
+export function getTimelineOwnerThreadMergeRootIds(posts: Post[]): string[] {
+  const rootIds = new Set<string>();
+
+  for (const post of posts) {
+    if (isThreadReply(post)) {
+      rootIds.add(post.rootId);
+    }
+  }
+
+  return Array.from(rootIds);
+}
+
+export function mergeTimelineOwnerThreads(
+  posts: Post[],
+  rootPostsById: ReadonlyMap<string, Post>,
+): TimelineOwnerThreadItem[] {
+  const rootsById = new Map(rootPostsById);
+
+  for (const post of posts) {
+    rootsById.set(post.id, post);
+  }
+
+  const candidateRepliesByRootId = new Map<string, Post[]>();
+
+  for (const post of posts) {
+    if (!isThreadReply(post)) {
+      continue;
+    }
+
+    const rootPost = rootsById.get(post.rootId);
+    if (!rootPost?.author?.id || post.author?.id !== rootPost.author.id) {
+      continue;
+    }
+
+    const replies = candidateRepliesByRootId.get(post.rootId) ?? [];
+    replies.push(post);
+    candidateRepliesByRootId.set(post.rootId, replies);
+  }
+
+  const skippedPostIds = new Set<string>();
+  const threadByLatestPostId = new Map<
+    string,
+    {
+      rootId: string;
+      replies: Post[];
+      isMerged: boolean;
+    }
+  >();
+
+  for (const [rootId, candidateReplies] of candidateRepliesByRootId) {
+    const replies = candidateReplies.slice().sort(comparePostsOldestFirst);
+    const childrenByParent = new Map<string, Post[]>();
+
+    for (const reply of replies) {
+      const parentId = reply.parentId ?? null;
+      if (!parentId) {
+        continue;
+      }
+      const children = childrenByParent.get(parentId) ?? [];
+      children.push(reply);
+      childrenByParent.set(parentId, children);
+    }
+
+    const threadRootReplies = childrenByParent.get(rootId) ?? [];
+    if (threadRootReplies.length === 0) {
+      continue;
+    }
+
+    const visitedReplyIds = new Set<string>();
+
+    function flattenThread(reply: Post): Post[] {
+      if (visitedReplyIds.has(reply.id)) {
+        return [];
+      }
+      visitedReplyIds.add(reply.id);
+
+      const children = childrenByParent.get(reply.id) ?? [];
+      return [
+        reply,
+        ...children.flatMap((childReply) => flattenThread(childReply)),
+      ];
+    }
+
+    skippedPostIds.add(rootId);
+
+    for (const threadRootReply of threadRootReplies) {
+      const threadReplies = flattenThread(threadRootReply);
+      if (threadReplies.length === 0) {
+        continue;
+      }
+
+      for (const reply of threadReplies) {
+        skippedPostIds.add(reply.id);
+      }
+
+      const isMerged =
+        threadReplies.length + 1 > TIMELINE_OWNER_THREAD_MAX_VISIBLE_POSTS;
+      const latestReply = threadReplies
+        .slice()
+        .sort(comparePostsOldestFirst)
+        .at(-1);
+      if (!latestReply) {
+        continue;
+      }
+      const visibleReplies = isMerged
+        ? [latestReply]
+        : threadReplies;
+
+      threadByLatestPostId.set(latestReply.id, {
+        rootId,
+        replies: visibleReplies,
+        isMerged,
+      });
+    }
+  }
+
+  const items: TimelineOwnerThreadItem[] = [];
+  const emittedThreadLatestPostIds = new Set<string>();
+
+  for (const post of posts) {
+    const thread = threadByLatestPostId.get(post.id);
+    if (thread && !emittedThreadLatestPostIds.has(post.id)) {
+      const rootPost = rootsById.get(thread.rootId);
+      if (rootPost) {
+        items.push({
+          type: "owner-thread",
+          rootPost,
+          replies: thread.replies,
+          isMerged: thread.isMerged,
+        });
+        emittedThreadLatestPostIds.add(post.id);
+        continue;
+      }
+    }
+
+    if (skippedPostIds.has(post.id)) {
+      continue;
+    }
+
+    items.push({ type: "post", post });
+  }
+
+  return items;
+}
 
 export async function collectOwnerReplyThread(
   rootPost: Post,
@@ -157,4 +315,10 @@ function comparePostsOldestFirst(a: Post, b: Post): number {
   const diff = Date.parse(a.createdAt) - Date.parse(b.createdAt);
   if (diff !== 0) return diff;
   return a.id.localeCompare(b.id);
+}
+
+function isThreadReply(
+  post: Post,
+): post is Post & { parentId: string; rootId: string } {
+  return Boolean(post.parentId && post.rootId);
 }

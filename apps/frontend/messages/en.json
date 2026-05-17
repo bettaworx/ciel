@@ -411,7 +411,8 @@
   "timeline": {
     "title": "Timeline",
     "noPosts": "No posts yet",
-    "loadMore": "Load More"
+    "loadMore": "Load More",
+    "showThread": "View thread"
   },
   "createPost": {
     "title": "Create Post",

@@ -1,13 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { usePost, useTimeline } from "@/lib/hooks/use-queries";
+import { useOwnerThreadTimelineItems } from "@/lib/hooks/use-owner-thread-timeline-items";
 import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
+import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
 import { WelcomeCard } from "@/components/WelcomeCard";
 import { ComposeCard } from "@/components/ComposeCard";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
@@ -73,7 +76,6 @@ function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) 
           post={parentPost}
           onUserClick={onUserClick}
           isLast={false}
-          variant="timeline"
           threadLine="below"
         />
       ) : (
@@ -102,7 +104,11 @@ export function HomePage() {
     isFetchingNextPage,
   } = useTimeline();
 
-  const posts = data?.pages.flatMap((page) => page.items ?? []) ?? [];
+  const posts = useMemo(
+    () => data?.pages.flatMap((page) => page.items ?? []) ?? [],
+    [data],
+  );
+  const timelineItems = useOwnerThreadTimelineItems(posts);
   const infiniteScrollRef = useInfiniteScroll({
     enabled: posts.length > 0,
     hasNextPage: Boolean(hasNextPage),
@@ -128,14 +134,26 @@ export function HomePage() {
           ) : posts.length === 0 ? (
             <p className="text-muted-foreground p-3">{t("timeline.noPosts")}</p>
           ) : (
-            posts.map((post, index) => (
-              <TimelinePostItem
-                key={post.id}
-                post={post}
-                onUserClick={(username) => router.push(`/users/${username}`)}
-                isLast={index === posts.length - 1}
-              />
-            ))
+            timelineItems.map((item, index) =>
+              item.type === "post" ? (
+                <TimelinePostItem
+                  key={item.post.id}
+                  post={item.post}
+                  onUserClick={(username) => router.push(`/users/${username}`)}
+                  isLast={index === timelineItems.length - 1}
+                />
+              ) : (
+                <OwnerThreadTimelineItem
+                  key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
+                  rootPost={item.rootPost}
+                  replies={item.replies}
+                  isMerged={item.isMerged}
+                  onUserClick={(username) => router.push(`/users/${username}`)}
+                  onShowThread={() => router.push(`/posts/${item.rootPost.id}`)}
+                  isLast={index === timelineItems.length - 1}
+                />
+              ),
+            )
           )}
         </div>
 
