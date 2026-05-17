@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { SmilePlus } from "lucide-react";
+import { Smile } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
@@ -73,7 +73,7 @@ export function ReactionPicker({
             className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
             aria-label={t("addReaction")}
           >
-            <SmilePlus className="h-5 w-5 sm:h-5 sm:w-5" />
+            <Smile className="h-5 w-5 sm:h-5 sm:w-5" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-fit overflow-hidden p-0" align="start">
@@ -102,7 +102,7 @@ export function ReactionPicker({
           className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
           aria-label={t("addReaction")}
         >
-          <SmilePlus className="h-5 w-5 sm:h-5 sm:w-5" />
+          <Smile className="h-5 w-5 sm:h-5 sm:w-5" />
         </Button>
       </DrawerTrigger>
       <DrawerContent>
