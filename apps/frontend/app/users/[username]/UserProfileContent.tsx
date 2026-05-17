@@ -99,7 +99,7 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
           post={parentPost}
           onUserClick={onUserClick}
           isLast={false}
-          variant="compact"
+          variant="timeline"
           threadLine="below"
         />
       ) : (

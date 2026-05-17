@@ -198,7 +198,7 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
               <PostCard
                 post={parentPost}
                 isLast={false}
-                variant="compact"
+                variant="timeline"
                 threadLine="below"
                 onUserClick={(username) => router.push(`/users/${username}`)}
               />

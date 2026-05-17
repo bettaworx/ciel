@@ -73,7 +73,7 @@ function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) 
           post={parentPost}
           onUserClick={onUserClick}
           isLast={false}
-          variant="compact"
+          variant="timeline"
           threadLine="below"
         />
       ) : (
