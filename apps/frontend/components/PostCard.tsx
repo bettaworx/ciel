@@ -210,6 +210,7 @@ export function PostCard({
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
+  const tCreatePost = useTranslations("createPost");
   const tReactions = useTranslations("reactions");
   const tUser = useTranslations("user");
   const { reactions, toggleReaction, isPending } = useReactions(
@@ -741,7 +742,7 @@ export function PostCard({
             "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
             post.replyCount > 0 ? "px-2 gap-1" : "w-8 p-0",
           )}
-          aria-label={t("createPost.replyTitle")}
+          aria-label={tCreatePost("replyTitle")}
           onClick={() => setReplyDialogOpen(true)}
         >
           <MessageCircle className="h-5 w-5" />
