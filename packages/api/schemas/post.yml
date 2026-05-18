@@ -67,6 +67,65 @@ components:
         nextCursor:
           type: string
           nullable: true
+    PostContext:
+      type: object
+      required:
+      - post
+      properties:
+        post:
+          $ref: '#/components/schemas/Post'
+        parent:
+          allOf:
+          - $ref: '#/components/schemas/Post'
+          nullable: true
+          description: Direct parent post when it is still visible. Null for root posts or deleted parents.
+        root:
+          allOf:
+          - $ref: '#/components/schemas/Post'
+          nullable: true
+          description: Root post of the thread when different from the post and still visible.
+    ThreadChildren:
+      type: object
+      required:
+      - parentId
+      - childIds
+      - hasMore
+      properties:
+        parentId:
+          $ref: ./common.yml#/components/schemas/PostId
+        childIds:
+          type: array
+          items:
+            $ref: ./common.yml#/components/schemas/PostId
+        nextCursor:
+          type: string
+          nullable: true
+          description: Cursor for loading more direct children of parentId.
+        hasMore:
+          type: boolean
+          description: True when parentId has more direct children after childIds.
+    ThreadPage:
+      type: object
+      required:
+      - root
+      - anchor
+      - nodes
+      - children
+      properties:
+        root:
+          $ref: '#/components/schemas/Post'
+        anchor:
+          $ref: '#/components/schemas/Post'
+        nodes:
+          type: array
+          description: Flat list of posts returned for this thread slice. Includes root and anchor.
+          items:
+            $ref: '#/components/schemas/Post'
+        children:
+          type: array
+          description: Direct child relationships for the returned slice, keyed by parentId.
+          items:
+            $ref: '#/components/schemas/ThreadChildren'
     UserPostsPage:
       type: object
       required:

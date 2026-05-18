@@ -133,7 +133,7 @@ describe("collectOwnerReplyThread", () => {
 });
 
 describe("collectOwnerReplyThreadChunk", () => {
-  it("collects only three nested owner replies per branch", async () => {
+  it("collects only five nested owner replies per branch", async () => {
     const root = post("root", owner, { replyCount: 1 });
     const ownerA = post("owner-a", owner, {
       parentId: root.id,
@@ -149,6 +149,14 @@ describe("collectOwnerReplyThreadChunk", () => {
     });
     const ownerD = post("owner-d", owner, {
       parentId: ownerC.id,
+      replyCount: 1,
+    });
+    const ownerE = post("owner-e", owner, {
+      parentId: ownerD.id,
+      replyCount: 1,
+    });
+    const ownerF = post("owner-f", owner, {
+      parentId: ownerE.id,
     });
 
     const chunk = await collectOwnerReplyThreadChunk(
@@ -158,6 +166,8 @@ describe("collectOwnerReplyThreadChunk", () => {
         [ownerA.id]: [page([ownerB])],
         [ownerB.id]: [page([ownerC])],
         [ownerC.id]: [page([ownerD])],
+        [ownerD.id]: [page([ownerE])],
+        [ownerE.id]: [page([ownerF])],
       }),
     );
 
@@ -165,11 +175,13 @@ describe("collectOwnerReplyThreadChunk", () => {
       "owner-a",
       "owner-b",
       "owner-c",
+      "owner-d",
+      "owner-e",
     ]);
-    expect(chunk.continuationParentIds).toEqual(["owner-c"]);
+    expect(chunk.continuationParentIds).toEqual(["owner-e"]);
   });
 
-  it("loads the next three nested owner replies from a continuation parent", async () => {
+  it("loads the next five nested owner replies from a continuation parent", async () => {
     const root = post("root", owner, { replyCount: 1 });
     const ownerA = post("owner-a", owner, {
       parentId: root.id,
@@ -197,6 +209,14 @@ describe("collectOwnerReplyThreadChunk", () => {
     });
     const ownerG = post("owner-g", owner, {
       parentId: ownerF.id,
+      replyCount: 1,
+    });
+    const ownerH = post("owner-h", owner, {
+      parentId: ownerG.id,
+      replyCount: 1,
+    });
+    const ownerI = post("owner-i", owner, {
+      parentId: ownerH.id,
     });
 
     const chunk = await collectOwnerReplyThreadChunk(
@@ -206,6 +226,8 @@ describe("collectOwnerReplyThreadChunk", () => {
         [ownerD.id]: [page([ownerE])],
         [ownerE.id]: [page([ownerF])],
         [ownerF.id]: [page([ownerG])],
+        [ownerG.id]: [page([ownerH])],
+        [ownerH.id]: [page([ownerI])],
       }),
       {
         visitedPostIds: [root.id, ownerA.id, ownerB.id, ownerC.id],
@@ -216,8 +238,10 @@ describe("collectOwnerReplyThreadChunk", () => {
       "owner-d",
       "owner-e",
       "owner-f",
+      "owner-g",
+      "owner-h",
     ]);
-    expect(chunk.continuationParentIds).toEqual(["owner-f"]);
+    expect(chunk.continuationParentIds).toEqual(["owner-h"]);
   });
 
   it("does not expose a continuation when deeper replies are not owner-authored", async () => {

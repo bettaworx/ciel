@@ -564,7 +564,8 @@
   },
   "postDetail": {
     "notFound": "投稿が見つかりません",
-    "loadMoreOwnerThread": "さらに表示"
+    "loadMoreOwnerThread": "さらに表示",
+    "loadMoreReplies": "返信をさらに表示"
   },
   "postCard": {
     "openDetail": "投稿の詳細を開く",

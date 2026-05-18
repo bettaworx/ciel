@@ -726,7 +726,13 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       if (parentId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.post(parentId) });
         queryClient.invalidateQueries({
+          queryKey: queryKeys.postContext(parentId),
+        });
+        queryClient.invalidateQueries({
           queryKey: queryKeys.replies(parentId),
+        });
+        queryClient.invalidateQueries({
+          predicate: (query) => query.queryKey[0] === "postThread",
         });
         queryClient.invalidateQueries({
           predicate: (query) => query.queryKey[0] === "ownerReplyThread",

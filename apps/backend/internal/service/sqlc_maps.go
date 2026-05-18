@@ -70,6 +70,21 @@ func mapRepliesRow(row sqlc.ListRepliesByParentIDRow) api.Post {
 	}
 }
 
+func mapThreadChildrenRow(row sqlc.ListThreadChildrenPageRow) api.Post {
+	return api.Post{
+		Id:        row.ID,
+		Content:   row.Content,
+		Media:     []api.Media{},
+		Reactions: []api.ReactionCount{},
+		Mentions:  []api.MentionUser{},
+		ParentId:  nullUUIDToPostIDPtr(row.ParentID),
+		RootId:    nullUUIDToPostIDPtr(row.RootID),
+		CreatedAt: row.CreatedAt,
+		DeletedAt: nil,
+		Author:    mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+	}
+}
+
 // MapPostRow maps a sqlc row to API Post.
 //
 // This is primarily used by tests living outside this package.

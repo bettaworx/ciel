@@ -189,7 +189,7 @@ func TestTokenManager_InvalidateUserTokens_TokenIssuedAfterIsValid(t *testing.T)
 }
 
 func TestTokenManager_InvalidateUserTokens_KeyExpiresAfterTTL(t *testing.T) {
-	ttl := 200 * time.Millisecond
+	ttl := 2 * time.Second
 	m, mr := newTokenManagerWithRedis(t, ttl)
 	uid := uuid.New()
 

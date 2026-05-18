@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -387,6 +388,155 @@ func TestIntegration_ListReplies_ParentNotFound(t *testing.T) {
 		t.Fatalf("soft-deleted: expected 404, got %d (%v)", resp2.StatusCode, errBody)
 	}
 	resp2.Body.Close()
+}
+
+func TestIntegration_PostContext(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u := registerUser(t, client, base, "ctxuser", "password123")
+	a := issueBearer(t, app.TokenManager, u)
+
+	root := createPost(t, client, base, a, "root")
+	reply, _ := createReply(t, client, base, a, "reply", root.Id)
+	nested, _ := createReply(t, client, base, a, "nested", reply.Id)
+
+	resp := get(t, client, base+"/api/v1/posts/"+nested.Id.String()+"/context", nil)
+	if resp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, resp)
+		t.Fatalf("context: expected 200, got %d (%v)", resp.StatusCode, errBody)
+	}
+	contextPage := decodeJSON[api.PostContext](t, resp)
+
+	if contextPage.Post.Id != nested.Id {
+		t.Fatalf("context.post = %v, want %v", contextPage.Post.Id, nested.Id)
+	}
+	if contextPage.Parent == nil || contextPage.Parent.Id != reply.Id {
+		t.Fatalf("context.parent = %+v, want %v", contextPage.Parent, reply.Id)
+	}
+	if contextPage.Root == nil || contextPage.Root.Id != root.Id {
+		t.Fatalf("context.root = %+v, want %v", contextPage.Root, root.Id)
+	}
+
+	rootResp := get(t, client, base+"/api/v1/posts/"+root.Id.String()+"/context", nil)
+	if rootResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, rootResp)
+		t.Fatalf("root context: expected 200, got %d (%v)", rootResp.StatusCode, errBody)
+	}
+	rootContext := decodeJSON[api.PostContext](t, rootResp)
+	if rootContext.Parent != nil {
+		t.Fatalf("root context parent should be nil, got %+v", rootContext.Parent)
+	}
+	if rootContext.Root != nil {
+		t.Fatalf("root context root should be nil, got %+v", rootContext.Root)
+	}
+}
+
+func TestIntegration_PostThread_BoundedTreeAndContinuation(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u := registerUser(t, client, base, "threaduser", "password123")
+	a := issueBearer(t, app.TokenManager, u)
+
+	root := createPost(t, client, base, a, "root")
+	reply1, _ := createReply(t, client, base, a, "reply 1", root.Id)
+	time.Sleep(3 * time.Millisecond)
+	reply2, _ := createReply(t, client, base, a, "reply 2", root.Id)
+	time.Sleep(3 * time.Millisecond)
+	reply3, _ := createReply(t, client, base, a, "reply 3", root.Id)
+	time.Sleep(3 * time.Millisecond)
+	reply1Child, _ := createReply(t, client, base, a, "reply 1 child", reply1.Id)
+
+	resp := get(t, client, base+"/api/v1/posts/"+root.Id.String()+"/thread?depth=2&childLimit=1", nil)
+	if resp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, resp)
+		t.Fatalf("thread page1: expected 200, got %d (%v)", resp.StatusCode, errBody)
+	}
+	page1 := decodeJSON[api.ThreadPage](t, resp)
+
+	if page1.Root.Id != root.Id || page1.Anchor.Id != root.Id {
+		t.Fatalf("thread root/anchor = %v/%v, want %v", page1.Root.Id, page1.Anchor.Id, root.Id)
+	}
+	rootChildren := findThreadChildren(t, page1.Children, root.Id)
+	if len(rootChildren.ChildIds) != 1 || rootChildren.ChildIds[0] != reply1.Id {
+		t.Fatalf("root child ids = %v, want [%v]", rootChildren.ChildIds, reply1.Id)
+	}
+	if !rootChildren.HasMore || rootChildren.NextCursor == nil || strings.TrimSpace(*rootChildren.NextCursor) == "" {
+		t.Fatalf("root should expose continuation, got hasMore=%v cursor=%v", rootChildren.HasMore, rootChildren.NextCursor)
+	}
+	reply1Children := findThreadChildren(t, page1.Children, reply1.Id)
+	if len(reply1Children.ChildIds) != 1 || reply1Children.ChildIds[0] != reply1Child.Id {
+		t.Fatalf("reply1 child ids = %v, want [%v]", reply1Children.ChildIds, reply1Child.Id)
+	}
+	if !threadPageHasNode(page1, root.Id) || !threadPageHasNode(page1, reply1.Id) || !threadPageHasNode(page1, reply1Child.Id) {
+		t.Fatalf("page1 nodes should contain root, reply1, and reply1 child: %+v", page1.Nodes)
+	}
+
+	page2URL := base + "/api/v1/posts/" + root.Id.String() +
+		"/thread?anchorNodeId=" + root.Id.String() +
+		"&depth=1&childLimit=1&cursor=" + url.QueryEscape(*rootChildren.NextCursor)
+	resp2 := get(t, client, page2URL, nil)
+	if resp2.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, resp2)
+		t.Fatalf("thread page2: expected 200, got %d (%v)", resp2.StatusCode, errBody)
+	}
+	page2 := decodeJSON[api.ThreadPage](t, resp2)
+	rootChildren2 := findThreadChildren(t, page2.Children, root.Id)
+	if len(rootChildren2.ChildIds) != 1 || rootChildren2.ChildIds[0] != reply2.Id {
+		t.Fatalf("root page2 child ids = %v, want [%v]", rootChildren2.ChildIds, reply2.Id)
+	}
+	if !rootChildren2.HasMore || rootChildren2.NextCursor == nil {
+		t.Fatalf("page2 should still expose continuation before reply3, got hasMore=%v cursor=%v", rootChildren2.HasMore, rootChildren2.NextCursor)
+	}
+	_ = reply3
+}
+
+func TestIntegration_PostThread_RejectsAnchorOutsideThread(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u := registerUser(t, client, base, "threadbad", "password123")
+	a := issueBearer(t, app.TokenManager, u)
+
+	rootA := createPost(t, client, base, a, "root A")
+	rootB := createPost(t, client, base, a, "root B")
+	replyB, _ := createReply(t, client, base, a, "reply B", rootB.Id)
+
+	resp := get(t, client, base+"/api/v1/posts/"+rootA.Id.String()+"/thread?anchorNodeId="+replyB.Id.String(), nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		errBody := decodeJSON[map[string]any](t, resp)
+		t.Fatalf("expected 400 for anchor outside thread, got %d (%v)", resp.StatusCode, errBody)
+	}
+}
+
+func findThreadChildren(t *testing.T, children []api.ThreadChildren, parentID api.PostId) api.ThreadChildren {
+	t.Helper()
+	for _, childSet := range children {
+		if childSet.ParentId == parentID {
+			return childSet
+		}
+	}
+	t.Fatalf("thread children for parent %v not found in %+v", parentID, children)
+	return api.ThreadChildren{}
+}
+
+func threadPageHasNode(page api.ThreadPage, postID api.PostId) bool {
+	for _, node := range page.Nodes {
+		if node.Id == postID {
+			return true
+		}
+	}
+	return false
 }
 
 func TestIntegration_Mentions_PerPostCap(t *testing.T) {

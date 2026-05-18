@@ -9,7 +9,7 @@ export type FetchRepliesPage = (
 ) => Promise<TimelinePage>;
 
 const OWNER_REPLY_THREAD_PAGE_LIMIT = 100;
-const OWNER_REPLY_THREAD_CHUNK_DEPTH = 3;
+const OWNER_REPLY_THREAD_CHUNK_DEPTH = 5;
 const TIMELINE_OWNER_THREAD_MAX_VISIBLE_POSTS = 3;
 
 export type OwnerReplyThreadChunk = {

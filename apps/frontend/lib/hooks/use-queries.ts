@@ -16,6 +16,13 @@ import { authAtom } from "@/atoms/auth";
 import { ERROR_CODES } from "@/lib/errors";
 import type { OgpApiResponse } from "@/lib/ogp/types";
 
+export type PostThreadParams = {
+  anchorNodeId?: string;
+  cursor?: string | null;
+  depth?: number;
+  childLimit?: number;
+};
+
 // Query keys
 export const queryKeys = {
   me: ["me"] as const,
@@ -25,6 +32,9 @@ export const queryKeys = {
   adminSettings: ["adminSettings"] as const,
   timeline: ["timeline"] as const,
   post: (id: string) => ["post", id] as const,
+  postContext: (id: string) => ["postContext", id] as const,
+  postThread: (id: string, params?: PostThreadParams) =>
+    ["postThread", id, params ?? {}] as const,
   replies: (postId: string) => ["replies", postId] as const,
   ownerReplyThread: (postId: string) => ["ownerReplyThread", postId] as const,
   user: (username: string) => ["user", username] as const,
@@ -225,6 +235,53 @@ export function usePost(postId: string | undefined) {
   });
 }
 
+export function usePostContext(postId: string | undefined) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: postId ? queryKeys.postContext(postId) : ["postContext", "null"],
+    queryFn: async () => {
+      if (!postId) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
+      const result = await api.getPostContext(postId);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    enabled: !!postId,
+  });
+}
+
+export function usePostThread(
+  postId: string | undefined,
+  params?: PostThreadParams,
+) {
+  const api = useApi();
+  const fetchPostThreadSlice = useCallback(
+    async (targetPostId: string, sliceParams?: PostThreadParams) => {
+      const result = await api.getPostThread(targetPostId, sliceParams);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    [api],
+  );
+
+  const query = useQuery({
+    queryKey: postId
+      ? queryKeys.postThread(postId, params)
+      : ["postThread", "null"],
+    queryFn: async () => {
+      if (!postId) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
+      return fetchPostThreadSlice(postId, params);
+    },
+    enabled: !!postId,
+    staleTime: 1000 * 60,
+  });
+
+  return {
+    ...query,
+    fetchPostThreadSlice,
+  };
+}
+
 export function useOwnerReplyThread(post: components["schemas"]["Post"] | undefined) {
   const api = useApi();
   const fetchOwnerReplyThreadChunk = useCallback(
@@ -333,9 +390,21 @@ export function useDeletePost() {
       const result = await api.deletePost(postId); // Cookie-based auth
       if (!result.ok) throw new Error(result.errorText);
     },
-    onSuccess: () => {
-      // Invalidate timeline and posts
+    onSuccess: (_, postId) => {
+      // Deletion can affect timelines, detail context, reply counts, and
+      // any currently expanded thread slice.
       queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: queryKeys.post(postId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.postContext(postId),
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "postThread" ||
+          query.queryKey[0] === "replies" ||
+          query.queryKey[0] === "ownerReplyThread" ||
+          query.queryKey[0] === "userPosts",
+      });
     },
   });
 }

@@ -287,6 +287,71 @@ WHERE p.deleted_at IS NULL
 ORDER BY p.created_at ASC, p.id ASC
 LIMIT sqlc.arg('limit');
 
+-- name: IsPostDescendantOf :one
+WITH RECURSIVE ancestors AS (
+	SELECT id, parent_id
+	FROM posts
+	WHERE id = sqlc.arg('descendant_id')::uuid
+	UNION ALL
+	SELECT p.id, p.parent_id
+	FROM posts p
+	JOIN ancestors a ON a.parent_id = p.id
+)
+SELECT EXISTS (
+	SELECT 1
+	FROM ancestors
+	WHERE id = sqlc.arg('ancestor_id')::uuid
+)::boolean;
+
+-- name: ListThreadChildrenPage :many
+SELECT
+	child.id,
+	child.user_id,
+	child.content,
+	child.parent_id,
+	child.root_id,
+	child.created_at,
+	child.deleted_at,
+	child.username,
+	child.display_name,
+	child.bio,
+	child.avatar_media_id,
+	child.user_created_at,
+	child.avatar_ext,
+	requested.parent_id::uuid AS thread_parent_id
+FROM unnest(sqlc.arg('parent_ids')::uuid[]) WITH ORDINALITY AS requested(parent_id, parent_order)
+JOIN LATERAL (
+	SELECT
+		p.id,
+		p.user_id,
+		p.content,
+		p.parent_id,
+		p.root_id,
+		p.created_at,
+		p.deleted_at,
+		u.username,
+		u.display_name,
+		u.bio,
+		u.avatar_media_id,
+		u.created_at AS user_created_at,
+		m.ext AS avatar_ext
+	FROM posts p
+	JOIN users u ON u.id = p.user_id
+	LEFT JOIN media m ON m.id = u.avatar_media_id
+	WHERE p.deleted_at IS NULL
+		AND p.parent_id = requested.parent_id
+		AND (
+			sqlc.narg('cursor_parent_id')::uuid IS NULL
+			OR p.parent_id <> sqlc.narg('cursor_parent_id')::uuid
+			OR sqlc.narg('cursor_time')::timestamptz IS NULL
+			OR p.created_at > sqlc.narg('cursor_time')::timestamptz
+			OR (p.created_at = sqlc.narg('cursor_time')::timestamptz AND p.id > sqlc.narg('cursor_id')::uuid)
+		)
+	ORDER BY p.created_at ASC, p.id ASC
+	LIMIT sqlc.arg('limit_plus_one')
+) child ON TRUE
+ORDER BY requested.parent_order, child.created_at ASC, child.id ASC;
+
 -- name: CountRepliesByParentIDs :many
 SELECT parent_id, COUNT(*)::int AS reply_count
 FROM posts

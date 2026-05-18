@@ -22,6 +22,10 @@ import (
 
 const (
 	defaultMaxPostContentRunes = 1000
+	defaultThreadDepth         = 2
+	defaultThreadChildLimit    = 5
+	maxThreadDepth             = 5
+	maxThreadChildLimit        = 30
 )
 
 type PostsService struct {
@@ -194,6 +198,252 @@ func (s *PostsService) Get(ctx context.Context, postID api.PostId, userID *api.U
 		return api.Post{}, err
 	}
 	return posts[0], nil
+}
+
+func (s *PostsService) GetContext(ctx context.Context, postID api.PostId, userID *api.UserId) (api.PostContext, error) {
+	if s.store == nil {
+		return api.PostContext{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+
+	post, err := s.getVisiblePost(ctx, postID)
+	if err != nil {
+		return api.PostContext{}, err
+	}
+
+	relatedIDs := make([]uuid.UUID, 0, 2)
+	if post.ParentId != nil {
+		relatedIDs = append(relatedIDs, uuid.UUID(*post.ParentId))
+	}
+	if post.RootId != nil && (post.ParentId == nil || *post.RootId != *post.ParentId) {
+		relatedIDs = append(relatedIDs, uuid.UUID(*post.RootId))
+	}
+
+	relatedByID, err := s.getVisiblePostsByIDs(ctx, relatedIDs)
+	if err != nil {
+		return api.PostContext{}, err
+	}
+
+	posts := []api.Post{post}
+	if post.ParentId != nil {
+		if parent, ok := relatedByID[uuid.UUID(*post.ParentId)]; ok {
+			posts = append(posts, parent)
+		}
+	}
+	if post.RootId != nil {
+		if root, ok := relatedByID[uuid.UUID(*post.RootId)]; ok {
+			posts = append(posts, root)
+		}
+	}
+	if err := s.attachPostDetails(ctx, posts, userID); err != nil {
+		return api.PostContext{}, err
+	}
+
+	result := api.PostContext{Post: posts[0]}
+	next := 1
+	if post.ParentId != nil {
+		if next < len(posts) && posts[next].Id == *post.ParentId {
+			parent := posts[next]
+			result.Parent = &parent
+			next++
+		}
+	}
+	if post.RootId != nil {
+		if result.Parent != nil && *post.RootId == result.Parent.Id {
+			result.Root = result.Parent
+		} else if next < len(posts) && posts[next].Id == *post.RootId {
+			root := posts[next]
+			result.Root = &root
+		}
+	}
+	return result, nil
+}
+
+func (s *PostsService) GetThread(ctx context.Context, postID api.PostId, params api.GetPostsPostIdThreadParams, userID *api.UserId) (api.ThreadPage, error) {
+	if s.store == nil {
+		return api.ThreadPage{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+
+	depth := defaultThreadDepth
+	if params.Depth != nil {
+		depth = *params.Depth
+	}
+	if depth < 1 || depth > maxThreadDepth {
+		return api.ThreadPage{}, NewError(http.StatusBadRequest, "invalid_request", "depth must be 1..5")
+	}
+
+	childLimit := defaultThreadChildLimit
+	if params.ChildLimit != nil {
+		childLimit = *params.ChildLimit
+	}
+	if childLimit < 1 || childLimit > maxThreadChildLimit {
+		return api.ThreadPage{}, NewError(http.StatusBadRequest, "invalid_request", "childLimit must be 1..30")
+	}
+
+	root, err := s.getVisiblePost(ctx, postID)
+	if err != nil {
+		return api.ThreadPage{}, err
+	}
+
+	anchorID := postID
+	if params.AnchorNodeId != nil {
+		anchorID = *params.AnchorNodeId
+	}
+
+	anchor := root
+	if anchorID != postID {
+		anchor, err = s.getVisiblePost(ctx, anchorID)
+		if err != nil {
+			return api.ThreadPage{}, err
+		}
+		ok, err := s.store.Q.IsPostDescendantOf(ctx, sqlc.IsPostDescendantOfParams{
+			AncestorID:   uuid.UUID(postID),
+			DescendantID: uuid.UUID(anchorID),
+		})
+		if err != nil {
+			return api.ThreadPage{}, err
+		}
+		if !ok {
+			return api.ThreadPage{}, NewError(http.StatusBadRequest, "invalid_request", "anchorNodeId is not in the requested thread")
+		}
+	}
+
+	cursor, err := decodeCursor(params.Cursor)
+	if err != nil {
+		return api.ThreadPage{}, NewError(http.StatusBadRequest, "invalid_request", "invalid cursor")
+	}
+
+	nodes := make([]api.Post, 0, 1+childLimit*depth)
+	nodeIDs := make(map[uuid.UUID]struct{}, 1+childLimit*depth)
+	addNode := func(post api.Post) {
+		if _, exists := nodeIDs[post.Id]; exists {
+			return
+		}
+		nodeIDs[post.Id] = struct{}{}
+		nodes = append(nodes, post)
+	}
+	addNode(root)
+	addNode(anchor)
+
+	children := make([]api.ThreadChildren, 0)
+	parentIDs := []uuid.UUID{uuid.UUID(anchorID)}
+	for level := 1; level <= depth && len(parentIDs) > 0; level++ {
+		queryParams := sqlc.ListThreadChildrenPageParams{
+			ParentIds:    parentIDs,
+			LimitPlusOne: int32(childLimit + 1),
+		}
+		if level == 1 && cursor != nil {
+			queryParams.CursorParentID = uuid.NullUUID{UUID: uuid.UUID(anchorID), Valid: true}
+			queryParams.CursorTime = sql.NullTime{Time: time.UnixMilli(cursor.Score).UTC(), Valid: true}
+			cursorID, perr := uuid.Parse(cursor.ID)
+			if perr != nil {
+				return api.ThreadPage{}, NewError(http.StatusBadRequest, "invalid_request", "invalid cursor")
+			}
+			queryParams.CursorID = uuid.NullUUID{UUID: cursorID, Valid: true}
+		}
+
+		rows, err := s.store.Q.ListThreadChildrenPage(ctx, queryParams)
+		if err != nil {
+			return api.ThreadPage{}, err
+		}
+
+		rowsByParent := make(map[uuid.UUID][]sqlc.ListThreadChildrenPageRow, len(parentIDs))
+		for _, row := range rows {
+			rowsByParent[row.ThreadParentID] = append(rowsByParent[row.ThreadParentID], row)
+		}
+
+		nextParentIDs := make([]uuid.UUID, 0)
+		for _, parentID := range parentIDs {
+			parentRows := rowsByParent[parentID]
+			hasMore := len(parentRows) > childLimit
+			if hasMore {
+				parentRows = parentRows[:childLimit]
+			}
+
+			childIDs := make([]api.PostId, 0, len(parentRows))
+			for _, row := range parentRows {
+				post := mapThreadChildrenRow(row)
+				addNode(post)
+				childIDs = append(childIDs, api.PostId(row.ID))
+				nextParentIDs = append(nextParentIDs, row.ID)
+			}
+
+			var nextCursor *string
+			if hasMore && len(parentRows) > 0 {
+				last := parentRows[len(parentRows)-1]
+				n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String()})
+				nextCursor = &n
+			}
+			children = append(children, api.ThreadChildren{
+				ParentId:   api.PostId(parentID),
+				ChildIds:   childIDs,
+				HasMore:    hasMore,
+				NextCursor: nextCursor,
+			})
+		}
+		parentIDs = nextParentIDs
+	}
+
+	if err := s.attachPostDetails(ctx, nodes, userID); err != nil {
+		return api.ThreadPage{}, err
+	}
+
+	var hydratedRoot, hydratedAnchor api.Post
+	for _, post := range nodes {
+		if post.Id == root.Id {
+			hydratedRoot = post
+		}
+		if post.Id == anchor.Id {
+			hydratedAnchor = post
+		}
+	}
+	return api.ThreadPage{
+		Root:     hydratedRoot,
+		Anchor:   hydratedAnchor,
+		Nodes:    nodes,
+		Children: children,
+	}, nil
+}
+
+func (s *PostsService) getVisiblePost(ctx context.Context, postID api.PostId) (api.Post, error) {
+	row, err := s.store.Q.GetPostWithAuthorByID(ctx, postID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return api.Post{}, NewError(http.StatusNotFound, "not_found", "post not found")
+		}
+		return api.Post{}, err
+	}
+	if row.DeletedAt.Valid {
+		return api.Post{}, NewError(http.StatusNotFound, "not_found", "post not found")
+	}
+	return mapPostRow(row), nil
+}
+
+func (s *PostsService) getVisiblePostsByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]api.Post, error) {
+	result := make(map[uuid.UUID]api.Post, len(ids))
+	if len(ids) == 0 {
+		return result, nil
+	}
+	rows, err := s.store.Q.GetPostsByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.ID] = mapPostsByIDsRow(row)
+	}
+	return result, nil
+}
+
+func (s *PostsService) attachPostDetails(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+	if err := s.attachMediaToPosts(ctx, posts); err != nil {
+		return err
+	}
+	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+		return err
+	}
+	if err := s.attachMentionsToPosts(ctx, posts); err != nil {
+		return err
+	}
+	return s.attachReplyCountsToPosts(ctx, posts)
 }
 
 func (s *PostsService) ListByUsername(ctx context.Context, username api.Username, params api.GetUsersUsernamePostsParams, userID *api.UserId) (api.UserPostsPage, error) {

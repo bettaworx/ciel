@@ -42,6 +42,7 @@ func TestTimelineService_Get_UsesRedis(t *testing.T) {
 			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, sql.NullString{}))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	expectCountReplies(mock)
 
 	limit := 1
 	page, err := svc.Get(context.Background(), api.GetTimelineParams{Limit: &limit}, nil)
@@ -73,6 +74,7 @@ func TestTimelineService_Get_FallsBackToDB(t *testing.T) {
 			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, sql.NullString{}))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	expectCountReplies(mock)
 
 	limit := 1
 	page, err := svc.Get(context.Background(), api.GetTimelineParams{Limit: &limit}, nil)
