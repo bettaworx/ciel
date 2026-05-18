@@ -42,6 +42,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const reconnectAttemptsRef = useRef(0);
 	const inactivityDisconnectRef = useRef(false);
+	const hasConnectedRef = useRef(false);
 	const [showInactivityAlert, setShowInactivityAlert] = useState(false);
 
 	const removePostFromCache = useCallback((postId: PostId, payload: unknown) => {
@@ -306,9 +307,12 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 
 			ws.onopen = () => {
 				reconnectAttemptsRef.current = 0;
-				// Re-sync server info and config on connect/reconnect to recover missed events
-				queryClient.invalidateQueries({ queryKey: queryKeys.serverInfo });
-				queryClient.invalidateQueries({ queryKey: queryKeys.serverConfig });
+				if (hasConnectedRef.current) {
+					// Reconnect only: re-sync server data that may have changed while disconnected
+					queryClient.invalidateQueries({ queryKey: queryKeys.serverInfo });
+					queryClient.invalidateQueries({ queryKey: queryKeys.serverConfig });
+				}
+				hasConnectedRef.current = true;
 			};
 
 			ws.onmessage = handleMessage;
@@ -377,6 +381,9 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		connect();
 
 		return () => {
+			// Reset so the next mount's first connect is treated as initial (not reconnect).
+			// This handles React Strict Mode double-invocation and real remounts alike.
+			hasConnectedRef.current = false;
 			if (reconnectTimeoutRef.current) {
 				clearTimeout(reconnectTimeoutRef.current);
 			}
