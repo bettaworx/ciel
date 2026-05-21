@@ -75,12 +75,14 @@ const styles = {
     toolbarIcon: "w-5 h-5",
     /** Post button height */
     postButton: "h-9 px-4",
+    floatingContent: "z-50",
   },
   dialog: {
     contentPadding: "pl-18 px-3",
     toolbarButton: "h-9 w-9",
     toolbarIcon: "w-5 h-5",
     postButton: "h-8 px-4",
+    floatingContent: "z-[70]",
   },
 } as const;
 
@@ -427,6 +429,7 @@ export function PostComposerContent({
         value={content}
         setValue={setContent}
         disabled={createPostMutation.isPending || isUploading}
+        contentClassName={s.floatingContent}
       />
     </div>
   );
