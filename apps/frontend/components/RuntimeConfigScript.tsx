@@ -34,6 +34,7 @@ export function RuntimeConfigScript({ nonce }: RuntimeConfigScriptProps) {
 			id={RUNTIME_CONFIG_SCRIPT_ID}
 			type="application/json"
 			nonce={nonce}
+			suppressHydrationWarning
 			dangerouslySetInnerHTML={{
 				__html: serializeRuntimeConfig(runtimeConfig),
 			}}
