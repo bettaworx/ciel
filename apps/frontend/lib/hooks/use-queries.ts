@@ -172,7 +172,6 @@ export function useTimeline(params?: { limit?: number }) {
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    maxPages: 5,
     staleTime: 1000 * 60, // 1分
   });
 }
@@ -232,7 +231,6 @@ export function useUserPosts(
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    maxPages: 5,
     enabled: !!username,
     staleTime: 1000 * 60, // 1分
   });
