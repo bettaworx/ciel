@@ -29,6 +29,7 @@ import { CodeFormatButton } from "./CodeFormatButton";
 import { SizeFormatButton } from "./SizeFormatButton";
 import { LinkFormatButton } from "./LinkFormatButton";
 import { FormatOverflowMenu } from "./FormatOverflowMenu";
+import { ComposerEmojiPicker } from "./ComposerEmojiPicker";
 import { insertCenterDecoration } from "./centerDecoration";
 import {
   ACCEPTED_IMAGE_TYPES,
@@ -274,6 +275,15 @@ export function PostComposerContent({
         onChange={handleImageSelect}
         icon={VideoIcon}
         ariaLabel={t("createPost.uploadVideo")}
+        className={s.toolbarButton}
+        iconClassName={s.toolbarIcon}
+      />
+      <ComposerEmojiPicker
+        textareaRef={textareaRef}
+        content={content}
+        setContent={setContent}
+        setSelectionRange={setSelectionRange}
+        disabled={createPostMutation.isPending || isUploading}
         className={s.toolbarButton}
         iconClassName={s.toolbarIcon}
       />
