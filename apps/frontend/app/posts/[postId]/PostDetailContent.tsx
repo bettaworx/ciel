@@ -30,6 +30,7 @@ type ThreadPage = components["schemas"]["ThreadPage"];
 
 type PostDetailContentProps = {
   postId: string;
+  expandAncestors?: boolean;
 };
 
 const ROOT_THREAD_DEPTH = 1;
@@ -46,7 +47,7 @@ function getThreadLine(
   return "none";
 }
 
-export function PostDetailContent({ postId }: PostDetailContentProps) {
+export function PostDetailContent({ postId, expandAncestors }: PostDetailContentProps) {
   const t = useTranslations();
   const router = useRouter();
   const auth = useAtomValue(authAtom);
@@ -71,12 +72,14 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
   const [ancestors, setAncestors] = useState<Post[]>([]);
   const [isLoadingAncestors, setIsLoadingAncestors] = useState(false);
   const detailPostRef = useRef<HTMLDivElement>(null);
+  const hasAutoExpandedRef = useRef(false);
 
   useEffect(() => {
     setThreadPage(initialThreadPage ?? null);
     setLoadingThreadParentId(null);
     setAncestors([]);
     setIsLoadingAncestors(false);
+    hasAutoExpandedRef.current = false;
   }, [initialThreadPage, postId]);
 
   const topAncestor = ancestors.length > 0 ? ancestors[0] : parentPost;
@@ -171,6 +174,12 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
       threadPage,
     ],
   );
+  useEffect(() => {
+    if (!expandAncestors || !hasMoreAncestors || hasAutoExpandedRef.current) return;
+    hasAutoExpandedRef.current = true;
+    handleLoadMoreAncestors();
+  }, [expandAncestors, hasMoreAncestors, handleLoadMoreAncestors]);
+
   const handleThreadPostDeleted = useCallback((deletedPostId: string) => {
     setThreadPage((currentPage) =>
       currentPage

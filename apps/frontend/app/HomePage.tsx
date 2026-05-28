@@ -149,7 +149,7 @@ export function HomePage() {
                   replies={item.replies}
                   isMerged={item.isMerged}
                   onUserClick={(username) => router.push(`/users/${username}`)}
-                  onShowThread={() => router.push(`/posts/${item.rootPost.id}`)}
+                  onShowThread={() => router.push(`/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`)}
                   isLast={index === timelineItems.length - 1}
                 />
               ),
