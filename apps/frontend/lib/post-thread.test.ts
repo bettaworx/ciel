@@ -419,7 +419,7 @@ describe("mergeTimelineOwnerThreads", () => {
     ]);
   });
 
-  it("does not collapse nested replies authored by someone other than the root author", () => {
+  it("keeps non-owner reply chains within the threshold expanded", () => {
     const root = post("root", owner);
     const otherReply1 = post("other-reply-1", other, {
       parentId: root.id,
@@ -438,9 +438,58 @@ describe("mergeTimelineOwnerThreads", () => {
     );
 
     expect(itemIds(items)).toEqual([
-      "post:other-reply-2",
-      "post:other-reply-1",
-      "post:root",
+      "thread:root:other-reply-1,other-reply-2",
+    ]);
+  });
+
+  it("collapses non-owner reply chains longer than three posts to root and latest reply", () => {
+    const root = post("root", owner);
+    const otherReply1 = post("other-reply-1", other, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const otherReply2 = post("other-reply-2", other, {
+      parentId: otherReply1.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+    const otherReply3 = post("other-reply-3", other, {
+      parentId: otherReply2.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:03:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads(
+      [otherReply3, otherReply2, otherReply1, root],
+      new Map([[root.id, root]]),
+    );
+
+    expect(itemIds(items)).toEqual(["merged:root:other-reply-3"]);
+  });
+
+  it("stops non-owner chain traversal at author boundary", () => {
+    const third = { id: "third-id", username: "third" };
+    const root = post("root", owner);
+    const otherReply = post("other-reply", other, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const thirdReply = post("third-reply", third, {
+      parentId: otherReply.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads(
+      [thirdReply, otherReply, root],
+      new Map([[root.id, root]]),
+    );
+
+    expect(itemIds(items)).toEqual([
+      "post:third-reply",
+      "thread:root:other-reply",
     ]);
   });
 
@@ -464,8 +513,7 @@ describe("mergeTimelineOwnerThreads", () => {
 
     expect(itemIds(items)).toEqual([
       "post:owner-under-other",
-      "post:other-reply",
-      "post:root",
+      "thread:root:other-reply",
     ]);
   });
 

@@ -64,7 +64,7 @@ export function mergeTimelineOwnerThreads(
     }
 
     const rootPost = rootsById.get(post.rootId);
-    if (!rootPost?.author?.id || post.author?.id !== rootPost.author.id) {
+    if (!rootPost) {
       continue;
     }
 
@@ -104,8 +104,11 @@ export function mergeTimelineOwnerThreads(
 
     const visitedReplyIds = new Set<string>();
 
-    function flattenThread(reply: Post): Post[] {
+    function flattenThread(reply: Post, chainAuthorId: string): Post[] {
       if (visitedReplyIds.has(reply.id)) {
+        return [];
+      }
+      if (reply.author?.id !== chainAuthorId) {
         return [];
       }
       visitedReplyIds.add(reply.id);
@@ -113,14 +116,18 @@ export function mergeTimelineOwnerThreads(
       const children = childrenByParent.get(reply.id) ?? [];
       return [
         reply,
-        ...children.flatMap((childReply) => flattenThread(childReply)),
+        ...children.flatMap((childReply) => flattenThread(childReply, chainAuthorId)),
       ];
     }
 
     skippedPostIds.add(rootId);
 
     for (const threadRootReply of threadRootReplies) {
-      const threadReplies = flattenThread(threadRootReply);
+      const chainAuthorId = threadRootReply.author?.id;
+      if (!chainAuthorId) {
+        continue;
+      }
+      const threadReplies = flattenThread(threadRootReply, chainAuthorId);
       if (threadReplies.length === 0) {
         continue;
       }
