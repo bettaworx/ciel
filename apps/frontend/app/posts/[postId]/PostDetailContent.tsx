@@ -72,7 +72,7 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
   }, [initialThreadPage, postId]);
 
   const threadRows = useMemo(
-    () => (post && threadPage ? buildThreadRows(threadPage, post.id) : []),
+    () => (post && threadPage ? buildThreadRows(threadPage, post.id, post.author.id) : []),
     [post, threadPage],
   );
   const rootChildren = useMemo(

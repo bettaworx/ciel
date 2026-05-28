@@ -63,6 +63,7 @@ export function mergeThreadPages(
 export function buildThreadRows(
   page: ThreadPage,
   rootId = page.root.id,
+  rootAuthorId?: string,
 ): ThreadRow[] {
   const nodesById = new Map(page.nodes.map((node) => [node.id, node]));
   const childrenByParentId = new Map(
@@ -73,7 +74,12 @@ export function buildThreadRows(
 
   function getFlowChildIds(parentId: string, children: ThreadChildren): string[] {
     if (parentId === rootId) {
-      return children.childIds;
+      if (!rootAuthorId) return children.childIds;
+      return [...children.childIds].sort((a, b) => {
+        const aIsOP = nodesById.get(a)?.author?.id === rootAuthorId ? 0 : 1;
+        const bIsOP = nodesById.get(b)?.author?.id === rootAuthorId ? 0 : 1;
+        return aIsOP - bIsOP;
+      });
     }
 
     const parent = nodesById.get(parentId);

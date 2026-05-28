@@ -100,6 +100,41 @@ describe("buildThreadRows", () => {
     expect(rows[0]?.canLoadChildren).toBe(true);
   });
 
+  it("sorts direct replies so the post author's replies appear first", () => {
+    const opAuthor = {
+      id: "op-id",
+      username: "op",
+      displayName: null,
+      bio: null,
+      avatarUrl: null,
+      bannerUrl: null,
+      createdAt: "2026-05-17T00:00:00.000Z",
+    };
+    const otherUser = { ...opAuthor, id: "other-id", username: "other" };
+
+    const root = post("root", { author: opAuthor });
+    const replyByOther = post("reply-other", { parentId: root.id, author: otherUser });
+    const replyByOP = post("reply-op", { parentId: root.id, author: opAuthor });
+
+    const rows = buildThreadRows(
+      page(
+        [root, replyByOther, replyByOP],
+        [
+          {
+            parentId: root.id,
+            childIds: [replyByOther.id, replyByOP.id],
+            nextCursor: null,
+            hasMore: false,
+          },
+        ],
+      ),
+      root.id,
+      root.author.id,
+    );
+
+    expect(rows.map((r) => r.post.id)).toEqual([replyByOP.id, replyByOther.id]);
+  });
+
   it("continues a nested thread only through the oldest same-author reply", () => {
     const root = post("root");
     const reply = post("reply", {
