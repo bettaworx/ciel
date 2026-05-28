@@ -1,11 +1,13 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
 import { toast } from "sonner";
 import { authAtom } from "@/atoms/auth";
+import { useApi } from "@/lib/api/use-api";
 import { usePostContext, usePostThread } from "@/lib/hooks/use-queries";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -48,6 +50,7 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
   const t = useTranslations();
   const router = useRouter();
   const auth = useAtomValue(authAtom);
+  const api = useApi();
   const { data: context, isLoading, error } = usePostContext(postId);
   const post = context?.post;
   const parentPost = context?.parent ?? null;
@@ -65,11 +68,56 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
   const [loadingThreadParentId, setLoadingThreadParentId] = useState<
     string | null
   >(null);
+  const [ancestors, setAncestors] = useState<Post[]>([]);
+  const [isLoadingAncestors, setIsLoadingAncestors] = useState(false);
+  const detailPostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setThreadPage(initialThreadPage ?? null);
     setLoadingThreadParentId(null);
+    setAncestors([]);
+    setIsLoadingAncestors(false);
   }, [initialThreadPage, postId]);
+
+  const topAncestor = ancestors.length > 0 ? ancestors[0] : parentPost;
+  const hasMoreAncestors = !!topAncestor?.parentId;
+
+  const handleLoadMoreAncestors = useCallback(async () => {
+    const topId = ancestors.length > 0 ? ancestors[0].id : parentPost?.id;
+    if (!topId || isLoadingAncestors) return;
+
+    setIsLoadingAncestors(true);
+    try {
+      const collected: Post[] = [];
+      let currentId = topId;
+
+      while (true) {
+        const result = await api.getPostContext(currentId);
+        if (!result.ok) throw new Error(result.errorText);
+        const parent = result.data.parent;
+        if (!parent) break;
+        collected.push(parent);
+        if (!parent.parentId) break;
+        currentId = parent.id;
+      }
+
+      if (collected.length === 0) return;
+
+      // collected は新しい順なので反転して古い順にする
+      collected.reverse();
+
+      const prevTop = detailPostRef.current?.getBoundingClientRect().top ?? 0;
+      flushSync(() => {
+        setAncestors((prev) => [...collected, ...prev]);
+      });
+      const newTop = detailPostRef.current?.getBoundingClientRect().top ?? 0;
+      window.scrollBy({ top: newTop - prevTop, behavior: "instant" });
+    } catch {
+      toast.error(t("error.generic"));
+    } finally {
+      setIsLoadingAncestors(false);
+    }
+  }, [ancestors, parentPost, isLoadingAncestors, api, t]);
 
   const threadRows = useMemo(
     () => (post && threadPage ? buildThreadRows(threadPage, post.id, post.author.id) : []),
@@ -159,23 +207,48 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
       {post && (
         <div className="space-y-3">
           <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
+            {hasMoreAncestors && (
+              <PostTreeActionButton
+                onClick={handleLoadMoreAncestors}
+                isLast={false}
+                threadLine="below"
+                buttonProps={{
+                  disabled: isLoadingAncestors,
+                  "aria-busy": isLoadingAncestors,
+                }}
+              >
+                {t("postDetail.loadMoreParents")}
+              </PostTreeActionButton>
+            )}
+            {ancestors.map((ancestor, index) => (
+              <PostCard
+                key={ancestor.id}
+                post={ancestor}
+                isLast={false}
+                variant="timeline"
+                threadLine={index === 0 && !hasMoreAncestors ? "below" : "both"}
+                onUserClick={(username) => router.push(`/users/${username}`)}
+              />
+            ))}
             {parentPost && (
               <PostCard
                 post={parentPost}
                 isLast={false}
                 variant="timeline"
-                threadLine="below"
+                threadLine={ancestors.length > 0 || hasMoreAncestors ? "both" : "below"}
                 onUserClick={(username) => router.push(`/users/${username}`)}
               />
             )}
-            <PostCard
-              post={post}
-              isLast
-              variant="detail"
-              threadLine={parentPost ? "above" : "none"}
-              onUserClick={(username) => router.push(`/users/${username}`)}
-              onDeleteSuccess={() => router.back()}
-            />
+            <div ref={detailPostRef}>
+              <PostCard
+                post={post}
+                isLast
+                variant="detail"
+                threadLine={parentPost || ancestors.length > 0 || hasMoreAncestors ? "above" : "none"}
+                onUserClick={(username) => router.push(`/users/${username}`)}
+                onDeleteSuccess={() => router.back()}
+              />
+            </div>
           </div>
 
           {auth.user && (

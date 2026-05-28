@@ -567,7 +567,8 @@
   "postDetail": {
     "notFound": "Post not found",
     "loadMoreOwnerThread": "Show more",
-    "loadMoreReplies": "Show more replies"
+    "loadMoreReplies": "Show more replies",
+    "loadMoreParents": "View thread"
   },
   "postCard": {
     "openDetail": "Open post details",
