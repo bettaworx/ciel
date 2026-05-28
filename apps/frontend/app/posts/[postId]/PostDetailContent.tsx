@@ -73,6 +73,7 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
   const [isLoadingAncestors, setIsLoadingAncestors] = useState(false);
   const detailPostRef = useRef<HTMLDivElement>(null);
   const hasAutoExpandedRef = useRef(false);
+  const loadAncestorsEpochRef = useRef(0);
 
   useEffect(() => {
     setThreadPage(initialThreadPage ?? null);
@@ -80,6 +81,7 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
     setAncestors([]);
     setIsLoadingAncestors(false);
     hasAutoExpandedRef.current = false;
+    loadAncestorsEpochRef.current++;
   }, [initialThreadPage, postId]);
 
   const topAncestor = ancestors.length > 0 ? ancestors[0] : parentPost;
@@ -89,6 +91,7 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
     const topId = ancestors.length > 0 ? ancestors[0].id : parentPost?.id;
     if (!topId || isLoadingAncestors) return;
 
+    const epoch = ++loadAncestorsEpochRef.current;
     setIsLoadingAncestors(true);
     try {
       const collected: Post[] = [];
@@ -96,6 +99,7 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
 
       while (true) {
         const result = await api.getPostContext(currentId);
+        if (loadAncestorsEpochRef.current !== epoch) return;
         if (!result.ok) throw new Error(result.errorText);
         const parent = result.data.parent;
         if (!parent) break;
@@ -109,6 +113,7 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
       // collected は新しい順なので反転して古い順にする
       collected.reverse();
 
+      if (loadAncestorsEpochRef.current !== epoch) return;
       const prevTop = detailPostRef.current?.getBoundingClientRect().top ?? 0;
       flushSync(() => {
         setAncestors((prev) => [...collected, ...prev]);
@@ -118,7 +123,9 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
     } catch {
       toast.error(t("error.generic"));
     } finally {
-      setIsLoadingAncestors(false);
+      if (loadAncestorsEpochRef.current === epoch) {
+        setIsLoadingAncestors(false);
+      }
     }
   }, [ancestors, parentPost, isLoadingAncestors, api, t]);
 
