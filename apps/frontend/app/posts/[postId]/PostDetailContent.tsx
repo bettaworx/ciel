@@ -88,24 +88,25 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
   const hasMoreAncestors = !!topAncestor?.parentId;
 
   const handleLoadMoreAncestors = useCallback(async () => {
-    const topId = ancestors.length > 0 ? ancestors[0].id : parentPost?.id;
-    if (!topId || isLoadingAncestors) return;
+    const startParentId = ancestors.length > 0
+      ? ancestors[0].parentId
+      : parentPost?.parentId;
+    if (!startParentId || isLoadingAncestors) return;
 
     const epoch = ++loadAncestorsEpochRef.current;
     setIsLoadingAncestors(true);
     try {
       const collected: Post[] = [];
-      let currentId = topId;
+      let currentId: string = startParentId;
 
       while (true) {
-        const result = await api.getPostContext(currentId);
+        const result = await api.getPost(currentId);
         if (loadAncestorsEpochRef.current !== epoch) return;
         if (!result.ok) throw new Error(result.errorText);
-        const parent = result.data.parent;
-        if (!parent) break;
-        collected.push(parent);
-        if (!parent.parentId) break;
-        currentId = parent.id;
+        const post = result.data;
+        collected.push(post);
+        if (!post.parentId) break;
+        currentId = post.parentId;
       }
 
       if (collected.length === 0) return;
