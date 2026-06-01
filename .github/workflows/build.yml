@@ -41,88 +41,46 @@ permissions:
   packages: write
 
 jobs:
-  docker-release:
-    name: Docker Build and Release
-    if: github.event_name == 'workflow_dispatch'
+  set-tag:
+    name: Prepare build metadata
     runs-on: ubuntu-latest
-    env:
-      REGISTRY: ghcr.io
-      OWNER: ${{ github.repository_owner }}
-      BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/ciel-backend
-      FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/ciel-frontend
-      BUILD_TARGET: ${{ github.event.inputs.build_target || inputs.build_target || 'both' }}
-      PLATFORM: ${{ github.event.inputs.platform || inputs.platform || 'linux/arm64' }}
-      INPUT_TAG: ${{ github.event.inputs.tag || inputs.tag || '' }}
-      CHANNEL: ${{ github.event.inputs.channel || inputs.channel || 'canary' }}
-      BUILD_COMMIT: ${{ github.sha }}
-      BUILD_BRANCH: ${{ github.ref_name }}
+    outputs:
+      tag: ${{ steps.tag.outputs.value }}
+      build_commit: ${{ steps.tag.outputs.commit }}
     steps:
-      - uses: actions/checkout@v6
-
       - name: Set image tag
+        id: tag
         run: |
+          INPUT_TAG="${{ github.event.inputs.tag }}"
           if [ -n "${INPUT_TAG}" ]; then
-            echo "TAG=${INPUT_TAG}" >> "$GITHUB_ENV"
+            echo "value=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
           else
-            echo "TAG=sha-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+            echo "value=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           fi
-          echo "BUILD_COMMIT=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "commit=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+  build-backend:
+    needs: set-tag
+    if: github.event.inputs.build_target == 'backend' || github.event.inputs.build_target == 'both'
+    uses: ./.github/workflows/build-backend.yml
+    with:
+      push: true
+      platform: ${{ github.event.inputs.platform }}
+      tag: ${{ needs.set-tag.outputs.tag }}
+      channel: ${{ github.event.inputs.channel }}
+      build_commit: ${{ needs.set-tag.outputs.build_commit }}
+      build_branch: ${{ github.ref_name }}
+    secrets: inherit
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push backend
-        if: env.BUILD_TARGET == 'backend' || env.BUILD_TARGET == 'both'
-        run: |
-          EXTRA_TAGS=()
-          case "$CHANNEL" in
-            stable) EXTRA_TAGS+=(--tag "${BACKEND_IMAGE}:stable" --tag "${BACKEND_IMAGE}:latest") ;;
-            canary) EXTRA_TAGS+=(--tag "${BACKEND_IMAGE}:canary") ;;
-            none) ;;
-          esac
-
-          docker buildx build \
-            --platform "${PLATFORM}" \
-            --file Dockerfile.backend \
-            --build-arg BUILD_COMMIT="${BUILD_COMMIT}" \
-            --build-arg BUILD_BRANCH="${BUILD_BRANCH}" \
-            --cache-from "type=registry,ref=${BACKEND_IMAGE}:canary" \
-            --cache-from "type=registry,ref=${BACKEND_IMAGE}:latest" \
-            --cache-to "type=inline" \
-            --tag "${BACKEND_IMAGE}:${TAG}" \
-            "${EXTRA_TAGS[@]}" \
-            --push \
-            .
-
-      - name: Build and push frontend
-        if: env.BUILD_TARGET == 'frontend' || env.BUILD_TARGET == 'both'
-        run: |
-          EXTRA_TAGS=()
-          case "$CHANNEL" in
-            stable) EXTRA_TAGS+=(--tag "${FRONTEND_IMAGE}:stable" --tag "${FRONTEND_IMAGE}:latest") ;;
-            canary) EXTRA_TAGS+=(--tag "${FRONTEND_IMAGE}:canary") ;;
-            none) ;;
-          esac
-
-          docker buildx build \
-            --platform "${PLATFORM}" \
-            --file Dockerfile.frontend \
-            --build-arg BUILD_COMMIT="${BUILD_COMMIT}" \
-            --build-arg BUILD_BRANCH="${BUILD_BRANCH}" \
-            --cache-from "type=registry,ref=${FRONTEND_IMAGE}:canary" \
-            --cache-from "type=registry,ref=${FRONTEND_IMAGE}:latest" \
-            --cache-to "type=inline" \
-            --tag "${FRONTEND_IMAGE}:${TAG}" \
-            "${EXTRA_TAGS[@]}" \
-            --push \
-            .
-
-      - name: Prune BuildKit cache
-        run: docker buildx prune --keep-storage=10gb --force
+  build-frontend:
+    needs: set-tag
+    if: github.event.inputs.build_target == 'frontend' || github.event.inputs.build_target == 'both'
+    uses: ./.github/workflows/build-frontend.yml
+    with:
+      push: true
+      platform: ${{ github.event.inputs.platform }}
+      tag: ${{ needs.set-tag.outputs.tag }}
+      channel: ${{ github.event.inputs.channel }}
+      build_commit: ${{ needs.set-tag.outputs.build_commit }}
+      build_branch: ${{ github.ref_name }}
+    secrets: inherit
