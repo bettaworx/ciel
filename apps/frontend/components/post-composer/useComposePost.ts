@@ -12,7 +12,13 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { useCreatePost, useUploadMedia, useMediaLimits } from "@/lib/hooks/use-queries";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useCreatePost,
+  useUploadMedia,
+  useMediaLimits,
+  queryKeys,
+} from "@/lib/hooks/use-queries";
 import { ApiHttpError } from "@/lib/api/client";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import type { components } from "@/lib/api/api";
@@ -40,6 +46,18 @@ const OGP_DEBOUNCE_MS = 400;
 interface UseComposePostOptions {
   onSuccess?: () => void;
   autoResize?: boolean;
+  /**
+   * When set, the created post will be a reply to this parent post.
+   * On success, the parent post and its replies queries are also invalidated
+   * so that replyCount and the reply list refresh.
+   */
+  parentId?: string;
+  /**
+   * String prepended to the textarea content at submission time only — never
+   * shown in the editor. Used to attach an `@author ` mention to replies
+   * without surfacing it as editable text.
+   */
+  contentPrefix?: string;
 }
 
 function isVideoFile(file: File): boolean {
@@ -103,9 +121,10 @@ function getVideoDimensions(blobUrl: string): Promise<{ width: number; height: n
  * - Video size limit is separate from image size limit (fetched from server).
  */
 export function useComposePost(options: UseComposePostOptions = {}) {
-  const { onSuccess, autoResize = true } = options;
+  const { onSuccess, autoResize = true, parentId, contentPrefix } = options;
   const t = useTranslations();
   const mediaLimits = useMediaLimits();
+  const queryClient = useQueryClient();
 
   // State
   const [content, setContent] = useState("");
@@ -693,11 +712,32 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         }
       }
 
-      // Create post with uploaded mediaIds
+      // Create post with uploaded mediaIds (parentId set when replying).
+      // contentPrefix (e.g. an `@author ` reply mention) is prepended here
+      // so it never appears in the editable textarea.
+      const submittedContent = (contentPrefix ?? "") + content;
       await createPostMutation.mutateAsync({
-        content,
+        content: submittedContent,
         mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
+        parentId,
       } as components["schemas"]["CreatePostRequest"]);
+
+      // For replies, refresh the parent post (replyCount) and reply list
+      if (parentId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.post(parentId) });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.postContext(parentId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.replies(parentId),
+        });
+        queryClient.invalidateQueries({
+          predicate: (query) => query.queryKey[0] === "postThread",
+        });
+        queryClient.invalidateQueries({
+          predicate: (query) => query.queryKey[0] === "ownerReplyThread",
+        });
+      }
 
       toast.success(t("createPost.success"));
 

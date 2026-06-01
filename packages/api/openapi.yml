@@ -189,6 +189,12 @@ paths:
     $ref: ./paths/media.yml#/~1media
   /posts/{postId}:
     $ref: ./paths/posts.yml#/~1posts~1{postId}
+  /posts/{postId}/context:
+    $ref: ./paths/posts.yml#/~1posts~1{postId}~1context
+  /posts/{postId}/thread:
+    $ref: ./paths/posts.yml#/~1posts~1{postId}~1thread
+  /posts/{postId}/replies:
+    $ref: ./paths/posts.yml#/~1posts~1{postId}~1replies
   /timeline:
     $ref: ./paths/timeline.yml#/~1timeline
   /posts/{postId}/reactions:

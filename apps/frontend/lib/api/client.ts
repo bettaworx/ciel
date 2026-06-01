@@ -312,12 +312,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		userPosts: (
 			username: string,
-			params?: { limit?: number; cursor?: string | null; mediaType?: 'image' | 'video' | 'media' }
+			params?: { limit?: number; cursor?: string | null; mediaType?: 'image' | 'video' | 'media'; onlyReplies?: boolean; excludeForeignReplies?: boolean }
 		) => {
 			const qs = new URLSearchParams();
 			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
 			if (params?.cursor) qs.set('cursor', params.cursor);
 			if (params?.mediaType) qs.set('mediaType', params.mediaType);
+			if (params?.onlyReplies) qs.set('onlyReplies', 'true');
+			if (params?.excludeForeignReplies) qs.set('excludeForeignReplies', 'true');
 			const suffix = qs.size ? `?${qs.toString()}` : '';
 			return request<components['schemas']['UserPostsPage']>('GET', `/users/${encodeURIComponent(username)}/posts${suffix}`);
 		},
@@ -334,6 +336,22 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		getPost: (postId: components['schemas']['PostId']) =>
 			request<components['schemas']['Post']>('GET', `/posts/${postId}`),
 
+		getPostContext: (postId: components['schemas']['PostId']) =>
+			request<components['schemas']['PostContext']>('GET', `/posts/${postId}/context`),
+
+		getPostThread: (
+			postId: components['schemas']['PostId'],
+			params?: { anchorNodeId?: components['schemas']['PostId']; cursor?: string | null; depth?: number; childLimit?: number }
+		) => {
+			const qs = new URLSearchParams();
+			if (params?.anchorNodeId) qs.set('anchorNodeId', params.anchorNodeId);
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			if (params?.depth !== undefined) qs.set('depth', String(params.depth));
+			if (params?.childLimit !== undefined) qs.set('childLimit', String(params.childLimit));
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['ThreadPage']>('GET', `/posts/${postId}/thread${suffix}`);
+		},
+
 		deletePost: (postId: components['schemas']['PostId']) =>
 			request<void>('DELETE', `/posts/${postId}`),
 
@@ -343,6 +361,17 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			if (params?.cursor) qs.set('cursor', params.cursor);
 			const suffix = qs.size ? `?${qs.toString()}` : '';
 			return request<components['schemas']['TimelinePage']>('GET', `/timeline${suffix}`);
+		},
+
+		listReplies: (
+			postId: components['schemas']['PostId'],
+			params?: { limit?: number; cursor?: string | null }
+		) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['TimelinePage']>('GET', `/posts/${postId}/replies${suffix}`);
 		},
 
 		listCustomEmojis: (params?: { limit?: number; offset?: number }) => {

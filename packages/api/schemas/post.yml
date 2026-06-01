@@ -9,6 +9,8 @@ components:
       - createdAt
       - media
       - reactions
+      - mentions
+      - replyCount
       properties:
         id:
           $ref: ./common.yml#/components/schemas/PostId
@@ -27,6 +29,25 @@ components:
           type: array
           items:
             $ref: ./reactions.yml#/components/schemas/ReactionCount
+        mentions:
+          type: array
+          description: Users mentioned in the post content via @username syntax.
+          items:
+            $ref: ./user.yml#/components/schemas/MentionUser
+        replyCount:
+          type: integer
+          minimum: 0
+          description: Number of non-deleted direct replies to this post.
+        parentId:
+          allOf:
+          - $ref: ./common.yml#/components/schemas/PostId
+          nullable: true
+          description: ID of the post this post replies to. Null for root posts or when the parent has been hard-deleted (e.g., parent author deleted their account).
+        rootId:
+          allOf:
+          - $ref: ./common.yml#/components/schemas/PostId
+          nullable: true
+          description: ID of the root post of the thread. Null for root posts themselves.
         createdAt:
           type: string
           format: date-time
@@ -46,6 +67,65 @@ components:
         nextCursor:
           type: string
           nullable: true
+    PostContext:
+      type: object
+      required:
+      - post
+      properties:
+        post:
+          $ref: '#/components/schemas/Post'
+        parent:
+          allOf:
+          - $ref: '#/components/schemas/Post'
+          nullable: true
+          description: Direct parent post when it is still visible. Null for root posts or deleted parents.
+        root:
+          allOf:
+          - $ref: '#/components/schemas/Post'
+          nullable: true
+          description: Root post of the thread when different from the post and still visible.
+    ThreadChildren:
+      type: object
+      required:
+      - parentId
+      - childIds
+      - hasMore
+      properties:
+        parentId:
+          $ref: ./common.yml#/components/schemas/PostId
+        childIds:
+          type: array
+          items:
+            $ref: ./common.yml#/components/schemas/PostId
+        nextCursor:
+          type: string
+          nullable: true
+          description: Cursor for loading more direct children of parentId.
+        hasMore:
+          type: boolean
+          description: True when parentId has more direct children after childIds.
+    ThreadPage:
+      type: object
+      required:
+      - root
+      - anchor
+      - nodes
+      - children
+      properties:
+        root:
+          $ref: '#/components/schemas/Post'
+        anchor:
+          $ref: '#/components/schemas/Post'
+        nodes:
+          type: array
+          description: Flat list of posts returned for this thread slice. Includes root and anchor.
+          items:
+            $ref: '#/components/schemas/Post'
+        children:
+          type: array
+          description: Direct child relationships for the returned slice, keyed by parentId.
+          items:
+            $ref: '#/components/schemas/ThreadChildren'
     UserPostsPage:
       type: object
       required:
@@ -71,3 +151,7 @@ components:
           maxItems: 4
           items:
             $ref: ./common.yml#/components/schemas/MediaId
+        parentId:
+          allOf:
+          - $ref: ./common.yml#/components/schemas/PostId
+          description: When set, the new post becomes a reply to the referenced post. Returns 404 if the parent does not exist or has been deleted.

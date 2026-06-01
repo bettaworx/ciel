@@ -5,6 +5,7 @@ import { Copy, Check, ExternalLink, Search } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { MfmFn } from "@/components/mfm/MfmFn";
+import { MfmMention } from "@/components/mfm/MfmMention";
 import { Twemoji } from "@/components/Twemoji";
 import { CustomEmoji } from "@/components/CustomEmoji";
 
@@ -164,9 +165,9 @@ export function MfmNode({ node }: MfmNodeProps) {
       return <CustomEmoji shortcode={node.props.name} />;
     }
 
-    // --- Mention (stub) ---
+    // --- Mention ---
     case "mention": {
-      return <span className="mfm-mention">{node.props.acct}</span>;
+      return <MfmMention node={node} />;
     }
 
     // --- Hashtag (stub) ---

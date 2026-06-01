@@ -1,18 +1,27 @@
 'use client';
 
+import { useRef } from 'react';
 import { useSetAtom } from 'jotai';
+import { useQueryClient } from '@tanstack/react-query';
 import { authAtom } from '@/atoms/auth';
 import { createApiClient } from '@/lib/api/client';
 import { computeClientProof, randomBase64Url } from '@/lib/api/scram';
 import { ERROR_CODES } from '@/lib/errors';
 import { getSafeRedirect } from '@/lib/utils/redirect';
+import { queryKeys } from '@/lib/hooks/use-queries';
 
 const api = createApiClient();
 
 export function useAuth() {
 	const setAuth = useSetAtom(authAtom);
+	const queryClient = useQueryClient();
+	const isInitializingRef = useRef(false);
 
 	const initAuth = async () => {
+		// Guard against React Strict Mode double-invoke and concurrent calls
+		if (isInitializingRef.current) return;
+		isInitializingRef.current = true;
+
 		setAuth({ status: 'loading', user: null, error: null });
 
 		try {
@@ -25,6 +34,10 @@ export function useAuth() {
 				return;
 			}
 
+			// Pre-populate React Query cache before enabling useMe() to avoid a duplicate request.
+			// setQueryData must come before setAuth so the cache is ready when the
+			// re-render triggered by setAuth runs and useMe() becomes enabled.
+			queryClient.setQueryData(queryKeys.me, res.data);
 			// User is authenticated
 			setAuth({ status: 'ready', user: res.data, error: null });
 		} catch (error) {
@@ -32,6 +45,8 @@ export function useAuth() {
 			// Set auth to ready state (unauthenticated) so the app can load
 			console.error('[Auth] Failed to initialize auth:', error);
 			setAuth({ status: 'ready', user: null, error: null });
+		} finally {
+			isInitializingRef.current = false;
 		}
 	};
 

@@ -268,6 +268,8 @@
     "anonymous": "匿名",
     "posts": "投稿",
     "noPosts": "投稿がありません",
+    "replies": "返信",
+    "noReplies": "返信がありません",
     "media": "メディア",
     "noMedia": "メディアはまだありません",
     "notFound": "ユーザーが見つかりません",
@@ -409,11 +411,16 @@
   "timeline": {
     "title": "タイムライン",
     "noPosts": "投稿がありません",
-    "loadMore": "もっと見る"
+    "loadMore": "もっと見る",
+    "showThread": "スレッドを表示"
   },
   "createPost": {
     "title": "投稿する",
     "placeholder": "いまどうしてる?",
+    "replyPlaceholder": "返信を書く",
+    "replyTitle": "返信する",
+    "reply": "返信",
+    "replying": "返信中...",
     "post": "投稿",
     "posting": "投稿中...",
     "formatBold": "太字",
@@ -425,6 +432,8 @@
     "formatLink": "リンク",
     "uploadImage": "画像をアップロード",
     "uploadVideo": "動画をアップロード",
+    "addEmoji": "絵文字を追加",
+    "searchEmoji": "絵文字を検索",
     "uploadMedia": "画像・動画をアップロード",
     "cropTitle": "画像をトリミング",
     "cropImage": "画像をトリミング",
@@ -556,7 +565,10 @@
     "error": "保存に失敗しました"
   },
   "postDetail": {
-    "notFound": "投稿が見つかりません"
+    "notFound": "投稿が見つかりません",
+    "loadMoreOwnerThread": "さらに表示",
+    "loadMoreReplies": "返信をさらに表示",
+    "loadMoreParents": "スレッドを表示"
   },
   "postCard": {
     "openDetail": "投稿の詳細を開く",

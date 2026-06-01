@@ -79,3 +79,128 @@
           application/json:
             schema:
               $ref: ../schemas/common.yml#/components/schemas/Error
+/posts/{postId}/context:
+  get:
+    tags:
+    - Posts
+    summary: Get post context
+    description: Returns the requested post with its visible direct parent and thread root when available.
+    parameters:
+    - name: postId
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/common.yml#/components/schemas/PostId
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/post.yml#/components/schemas/PostContext
+      '404':
+        description: Post not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/posts/{postId}/thread:
+  get:
+    tags:
+    - Posts
+    summary: Get a thread slice
+    description: Returns a bounded slice of the reply tree under a post. The response is flat so clients can request and merge additional branches without fetching the whole tree.
+    parameters:
+    - name: postId
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/common.yml#/components/schemas/PostId
+    - name: anchorNodeId
+      in: query
+      required: false
+      description: Node to expand. Defaults to postId.
+      schema:
+        $ref: ../schemas/common.yml#/components/schemas/PostId
+    - name: cursor
+      in: query
+      required: false
+      description: Cursor for loading more direct children of anchorNodeId.
+      schema:
+        type: string
+        nullable: true
+    - name: depth
+      in: query
+      required: false
+      description: Number of descendant levels to include from anchorNodeId.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 2
+    - name: childLimit
+      in: query
+      required: false
+      description: Maximum direct children returned for each parent in the slice.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 30
+        default: 5
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/post.yml#/components/schemas/ThreadPage
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Post or anchor not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/posts/{postId}/replies:
+  get:
+    tags:
+    - Posts
+    summary: List direct replies to a post
+    description: Returns direct replies (children whose parent_id equals postId) ordered by creation time ascending. Excludes soft-deleted replies. Returns 404 if the parent post does not exist or has been soft-deleted.
+    parameters:
+    - name: postId
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/common.yml#/components/schemas/PostId
+    - name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/post.yml#/components/schemas/TimelinePage
+      '404':
+        description: Parent post not found or deleted
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

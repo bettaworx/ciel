@@ -268,6 +268,8 @@
     "anonymous": "Anonymous",
     "posts": "Posts",
     "noPosts": "No posts yet",
+    "replies": "Replies",
+    "noReplies": "No replies yet",
     "media": "Media",
     "noMedia": "No media yet",
     "notFound": "User not found",
@@ -409,11 +411,16 @@
   "timeline": {
     "title": "Timeline",
     "noPosts": "No posts yet",
-    "loadMore": "Load More"
+    "loadMore": "Load More",
+    "showThread": "View thread"
   },
   "createPost": {
     "title": "Create Post",
     "placeholder": "What's happening?",
+    "replyPlaceholder": "Write a reply",
+    "replyTitle": "Write a reply",
+    "reply": "Reply",
+    "replying": "Replying...",
     "post": "Post",
     "posting": "Posting...",
     "formatBold": "Bold",
@@ -425,6 +432,8 @@
     "formatLink": "Link",
     "uploadImage": "Upload Image",
     "uploadVideo": "Upload Video",
+    "addEmoji": "Add emoji",
+    "searchEmoji": "Search emoji",
     "uploadMedia": "Upload Image or Video",
     "cropTitle": "Crop Image",
     "cropImage": "Crop Image",
@@ -556,7 +565,10 @@
     "error": "Failed to save profile"
   },
   "postDetail": {
-    "notFound": "Post not found"
+    "notFound": "Post not found",
+    "loadMoreOwnerThread": "Show more",
+    "loadMoreReplies": "Show more replies",
+    "loadMoreParents": "View thread"
   },
   "postCard": {
     "openDetail": "Open post details",
