@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "concurrently -n frontend,backend -c cyan,green \"pnpm run dev:frontend\" \"pnpm run dev:backend\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "gen:openapi": "cd apps/backend && go generate ./internal/api",
     "gen:openapi:ts": "pnpm -C apps/frontend run gen:openapi",
@@ -27,6 +28,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.28.0",
   "devDependencies": {
+    "concurrently": "^10.0.1",
     "dotenv-cli": "^11.0.0"
   }
 }
