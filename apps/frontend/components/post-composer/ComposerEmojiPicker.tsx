@@ -64,9 +64,9 @@ export function ComposerEmojiPicker({
   const trigger = (
     <Button
       variant="ghost"
-      size="sm"
+      size="icon"
       disabled={disabled}
-      className={cn("p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground", className)}
+      className={className}
       aria-label={t("addEmoji")}
     >
       <Smile className={cn("w-5 h-5", iconClassName)} />
