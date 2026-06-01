@@ -40,7 +40,7 @@ func validateImageFile(path string, cfg config.MediaConfig) (*ImageInfo, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to open image: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Peek at format via DecodeConfig first for efficient format detection.
 	imgCfg, format, err := image.DecodeConfig(f)

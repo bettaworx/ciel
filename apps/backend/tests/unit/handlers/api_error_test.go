@@ -21,7 +21,7 @@ func TestAPI_GetPostsPostId_PgSchemaError_Returns503(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	postID := uuid.New()
 	pgErr := &pgconn.PgError{Code: "42703"}

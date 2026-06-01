@@ -27,10 +27,10 @@ func writeTempPNG(t *testing.T, w, h int) string {
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	img.Set(0, 0, color.RGBA{R: 255, A: 255})
 	if err := png.Encode(f, img); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 	return f.Name()
 }
 
@@ -43,10 +43,10 @@ func writeTempJPEG(t *testing.T, w, h int) string {
 	}
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	if err := jpeg.Encode(f, img, &jpeg.Options{Quality: 90}); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 	return f.Name()
 }
 
@@ -67,10 +67,10 @@ func writeTempGIF(t *testing.T, w, h, frames int) string {
 	}
 
 	if err := gif.EncodeAll(f, g); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 	return f.Name()
 }
 

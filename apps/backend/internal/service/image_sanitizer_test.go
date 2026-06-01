@@ -73,7 +73,7 @@ func TestSanitizeJPEG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if _, err := jpeg.Decode(f); err != nil {
 		t.Fatalf("sanitized JPEG does not decode: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestSanitizeJPEG_NoExif(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if _, err := jpeg.Decode(f); err != nil {
 		t.Fatalf("sanitized JPEG does not decode: %v", err)
 	}
@@ -149,11 +149,11 @@ func TestSanitizePNG(t *testing.T) {
 	// tEXt chunk: length(4) + "tEXt"(4) + data + CRC(4)
 	textPayload := []byte("Comment\x00secret GPS data here")
 	chunkLen := uint32(len(textPayload))
-	binary.Write(&withText, binary.BigEndian, chunkLen)
+	_ = binary.Write(&withText, binary.BigEndian, chunkLen)
 	withText.WriteString("tEXt")
 	withText.Write(textPayload)
 	crc := pngCRC32("tEXt", textPayload)
-	binary.Write(&withText, binary.BigEndian, crc)
+	_ = binary.Write(&withText, binary.BigEndian, crc)
 
 	withText.Write(raw[iendStart:]) // IEND and beyond
 
@@ -182,7 +182,7 @@ func TestSanitizePNG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if _, err := png.Decode(f); err != nil {
 		t.Fatalf("sanitized PNG does not decode: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestSanitizePNG_Clean(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if _, err := png.Decode(f); err != nil {
 		t.Fatalf("sanitized PNG does not decode: %v", err)
 	}
@@ -247,10 +247,10 @@ func TestSanitizeGIF(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := gif.EncodeAll(f, g); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 
 	if err := sanitizeGIF(inPath, outPath); err != nil {
 		t.Fatalf("sanitizeGIF failed: %v", err)
@@ -261,7 +261,7 @@ func TestSanitizeGIF(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer of.Close()
+	defer func() { _ = of.Close() }()
 
 	decoded, err := gif.DecodeAll(of)
 	if err != nil {
@@ -288,10 +288,10 @@ func TestSanitizeGIF_Static(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := gif.EncodeAll(f, g); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 
 	if err := sanitizeGIF(inPath, outPath); err != nil {
 		t.Fatalf("sanitizeGIF failed: %v", err)
@@ -301,7 +301,7 @@ func TestSanitizeGIF_Static(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer of.Close()
+	defer func() { _ = of.Close() }()
 	if _, err := gif.DecodeAll(of); err != nil {
 		t.Fatalf("sanitized static GIF does not decode: %v", err)
 	}
@@ -341,13 +341,13 @@ func TestSanitizeImage_Dispatch(t *testing.T) {
 				t.Helper()
 				var buf bytes.Buffer
 				img := image.NewRGBA(image.Rect(0, 0, 2, 2))
-				png.Encode(&buf, img)
-				os.WriteFile(path, buf.Bytes(), 0o644)
+				_ = png.Encode(&buf, img)
+				_ = os.WriteFile(path, buf.Bytes(), 0o644)
 			},
 			validate: func(t *testing.T, path string) {
 				t.Helper()
 				f, _ := os.Open(path)
-				defer f.Close()
+				defer func() { _ = f.Close() }()
 				if _, err := png.Decode(f); err != nil {
 					t.Fatalf("output not valid PNG: %v", err)
 				}
@@ -359,13 +359,13 @@ func TestSanitizeImage_Dispatch(t *testing.T) {
 				t.Helper()
 				var buf bytes.Buffer
 				img := image.NewRGBA(image.Rect(0, 0, 2, 2))
-				jpeg.Encode(&buf, img, nil)
-				os.WriteFile(path, buf.Bytes(), 0o644)
+				_ = jpeg.Encode(&buf, img, nil)
+				_ = os.WriteFile(path, buf.Bytes(), 0o644)
 			},
 			validate: func(t *testing.T, path string) {
 				t.Helper()
 				f, _ := os.Open(path)
-				defer f.Close()
+				defer func() { _ = f.Close() }()
 				if _, err := jpeg.Decode(f); err != nil {
 					t.Fatalf("output not valid JPEG: %v", err)
 				}
@@ -380,13 +380,13 @@ func TestSanitizeImage_Dispatch(t *testing.T) {
 					Delay: []int{0},
 				}
 				f, _ := os.Create(path)
-				gif.EncodeAll(f, g)
-				f.Close()
+				_ = gif.EncodeAll(f, g)
+				_ = f.Close()
 			},
 			validate: func(t *testing.T, path string) {
 				t.Helper()
 				f, _ := os.Open(path)
-				defer f.Close()
+				defer func() { _ = f.Close() }()
 				if _, err := gif.DecodeAll(f); err != nil {
 					t.Fatalf("output not valid GIF: %v", err)
 				}

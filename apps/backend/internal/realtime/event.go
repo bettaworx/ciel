@@ -10,12 +10,12 @@ import (
 type EventType string
 
 const (
-	EventPostCreated        EventType = "post_created"
-	EventPostDeleted        EventType = "post_deleted"
-	EventReactionUpdated    EventType = "reaction_updated"
-	EventUserRegistered     EventType = "user_registered"
-	EventUserDeleted        EventType = "user_deleted"
-	EventServerInfoUpdated  EventType = "server_info_updated"
+	EventPostCreated         EventType = "post_created"
+	EventPostDeleted         EventType = "post_deleted"
+	EventReactionUpdated     EventType = "reaction_updated"
+	EventUserRegistered      EventType = "user_registered"
+	EventUserDeleted         EventType = "user_deleted"
+	EventServerInfoUpdated   EventType = "server_info_updated"
 	EventServerConfigUpdated EventType = "server_config_updated"
 )
 
