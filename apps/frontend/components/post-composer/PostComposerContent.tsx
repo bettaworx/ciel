@@ -29,6 +29,7 @@ import { CodeFormatButton } from "./CodeFormatButton";
 import { SizeFormatButton } from "./SizeFormatButton";
 import { LinkFormatButton } from "./LinkFormatButton";
 import { FormatOverflowMenu } from "./FormatOverflowMenu";
+import { ComposerEmojiPicker } from "./ComposerEmojiPicker";
 import { insertCenterDecoration } from "./centerDecoration";
 import {
   ACCEPTED_IMAGE_TYPES,
@@ -56,6 +57,10 @@ interface PostComposerContentProps {
   onBlur?: () => void;
   /** Reuse a parent-selected placeholder so collapsed and expanded card states match. */
   placeholder?: string;
+  /** Override the submit button label (defaults to createPost.post). */
+  submitLabel?: string;
+  /** Override the submitting button label (defaults to createPost.posting). */
+  submittingLabel?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,12 +76,14 @@ const styles = {
     toolbarIcon: "w-5 h-5",
     /** Post button height */
     postButton: "h-9 px-4",
+    floatingContent: "z-50",
   },
   dialog: {
     contentPadding: "pl-18 px-3",
     toolbarButton: "h-9 w-9",
     toolbarIcon: "w-5 h-5",
     postButton: "h-8 px-4",
+    floatingContent: "z-[70]",
   },
 } as const;
 
@@ -101,6 +108,8 @@ export function PostComposerContent({
   closeDisabled,
   onBlur,
   placeholder: placeholderOverride,
+  submitLabel,
+  submittingLabel,
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
@@ -174,6 +183,14 @@ export function PostComposerContent({
   }, [content, placeholderOverride]);
 
   useEffect(() => {
+    if (layout !== "dialog") {
+      return;
+    }
+
+    textareaRef.current?.focus();
+  }, [layout, textareaRef]);
+
+  useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) {
       return;
@@ -245,8 +262,8 @@ export function PostComposerContent({
         className={s.postButton}
       >
         {createPostMutation.isPending
-          ? t("createPost.posting")
-          : t("createPost.post")}
+          ? (submittingLabel ?? t("createPost.posting"))
+          : (submitLabel ?? t("createPost.post"))}
       </Button>
     </div>
   );
@@ -272,6 +289,15 @@ export function PostComposerContent({
         onChange={handleImageSelect}
         icon={VideoIcon}
         ariaLabel={t("createPost.uploadVideo")}
+        className={s.toolbarButton}
+        iconClassName={s.toolbarIcon}
+      />
+      <ComposerEmojiPicker
+        textareaRef={textareaRef}
+        content={content}
+        setContent={setContent}
+        setSelectionRange={setSelectionRange}
+        disabled={createPostMutation.isPending || isUploading}
         className={s.toolbarButton}
         iconClassName={s.toolbarIcon}
       />
@@ -413,6 +439,7 @@ export function PostComposerContent({
         value={content}
         setValue={setContent}
         disabled={createPostMutation.isPending || isUploading}
+        contentClassName={s.floatingContent}
       />
     </div>
   );

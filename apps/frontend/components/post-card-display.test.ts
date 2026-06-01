@@ -13,6 +13,7 @@ describe("post card display configs", () => {
       collapseContent: true,
       timestampFormat: "relative",
       timestampPlacement: "header",
+      showReactions: true,
     });
   });
 
@@ -23,11 +24,24 @@ describe("post card display configs", () => {
       collapseContent: false,
       timestampFormat: "full",
       timestampPlacement: "afterContent",
+      showReactions: true,
+    });
+  });
+
+  it("keeps compact parent cards linked without reaction controls", () => {
+    expect(getPostCardDisplayConfig("compact")).toEqual({
+      linkToDetail: true,
+      identityLayout: "inline",
+      collapseContent: false,
+      timestampFormat: "relative",
+      timestampPlacement: "header",
+      showReactions: false,
     });
   });
 
   it("defines every supported variant in one place", () => {
     expect(Object.keys(POST_CARD_DISPLAY_CONFIGS).sort()).toEqual([
+      "compact",
       "detail",
       "timeline",
     ]);

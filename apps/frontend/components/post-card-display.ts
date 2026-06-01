@@ -1,4 +1,4 @@
-export type PostCardVariant = "timeline" | "detail";
+export type PostCardVariant = "timeline" | "detail" | "compact";
 export type PostCardIdentityLayout = "inline" | "vertical";
 export type PostCardTimestampFormat = "relative" | "full";
 export type PostCardTimestampPlacement = "header" | "afterContent";
@@ -9,6 +9,7 @@ export type PostCardDisplayConfig = {
   collapseContent: boolean;
   timestampFormat: PostCardTimestampFormat;
   timestampPlacement: PostCardTimestampPlacement;
+  showReactions: boolean;
 };
 
 export const POST_CARD_DISPLAY_CONFIGS = {
@@ -18,6 +19,7 @@ export const POST_CARD_DISPLAY_CONFIGS = {
     collapseContent: true,
     timestampFormat: "relative",
     timestampPlacement: "header",
+    showReactions: true,
   },
   detail: {
     linkToDetail: false,
@@ -25,6 +27,15 @@ export const POST_CARD_DISPLAY_CONFIGS = {
     collapseContent: false,
     timestampFormat: "full",
     timestampPlacement: "afterContent",
+    showReactions: true,
+  },
+  compact: {
+    linkToDetail: true,
+    identityLayout: "inline",
+    collapseContent: false,
+    timestampFormat: "relative",
+    timestampPlacement: "header",
+    showReactions: false,
   },
 } as const satisfies Record<PostCardVariant, PostCardDisplayConfig>;
 

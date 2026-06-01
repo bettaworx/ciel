@@ -7,12 +7,14 @@ import { useAtomValue } from "jotai";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useUser,
+  usePost,
   useUserPosts,
   useUpdateProfile,
   useUpdateAvatar,
   useUpdateBanner,
   queryKeys,
 } from "@/lib/hooks/use-queries";
+import type { components } from "@/lib/api/api";
 import { userAtom } from "@/atoms/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,14 +42,80 @@ import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
+import { useOwnerThreadTimelineItems } from "@/lib/hooks/use-owner-thread-timeline-items";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
+import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { toast } from "sonner";
+
+function ProfileParentPostSkeleton() {
+  return (
+    <article aria-hidden className="relative p-3 text-card-foreground">
+      <span className="absolute left-8 sm:left-9 top-14 sm:top-16 bottom-0 w-0.5 -translate-x-1/2 bg-border" />
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-11 w-11 sm:h-12 sm:w-12 rounded-full shrink-0" />
+        <div className="min-w-0 flex-1 space-y-2 pt-1">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-14" />
+          </div>
+          <Skeleton className="h-4 w-full max-w-sm" />
+          <Skeleton className="h-4 w-2/3 max-w-xs" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+type ProfilePostItemProps = {
+  post: components["schemas"]["Post"];
+  isLast: boolean;
+  onUserClick: (username: string) => void;
+};
+
+function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
+  const parentId = post.parentId ?? undefined;
+  const {
+    data: parentPost,
+    isLoading: isParentLoading,
+    isFetching: isParentFetching,
+  } = usePost(parentId);
+  const showParentSkeleton =
+    Boolean(parentId) && !parentPost && (isParentLoading || isParentFetching);
+  const hasVisibleParent = Boolean(parentPost || showParentSkeleton);
+
+  if (!parentId || !hasVisibleParent) {
+    return <PostCard post={post} onUserClick={onUserClick} isLast={isLast} />;
+  }
+
+  return (
+    <>
+      {parentPost ? (
+        <PostCard
+          post={parentPost}
+          onUserClick={onUserClick}
+          isLast={false}
+          variant="timeline"
+          threadLine="below"
+        />
+      ) : (
+        <ProfileParentPostSkeleton />
+      )}
+      <PostCard
+        post={post}
+        onUserClick={onUserClick}
+        isLast={isLast}
+        threadLine="above"
+      />
+    </>
+  );
+}
 
 type UserProfileContentProps = {
   username: string;
@@ -71,7 +139,15 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useUserPosts(username);
+  } = useUserPosts(username, { excludeForeignReplies: true });
+  const {
+    data: repliesData,
+    isLoading: repliesLoading,
+    error: repliesError,
+    fetchNextPage: fetchNextRepliesPage,
+    hasNextPage: hasNextRepliesPage,
+    isFetchingNextPage: isFetchingNextRepliesPage,
+  } = useUserPosts(username, { onlyReplies: true });
   const {
     data: mediaData,
     isLoading: mediaLoading,
@@ -132,6 +208,12 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     isFetchingNextPage,
     fetchNextPage,
   });
+  const repliesInfiniteScrollRef = useInfiniteScroll({
+    enabled: Boolean(hasNextRepliesPage),
+    hasNextPage: Boolean(hasNextRepliesPage),
+    isFetchingNextPage: isFetchingNextRepliesPage,
+    fetchNextPage: fetchNextRepliesPage,
+  });
   const mediaInfiniteScrollRef = useInfiniteScroll({
     enabled: Boolean(hasNextMediaPage),
     hasNextPage: Boolean(hasNextMediaPage),
@@ -143,6 +225,20 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     () => getBlurhashDataUrl(user?.bannerBlurhash),
     [user?.bannerBlurhash],
   );
+  const posts = useMemo(
+    () => postsData?.pages.flatMap((page) => page.items ?? []) ?? [],
+    [postsData],
+  );
+  const replies = useMemo(
+    () => repliesData?.pages.flatMap((page) => page.items ?? []) ?? [],
+    [repliesData],
+  );
+  const media = useMemo(
+    () => mediaData?.pages.flatMap((page) => page.items ?? []) ?? [],
+    [mediaData],
+  );
+  const postItems = useOwnerThreadTimelineItems(posts);
+  const replyItems = useOwnerThreadTimelineItems(replies);
 
   const handleEditStart = () => {
     if (!user) return;
@@ -299,9 +395,6 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
       </div>
     );
   }
-
-  const posts = postsData?.pages.flatMap((page) => page.items ?? []) ?? [];
-  const media = mediaData?.pages.flatMap((page) => page.items ?? []) ?? [];
 
   return (
     <PageContainer
@@ -602,10 +695,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           </div>
         </div>
 
-        {/* Posts / Media Tabs */}
+        {/* Posts / Replies / Media Tabs */}
         <Tabs defaultValue="posts">
           <TabsList className="mb-3 w-full">
             <TabsTrigger value="posts">{t("user.posts")}</TabsTrigger>
+            <TabsTrigger value="replies">{t("user.replies")}</TabsTrigger>
             <TabsTrigger value="media">{t("user.media")}</TabsTrigger>
           </TabsList>
 
@@ -632,14 +726,32 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
 
             {posts.length > 0 && (
               <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-                {posts.map((post, index) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onUserClick={(username) => router.push(`/users/${username}`)}
-                    isLast={index === posts.length - 1}
-                  />
-                ))}
+                {postItems.map((item, index) =>
+                  item.type === "post" ? (
+                    <ProfilePostItem
+                      key={item.post.id}
+                      post={item.post}
+                      onUserClick={(username) =>
+                        router.push(`/users/${username}`)
+                      }
+                      isLast={index === postItems.length - 1}
+                    />
+                  ) : (
+                    <OwnerThreadTimelineItem
+                      key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
+                      rootPost={item.rootPost}
+                      replies={item.replies}
+                      isMerged={item.isMerged}
+                      onUserClick={(username) =>
+                        router.push(`/users/${username}`)
+                      }
+                      onShowThread={() =>
+                        router.push(`/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`)
+                      }
+                      isLast={index === postItems.length - 1}
+                    />
+                  ),
+                )}
               </div>
             )}
 
@@ -647,6 +759,65 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               sentinelRef={postsInfiniteScrollRef}
               hasNextPage={Boolean(hasNextPage)}
               isFetchingNextPage={isFetchingNextPage}
+            />
+          </TabsContent>
+
+          <TabsContent value="replies">
+            {repliesLoading && replies.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <Spinner variant="theme" label={t("loading")} />
+              </div>
+            )}
+
+            {repliesError && (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-destructive">
+                  {t("error.title")}: {repliesError.message}
+                </p>
+              </div>
+            )}
+
+            {!repliesLoading && !repliesError && replies.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-muted-foreground">{t("user.noReplies")}</p>
+              </div>
+            )}
+
+            {replies.length > 0 && (
+              <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
+                {replyItems.map((item, index) =>
+                  item.type === "post" ? (
+                    <ProfilePostItem
+                      key={item.post.id}
+                      post={item.post}
+                      onUserClick={(username) =>
+                        router.push(`/users/${username}`)
+                      }
+                      isLast={index === replyItems.length - 1}
+                    />
+                  ) : (
+                    <OwnerThreadTimelineItem
+                      key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
+                      rootPost={item.rootPost}
+                      replies={item.replies}
+                      isMerged={item.isMerged}
+                      onUserClick={(username) =>
+                        router.push(`/users/${username}`)
+                      }
+                      onShowThread={() =>
+                        router.push(`/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`)
+                      }
+                      isLast={index === replyItems.length - 1}
+                    />
+                  ),
+                )}
+              </div>
+            )}
+
+            <InfiniteScrollTrigger
+              sentinelRef={repliesInfiniteScrollRef}
+              hasNextPage={Boolean(hasNextRepliesPage)}
+              isFetchingNextPage={isFetchingNextRepliesPage}
             />
           </TabsContent>
 

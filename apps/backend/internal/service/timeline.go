@@ -88,6 +88,9 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 			if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
 				return api.TimelinePage{}, err
 			}
+			if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
+				return api.TimelinePage{}, err
+			}
 			page := api.TimelinePage{Items: posts}
 			if next != nil {
 				nc := encodeCursor(*next)
@@ -121,6 +124,9 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 		return api.TimelinePage{}, err
 	}
 	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
+		return api.TimelinePage{}, err
+	}
+	if err := s.attachReplyCountsToPosts(ctx, items); err != nil {
 		return api.TimelinePage{}, err
 	}
 
@@ -326,12 +332,40 @@ func decodeCursor(cursor *string) (*timelineCursor, error) {
 	return &c, nil
 }
 
+func (s *TimelineService) attachReplyCountsToPosts(ctx context.Context, posts []api.Post) error {
+	if s.store == nil || len(posts) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, 0, len(posts))
+	index := make(map[uuid.UUID]int, len(posts))
+	for i := range posts {
+		ids = append(ids, posts[i].Id)
+		index[posts[i].Id] = i
+		posts[i].ReplyCount = 0
+	}
+	rows, err := s.store.Q.CountRepliesByParentIDs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		pi, ok := index[row.ParentID.UUID]
+		if !ok {
+			continue
+		}
+		posts[pi].ReplyCount = int(row.ReplyCount)
+	}
+	return nil
+}
+
 func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 	return api.Post{
 		Id:        row.ID,
 		Content:   row.Content,
 		Media:     []api.Media{},
 		Reactions: []api.ReactionCount{},
+		Mentions:  []api.MentionUser{},
+		ParentId:  nullUUIDToPostIDPtr(row.ParentID),
+		RootId:    nullUUIDToPostIDPtr(row.RootID),
 		CreatedAt: row.CreatedAt,
 		DeletedAt: nil,
 		// Note: Timeline post author doesn't include agreement fields (not needed for display)
@@ -345,6 +379,9 @@ func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 		Content:   row.Content,
 		Media:     []api.Media{},
 		Reactions: []api.ReactionCount{},
+		Mentions:  []api.MentionUser{},
+		ParentId:  nullUUIDToPostIDPtr(row.ParentID),
+		RootId:    nullUUIDToPostIDPtr(row.RootID),
 		CreatedAt: row.CreatedAt,
 		DeletedAt: nil,
 		// Note: Post author doesn't include agreement fields (not needed for display)

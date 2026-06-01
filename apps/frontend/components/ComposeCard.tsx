@@ -19,11 +19,35 @@ import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { UserMenuContent } from "@/components/auth/UserMenuContent";
 import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
 
+interface ComposeCardProps {
+  /**
+   * When set, the composer creates a reply to this parent post instead of a
+   * root post. Keeps cache invalidation and submission semantics correct for
+   * threaded composition.
+   */
+  parentId?: string;
+  /**
+   * Override the rotating greeting placeholder. Useful in contexts like reply
+   * composition where a fixed prompt (e.g. "Write a reply") is preferable.
+   */
+  placeholderOverride?: string;
+  /**
+   * String invisibly prepended to the submitted content (e.g. `@author ` for
+   * replies). Not rendered in the textarea — the user composes as if writing
+   * a normal post.
+   */
+  contentPrefix?: string;
+}
+
 /**
- * Inline compose card for creating posts
- * Shows compact input when collapsed, full composer when expanded
+ * Inline compose card for creating posts (root posts or replies).
+ * Shows compact input when collapsed, full composer when expanded.
  */
-export function ComposeCard() {
+export function ComposeCard({
+  parentId,
+  placeholderOverride,
+  contentPrefix,
+}: ComposeCardProps = {}) {
   const t = useTranslations();
   const tNav = useTranslations("nav");
   const user = useAtomValue(userAtom);
@@ -32,7 +56,8 @@ export function ComposeCard() {
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const composeCardRef = useRef<HTMLDivElement>(null);
   const hadTypedContentRef = useRef(false);
-  const placeholder = useComposerPlaceholder(placeholderRefreshKey);
+  const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
+  const placeholder = placeholderOverride ?? generatedPlaceholder;
 
   // User menu state
   const {
@@ -55,6 +80,8 @@ export function ComposeCard() {
 
   // Use shared composition logic
   const compose = useComposePost({
+    parentId,
+    contentPrefix,
     onSuccess: () => {
       setIsExpanded(false); // Collapse after successful post
     },
@@ -65,6 +92,9 @@ export function ComposeCard() {
   const { textareaRef } = compose;
 
   useEffect(() => {
+    // Skip rotating the random greeting when caller supplied a fixed placeholder.
+    if (placeholderOverride !== undefined) return;
+
     if (compose.content.length === 0) {
       if (hadTypedContentRef.current) {
         hadTypedContentRef.current = false;
@@ -74,7 +104,7 @@ export function ComposeCard() {
     }
 
     hadTypedContentRef.current = true;
-  }, [compose.content]);
+  }, [compose.content, placeholderOverride]);
 
   // Focus textarea when expanded
   useEffect(() => {

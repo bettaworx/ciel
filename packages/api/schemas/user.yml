@@ -54,6 +54,26 @@ components:
           format: date-time
           nullable: true
           description: When user accepted Privacy Policy
+    MentionUser:
+      type: object
+      description: Lightweight user representation for mentions in post content.
+      required:
+      - id
+      - username
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          $ref: ./common.yml#/components/schemas/Username
+        displayName:
+          type: string
+          maxLength: 50
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
     UpdateProfileRequest:
       type: object
       properties:
