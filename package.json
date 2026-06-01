@@ -10,7 +10,7 @@
     "gen:openapi:ts": "pnpm -C apps/frontend run gen:openapi",
     "gen:sqlc": "cd apps/backend && go generate ./internal/db/sqlc",
     "gen:backend": "cd apps/backend && go generate ./...",
-    "dev:backend": "cd apps/backend && air",
+    "dev:backend": "cd apps/backend && go tool air",
     "run:backend": "cd apps/backend && go run .",
     "test:backend": "cd apps/backend && go test ./...",
     "dev:frontend": "dotenv -e .env -- pnpm -C apps/frontend run dev",
