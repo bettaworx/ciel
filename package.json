@@ -15,10 +15,11 @@
     "build:frontend": "cd apps/frontend && pnpm run build",
     "build:kotodoki": "pnpm -C packages/kotodoki run build",
     "test:kotodoki": "pnpm -C packages/kotodoki run test",
-    "migrate:up": "cd apps/backend && go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate -path ./db/migrations -database \"$DATABASE_URL\" up",
-    "migrate:down": "cd apps/backend && go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate -path ./db/migrations -database \"$DATABASE_URL\" down 1",
-    "migrate:down:all": "cd apps/backend && go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate -path ./db/migrations -database \"$DATABASE_URL\" down -all",
-    "migrate:init": "pnpm migrate:up"
+    "migrate": "node scripts/migrate.mjs",
+    "migrate:up": "node scripts/migrate.mjs up",
+    "migrate:down": "node scripts/migrate.mjs down",
+    "migrate:down:all": "node scripts/migrate.mjs down:all",
+    "migrate:init": "node scripts/migrate.mjs up"
   },
   "keywords": [],
   "author": "",
