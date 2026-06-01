@@ -425,7 +425,7 @@ func main() {
 	})
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("welcome"))
+		_, _ = w.Write([]byte("welcome"))
 	})
 
 	port := os.Getenv("PORT")
@@ -477,7 +477,7 @@ func initMediaDir(path string) error {
 	if err != nil {
 		return fmt.Errorf("directory exists but not writable: %w", err)
 	}
-	f.Close()
+	_ = f.Close()
 
 	if err := os.Remove(testFile); err != nil {
 		// Non-fatal, but log it

@@ -184,9 +184,10 @@ func (s *AgreementsService) PublishAgreementDocument(ctx context.Context, id, pu
 
 		// Step 2: Update server_settings to reflect the new current version
 		updateParams := sqlc.UpdateAgreementVersionsParams{}
-		if doc.DocumentType == "terms" {
+		switch doc.DocumentType {
+		case "terms":
 			updateParams.TermsVersion = sql.NullInt32{Int32: doc.Version, Valid: true}
-		} else if doc.DocumentType == "privacy" {
+		case "privacy":
 			updateParams.PrivacyVersion = sql.NullInt32{Int32: doc.Version, Valid: true}
 		}
 
@@ -219,9 +220,10 @@ func (s *AgreementsService) PublishAgreementDocument(ctx context.Context, id, pu
 				AcceptedAt: sql.NullTime{Time: doc.PublishedAt.Time, Valid: true},
 			}
 
-			if doc.DocumentType == "terms" {
+			switch doc.DocumentType {
+			case "terms":
 				bulkParams.TermsVersion = sql.NullInt32{Int32: doc.Version, Valid: true}
-			} else if doc.DocumentType == "privacy" {
+			case "privacy":
 				bulkParams.PrivacyVersion = sql.NullInt32{Int32: doc.Version, Valid: true}
 			}
 

@@ -26,7 +26,7 @@ func writeAnimatedGIF(t *testing.T, path string) {
 	if err != nil {
 		t.Fatalf("os.Create: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	frameA := image.NewPaletted(image.Rect(0, 0, 2, 2), palette.Plan9)
 	frameB := image.NewPaletted(image.Rect(0, 0, 2, 2), palette.Plan9)
@@ -77,7 +77,7 @@ func TestUploadEmojiImage_PreservesGIFAndClearsStaleFiles(t *testing.T) {
 	}
 
 	src, header := openGIFUpload(t, t.TempDir())
-	defer src.Close()
+	defer func() { _ = src.Close() }()
 
 	width, height, err := svc.UploadEmojiImage(context.Background(), src, header, emojiID)
 	if err != nil {
@@ -116,7 +116,7 @@ func TestServeEmojiImage_ServesStoredGIFOnLegacyRoute(t *testing.T) {
 	svc.ServeEmojiImage(rec, req)
 
 	resp := rec.Result()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -150,7 +150,7 @@ func TestServeImage_ServesEmojiFileWhenMediaRowMissing(t *testing.T) {
 	svc.ServeImage(rec, req)
 
 	resp := rec.Result()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)

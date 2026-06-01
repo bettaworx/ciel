@@ -161,7 +161,7 @@ func (m *Manager) writeConfig(cfg *Config) error {
 
 	// Atomic rename
 	if err := os.Rename(tempPath, m.configPath); err != nil {
-		os.Remove(tempPath) // Clean up temp file on error
+		_ = os.Remove(tempPath) // Clean up temp file on error
 		return fmt.Errorf("failed to rename config file: %w", err)
 	}
 

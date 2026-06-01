@@ -371,7 +371,7 @@ func (s *AuthService) LoginStart(ctx context.Context, req api.LoginStartRequest)
 	iterations := int(row.Iterations)
 	saltB64 := base64.StdEncoding.EncodeToString(row.Salt)
 
-	s.sessions.Put(auth.LoginSession{
+	if err := s.sessions.Put(auth.LoginSession{
 		SessionID:    sessionID,
 		Username:     username,
 		ClientNonce:  req.ClientNonce,
@@ -379,7 +379,9 @@ func (s *AuthService) LoginStart(ctx context.Context, req api.LoginStartRequest)
 		SaltB64:      saltB64,
 		Iterations:   iterations,
 		ExpiresAtUTC: expiresAt,
-	})
+	}); err != nil {
+		return api.LoginStartResponse{}, err
+	}
 
 	return api.LoginStartResponse{
 		LoginSessionId:   sessionID,
@@ -440,7 +442,7 @@ func (s *AuthService) LoginFinish(ctx context.Context, req api.LoginFinishReques
 
 	sess, ok := s.sessions.Get(req.LoginSessionId)
 	// One-time use: delete regardless of outcome.
-	s.sessions.Delete(req.LoginSessionId)
+	_ = s.sessions.Delete(req.LoginSessionId)
 	if !ok {
 		return api.LoginFinishResponse{}, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid or expired login session")
 	}
@@ -555,7 +557,7 @@ func (s *AuthService) StepUpStart(ctx context.Context, user auth.User, req api.S
 	iterations := int(row.Iterations)
 	saltB64 := base64.StdEncoding.EncodeToString(row.Salt)
 
-	s.stepupSessions.Put(auth.StepupSession{
+	if err := s.stepupSessions.Put(auth.StepupSession{
 		SessionID:    sessionID,
 		UserID:       user.ID.String(),
 		Username:     row.Username,
@@ -564,7 +566,9 @@ func (s *AuthService) StepUpStart(ctx context.Context, user auth.User, req api.S
 		SaltB64:      saltB64,
 		Iterations:   iterations,
 		ExpiresAtUTC: expiresAt,
-	})
+	}); err != nil {
+		return api.StepupStartResponse{}, err
+	}
 
 	resp := api.StepupStartResponse{
 		StepupSessionId:  sessionID,
@@ -593,7 +597,7 @@ func (s *AuthService) StepUpFinish(ctx context.Context, user auth.User, req api.
 
 	sess, ok := s.stepupSessions.Get(req.StepupSessionId)
 	// One-time use: delete regardless of outcome.
-	s.stepupSessions.Delete(req.StepupSessionId)
+	_ = s.stepupSessions.Delete(req.StepupSessionId)
 	if !ok {
 		auditStepup(ctx, "auth.stepup.finish", "failure", user, "invalid_session")
 		return api.StepupFinishResponse{}, NewError(http.StatusUnauthorized, "unauthorized", "invalid or expired stepup session")

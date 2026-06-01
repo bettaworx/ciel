@@ -30,7 +30,7 @@ func computeBlurhashForImage(path string) string {
 		slog.Warn("blurhash: failed to open image", "error", err, "path", path)
 		return ""
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	img, _, err := image.Decode(f)
 	if err != nil {

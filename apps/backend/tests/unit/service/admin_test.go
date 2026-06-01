@@ -26,7 +26,7 @@ func TestListRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewAdminService(store, nil, nil, nil)
@@ -58,7 +58,7 @@ func TestListPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewAdminService(store, nil, nil, nil)
@@ -90,7 +90,7 @@ func TestGetUserRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewAdminService(store, nil, nil, nil)
@@ -131,7 +131,7 @@ func TestGetUserRoles_UserNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewAdminService(store, nil, nil, nil)
@@ -161,7 +161,7 @@ func TestUpdateUserRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewAdminService(store, nil, nil, nil)
@@ -208,7 +208,7 @@ func TestGetUserPermissionOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewAdminService(store, nil, nil, nil)
@@ -252,7 +252,7 @@ func TestUpdateUserPermissionOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewAdminService(store, nil, nil, nil)
@@ -297,7 +297,7 @@ func TestGetServerSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	configMgr := newTestConfigManager(t, false)
@@ -339,7 +339,7 @@ func TestUpdateSignupEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	configMgr := newTestConfigManager(t, false)
@@ -374,7 +374,7 @@ func TestUpdateAgreementVersions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewAdminService(store, nil, nil, nil)
@@ -417,7 +417,7 @@ func TestUpdateAgreementVersions_ValidationErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewAdminService(store, nil, nil, nil)
@@ -471,7 +471,7 @@ func TestBanUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Create a real Redis client for testing (using miniredis would be better in production)
 	rdb := redis.NewClient(&redis.Options{
@@ -514,7 +514,7 @@ func TestBanUser_InvalidTTL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	rdb := redis.NewClient(&redis.Options{})
 	cacheImpl := cache.NewRedisCache(rdb)
@@ -551,7 +551,7 @@ func TestBanUser_ExceedsMaxTTL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	rdb := redis.NewClient(&redis.Options{})
 	cacheImpl := cache.NewRedisCache(rdb)
@@ -588,7 +588,7 @@ func TestGetDashboardStats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewAdminService(store, nil, nil, nil)
