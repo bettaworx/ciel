@@ -151,4 +151,3 @@ func logUnauthorized(r *http.Request, reason string, authSource string, err erro
 	}
 	slog.Warn("unauthorized request", attrs...)
 }
-

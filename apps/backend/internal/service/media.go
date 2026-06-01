@@ -137,7 +137,7 @@ func (s *MediaService) uploadFromRequest(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "file is required")
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	return upload(r.Context(), user, file, header)
 }
@@ -227,7 +227,7 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Get file info for http.ServeContent (enables Range Request support)
 	stat, err := f.Stat()
@@ -256,7 +256,7 @@ func (s *MediaService) serveEmojiImageFromMediaRoute(w http.ResponseWriter, r *h
 		http.NotFound(w, r)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	stat, err := f.Stat()
 	if err != nil {
@@ -336,7 +336,7 @@ func (s *MediaService) ServeVideo(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	stat, err := f.Stat()
 	if err != nil {
@@ -418,7 +418,7 @@ func (s *MediaService) ServeThumbnail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	stat, err := f.Stat()
 	if err != nil {
@@ -544,7 +544,7 @@ func (s *MediaService) uploadImagePassthrough(ctx context.Context, user auth.Use
 	if err != nil {
 		return api.Media{}, err
 	}
-	defer os.Remove(inPath)
+	defer func() { _ = os.Remove(inPath) }()
 
 	// Verify file size.
 	if totalSize > s.cfg.MaxUploadBytes() {
@@ -627,7 +627,7 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 	if err != nil {
 		return api.Media{}, err
 	}
-	defer os.Remove(inPath)
+	defer func() { _ = os.Remove(inPath) }()
 
 	// Verify file size (use video-specific limit)
 	if totalSize > s.cfg.MaxUploadBytesForType("video") {
@@ -808,7 +808,7 @@ func (s *MediaService) uploadImageWithOptions(ctx context.Context, user auth.Use
 	if err != nil {
 		return api.Media{}, err
 	}
-	defer os.Remove(inPath)
+	defer func() { _ = os.Remove(inPath) }()
 
 	// Verify file size
 	if totalSize > s.cfg.MaxUploadBytes() {
@@ -1143,7 +1143,7 @@ func (s *MediaService) uploadServerIconWithBothVersions(ctx context.Context, use
 	if err != nil {
 		return api.Media{}, err
 	}
-	defer os.Remove(inPath)
+	defer func() { _ = os.Remove(inPath) }()
 
 	// Verify file size
 	if totalSize > s.cfg.MaxUploadBytes() {
@@ -1283,7 +1283,7 @@ func probeWebPDimensions(path string) (int, int, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	header := make([]byte, 12)
 	if _, err := io.ReadFull(f, header); err != nil {
@@ -1662,11 +1662,12 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath string) (*v
 	info := &videoInfo{}
 
 	for _, stream := range probeResult.Streams {
-		if stream.CodecType == "video" {
+		switch stream.CodecType {
+		case "video":
 			info.HasVideo = true
 			info.Width = stream.Width
 			info.Height = stream.Height
-		} else if stream.CodecType == "audio" {
+		case "audio":
 			info.HasAudio = true
 		}
 	}
@@ -1798,13 +1799,13 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 
 	if _, err := io.Copy(out, in); err != nil {
 		return err
@@ -1862,7 +1863,7 @@ func (s *MediaService) UploadEmojiImage(ctx context.Context, src multipart.File,
 	if err != nil {
 		return 0, 0, err
 	}
-	defer os.Remove(inPath)
+	defer func() { _ = os.Remove(inPath) }()
 
 	maxBytes := int64(15) << 20 // 15 MiB
 	if totalSize > maxBytes {
@@ -2000,7 +2001,7 @@ func (s *MediaService) ServeEmojiImage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	fi, err := f.Stat()
 	if err != nil {

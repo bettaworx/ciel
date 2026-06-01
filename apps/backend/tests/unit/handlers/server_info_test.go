@@ -32,14 +32,16 @@ func TestAPI_GetServerInfo_WithoutIcon(t *testing.T) {
 	config.SetGlobalConfig(testConfig)
 
 	// Set up PUBLIC_BASE_URL for URL generation
-	os.Setenv("PUBLIC_BASE_URL", "http://localhost:6137")
-	defer os.Unsetenv("PUBLIC_BASE_URL")
+	if err := os.Setenv("PUBLIC_BASE_URL", "http://localhost:6137"); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Unsetenv("PUBLIC_BASE_URL") }()
 
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock GetDashboardStats
 	statsRows := sqlmock.NewRows([]string{"total_users", "total_posts", "total_media"}).
@@ -98,14 +100,16 @@ func TestAPI_GetServerInfo_WithIcon(t *testing.T) {
 	config.SetGlobalConfig(testConfig)
 
 	// Set up PUBLIC_BASE_URL for URL generation
-	os.Setenv("PUBLIC_BASE_URL", "http://localhost:6137")
-	defer os.Unsetenv("PUBLIC_BASE_URL")
+	if err := os.Setenv("PUBLIC_BASE_URL", "http://localhost:6137"); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Unsetenv("PUBLIC_BASE_URL") }()
 
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock GetDashboardStats (called first)
 	statsRows := sqlmock.NewRows([]string{"total_users", "total_posts", "total_media"}).
@@ -176,7 +180,7 @@ func TestAPI_GetServerInfo_EmptyName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock GetDashboardStats
 	statsRows := sqlmock.NewRows([]string{"total_users", "total_posts", "total_media"}).

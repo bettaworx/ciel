@@ -117,7 +117,7 @@ func (s *RedisLoginSessionStore) Get(sessionID string) (LoginSession, bool) {
 
 	// Check expiration
 	if time.Now().UTC().After(session.ExpiresAtUTC) {
-		s.Delete(sessionID)
+		_ = s.Delete(sessionID)
 		return LoginSession{}, false
 	}
 
@@ -238,7 +238,7 @@ func (s *RedisStepupSessionStore) Get(sessionID string) (StepupSession, bool) {
 
 	// Check expiration
 	if time.Now().UTC().After(session.ExpiresAtUTC) {
-		s.Delete(sessionID)
+		_ = s.Delete(sessionID)
 		return StepupSession{}, false
 	}
 

@@ -31,7 +31,7 @@ func TestAuthService_ChangePassword_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	tm := auth.NewTokenManager([]byte("secret"), time.Minute)
@@ -63,7 +63,7 @@ func TestAuthService_ChangePassword_DBError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	tm := auth.NewTokenManager([]byte("secret"), time.Minute)
@@ -104,7 +104,7 @@ func TestAuthService_DeleteAccount_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	tm := auth.NewTokenManager([]byte("secret"), time.Minute)
