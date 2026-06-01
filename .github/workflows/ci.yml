@@ -1,0 +1,60 @@
+name: CI Build Check
+
+on:
+  pull_request:
+    branches:
+      - development
+      - main
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  analyze:
+    name: Detect changed files
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      build_commit: ${{ steps.meta.outputs.commit }}
+    steps:
+      - name: Set commit metadata
+        id: meta
+        run: echo "commit=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v6
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'apps/backend/**'
+              - 'Dockerfile.backend'
+            frontend:
+              - 'apps/frontend/**'
+              - 'packages/**'
+              - 'Dockerfile.frontend'
+
+  build-backend:
+    needs: analyze
+    if: needs.analyze.outputs.backend == 'true'
+    uses: ./.github/workflows/build-backend.yml
+    with:
+      push: false
+      platform: linux/amd64
+      build_commit: ${{ needs.analyze.outputs.build_commit }}
+      build_branch: ${{ github.ref_name }}
+    secrets: inherit
+
+  build-frontend:
+    needs: analyze
+    if: needs.analyze.outputs.frontend == 'true'
+    uses: ./.github/workflows/build-frontend.yml
+    with:
+      push: false
+      platform: linux/amd64
+      build_commit: ${{ needs.analyze.outputs.build_commit }}
+      build_branch: ${{ github.ref_name }}
+    secrets: inherit
