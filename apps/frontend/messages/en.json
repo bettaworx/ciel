@@ -593,7 +593,9 @@
       "share": "Share",
       "copyLink": "Copy link",
       "shareSuccess": "Post URL copied",
-      "shareError": "Failed to share"
+      "shareError": "Failed to share",
+      "boost": "Boost",
+      "quote": "Quote"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",

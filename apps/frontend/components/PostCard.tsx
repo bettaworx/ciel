@@ -30,6 +30,7 @@ import {
   FileText,
   Link2,
   MessageCircle,
+  Quote,
   Rocket,
   MoreHorizontal,
   Share,
@@ -230,6 +231,7 @@ export function PostCard({
   const deletePost = useDeletePost();
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [boostMenuOpen, setBoostMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -863,21 +865,75 @@ export function PostCard({
           </Button>
 
           {/* Boost */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
-              post.replyCount > 0 ? "px-2 gap-1" : "w-8 p-0",
-            )}
-            aria-label={tCreatePost("replyTitle")}
-            onClick={() => setReplyDialogOpen(true)}
-          >
-            <Rocket className="h-5 w-5" />
-            {post.replyCount > 0 && (
-              <span className="text-xs tabular-nums">{post.replyCount}</span>
-            )}
-          </Button>
+          {isDesktop ? (
+            <DropdownMenu open={boostMenuOpen} onOpenChange={setBoostMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
+                    post.boostCount > 0 ? "px-2 gap-1" : "w-8 p-0",
+                  )}
+                  aria-label={t("actions.boost")}
+                >
+                  <Rocket className="h-5 w-5" />
+                  {post.boostCount > 0 && (
+                    <span className="text-xs tabular-nums">{post.boostCount}</span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={() => setBoostMenuOpen(false)}>
+                  <Rocket className="h-4 w-4" />
+                  {t("actions.boost")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setBoostMenuOpen(false)}>
+                  <Quote className="h-4 w-4" />
+                  {t("actions.quote")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Drawer open={boostMenuOpen} onOpenChange={setBoostMenuOpen}>
+              <DrawerTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
+                    post.boostCount > 0 ? "px-2 gap-1" : "w-8 p-0",
+                  )}
+                  aria-label={t("actions.boost")}
+                >
+                  <Rocket className="h-5 w-5" />
+                  {post.boostCount > 0 && (
+                    <span className="text-xs tabular-nums">{post.boostCount}</span>
+                  )}
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent>
+                <div className="flex flex-col gap-2 p-2 pb-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={() => setBoostMenuOpen(false)}
+                  >
+                    <Rocket className="h-4 w-4" />
+                    {t("actions.boost")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={() => setBoostMenuOpen(false)}
+                  >
+                    <Quote className="h-4 w-4" />
+                    {t("actions.quote")}
+                  </Button>
+                </div>
+              </DrawerContent>
+            </Drawer>
+          )}
 
           {/* Reaction Picker */}
           <ReactionPicker
