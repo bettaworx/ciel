@@ -30,6 +30,7 @@ import {
   FileText,
   Link2,
   MessageCircle,
+  Repeat2,
   MoreHorizontal,
   Share,
   Trash2,
@@ -826,10 +827,7 @@ export function PostCard({
       {/* Action Area */}
       <div className={cn("flex items-center justify-between")}>
         <div className="flex items-center gap-1.5">
-          <ReactionPicker
-            onEmojiSelect={handleToggleReaction}
-            disabled={isPending}
-          />
+          {/* Reply */}
           <Button
             variant="ghost"
             size="sm"
@@ -845,6 +843,29 @@ export function PostCard({
               <span className="text-xs tabular-nums">{post.replyCount}</span>
             )}
           </Button>
+
+          {/* Boost */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
+              post.replyCount > 0 ? "px-2 gap-1" : "w-8 p-0",
+            )}
+            aria-label={tCreatePost("replyTitle")}
+            onClick={() => setReplyDialogOpen(true)}
+          >
+            <Repeat2 className="h-5 w-5" />
+            {post.replyCount > 0 && (
+              <span className="text-xs tabular-nums">{post.replyCount}</span>
+            )}
+          </Button>
+
+          {/* Reaction Picker */}
+          <ReactionPicker
+            onEmojiSelect={handleToggleReaction}
+            disabled={isPending}
+          />
         </div>
         <Button
           variant="ghost"
