@@ -28,8 +28,10 @@ import {
   Copy,
   Eye,
   FileText,
+  Link2,
   MessageCircle,
   MoreHorizontal,
+  Share,
   Trash2,
   User,
 } from "lucide-react";
@@ -235,6 +237,7 @@ export function PostCard({
   const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(
     null,
   );
+  const [shiftHeld, setShiftHeld] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [isContentOverflowing, setIsContentOverflowing] = useState(false);
   const [isCompactOverflowing, setIsCompactOverflowing] = useState(false);
@@ -297,6 +300,17 @@ export function PostCard({
     return () => ro.disconnect();
   }, [isCompact, post.content, post.media?.length]);
 
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => e.key === "Shift" && setShiftHeld(true);
+    const up = (e: KeyboardEvent) => e.key === "Shift" && setShiftHeld(false);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, []);
+
   const handleToggleReaction = useCallback(
     (emoji: string) => {
       toggleReaction(emoji, {
@@ -349,6 +363,33 @@ export function PostCard({
     }
     setMenuOpen(false);
   }, [post.id, t]);
+
+  const handleShare = useCallback(async (e: React.MouseEvent) => {
+    const postUrl = `${window.location.origin}/posts/${post.id}`;
+    if (e.shiftKey) {
+      try {
+        await navigator.clipboard.writeText(postUrl);
+        toast.success(t("actions.shareSuccess"));
+      } catch {
+        toast.error(t("actions.shareError"));
+      }
+      return;
+    }
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: post.author?.displayName || (post.author?.username ? `@${post.author.username}` : undefined),
+          url: postUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(postUrl);
+        toast.success(t("actions.shareSuccess"));
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      toast.error(t("actions.shareError"));
+    }
+  }, [post.id, post.author?.displayName, post.author?.username, t]);
 
   const handleOpenDelete = useCallback(() => {
     setMenuOpen(false);
@@ -780,29 +821,36 @@ export function PostCard({
       )}
 
       {/* Action Area */}
-      <div
-        className={cn(
-          "flex items-center gap-1.5",
-        )}
-      >
-        <ReactionPicker
-          onEmojiSelect={handleToggleReaction}
-          disabled={isPending}
-        />
+      <div className={cn("flex items-center justify-between")}>
+        <div className="flex items-center gap-1.5">
+          <ReactionPicker
+            onEmojiSelect={handleToggleReaction}
+            disabled={isPending}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
+              post.replyCount > 0 ? "px-2 gap-1" : "w-8 p-0",
+            )}
+            aria-label={tCreatePost("replyTitle")}
+            onClick={() => setReplyDialogOpen(true)}
+          >
+            <MessageCircle className="h-5 w-5" />
+            {post.replyCount > 0 && (
+              <span className="text-xs tabular-nums">{post.replyCount}</span>
+            )}
+          </Button>
+        </div>
         <Button
           variant="ghost"
           size="sm"
-          className={cn(
-            "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
-            post.replyCount > 0 ? "px-2 gap-1" : "w-8 p-0",
-          )}
-          aria-label={tCreatePost("replyTitle")}
-          onClick={() => setReplyDialogOpen(true)}
+          className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
+          aria-label={shiftHeld ? t("actions.copyLink") : t("actions.share")}
+          onClick={handleShare}
         >
-          <MessageCircle className="h-5 w-5" />
-          {post.replyCount > 0 && (
-            <span className="text-xs tabular-nums">{post.replyCount}</span>
-          )}
+          {shiftHeld ? <Link2 className="h-5 w-5" /> : <Share className="h-5 w-5" />}
         </Button>
       </div>
 

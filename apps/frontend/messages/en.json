@@ -589,7 +589,11 @@
       "copy": "Copy",
       "copyUserId": "User ID",
       "copyText": "Text",
-      "copyPostId": "Post ID"
+      "copyPostId": "Post ID",
+      "share": "Share",
+      "copyLink": "Copy link",
+      "shareSuccess": "Post URL copied",
+      "shareError": "Failed to share"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
