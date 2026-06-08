@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"backend/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -59,9 +61,9 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		return api.Post{}, err
 	}
 
-	// At least one of content or media must be present
-	if content == "" && len(mediaIDs) == 0 {
-		return api.Post{}, NewError(http.StatusBadRequest, "invalid_request", "content or media required")
+	// At least one of content, media, or referenceId must be present
+	if content == "" && len(mediaIDs) == 0 && req.ReferenceId == nil {
+		return api.Post{}, NewError(http.StatusBadRequest, "invalid_request", "content, media, or referenceId required")
 	}
 
 	// Check content length (Unicode characters, not bytes)
@@ -77,7 +79,7 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 
 	var created sqlc.CreatePostRow
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
-		var parentID, rootID uuid.NullUUID
+		var parentID, rootID, referenceID uuid.NullUUID
 		if req.ParentId != nil {
 			parent, err := q.GetPostThreadInfoByID(ctx, *req.ParentId)
 			if err != nil {
@@ -97,13 +99,31 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 			}
 		}
 
+		if req.ReferenceId != nil {
+			ref, err := q.GetPostThreadInfoByID(ctx, *req.ReferenceId)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return NewError(http.StatusNotFound, "not_found", "referenced post not found")
+				}
+				return err
+			}
+			if ref.DeletedAt.Valid {
+				return NewError(http.StatusNotFound, "not_found", "referenced post not found")
+			}
+			referenceID = uuid.NullUUID{UUID: ref.ID, Valid: true}
+		}
+
 		c, err := q.CreatePost(ctx, sqlc.CreatePostParams{
-			UserID:   user.ID,
-			Content:  content,
-			ParentID: parentID,
-			RootID:   rootID,
+			UserID:      user.ID,
+			Content:     content,
+			ParentID:    parentID,
+			RootID:      rootID,
+			ReferenceID: referenceID,
 		})
 		if err != nil {
+			if isUniqueViolation(err) && req.ReferenceId != nil && content == "" {
+				return NewError(http.StatusConflict, "already_boosted", "you have already boosted this post")
+			}
 			return err
 		}
 		created = c
@@ -157,6 +177,12 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 	if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
 		return api.Post{}, err
 	}
+	if err := s.attachBoostCountsToPosts(ctx, posts); err != nil {
+		return api.Post{}, err
+	}
+	if err := s.attachReferencesToPosts(ctx, posts, nil); err != nil {
+		return api.Post{}, err
+	}
 	post = posts[0]
 
 	if s.cache != nil {
@@ -195,6 +221,12 @@ func (s *PostsService) Get(ctx context.Context, postID api.PostId, userID *api.U
 		return api.Post{}, err
 	}
 	if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
+		return api.Post{}, err
+	}
+	if err := s.attachBoostCountsToPosts(ctx, posts); err != nil {
+		return api.Post{}, err
+	}
+	if err := s.attachReferencesToPosts(ctx, posts, userID); err != nil {
 		return api.Post{}, err
 	}
 	return posts[0], nil
@@ -443,7 +475,13 @@ func (s *PostsService) attachPostDetails(ctx context.Context, posts []api.Post, 
 	if err := s.attachMentionsToPosts(ctx, posts); err != nil {
 		return err
 	}
-	return s.attachReplyCountsToPosts(ctx, posts)
+	if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
+		return err
+	}
+	if err := s.attachBoostCountsToPosts(ctx, posts); err != nil {
+		return err
+	}
+	return s.attachReferencesToPosts(ctx, posts, userID)
 }
 
 func (s *PostsService) ListByUsername(ctx context.Context, username api.Username, params api.GetUsersUsernamePostsParams, userID *api.UserId) (api.UserPostsPage, error) {
@@ -526,6 +564,12 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 		return api.UserPostsPage{}, err
 	}
 	if err := s.attachReplyCountsToPosts(ctx, items); err != nil {
+		return api.UserPostsPage{}, err
+	}
+	if err := s.attachBoostCountsToPosts(ctx, items); err != nil {
+		return api.UserPostsPage{}, err
+	}
+	if err := s.attachReferencesToPosts(ctx, items, userID); err != nil {
 		return api.UserPostsPage{}, err
 	}
 
@@ -854,6 +898,12 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 	if err := s.attachReplyCountsToPosts(ctx, items); err != nil {
 		return api.TimelinePage{}, err
 	}
+	if err := s.attachBoostCountsToPosts(ctx, items); err != nil {
+		return api.TimelinePage{}, err
+	}
+	if err := s.attachReferencesToPosts(ctx, items, userID); err != nil {
+		return api.TimelinePage{}, err
+	}
 
 	var nextCursor *string
 	if len(rows) == limit {
@@ -875,4 +925,94 @@ func (s *PostsService) publish(ctx context.Context, event realtime.Event) {
 		return
 	}
 	_ = s.publisher.Publish(ctx, event)
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+func (s *PostsService) attachBoostCountsToPosts(ctx context.Context, posts []api.Post) error {
+	if len(posts) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(posts))
+	for i, p := range posts {
+		ids[i] = p.Id
+	}
+	rows, err := s.store.Q.CountBoostsByPostIDs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	index := make(map[uuid.UUID]int, len(posts))
+	for i, p := range posts {
+		index[p.Id] = i
+	}
+	for _, row := range rows {
+		if !row.ReferenceID.Valid {
+			continue
+		}
+		if pi, ok := index[row.ReferenceID.UUID]; ok {
+			posts[pi].BoostCount = int(row.BoostCount)
+		}
+	}
+	return nil
+}
+
+func (s *PostsService) attachReferencesToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+	if len(posts) == 0 {
+		return nil
+	}
+	refIDs := make([]uuid.UUID, 0)
+	seen := make(map[uuid.UUID]bool)
+	for _, p := range posts {
+		if p.ReferenceId != nil {
+			rid := uuid.UUID(*p.ReferenceId)
+			if !seen[rid] {
+				refIDs = append(refIDs, rid)
+				seen[rid] = true
+			}
+		}
+	}
+	if len(refIDs) == 0 {
+		return nil
+	}
+
+	refRows, err := s.store.Q.GetPostsByIDs(ctx, refIDs)
+	if err != nil {
+		return err
+	}
+	refPosts := make([]api.Post, len(refRows))
+	refMap := make(map[uuid.UUID]int, len(refRows))
+	for i, row := range refRows {
+		refPosts[i] = mapPostsByIDsRow(row)
+		refMap[row.ID] = i
+	}
+
+	if err := s.attachMediaToPosts(ctx, refPosts); err != nil {
+		return err
+	}
+	if err := s.attachReactionsToPosts(ctx, refPosts, userID); err != nil {
+		return err
+	}
+	if err := s.attachMentionsToPosts(ctx, refPosts); err != nil {
+		return err
+	}
+	if err := s.attachReplyCountsToPosts(ctx, refPosts); err != nil {
+		return err
+	}
+	if err := s.attachBoostCountsToPosts(ctx, refPosts); err != nil {
+		return err
+	}
+
+	for i, p := range posts {
+		if p.ReferenceId != nil {
+			rid := uuid.UUID(*p.ReferenceId)
+			if ri, ok := refMap[rid]; ok {
+				ref := refPosts[ri]
+				posts[i].Reference = &ref
+			}
+		}
+	}
+	return nil
 }
