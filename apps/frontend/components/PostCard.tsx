@@ -26,10 +26,11 @@ import { useAtomValue } from "jotai";
 import {
   Eye,
   MessageCircle,
+  Repeat2,
   MoreHorizontal,
   Trash2,
   Clipboard,
-  ClipboardCopy,
+  ClipboardCopy
 } from "lucide-react";
 import { useDeletePost } from "@/lib/hooks/use-queries";
 import { OgpCard } from "@/components/OgpCard";
@@ -731,10 +732,7 @@ export function PostCard({
           "flex items-center gap-1.5",
         )}
       >
-        <ReactionPicker
-          onEmojiSelect={handleToggleReaction}
-          disabled={isPending}
-        />
+        {/* Reply */}
         <Button
           variant="ghost"
           size="sm"
@@ -750,6 +748,29 @@ export function PostCard({
             <span className="text-xs tabular-nums">{post.replyCount}</span>
           )}
         </Button>
+        
+        {/* Boost */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
+            post.replyCount > 0 ? "px-2 gap-1" : "w-8 p-0",
+          )}
+          aria-label={tCreatePost("replyTitle")}
+          onClick={() => setReplyDialogOpen(true)}
+        >
+          <Repeat2 className="h-5 w-5" />
+          {post.replyCount > 0 && (
+            <span className="text-xs tabular-nums">{post.replyCount}</span>
+          )}
+        </Button>
+
+        {/* Reaction Picker */}
+        <ReactionPicker
+          onEmojiSelect={handleToggleReaction}
+          disabled={isPending}
+        />
       </div>
 
       <CreateReplyDialog
