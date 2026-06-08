@@ -1,6 +1,11 @@
 package service
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+
+	"github.com/google/uuid"
+)
 
 // MaxMentionsPerPost caps the number of usernames extracted from a single post body.
 // Mentions beyond this limit are silently dropped to prevent abuse.
@@ -10,6 +15,27 @@ const MaxMentionsPerPost = 50
 // "foo@bar" do not match. The username portion follows the Username schema:
 // alphanumeric plus underscore, 3 to 32 characters.
 var mentionPattern = regexp.MustCompile(`(^|[^a-zA-Z0-9_])@([a-zA-Z0-9_]{3,32})`)
+
+var uuidPattern = `[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`
+
+// ExtractPostReference extracts the first post UUID referenced by a URL in content.
+// It matches URLs of the form {PUBLIC_BASE_URL}/posts/{uuid}.
+func ExtractPostReference(content string) *uuid.UUID {
+	if content == "" {
+		return nil
+	}
+	base := strings.TrimRight(publicBaseURL(), "/")
+	pattern := regexp.MustCompile(regexp.QuoteMeta(base) + `/posts/(` + uuidPattern + `)`)
+	m := pattern.FindStringSubmatch(content)
+	if m == nil {
+		return nil
+	}
+	id, err := uuid.Parse(m[1])
+	if err != nil {
+		return nil
+	}
+	return &id
+}
 
 // ExtractMentions returns up to cap unique usernames mentioned in content.
 // The order of the returned slice matches the first-occurrence order in content.

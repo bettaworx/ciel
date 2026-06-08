@@ -77,6 +77,15 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 
 	mentionNames := ExtractMentions(content, MaxMentionsPerPost)
 
+	autoDetectedReference := false
+	if req.ReferenceId == nil && content != "" {
+		if refID := ExtractPostReference(content); refID != nil {
+			postId := api.PostId(*refID)
+			req.ReferenceId = &postId
+			autoDetectedReference = true
+		}
+	}
+
 	var created sqlc.CreatePostRow
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
 		var parentID, rootID, referenceID uuid.NullUUID
@@ -103,14 +112,19 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 			ref, err := q.GetPostThreadInfoByID(ctx, *req.ReferenceId)
 			if err != nil {
 				if err == sql.ErrNoRows {
+					if !autoDetectedReference {
+						return NewError(http.StatusNotFound, "not_found", "referenced post not found")
+					}
+				} else {
+					return err
+				}
+			} else if ref.DeletedAt.Valid {
+				if !autoDetectedReference {
 					return NewError(http.StatusNotFound, "not_found", "referenced post not found")
 				}
-				return err
+			} else {
+				referenceID = uuid.NullUUID{UUID: ref.ID, Valid: true}
 			}
-			if ref.DeletedAt.Valid {
-				return NewError(http.StatusNotFound, "not_found", "referenced post not found")
-			}
-			referenceID = uuid.NullUUID{UUID: ref.ID, Valid: true}
 		}
 
 		c, err := q.CreatePost(ctx, sqlc.CreatePostParams{
