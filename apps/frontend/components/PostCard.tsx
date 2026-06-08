@@ -986,6 +986,14 @@ export function PostCard({
         className,
       )}
     >
+      {isEmbedded && linkToDetail && (
+        <Link
+          href={detailHref}
+          aria-label={t("openDetail")}
+          tabIndex={-1}
+          className="absolute inset-0 z-0"
+        />
+      )}
       {showAboveLine && <ThreadConnectorLine position="above" />}
       {showBelowLine && <ThreadConnectorLine position="below" />}
 

@@ -42,7 +42,7 @@ export const POST_CARD_DISPLAY_CONFIGS = {
     showMoreMenu: true,
   },
   embedded: {
-    linkToDetail: false,
+    linkToDetail: true,
     identityLayout: "inline",
     collapseContent: true,
     timestampFormat: "relative",
