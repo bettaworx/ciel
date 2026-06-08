@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS posts (
   content TEXT NOT NULL,
   parent_id UUID REFERENCES posts(id) ON DELETE SET NULL,
   root_id UUID REFERENCES posts(id) ON DELETE SET NULL,
+  reference_id UUID REFERENCES posts(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ NULL,
   visibility TEXT NOT NULL DEFAULT 'public',
@@ -93,7 +94,8 @@ CREATE TABLE IF NOT EXISTS posts (
   deletion_reason TEXT,
   CHECK (visibility IN ('public', 'hidden', 'deleted')),
   CHECK (parent_id IS NULL OR parent_id <> id),
-  CHECK (root_id IS NULL OR root_id <> id)
+  CHECK (root_id IS NULL OR root_id <> id),
+  CHECK (reference_id IS NULL OR reference_id <> id)
 );
 
 -- Uploaded media (images and videos). Images stored as WebP, videos as MP4.
@@ -154,6 +156,8 @@ CREATE INDEX IF NOT EXISTS idx_posts_user_created ON posts (user_id, created_at 
 CREATE INDEX IF NOT EXISTS idx_posts_parent ON posts(parent_id) WHERE parent_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_parent_created ON posts(parent_id, created_at ASC, id ASC) WHERE parent_id IS NOT NULL AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_root ON posts(root_id) WHERE root_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_reference ON posts(reference_id) WHERE reference_id IS NOT NULL AND deleted_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_unique_pure_boost ON posts(user_id, reference_id) WHERE reference_id IS NOT NULL AND content = '' AND deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS post_mentions (
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,

@@ -38,17 +38,16 @@ func TestPostsService_Create_PublishesEvent(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO posts`).
-		WithArgs(userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "created_at", "deleted_at"}).
-			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}))
+		WithArgs(userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at"}).
+			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}))
 	mock.ExpectCommit()
-	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(postID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "avatar_ext"}).
-			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, sql.NullString{}))
+	expectGetPostWithAuthor(mock, api.PostId(postID), userID, created, userCreated)
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(postID).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
 	expectListMentions(mock)
 	expectCountReplies(mock)
+	expectCountBoosts(mock)
 
 	user := auth.User{ID: userID, Username: "alice"}
 	content := "hello"
@@ -176,8 +175,8 @@ func TestReactionsService_Remove_PublishesEvent(t *testing.T) {
 
 func expectGetPostWithAuthor(mock sqlmock.Sqlmock, postID api.PostId, userID uuid.UUID, created time.Time, userCreated time.Time) {
 	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(postID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "avatar_ext"}).
-			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, sql.NullString{}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "avatar_ext"}).
+			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, sql.NullString{}))
 }
 
 // expectListMentions sets up an expectation for ListMentionsForPosts returning no rows.
@@ -190,6 +189,12 @@ func expectListMentions(mock sqlmock.Sqlmock) {
 func expectCountReplies(mock sqlmock.Sqlmock) {
 	mock.ExpectQuery(`SELECT parent_id, COUNT\(\*\)`).
 		WillReturnRows(sqlmock.NewRows([]string{"parent_id", "reply_count"}))
+}
+
+// expectCountBoosts sets up an expectation for CountBoostsByPostIDs returning no rows.
+func expectCountBoosts(mock sqlmock.Sqlmock) {
+	mock.ExpectQuery(`SELECT reference_id, COUNT\(\*\)`).
+		WillReturnRows(sqlmock.NewRows([]string{"reference_id", "boost_count"}))
 }
 
 func expectListReactionCounts(mock sqlmock.Sqlmock, postID api.PostId, emoji string, count int) {

@@ -225,9 +225,9 @@ DELETE FROM users
 WHERE id = $1;
 
 -- name: CreatePost :one
-INSERT INTO posts (user_id, content, parent_id, root_id)
-VALUES ($1, $2, sqlc.narg('parent_id'), sqlc.narg('root_id'))
-RETURNING id, user_id, content, parent_id, root_id, created_at, deleted_at;
+INSERT INTO posts (user_id, content, parent_id, root_id, reference_id)
+VALUES ($1, $2, sqlc.narg('parent_id'), sqlc.narg('root_id'), sqlc.narg('reference_id'))
+RETURNING id, user_id, content, parent_id, root_id, reference_id, created_at, deleted_at;
 
 -- name: GetPostWithAuthorByID :one
 SELECT
@@ -236,6 +236,7 @@ SELECT
 	p.content,
 	p.parent_id,
 	p.root_id,
+	p.reference_id,
 	p.created_at,
 	p.deleted_at,
 	u.username,
@@ -255,7 +256,7 @@ FROM posts
 WHERE id = $1;
 
 -- name: GetPostThreadInfoByID :one
-SELECT id, parent_id, root_id, deleted_at
+SELECT id, parent_id, root_id, reference_id, deleted_at
 FROM posts
 WHERE id = $1;
 
@@ -266,6 +267,7 @@ SELECT
 	p.content,
 	p.parent_id,
 	p.root_id,
+	p.reference_id,
 	p.created_at,
 	p.deleted_at,
 	u.username,
@@ -310,6 +312,7 @@ SELECT
 	child.content,
 	child.parent_id,
 	child.root_id,
+	child.reference_id,
 	child.created_at,
 	child.deleted_at,
 	child.username,
@@ -327,6 +330,7 @@ JOIN LATERAL (
 		p.content,
 		p.parent_id,
 		p.root_id,
+		p.reference_id,
 		p.created_at,
 		p.deleted_at,
 		u.username,
@@ -478,6 +482,7 @@ SELECT
 	p.content,
 	p.parent_id,
 	p.root_id,
+	p.reference_id,
 	p.created_at,
 	p.deleted_at,
 	u.username,
@@ -505,6 +510,7 @@ SELECT
 	p.content,
 	p.parent_id,
 	p.root_id,
+	p.reference_id,
 	p.created_at,
 	p.deleted_at,
 	u.username,
@@ -576,6 +582,7 @@ SELECT
 	p.content,
 	p.parent_id,
 	p.root_id,
+	p.reference_id,
 	p.created_at,
 	p.deleted_at,
 	u.username,
@@ -1603,3 +1610,12 @@ LIMIT $1 OFFSET $2;
 
 -- name: CountCustomEmojis :one
 SELECT COUNT(*) FROM custom_emojis;
+
+-- ==================== Post Boosts ====================
+
+-- name: CountBoostsByPostIDs :many
+SELECT reference_id, COUNT(*)::int AS boost_count
+FROM posts
+WHERE reference_id = ANY($1::uuid[])
+  AND deleted_at IS NULL
+GROUP BY reference_id;
