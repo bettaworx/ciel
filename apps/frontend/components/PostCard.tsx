@@ -566,8 +566,8 @@ export function PostCard({
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          size={verticalIdentity ? "sm" : "xs"}
-          className={cn(verticalIdentity && "w-8 p-0", "text-muted-foreground hover:text-foreground transition-colors duration-160 ease")}
+          size="sm"
+          className="-my-4 h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
           aria-label={t("actions.more")}
         >
           <MoreHorizontal className="h-5 w-5" />
@@ -628,8 +628,8 @@ export function PostCard({
       <DrawerTrigger asChild>
         <Button
           variant="ghost"
-          size={verticalIdentity ? "sm" : "xs"}
-          className={cn(verticalIdentity && "w-8 p-0", "text-muted-foreground hover:text-foreground transition-colors duration-160 ease")}
+          size="sm"
+          className="-my-4 h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease"
           aria-label={t("actions.more")}
         >
           <MoreHorizontal className="h-5 w-5" />
