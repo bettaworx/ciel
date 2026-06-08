@@ -136,7 +136,6 @@ func TestExtractMentions(t *testing.T) {
 func TestExtractPostReference(t *testing.T) {
 	t.Parallel()
 
-	base := publicBaseURL()
 	validID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
 	tests := []struct {
@@ -161,28 +160,43 @@ func TestExtractPostReference(t *testing.T) {
 		},
 		{
 			name:    "valid post URL",
-			content: "look at this " + base + "/posts/" + validID.String(),
+			content: "look at this https://example.com/posts/" + validID.String(),
+			want:    &validID,
+		},
+		{
+			name:    "different domain",
+			content: "see https://other-frontend.example.org/posts/" + validID.String(),
+			want:    &validID,
+		},
+		{
+			name:    "with subpath",
+			content: "https://example.com/app/posts/" + validID.String(),
 			want:    &validID,
 		},
 		{
 			name:    "post URL in middle of text",
-			content: "I saw " + base + "/posts/" + validID.String() + " and it was great",
+			content: "I saw https://example.com/posts/" + validID.String() + " and it was great",
 			want:    &validID,
 		},
 		{
 			name:    "multiple post URLs returns first",
-			content: base + "/posts/" + validID.String() + " and " + base + "/posts/00000000-0000-0000-0000-000000000001",
+			content: "https://a.com/posts/" + validID.String() + " and https://b.com/posts/00000000-0000-0000-0000-000000000001",
 			want:    &validID,
 		},
 		{
 			name:    "invalid UUID format",
-			content: base + "/posts/not-a-uuid",
+			content: "https://example.com/posts/not-a-uuid",
 			want:    nil,
 		},
 		{
-			name:    "API posts path without base URL",
+			name:    "path without scheme",
 			content: "/posts/" + validID.String(),
 			want:    nil,
+		},
+		{
+			name:    "http scheme",
+			content: "http://localhost:3000/posts/" + validID.String(),
+			want:    &validID,
 		},
 	}
 
