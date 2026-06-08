@@ -303,11 +303,14 @@ export function PostCard({
   useEffect(() => {
     const down = (e: KeyboardEvent) => e.key === "Shift" && setShiftHeld(true);
     const up = (e: KeyboardEvent) => e.key === "Shift" && setShiftHeld(false);
+    const blur = () => setShiftHeld(false);
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
     };
   }, []);
 
