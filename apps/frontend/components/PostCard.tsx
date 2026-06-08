@@ -30,7 +30,7 @@ import {
   FileText,
   Link2,
   MessageCircle,
-  Repeat2,
+  Rocket,
   MoreHorizontal,
   Share,
   Trash2,
@@ -253,9 +253,11 @@ export function PostCard({
     timestampFormat,
     timestampPlacement,
     showReactions,
+    showMoreMenu,
   } = displayConfig;
   const verticalIdentity = displayConfig.identityLayout === "vertical";
   const isCompact = variant === "compact";
+  const isEmbedded = variant === "embedded";
 
   const showAboveLine = threadLine === "above" || threadLine === "both";
   const wantsBelowLine = threadLine === "below" || threadLine === "both";
@@ -273,6 +275,32 @@ export function PostCard({
       'PostCard: threadLine "below"/"both" is not supported with variant="detail" — the line below the avatar will be omitted.',
     );
   }
+
+  const media = useMemo(() => post.media || [], [post.media]);
+
+  // Convert API Media[] to PreviewMediaItem[] for the shared component
+  const previewMedia: PreviewMediaItem[] = useMemo(
+    () =>
+      media.map((m) => ({
+        id: m.id,
+        type: m.type as "image" | "video",
+        url: m.url,
+        width: m.width,
+        height: m.height,
+        thumbnailUrl: m.thumbnailUrl,
+        blurhash: m.blurhash,
+      })),
+    [media],
+  );
+
+  // OGP: Extract the first URL from post content, but only if no media is attached.
+  const ogpUrl = useMemo(
+    () =>
+      media.length === 0 && post.content && !post.referenceId
+        ? extractFirstUrl(post.content)
+        : null,
+    [media.length, post.content, post.referenceId],
+  );
 
   useEffect(() => {
     if (!collapseContent) {
@@ -433,30 +461,7 @@ export function PostCard({
     timestampFormat === "full"
       ? fullTimestamp
       : formatTimeAgo(createdAt, locale);
-  const media = useMemo(() => post.media || [], [post.media]);
   const hasAuthorId = Boolean(post.author?.id);
-
-  // Convert API Media[] to PreviewMediaItem[] for the shared component
-  const previewMedia: PreviewMediaItem[] = useMemo(
-    () =>
-      media.map((m) => ({
-        id: m.id,
-        type: m.type as "image" | "video",
-        url: m.url,
-        width: m.width,
-        height: m.height,
-        thumbnailUrl: m.thumbnailUrl,
-        blurhash: m.blurhash,
-      })),
-    [media],
-  );
-
-  // OGP: Extract the first URL from post content, but only if no media is attached.
-  const ogpUrl = useMemo(
-    () =>
-      media.length === 0 && post.content ? extractFirstUrl(post.content) : null,
-    [media.length, post.content],
-  );
   const shouldCollapseContent = shouldCollapsePostContent({
     collapseContent,
     isExpanded: isContentExpanded,
@@ -493,11 +498,14 @@ export function PostCard({
     <Button
       variant="ghost"
       size="icon"
-      className="h-10 w-10 sm:h-12 sm:w-12 rounded-full p-0 hover:bg-transparent shrink-0"
+      className={cn(
+        "rounded-full p-0 hover:bg-transparent shrink-0",
+        isEmbedded ? "h-6 w-6" : "h-10 w-10 sm:h-12 sm:w-12",
+      )}
       onClick={handleUserClick}
       aria-label={t("viewProfile", { name: displayName })}
     >
-      <Avatar className="h-11 w-11 sm:h-12 sm:w-12">
+      <Avatar className={isEmbedded ? "h-6 w-6" : "h-11 w-11 sm:h-12 sm:w-12"}>
         <AvatarImage src={avatarUrl || undefined} alt={displayName} />
         <AvatarFallback>{initials}</AvatarFallback>
       </Avatar>
@@ -558,7 +566,7 @@ export function PostCard({
     </Button>
   ) : (
     <span
-      className="text-muted-foreground text-xs shrink-0"
+      className="ml-auto text-muted-foreground text-xs shrink-0"
       aria-label={fullTimestamp}
     >
       {timestampText}
@@ -768,6 +776,16 @@ export function PostCard({
     </>
   );
 
+  const referenceNode = !isEmbedded && post.reference && post.content && (
+    <div
+      className={cn(
+        verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
+      )}
+    >
+      <PostCard post={post.reference} variant="embedded" isLast />
+    </div>
+  );
+
   const mediaNode = (ogpUrl || previewMedia.length > 0) && (
     <div
       className={cn(
@@ -855,7 +873,7 @@ export function PostCard({
             aria-label={tCreatePost("replyTitle")}
             onClick={() => setReplyDialogOpen(true)}
           >
-            <Repeat2 className="h-5 w-5" />
+            <Rocket className="h-5 w-5" />
             {post.replyCount > 0 && (
               <span className="text-xs tabular-nums">{post.replyCount}</span>
             )}
@@ -892,8 +910,9 @@ export function PostCard({
       ref={articleRef}
       className={cn(
         "relative text-card-foreground p-3 transition-colors",
-        !isLast && !showBelowLine && "border-b border-border",
+        !isLast && !showBelowLine && !isEmbedded && "border-b border-border",
         isCompact && "max-h-48 overflow-hidden",
+        isEmbedded && "border border-border rounded-xl overflow-hidden",
         className,
       )}
     >
@@ -910,10 +929,11 @@ export function PostCard({
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {timestampPlacement === "header" && timestampNode}
-              {moreMenuNode}
+              {showMoreMenu && moreMenuNode}
             </div>
           </div>
           {bodyNode}
+          {referenceNode}
           {mediaNode}
           {timestampPlacement === "afterContent" && standaloneTimestampNode}
           {showReactions && reactionsRowNode}
@@ -926,10 +946,11 @@ export function PostCard({
               <div className="flex min-w-0 items-center gap-2">
                 {identityStackNode}
                 {timestampPlacement === "header" && timestampNode}
-                {moreMenuNode}
+                {showMoreMenu && moreMenuNode}
               </div>
               {bodyNode}
             </div>
+            {referenceNode}
             {mediaNode}
             {timestampPlacement === "afterContent" && standaloneTimestampNode}
             {showReactions && reactionsRowNode}
