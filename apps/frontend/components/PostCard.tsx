@@ -131,6 +131,11 @@ function ThreadConnectorLine({
   );
 }
 
+export interface PostCardIndicator {
+  icon: ReactNode;
+  label: string;
+}
+
 export interface PostCardProps {
   post: Post;
   onUserClick?: (username: string) => void;
@@ -139,6 +144,7 @@ export interface PostCardProps {
   isLast?: boolean;
   variant?: PostCardVariant;
   threadLine?: PostCardThreadLine;
+  indicator?: PostCardIndicator;
 }
 
 export interface PostTreeActionButtonProps {
@@ -217,6 +223,7 @@ export function PostCard({
   isLast = false,
   variant = "timeline",
   threadLine = "none",
+  indicator,
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -734,6 +741,13 @@ export function PostCard({
     </div>
   );
 
+  const indicatorNode = indicator && (
+    <div className="-mx-3 -mt-3 mb-1 flex items-center gap-1.5 pl-16 sm:pl-[4.5rem] pr-3 pt-3 pb-1 text-xs text-c-foreground-1">
+      {indicator.icon}
+      <span>{indicator.label}</span>
+    </div>
+  );
+
   const bodyNode = post.content && (
     <>
       <div
@@ -974,6 +988,8 @@ export function PostCard({
     >
       {showAboveLine && <ThreadConnectorLine position="above" />}
       {showBelowLine && <ThreadConnectorLine position="below" />}
+
+      {indicatorNode}
 
       {verticalIdentity ? (
         <>
