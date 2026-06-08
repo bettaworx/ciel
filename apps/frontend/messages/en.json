@@ -586,8 +586,10 @@
       "more": "More actions",
       "viewReactions": "View reactions",
       "delete": "Delete post",
-      "copyUserId": "Copy user ID",
-      "copyText": "Copy text"
+      "copy": "Copy",
+      "copyUserId": "User ID",
+      "copyText": "Text",
+      "copyPostId": "Post ID"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
@@ -600,6 +602,8 @@
     "copyError": "Failed to copy user ID",
     "copyTextSuccess": "Text copied",
     "copyTextError": "Failed to copy text",
+    "copyPostIdSuccess": "Post ID copied",
+    "copyPostIdError": "Failed to copy post ID",
     "showMore": "Show more",
     "showLess": "Show less"
   },

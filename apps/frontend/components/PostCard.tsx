@@ -24,12 +24,14 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
 import {
+  ChevronRight,
+  Copy,
   Eye,
+  FileText,
   MessageCircle,
   MoreHorizontal,
   Trash2,
-  Clipboard,
-  ClipboardCopy,
+  User,
 } from "lucide-react";
 import { useDeletePost } from "@/lib/hooks/use-queries";
 import { OgpCard } from "@/components/OgpCard";
@@ -45,6 +47,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -334,6 +340,16 @@ export function PostCard({
     setMenuOpen(false);
   }, [post.content, t]);
 
+  const handleCopyPostId = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(post.id);
+      toast.success(t("copyPostIdSuccess"));
+    } catch {
+      toast.error(t("copyPostIdError"));
+    }
+    setMenuOpen(false);
+  }, [post.id, t]);
+
   const handleOpenDelete = useCallback(() => {
     setMenuOpen(false);
     setConfirmOpen(true);
@@ -528,19 +544,33 @@ export function PostCard({
             {t("actions.viewReactions")}
           </DropdownMenuItem>
         )}
-        {post.content && (
-          <DropdownMenuItem onSelect={handleCopyText}>
-            <ClipboardCopy className="h-4 w-4" />
-            {t("actions.copyText")}
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem
-          onSelect={handleCopyUserId}
-          disabled={!hasAuthorId}
-        >
-          <Clipboard className="h-4 w-4" />
-          {t("actions.copyUserId")}
-        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Copy className="h-4 w-4" />
+            {t("actions.copy")}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              {post.content && (
+                <DropdownMenuItem onSelect={handleCopyText}>
+                  <FileText className="h-4 w-4" />
+                  {t("actions.copyText")}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onSelect={handleCopyUserId}
+                disabled={!hasAuthorId}
+              >
+                <User className="h-4 w-4" />
+                {t("actions.copyUserId")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleCopyPostId}>
+                <MessageCircle className="h-4 w-4" />
+                {t("actions.copyPostId")}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
         {isOwner && (
           <DropdownMenuItem
             onSelect={handleOpenDelete}
@@ -580,25 +610,49 @@ export function PostCard({
               {t("actions.viewReactions")}
             </Button>
           )}
-          {post.content && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2"
-              onClick={handleCopyText}
-            >
-              <ClipboardCopy className="h-4 w-4" />
-              {t("actions.copyText")}
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={handleCopyUserId}
-            disabled={!hasAuthorId}
-          >
-            <Clipboard className="h-4 w-4" />
-            {t("actions.copyUserId")}
-          </Button>
+          <Drawer nested>
+            <DrawerTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2"
+              >
+                <Copy className="h-4 w-4" />
+                {t("actions.copy")}
+                <ChevronRight className="ml-auto h-4 w-4" />
+              </Button>
+            </DrawerTrigger>
+            <DrawerContent>
+              <div className="flex flex-col gap-2 p-2 pb-4">
+                {post.content && (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={handleCopyText}
+                  >
+                    <FileText className="h-4 w-4" />
+                    {t("actions.copyText")}
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2"
+                  onClick={handleCopyUserId}
+                  disabled={!hasAuthorId}
+                >
+                  <User className="h-4 w-4" />
+                  {t("actions.copyUserId")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2"
+                  onClick={handleCopyPostId}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {t("actions.copyPostId")}
+                </Button>
+              </div>
+            </DrawerContent>
+          </Drawer>
           {isOwner && (
             <Button
               variant="ghost"
