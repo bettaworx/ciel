@@ -2,7 +2,6 @@ package service
 
 import (
 	"regexp"
-	"strings"
 
 	"github.com/google/uuid"
 )
@@ -16,17 +15,19 @@ const MaxMentionsPerPost = 50
 // alphanumeric plus underscore, 3 to 32 characters.
 var mentionPattern = regexp.MustCompile(`(^|[^a-zA-Z0-9_])@([a-zA-Z0-9_]{3,32})`)
 
-var uuidPattern = `[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`
+// postURLPattern matches any http(s) URL with a /posts/{uuid} path.
+var postURLPattern = regexp.MustCompile(
+	`https?://[^\s/]+(?:/[^\s/]+)*/posts/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})`,
+)
 
 // ExtractPostReference extracts the first post UUID referenced by a URL in content.
-// It matches URLs of the form {PUBLIC_BASE_URL}/posts/{uuid}.
+// It matches any http(s) URL containing /posts/{uuid} regardless of domain,
+// so it works when frontend and backend are on different hosts.
 func ExtractPostReference(content string) *uuid.UUID {
 	if content == "" {
 		return nil
 	}
-	base := strings.TrimRight(publicBaseURL(), "/")
-	pattern := regexp.MustCompile(regexp.QuoteMeta(base) + `/posts/(` + uuidPattern + `)`)
-	m := pattern.FindStringSubmatch(content)
+	m := postURLPattern.FindStringSubmatch(content)
 	if m == nil {
 		return nil
 	}
