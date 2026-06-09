@@ -183,13 +183,10 @@ export function ComposeCard({
           aria-label={tNav("openUserMenu")}
         >
           <Avatar className="h-11 w-11 sm:h-12 sm:w-12">
-            {user?.avatarUrl ? (
-              <AvatarImage src={user.avatarUrl} alt={user.username} />
-            ) : (
-              <AvatarFallback>
-                <UserIcon className="h-6 w-6" />
-              </AvatarFallback>
-            )}
+            <AvatarImage src={user?.avatarUrl ?? undefined} alt={user.username} />
+            <AvatarFallback>
+              <UserIcon className="h-6 w-6" />
+            </AvatarFallback>
           </Avatar>
         </button>
       </PopoverTrigger>
@@ -233,13 +230,10 @@ export function ComposeCard({
             aria-label={t("createPost.title")}
           >
             <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
-              {user?.avatarUrl ? (
-                <AvatarImage src={user.avatarUrl} alt={user.username} />
-              ) : (
-                <AvatarFallback>
-                  <UserIcon className="h-6 w-6" />
-                </AvatarFallback>
-              )}
+              <AvatarImage src={user?.avatarUrl ?? undefined} alt={user.username} />
+              <AvatarFallback>
+                <UserIcon className="h-6 w-6" />
+              </AvatarFallback>
             </Avatar>
             <div className="flex-1 h-11 sm:h-12 rounded-lg bg-transparent transition-colors flex items-start">
               <span className="mt-2.25 md:mt-2 text-base md:text-lg text-muted-foreground">

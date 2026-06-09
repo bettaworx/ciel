@@ -41,7 +41,7 @@ export function ReactionUserButton({
     >
       <Link href={`/users/${encodeURIComponent(user.username)}`}>
         <Avatar className="h-8 w-8">
-          <AvatarImage src={user.avatarUrl || undefined} alt={displayName} />
+          <AvatarImage src={user.avatarUrl ?? undefined} alt={displayName} />
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>
         <span className="text-sm font-medium truncate">

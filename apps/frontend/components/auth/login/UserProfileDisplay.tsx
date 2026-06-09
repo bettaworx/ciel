@@ -57,7 +57,7 @@ export function UserProfileDisplay({ username }: UserProfileDisplayProps) {
     <div className="rounded-lg flex items-center gap-3">
       {/* Avatar */}
       <Avatar className="h-12 w-12 shrink-0">
-        <AvatarImage src={user.avatarUrl || undefined} alt={displayName} />
+        <AvatarImage src={user.avatarUrl ?? undefined} alt={displayName} />
         <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
           {initials}
         </AvatarFallback>

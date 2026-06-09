@@ -497,7 +497,7 @@ export function PostCard({
       aria-label={t("viewProfile", { name: displayName })}
     >
       <Avatar className="h-11 w-11 sm:h-12 sm:w-12">
-        <AvatarImage src={avatarUrl || undefined} alt={displayName} />
+        <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
         <AvatarFallback>{initials}</AvatarFallback>
       </Avatar>
     </Button>

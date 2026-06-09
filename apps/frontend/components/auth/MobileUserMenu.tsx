@@ -62,9 +62,7 @@ export function MobileUserMenu({
           aria-label={t("nav.openUserMenu")}
         >
           <Avatar className="w-10 h-10">
-            {user.avatarUrl && (
-              <AvatarImage src={user.avatarUrl} alt={user.displayName || user.username} />
-            )}
+            <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName || user.username} />
             <AvatarFallback className="bg-primary text-primary-foreground text-base font-semibold">
               {initials}
             </AvatarFallback>
