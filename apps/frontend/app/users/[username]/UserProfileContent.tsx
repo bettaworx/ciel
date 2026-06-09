@@ -145,7 +145,7 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
   );
 }
 
-const DEFAULT_BANNER_URL = "/Assets/Default-Banner.png";
+const DEFAULT_BANNER_URL = "/assets/Default-Banner.png";
 
 type UserProfileContentProps = {
   username: string;

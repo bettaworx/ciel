@@ -49,13 +49,10 @@ export function CreatePostDialog({
   // Static (non-interactive) avatar for the dialog
   const avatarElement = (
     <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
-      {user?.avatarUrl ? (
-        <AvatarImage src={user.avatarUrl} alt={user?.username} />
-      ) : (
-        <AvatarFallback>
-          <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-        </AvatarFallback>
-      )}
+      <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.username} />
+      <AvatarFallback>
+        <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+      </AvatarFallback>
     </Avatar>
   );
 

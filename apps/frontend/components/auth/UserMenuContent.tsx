@@ -106,12 +106,10 @@ export function UserMenuContent({
           onClick={onUserInfoClick}
         >
           <Avatar className="h-16 w-16">
-            {user.avatarUrl && (
-              <AvatarImage
-                src={user.avatarUrl}
-                alt={user.displayName || user.username}
-              />
-            )}
+            <AvatarImage
+              src={user.avatarUrl ?? undefined}
+              alt={user.displayName || user.username}
+            />
             <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
               {initials}
             </AvatarFallback>

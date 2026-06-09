@@ -95,7 +95,7 @@ export default function UserDetailPage({
 					<CardContent className="space-y-4">
 						<div className="flex items-center space-x-4">
 							<Avatar className="h-16 w-16">
-								<AvatarImage src={`/placeholder-avatar.png`} />
+								<AvatarImage />
 								<AvatarFallback>
 									<UserIcon className="h-8 w-8" />
 								</AvatarFallback>

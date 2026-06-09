@@ -302,7 +302,7 @@ export function FontFormatButton({
       size="icon"
       type="button"
       aria-label={ariaLabel}
-      className={cn(className)}
+      className={cn("text-muted-foreground hover:text-foreground transition-colors duration-160 ease", className)}
     >
       <Icon className={cn(iconClassName)} />
     </Button>

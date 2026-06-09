@@ -13,6 +13,7 @@ import {
   CodeXml,
   Link,
   AlignHorizontalSpaceAround,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +30,7 @@ import { CodeFormatButton } from "./CodeFormatButton";
 import { SizeFormatButton } from "./SizeFormatButton";
 import { LinkFormatButton } from "./LinkFormatButton";
 import { FormatOverflowMenu } from "./FormatOverflowMenu";
+import { MediaUploadOverflowMenu } from "./MediaUploadOverflowMenu";
 import { ComposerEmojiPicker } from "./ComposerEmojiPicker";
 import { insertCenterDecoration } from "./centerDecoration";
 import {
@@ -259,11 +261,14 @@ export function PostComposerContent({
         size="sm"
         onClick={handlePost}
         disabled={!canPost}
-        className={s.postButton}
+        className={cn(s.postButton, "max-sm:h-8 max-sm:w-8 max-sm:p-0")}
       >
-        {createPostMutation.isPending
-          ? (submittingLabel ?? t("createPost.posting"))
-          : (submitLabel ?? t("createPost.post"))}
+        <Send className="h-4 w-4 sm:hidden" />
+        <span className="max-sm:hidden">
+          {createPostMutation.isPending
+            ? (submittingLabel ?? t("createPost.posting"))
+            : (submitLabel ?? t("createPost.post"))}
+        </span>
       </Button>
     </div>
   );
@@ -279,7 +284,7 @@ export function PostComposerContent({
         onChange={handleImageSelect}
         icon={ImageIcon}
         ariaLabel={t("createPost.uploadImage")}
-        className={s.toolbarButton}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
       <MediaUploadButton
@@ -289,7 +294,15 @@ export function PostComposerContent({
         onChange={handleImageSelect}
         icon={VideoIcon}
         ariaLabel={t("createPost.uploadVideo")}
-        className={s.toolbarButton}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+      <MediaUploadOverflowMenu
+        imageFileInputRef={imageFileInputRef}
+        videoFileInputRef={videoFileInputRef}
+        isImageUploadDisabled={isImageUploadDisabled}
+        isVideoUploadDisabled={isVideoUploadDisabled}
+        className={cn(s.toolbarButton, "sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
       <ComposerEmojiPicker

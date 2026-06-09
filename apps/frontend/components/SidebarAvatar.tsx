@@ -11,7 +11,7 @@ import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { DesktopUserMenu } from "@/components/auth/DesktopUserMenu";
 import { MobileUserMenu } from "@/components/auth/MobileUserMenu";
 import { MobileLogoutConfirm } from "@/components/auth/MobileLogoutConfirm";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 
@@ -131,6 +131,7 @@ export function SidebarAvatarButton() {
   return (
     <Button variant="link" className="w-14 h-14" aria-label={tNav("openUserMenu")}>
       <Avatar className="w-12 h-12">
+        <AvatarImage src={user?.avatarUrl ?? undefined} alt={user.displayName || user.username} />
         <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
           {initials}
         </AvatarFallback>

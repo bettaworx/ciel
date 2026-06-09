@@ -93,13 +93,11 @@ export function DesktopUserMenu({
                 )}
               >
                 <Avatar className="w-full h-full rounded-none">
-                  {user.avatarUrl && (
-                    <AvatarImage
-                      src={user.avatarUrl}
-                      alt={user.displayName || user.username}
-                      className="object-cover"
-                    />
-                  )}
+                  <AvatarImage
+                    src={user.avatarUrl ?? undefined}
+                    alt={user.displayName || user.username}
+                    className="object-cover"
+                  />
                   <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold rounded-none">
                     {initials}
                   </AvatarFallback>

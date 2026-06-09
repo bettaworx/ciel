@@ -3,6 +3,7 @@
 import { type ChangeEvent, type RefObject } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -68,7 +69,7 @@ export function MediaUploadButton({
         onClick={() => inputRef.current?.click()}
         disabled={disabled}
         aria-label={ariaLabel}
-        className={className}
+        className={cn("text-muted-foreground hover:text-foreground transition-colors duration-160 ease", className)}
       >
         <Icon className={iconClassName} />
       </Button>

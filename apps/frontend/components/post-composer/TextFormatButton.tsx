@@ -311,7 +311,9 @@ export function TextFormatButton({
       aria-label={ariaLabel}
       aria-pressed={isActive}
       className={cn(
-        isActive && "text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15",
+        isActive
+          ? "text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15"
+          : "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
         className,
       )}
     >
