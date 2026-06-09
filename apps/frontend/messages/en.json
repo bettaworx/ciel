@@ -550,6 +550,7 @@
     "avatar": {
       "title": "Set Your Avatar",
       "description": "Upload a profile picture",
+      "descriptionGenerated": "We generated an avatar for you. You can also upload your own.",
       "upload": "Choose Image",
       "change": "Change Image",
       "uploading": "Uploading...",

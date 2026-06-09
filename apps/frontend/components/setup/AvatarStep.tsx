@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useAtomValue } from "jotai";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { User, Upload } from "lucide-react";
 import Image from "next/image";
+import { userAtom } from "@/atoms/auth";
+import { generateAvatar, rasterizeSvgToFile } from "@/lib/avatar";
 
 interface AvatarStepProps {
   onNext: (file: File | null) => void;
@@ -19,12 +22,24 @@ export function AvatarStep({
   loading = false,
 }: AvatarStepProps) {
   const t = useTranslations();
+  const user = useAtomValue(userAtom);
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [avatarSource, setAvatarSource] = useState<"generated" | "custom">("generated");
+  const [generatedFile, setGeneratedFile] = useState<File | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!user?.username) return;
+
+    const { dataUri } = generateAvatar(user.username);
+    setPreview(dataUri);
+
+    rasterizeSvgToFile(dataUri).then(setGeneratedFile).catch(() => {});
+  }, [user?.username]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,6 +57,7 @@ export function AvatarStep({
   const handleCropComplete = (croppedFile: File) => {
     setPreview(URL.createObjectURL(croppedFile));
     setSelectedFile(croppedFile);
+    setAvatarSource("custom");
     setCropDialogOpen(false);
     setCropImageSrc(null);
     setPendingCropFile(null);
@@ -53,7 +69,13 @@ export function AvatarStep({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onNext(selectedFile);
+    if (avatarSource === "custom" && selectedFile) {
+      onNext(selectedFile);
+    } else if (avatarSource === "generated" && generatedFile) {
+      onNext(generatedFile);
+    } else {
+      onNext(null);
+    }
   };
 
   return (
@@ -69,7 +91,9 @@ export function AvatarStep({
           <div className="space-y-2 mb-6">
             <h2 className="text-2xl font-bold">{t("setup.avatar.title")}</h2>
             <p className="text-muted-foreground text-sm">
-              {t("setup.avatar.description")}
+              {avatarSource === "generated" && preview
+                ? t("setup.avatar.descriptionGenerated")
+                : t("setup.avatar.description")}
             </p>
           </div>
 
@@ -81,6 +105,7 @@ export function AvatarStep({
                   src={preview}
                   alt="Avatar preview"
                   fill
+                  unoptimized
                   className="object-cover"
                 />
               ) : (

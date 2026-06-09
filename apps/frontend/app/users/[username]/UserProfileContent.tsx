@@ -145,6 +145,8 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
   );
 }
 
+const DEFAULT_BANNER_URL = "/Assets/Default-Banner.png";
+
 type UserProfileContentProps = {
   username: string;
 };
@@ -455,18 +457,16 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                 className="absolute inset-0 w-full h-full object-cover pointer-events-none"
               />
             )}
-            {(isEditing ? bannerPreview || user.bannerUrl : user.bannerUrl) && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={
-                  (isEditing
-                    ? bannerPreview || user.bannerUrl
-                    : user.bannerUrl) ?? undefined
-                }
-                alt=""
-                className="relative w-full h-full object-cover"
-              />
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={
+                (isEditing
+                  ? bannerPreview || user.bannerUrl
+                  : user.bannerUrl) || DEFAULT_BANNER_URL
+              }
+              alt=""
+              className="relative w-full h-full object-cover"
+            />
             {isEditing && (
               <input
                 ref={bannerFileInputRef}

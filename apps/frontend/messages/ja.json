@@ -550,6 +550,7 @@
     "avatar": {
       "title": "アバターを設定",
       "description": "プロフィール画像をアップロードしてください",
+      "descriptionGenerated": "アバターを自動生成しました。自分の画像をアップロードすることもできます。",
       "upload": "画像を選択",
       "change": "画像を変更",
       "uploading": "アップロード中...",
