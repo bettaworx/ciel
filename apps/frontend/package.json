@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@ciel/kotodoki": "workspace:*",
+    "@dicebear/core": "^10.1.0",
+    "@dicebear/styles": "^10.2.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",
