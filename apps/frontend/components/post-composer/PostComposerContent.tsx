@@ -29,6 +29,7 @@ import { CodeFormatButton } from "./CodeFormatButton";
 import { SizeFormatButton } from "./SizeFormatButton";
 import { LinkFormatButton } from "./LinkFormatButton";
 import { FormatOverflowMenu } from "./FormatOverflowMenu";
+import { MediaUploadOverflowMenu } from "./MediaUploadOverflowMenu";
 import { ComposerEmojiPicker } from "./ComposerEmojiPicker";
 import { insertCenterDecoration } from "./centerDecoration";
 import {
@@ -279,7 +280,7 @@ export function PostComposerContent({
         onChange={handleImageSelect}
         icon={ImageIcon}
         ariaLabel={t("createPost.uploadImage")}
-        className={s.toolbarButton}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
       <MediaUploadButton
@@ -289,7 +290,15 @@ export function PostComposerContent({
         onChange={handleImageSelect}
         icon={VideoIcon}
         ariaLabel={t("createPost.uploadVideo")}
-        className={s.toolbarButton}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+      <MediaUploadOverflowMenu
+        imageFileInputRef={imageFileInputRef}
+        videoFileInputRef={videoFileInputRef}
+        isImageUploadDisabled={isImageUploadDisabled}
+        isVideoUploadDisabled={isVideoUploadDisabled}
+        className={cn(s.toolbarButton, "sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
       <ComposerEmojiPicker
