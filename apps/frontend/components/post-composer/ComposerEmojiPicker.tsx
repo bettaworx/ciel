@@ -66,7 +66,7 @@ export function ComposerEmojiPicker({
       variant="ghost"
       size="icon"
       disabled={disabled}
-      className={className}
+      className={cn("text-muted-foreground hover:text-foreground transition-colors duration-160 ease", className)}
       aria-label={t("addEmoji")}
     >
       <Smile className={cn("w-5 h-5", iconClassName)} />

@@ -243,7 +243,12 @@ export function FormatOverflowMenu({
       size="icon"
       type="button"
       aria-label={t("postCard.actions.more")}
-      className={cn(hasAnyActive && "text-c-1", className)}
+      className={cn(
+        hasAnyActive
+          ? "text-c-1"
+          : "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+        className,
+      )}
     >
       <Ellipsis className={cn(iconClassName)} />
     </Button>
