@@ -4,7 +4,12 @@ import { useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 
 interface MediaUploadOverflowMenuProps {
@@ -46,6 +51,9 @@ export function MediaUploadOverflowMenu({
         </Button>
       </DrawerTrigger>
       <DrawerContent>
+        <DrawerTitle className="sr-only">
+          {t("createPost.uploadMedia")}
+        </DrawerTitle>
         <div className="flex flex-col gap-1 p-2 pb-4">
           <Button
             variant="ghost"
