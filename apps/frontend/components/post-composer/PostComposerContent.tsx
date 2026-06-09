@@ -13,7 +13,6 @@ import {
   CodeXml,
   Link,
   AlignHorizontalSpaceAround,
-  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -261,14 +260,11 @@ export function PostComposerContent({
         size="sm"
         onClick={handlePost}
         disabled={!canPost}
-        className={cn(s.postButton, "max-sm:h-8 max-sm:w-8 max-sm:p-0")}
+        className={s.postButton}
       >
-        <Send className="h-4 w-4 sm:hidden" />
-        <span className="max-sm:hidden">
-          {createPostMutation.isPending
-            ? (submittingLabel ?? t("createPost.posting"))
-            : (submitLabel ?? t("createPost.post"))}
-        </span>
+        {createPostMutation.isPending
+          ? (submittingLabel ?? t("createPost.posting"))
+          : (submitLabel ?? t("createPost.post"))}
       </Button>
     </div>
   );
