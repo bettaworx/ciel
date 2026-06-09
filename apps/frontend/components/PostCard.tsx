@@ -15,6 +15,7 @@ import { ReactionBadge } from "@/components/ReactionBadge";
 import { ReactionUsersDialog } from "@/components/ReactionUsersDialog";
 import { ReactionPicker } from "@/components/ReactionPicker";
 import { CreateReplyDialog } from "@/components/CreateReplyDialog";
+import { CreateQuoteDialog } from "@/components/CreateQuoteDialog";
 import { formatFullTimestamp, formatTimeAgo } from "@/lib/utils/format-time";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
@@ -249,6 +250,7 @@ export function PostCard({
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [reactionDialogOpen, setReactionDialogOpen] = useState(false);
   const [replyDialogOpen, setReplyDialogOpen] = useState(false);
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
   const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(
     null,
   );
@@ -934,7 +936,7 @@ export function PostCard({
                   <Rocket className="h-4 w-4" />
                   {t("actions.boost")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setBoostMenuOpen(false)}>
+                <DropdownMenuItem onSelect={() => { setBoostMenuOpen(false); setQuoteDialogOpen(true); }}>
                   <Quote className="h-4 w-4" />
                   {t("actions.quote")}
                 </DropdownMenuItem>
@@ -971,7 +973,7 @@ export function PostCard({
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-2"
-                    onClick={() => setBoostMenuOpen(false)}
+                    onClick={() => { setBoostMenuOpen(false); setQuoteDialogOpen(true); }}
                   >
                     <Quote className="h-4 w-4" />
                     {t("actions.quote")}
@@ -1003,6 +1005,12 @@ export function PostCard({
         onOpenChange={setReplyDialogOpen}
         parentId={post.id}
         contentPrefix={post.author?.username ? `@${post.author.username} ` : undefined}
+      />
+      <CreateQuoteDialog
+        open={quoteDialogOpen}
+        onOpenChange={setQuoteDialogOpen}
+        referenceId={post.id}
+        quotedPost={post}
       />
     </>
   );

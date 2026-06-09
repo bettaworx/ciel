@@ -38,6 +38,10 @@ import {
 } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
 import { useComposerPlaceholder } from "./useComposerPlaceholder";
+import { PostCard } from "@/components/PostCard";
+import type { components } from "@/lib/api/api";
+
+type Post = components["schemas"]["Post"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,6 +66,8 @@ interface PostComposerContentProps {
   submitLabel?: string;
   /** Override the submitting button label (defaults to createPost.posting). */
   submittingLabel?: string;
+  /** When set, renders a non-interactive embedded PostCard preview below the media area. */
+  quotedPost?: Post;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,6 +117,7 @@ export function PostComposerContent({
   placeholder: placeholderOverride,
   submitLabel,
   submittingLabel,
+  quotedPost,
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
@@ -473,6 +480,15 @@ export function PostComposerContent({
       </div>
     ) : null;
 
+  /** Quoted post preview (non-interactive) */
+  const quotedPostPreview = quotedPost ? (
+    <div className={s.contentPadding}>
+      <div className="pointer-events-none select-none">
+        <PostCard post={quotedPost} variant="embedded" isLast />
+      </div>
+    </div>
+  ) : null;
+
   /** Drag & drop overlay */
   const dragOverlay =
     isDragging && !isDropDisabled ? (
@@ -514,6 +530,7 @@ export function PostComposerContent({
             {textareaRow}
             {ogpPreview}
             {mediaPreview}
+            {quotedPostPreview}
           </div>
 
           {/* Upload & format buttons */}
@@ -553,6 +570,7 @@ export function PostComposerContent({
           {textareaRow}
           {ogpPreview}
           {mediaPreview}
+          {quotedPostPreview}
         </div>
 
         {/* Actions bar: upload (left) + counter & post (right) */}
