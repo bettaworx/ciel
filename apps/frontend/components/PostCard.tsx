@@ -776,7 +776,7 @@ export function PostCard({
   const indicatorNode = indicator && (
     <div className="-mx-3 -mt-3 mb-1 flex items-center gap-1.5 pl-16 sm:pl-[4.5rem] pr-3 pt-3 pb-1 text-xs text-c-foreground-1">
       {indicator.icon}
-      <span>{indicator.label}</span>
+      <MfmRenderer text={indicator.label} allowList={DISPLAY_NAME_ALLOW_LIST} />
     </div>
   );
 
