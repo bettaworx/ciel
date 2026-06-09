@@ -830,7 +830,7 @@ export function PostCard({
         verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
       )}
     >
-      <PostCard post={post.reference} variant="embedded" isLast />
+      <PostCard post={post.reference} variant="embedded" isLast onUserClick={onUserClick} />
     </div>
   );
 
@@ -1018,14 +1018,6 @@ export function PostCard({
         className,
       )}
     >
-      {isEmbedded && linkToDetail && (
-        <Link
-          href={detailHref}
-          aria-label={t("openDetail")}
-          tabIndex={-1}
-          className="absolute inset-0 z-0"
-        />
-      )}
       {showAboveLine && <ThreadConnectorLine position="above" />}
       {showBelowLine && <ThreadConnectorLine position="below" />}
 
