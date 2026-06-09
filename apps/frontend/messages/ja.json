@@ -595,7 +595,11 @@
       "shareSuccess": "投稿URLをコピーしました",
       "shareError": "共有に失敗しました",
       "boost": "ブースト",
-      "quote": "引用"
+      "quote": "引用",
+      "boostedBy": "{name}がブーストしました",
+      "boostSuccess": "ブーストしました！",
+      "alreadyBoosted": "すでにブーストしています",
+      "boostError": "ブーストに失敗しました"
     },
     "deleteConfirmTitle": "投稿を削除しますか？",
     "deleteConfirmDescription": "この操作は取り消せません。投稿はタイムラインから削除されます。",

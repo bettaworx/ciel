@@ -37,7 +37,9 @@ import {
   Trash2,
   User,
 } from "lucide-react";
-import { useDeletePost } from "@/lib/hooks/use-queries";
+import { useDeletePost, queryKeys } from "@/lib/hooks/use-queries";
+import { useApi } from "@/lib/api/use-api";
+import { useQueryClient } from "@tanstack/react-query";
 import { OgpCard } from "@/components/OgpCard";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
@@ -235,10 +237,13 @@ export function PostCard({
     post.reactions,
   );
   const auth = useAtomValue(authAtom);
+  const api = useApi();
+  const queryClient = useQueryClient();
   const deletePost = useDeletePost();
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const [menuOpen, setMenuOpen] = useState(false);
   const [boostMenuOpen, setBoostMenuOpen] = useState(false);
+  const [isBoosting, setIsBoosting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -449,6 +454,33 @@ export function PostCard({
       },
     });
   }, [deletePost, onDeleteSuccess, post.id, t]);
+
+  const handleBoost = useCallback(async () => {
+    if (!auth.user) {
+      toast.error(t("actions.boostError"));
+      return;
+    }
+    if (isBoosting) return;
+    setIsBoosting(true);
+    try {
+      const result = await api.createPost({ content: "", referenceId: post.id });
+      if (!result.ok) {
+        if (result.status === 409) {
+          toast.info(t("actions.alreadyBoosted"));
+        } else {
+          toast.error(t("actions.boostError"));
+        }
+        return;
+      }
+      toast.success(t("actions.boostSuccess"));
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: queryKeys.post(post.id) });
+    } catch {
+      toast.error(t("actions.boostError"));
+    } finally {
+      setIsBoosting(false);
+    }
+  }, [auth.user, isBoosting, api, post.id, t, queryClient]);
 
   const handleUserClick = useCallback(() => {
     if (onUserClick && post.author?.username) {
@@ -792,7 +824,7 @@ export function PostCard({
     </>
   );
 
-  const referenceNode = !isEmbedded && post.reference && post.content && (
+  const referenceNode = !isEmbedded && post.reference && (
     <div
       className={cn(
         verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
@@ -898,7 +930,7 @@ export function PostCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onSelect={() => setBoostMenuOpen(false)}>
+                <DropdownMenuItem onSelect={() => { setBoostMenuOpen(false); handleBoost(); }}>
                   <Rocket className="h-4 w-4" />
                   {t("actions.boost")}
                 </DropdownMenuItem>
@@ -931,7 +963,7 @@ export function PostCard({
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-2"
-                    onClick={() => setBoostMenuOpen(false)}
+                    onClick={() => { setBoostMenuOpen(false); handleBoost(); }}
                   >
                     <Rocket className="h-4 w-4" />
                     {t("actions.boost")}

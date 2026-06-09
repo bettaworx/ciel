@@ -31,6 +31,7 @@ import {
   Clipboard,
   MoreHorizontal,
   Pencil,
+  Rocket,
   Share,
   User,
   X,
@@ -73,14 +74,24 @@ function ProfileParentPostSkeleton() {
   );
 }
 
+type Post = components["schemas"]["Post"];
+
+function isPureBoost(post: Post): post is Post & { reference: Post } {
+  return post.content === "" && !!post.referenceId && !!post.reference;
+}
+
 type ProfilePostItemProps = {
-  post: components["schemas"]["Post"];
+  post: Post;
   isLast: boolean;
   onUserClick: (username: string) => void;
 };
 
 function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
-  const parentId = post.parentId ?? undefined;
+  const t = useTranslations();
+  const pureBoost = isPureBoost(post);
+  const boostReferenceId = pureBoost ? post.referenceId! : undefined;
+  const parentId = pureBoost ? undefined : (post.parentId ?? undefined);
+  const { data: boostedPost } = usePost(boostReferenceId);
   const {
     data: parentPost,
     isLoading: isParentLoading,
@@ -89,6 +100,23 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
   const showParentSkeleton =
     Boolean(parentId) && !parentPost && (isParentLoading || isParentFetching);
   const hasVisibleParent = Boolean(parentPost || showParentSkeleton);
+
+  if (pureBoost) {
+    const displayPost = boostedPost ?? post.reference;
+    return (
+      <PostCard
+        post={displayPost}
+        onUserClick={onUserClick}
+        isLast={isLast}
+        indicator={{
+          icon: <Rocket className="h-3.5 w-3.5" />,
+          label: t("postCard.actions.boostedBy", {
+            name: post.author.displayName || post.author.username,
+          }),
+        }}
+      />
+    );
+  }
 
   if (!parentId || !hasVisibleParent) {
     return <PostCard post={post} onUserClick={onUserClick} isLast={isLast} />;

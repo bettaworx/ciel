@@ -595,7 +595,11 @@
       "shareSuccess": "Post URL copied",
       "shareError": "Failed to share",
       "boost": "Boost",
-      "quote": "Quote"
+      "quote": "Quote",
+      "boostedBy": "{name} boosted",
+      "boostSuccess": "Boosted!",
+      "alreadyBoosted": "Already boosted",
+      "boostError": "Failed to boost"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
