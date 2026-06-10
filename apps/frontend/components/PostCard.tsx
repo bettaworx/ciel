@@ -238,6 +238,7 @@ export function PostCard({
     null,
   );
   const [shiftHeld, setShiftHeld] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [isContentOverflowing, setIsContentOverflowing] = useState(false);
   const [isCompactOverflowing, setIsCompactOverflowing] = useState(false);
@@ -301,6 +302,11 @@ export function PostCard({
   }, [isCompact, post.content, post.media?.length]);
 
   useEffect(() => {
+    setCanNativeShare(typeof navigator.share === "function");
+  }, []);
+
+  useEffect(() => {
+    if (!canNativeShare) return;
     const down = (e: KeyboardEvent) => e.key === "Shift" && setShiftHeld(true);
     const up = (e: KeyboardEvent) => e.key === "Shift" && setShiftHeld(false);
     const blur = () => setShiftHeld(false);
@@ -312,7 +318,7 @@ export function PostCard({
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", blur);
     };
-  }, []);
+  }, [canNativeShare]);
 
   const handleToggleReaction = useCallback(
     (emoji: string) => {
@@ -369,7 +375,7 @@ export function PostCard({
 
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     const postUrl = `${window.location.origin}/posts/${post.id}`;
-    if (e.shiftKey) {
+    if (canNativeShare && e.shiftKey) {
       try {
         await navigator.clipboard.writeText(postUrl);
         toast.success(t("actions.shareSuccess"));
@@ -379,7 +385,7 @@ export function PostCard({
       return;
     }
     try {
-      if (navigator.share) {
+      if (canNativeShare) {
         await navigator.share({
           title: post.author?.displayName || (post.author?.username ? `@${post.author.username}` : undefined),
           url: postUrl,
@@ -392,7 +398,7 @@ export function PostCard({
       if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error(t("actions.shareError"));
     }
-  }, [post.id, post.author?.displayName, post.author?.username, t]);
+  }, [post.id, post.author?.displayName, post.author?.username, t, canNativeShare]);
 
   const handleOpenDelete = useCallback(() => {
     setMenuOpen(false);
@@ -850,10 +856,10 @@ export function PostCard({
           variant="ghost"
           size="sm"
           className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
-          aria-label={shiftHeld ? t("actions.copyLink") : t("actions.share")}
+          aria-label={!canNativeShare || shiftHeld ? t("actions.copyLink") : t("actions.share")}
           onClick={handleShare}
         >
-          {shiftHeld ? <Link2 className="h-5 w-5" /> : <Share className="h-5 w-5" />}
+          {!canNativeShare || shiftHeld ? <Link2 className="h-5 w-5" /> : <Share className="h-5 w-5" />}
         </Button>
       </div>
 
