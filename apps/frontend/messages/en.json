@@ -595,6 +595,7 @@
       "copyUserId": "User ID",
       "copyText": "Text",
       "copyPostId": "Post ID",
+      "copyPostIdFull": "Copy Post ID",
       "share": "Share",
       "copyLink": "Copy link",
       "shareSuccess": "Post URL copied",

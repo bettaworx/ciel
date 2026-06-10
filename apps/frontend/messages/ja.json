@@ -595,6 +595,7 @@
       "copyUserId": "ユーザーID",
       "copyText": "テキスト",
       "copyPostId": "投稿ID",
+      "copyPostIdFull": "投稿IDをコピー",
       "share": "共有",
       "copyLink": "リンクをコピー",
       "shareSuccess": "投稿URLをコピーしました",

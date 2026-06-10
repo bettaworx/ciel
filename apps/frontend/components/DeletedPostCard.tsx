@@ -89,7 +89,7 @@ export function DeletedPostCard({
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={handleCopyPostId}>
           <Copy className="h-4 w-4" />
-          {t("actions.copyPostId")}
+          {t("actions.copyPostIdFull")}
         </DropdownMenuItem>
         {canUndoBoost && (
           <DropdownMenuItem onSelect={handleUndoBoost}>
@@ -119,7 +119,7 @@ export function DeletedPostCard({
             onClick={handleCopyPostId}
           >
             <Copy className="h-4 w-4" />
-            {t("actions.copyPostId")}
+            {t("actions.copyPostIdFull")}
           </Button>
           {canUndoBoost && (
             <Button
