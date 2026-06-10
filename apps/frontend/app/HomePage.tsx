@@ -80,6 +80,9 @@ function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) 
           label: t("postCard.actions.boostedBy", {
             name: post.author.displayName || post.author.username,
           }),
+          createdAt: post.createdAt,
+          sourcePostId: post.id,
+          actorUserId: post.author.id,
         }}
       />
     );

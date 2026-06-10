@@ -604,7 +604,10 @@
       "boostedBy": "{name} boosted",
       "boostSuccess": "Boosted!",
       "alreadyBoosted": "Already boosted",
-      "boostError": "Failed to boost"
+      "boostError": "Failed to boost",
+      "undoBoost": "Undo boost",
+      "undoBoostSuccess": "Boost removed",
+      "undoBoostError": "Failed to undo boost"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
@@ -620,7 +623,11 @@
     "copyPostIdSuccess": "Post ID copied",
     "copyPostIdError": "Failed to copy post ID",
     "showMore": "Show more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "deletedPost": {
+      "user": "Deleted user",
+      "message": "This post has been deleted."
+    }
   },
   "adminSetup": {
     "title": "Server Initial Setup",

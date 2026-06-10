@@ -604,7 +604,10 @@
       "boostedBy": "{name}がブーストしました",
       "boostSuccess": "ブーストしました！",
       "alreadyBoosted": "すでにブーストしています",
-      "boostError": "ブーストに失敗しました"
+      "boostError": "ブーストに失敗しました",
+      "undoBoost": "ブーストを取り消す",
+      "undoBoostSuccess": "ブーストを取り消しました",
+      "undoBoostError": "ブーストの取り消しに失敗しました"
     },
     "deleteConfirmTitle": "投稿を削除しますか？",
     "deleteConfirmDescription": "この操作は取り消せません。投稿はタイムラインから削除されます。",
@@ -620,7 +623,11 @@
     "copyPostIdSuccess": "投稿IDをコピーしました",
     "copyPostIdError": "投稿IDのコピーに失敗しました",
     "showMore": "もっと見る",
-    "showLess": "閉じる"
+    "showLess": "閉じる",
+    "deletedPost": {
+      "user": "削除されたユーザー",
+      "message": "この投稿は削除されました"
+    }
   },
   "adminSetup": {
     "title": "サーバー初期設定",

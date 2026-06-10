@@ -34,6 +34,7 @@ import {
   Quote,
   Rocket,
   MoreHorizontal,
+  RotateCcw,
   Share,
   Trash2,
   User,
@@ -137,6 +138,9 @@ function ThreadConnectorLine({
 export interface PostCardIndicator {
   icon: ReactNode;
   label: string;
+  createdAt?: string;
+  sourcePostId?: string;
+  actorUserId?: string;
 }
 
 export interface PostCardProps {
@@ -254,6 +258,7 @@ export function PostCard({
   const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(
     null,
   );
+  const [indicatorMenuOpen, setIndicatorMenuOpen] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [isContentOverflowing, setIsContentOverflowing] = useState(false);
@@ -261,6 +266,7 @@ export function PostCard({
   const contentRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
   const isOwner = auth.user?.id === post.author?.id;
+  const canUndoBoost = indicator?.actorUserId != null && indicator.actorUserId === auth.user?.id;
   const hasReactions = reactions.length > 0;
   const displayConfig = getPostCardDisplayConfig(variant);
   const {
@@ -484,6 +490,17 @@ export function PostCard({
     }
   }, [auth.user, isBoosting, api, post.id, t, queryClient]);
 
+  const handleUndoBoost = useCallback(async () => {
+    if (!indicator?.sourcePostId) return;
+    setIndicatorMenuOpen(false);
+    try {
+      await deletePost.mutateAsync(indicator.sourcePostId);
+      toast.success(t("actions.undoBoostSuccess"));
+    } catch {
+      toast.error(t("actions.undoBoostError"));
+    }
+  }, [indicator?.sourcePostId, deletePost, t]);
+
   const handleUserClick = useCallback(() => {
     if (onUserClick && post.author?.username) {
       onUserClick(post.author.username);
@@ -505,6 +522,12 @@ export function PostCard({
       ? fullTimestamp
       : formatTimeAgo(createdAt, locale);
   const hasAuthorId = Boolean(post.author?.id);
+  const indicatorTimestamp = indicator?.createdAt
+    ? formatTimeAgo(new Date(indicator.createdAt), locale)
+    : null;
+  const indicatorFullTimestamp = indicator?.createdAt
+    ? formatFullTimestamp(new Date(indicator.createdAt), locale)
+    : null;
   const shouldCollapseContent = shouldCollapsePostContent({
     collapseContent,
     isExpanded: isContentExpanded,
@@ -775,10 +798,140 @@ export function PostCard({
     </div>
   );
 
+  const indicatorMoreMenuNode = indicator?.sourcePostId && (isDesktop ? (
+    <DropdownMenu open={indicatorMenuOpen} onOpenChange={setIndicatorMenuOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-my-4 h-8 w-8 p-0 transition-colors duration-160 ease"
+          aria-label={t("actions.more")}
+        >
+          <MoreHorizontal className="h-5 w-5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Copy className="h-4 w-4" />
+            {t("actions.copy")}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              {post.content && (
+                <DropdownMenuItem onSelect={handleCopyText}>
+                  <FileText className="h-4 w-4" />
+                  {t("actions.copyText")}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onSelect={handleCopyUserId}
+                disabled={!hasAuthorId}
+              >
+                <User className="h-4 w-4" />
+                {t("actions.copyUserId")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleCopyPostId}>
+                <MessageCircle className="h-4 w-4" />
+                {t("actions.copyPostId")}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+        {canUndoBoost && (
+          <DropdownMenuItem onSelect={handleUndoBoost}>
+            <RotateCcw className="h-4 w-4" />
+            {t("actions.undoBoost")}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : (
+    <Drawer open={indicatorMenuOpen} onOpenChange={setIndicatorMenuOpen}>
+      <DrawerTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-my-4 h-8 w-8 p-0 transition-colors duration-160 ease"
+          aria-label={t("actions.more")}
+        >
+          <MoreHorizontal className="h-5 w-5" />
+        </Button>
+      </DrawerTrigger>
+      <DrawerContent>
+        <div className="flex flex-col gap-2 p-2 pb-4">
+          <Drawer nested>
+            <DrawerTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2"
+              >
+                <Copy className="h-4 w-4" />
+                {t("actions.copy")}
+                <ChevronRight className="ml-auto h-4 w-4" />
+              </Button>
+            </DrawerTrigger>
+            <DrawerContent>
+              <div className="flex flex-col gap-2 p-2 pb-4">
+                {post.content && (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={handleCopyText}
+                  >
+                    <FileText className="h-4 w-4" />
+                    {t("actions.copyText")}
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2"
+                  onClick={handleCopyUserId}
+                  disabled={!hasAuthorId}
+                >
+                  <User className="h-4 w-4" />
+                  {t("actions.copyUserId")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2"
+                  onClick={handleCopyPostId}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {t("actions.copyPostId")}
+                </Button>
+              </div>
+            </DrawerContent>
+          </Drawer>
+          {canUndoBoost && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={handleUndoBoost}
+            >
+              <RotateCcw className="h-4 w-4" />
+              {t("actions.undoBoost")}
+            </Button>
+          )}
+        </div>
+      </DrawerContent>
+    </Drawer>
+  ));
+
   const indicatorNode = indicator && (
     <div className="-mx-3 -mt-3 mb-1 flex items-center gap-1.5 pl-16 sm:pl-[4.5rem] pr-3 pt-3 pb-1 text-xs text-c-foreground-1">
       {indicator.icon}
       <MfmRenderer text={indicator.label} allowList={DISPLAY_NAME_ALLOW_LIST} />
+      {(indicatorTimestamp || (showMoreMenu && indicator.sourcePostId)) && (
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          {indicatorTimestamp && (
+            <span aria-label={indicatorFullTimestamp ?? undefined}>
+              {indicatorTimestamp}
+            </span>
+          )}
+          {showMoreMenu && indicatorMoreMenuNode}
+        </div>
+      )}
     </div>
   );
 
