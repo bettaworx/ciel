@@ -81,6 +81,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { components } from "@/lib/api/api";
+import { DeletedPostCard } from "@/components/DeletedPostCard";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { PostMediaPreview } from "@/components/PostMediaPreview";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
@@ -919,19 +920,23 @@ export function PostCard({
   ));
 
   const indicatorNode = indicator && (
-    <div className="-mx-3 -mt-3 mb-1 flex items-center gap-1.5 pl-16 sm:pl-[4.5rem] pr-3 pt-3 pb-1 text-xs text-c-foreground-1">
-      {indicator.icon}
-      <MfmRenderer text={indicator.label} allowList={DISPLAY_NAME_ALLOW_LIST} />
-      {(indicatorTimestamp || (showMoreMenu && indicator.sourcePostId)) && (
-        <div className="ml-auto flex items-center gap-2 shrink-0">
-          {indicatorTimestamp && (
-            <span aria-label={indicatorFullTimestamp ?? undefined}>
-              {indicatorTimestamp}
-            </span>
-          )}
-          {showMoreMenu && indicatorMoreMenuNode}
-        </div>
-      )}
+    <div className="-mx-3 -mt-3 mb-1 flex items-center gap-3 px-3 pt-3 pb-1 text-xs text-c-foreground-1">
+      <div className="flex w-10 shrink-0 items-center justify-end sm:w-12">
+        {indicator.icon}
+      </div>
+      <div className="flex flex-1 min-w-0 items-center">
+        <MfmRenderer text={indicator.label} allowList={DISPLAY_NAME_ALLOW_LIST} />
+        {(indicatorTimestamp || (showMoreMenu && indicator.sourcePostId)) && (
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            {indicatorTimestamp && (
+              <span aria-label={indicatorFullTimestamp ?? undefined}>
+                {indicatorTimestamp}
+              </span>
+            )}
+            {showMoreMenu && indicatorMoreMenuNode}
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -979,7 +984,7 @@ export function PostCard({
     </>
   );
 
-  const referenceNode = !isEmbedded && post.reference && (
+  const referenceNode = !isEmbedded && (post.reference ? (
     <div
       className={cn(
         verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
@@ -987,7 +992,15 @@ export function PostCard({
     >
       <PostCard post={post.reference} variant="embedded" isLast onUserClick={onUserClick} />
     </div>
-  );
+  ) : post.referenceId ? (
+    <div
+      className={cn(
+        verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
+      )}
+    >
+      <DeletedPostCard referenceId={post.referenceId} variant="embedded" isLast />
+    </div>
+  ) : null);
 
   const mediaNode = (ogpUrl || previewMedia.length > 0) && (
     <div
