@@ -156,32 +156,35 @@ export function DeletedPostCard({
     >
       {indicatorNode}
 
-      <div className="flex items-start gap-3">
-        <Avatar className={isEmbedded ? "h-6 w-6 shrink-0" : "h-11 w-11 sm:h-12 sm:w-12 shrink-0"}>
-          <AvatarImage src="/assets/Default-Avatar.png" alt={displayName} />
-          <AvatarFallback>{t("deletedPost.initials")}</AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0 flex flex-col">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className={cn(
-              "font-semibold text-foreground truncate",
-              isEmbedded ? "text-xs" : "text-sm sm:text-base",
-            )}>
-              {displayName}
-            </span>
-            {!indicator && menuNode}
-          </div>
-          <div className={cn(
-            "flex flex-col items-center justify-center py-6",
-            isEmbedded && "py-4",
-          )}>
-            <Trash2 className="h-8 w-8 text-muted-foreground" />
-            <span className="mt-1.5 text-sm text-muted-foreground">
-              {t("deletedPost.label")}
-            </span>
+      {isEmbedded ? (
+        <div className="flex flex-col items-center justify-center py-4">
+          <Trash2 className="h-8 w-8 text-muted-foreground" />
+          <span className="mt-1.5 text-sm text-muted-foreground">
+            {t("deletedPost.label")}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-start gap-3">
+          <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
+            <AvatarImage src="/assets/Default-Avatar.png" alt={displayName} />
+            <AvatarFallback>{t("deletedPost.initials")}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0 flex flex-col">
+            <div className="flex max-w-full min-w-0 items-center gap-1.5 overflow-hidden">
+              <span className="block max-w-full min-w-0 truncate overflow-hidden whitespace-nowrap text-left font-semibold text-foreground text-sm sm:text-base">
+                {displayName}
+              </span>
+              {!indicator && menuNode}
+            </div>
+            <div className="flex flex-col items-center justify-center py-6">
+              <Trash2 className="h-8 w-8 text-muted-foreground" />
+              <span className="mt-1.5 text-sm text-muted-foreground">
+                {t("deletedPost.label")}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </article>
   );
 }
