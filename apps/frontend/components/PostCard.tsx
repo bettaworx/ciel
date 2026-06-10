@@ -470,7 +470,7 @@ export function PostCard({
     if (isBoosting) return;
     setIsBoosting(true);
     try {
-      const result = await api.createPost({ content: "", referenceId: post.id });
+      const result = await api.createPost({ referenceId: post.id });
       if (!result.ok) {
         if (result.status === 409) {
           toast.info(t("actions.alreadyBoosted"));
