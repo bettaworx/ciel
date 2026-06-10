@@ -61,8 +61,9 @@ jobs:
             --file Dockerfile.frontend \
             --build-arg BUILD_COMMIT="${{ inputs.build_commit }}" \
             --build-arg BUILD_BRANCH="${{ inputs.build_branch }}" \
-            --cache-from "type=registry,ref=${FRONTEND_IMAGE}:canary" \
-            --cache-from "type=registry,ref=${FRONTEND_IMAGE}:latest" \
+            --cache-from "type=gha,scope=frontend" \
+            --cache-to "type=gha,mode=max,scope=frontend" \
+            --output "type=cacheonly" \
             .
 
       - name: Build and push
@@ -79,9 +80,8 @@ jobs:
             --file Dockerfile.frontend \
             --build-arg BUILD_COMMIT="${{ inputs.build_commit }}" \
             --build-arg BUILD_BRANCH="${{ inputs.build_branch }}" \
-            --cache-from "type=registry,ref=${FRONTEND_IMAGE}:canary" \
-            --cache-from "type=registry,ref=${FRONTEND_IMAGE}:latest" \
-            --cache-to "type=inline" \
+            --cache-from "type=gha,scope=frontend" \
+            --cache-to "type=gha,mode=max,scope=frontend" \
             --tag "${FRONTEND_IMAGE}:${{ inputs.tag }}" \
             "${EXTRA_TAGS[@]}" \
             --push \
