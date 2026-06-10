@@ -89,9 +89,7 @@ type ProfilePostItemProps = {
 function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
   const t = useTranslations();
   const pureBoost = isPureBoost(post);
-  const boostReferenceId = pureBoost ? post.referenceId! : undefined;
   const parentId = pureBoost ? undefined : (post.parentId ?? undefined);
-  const { data: boostedPost } = usePost(boostReferenceId);
   const {
     data: parentPost,
     isLoading: isParentLoading,
@@ -102,10 +100,9 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
   const hasVisibleParent = Boolean(parentPost || showParentSkeleton);
 
   if (pureBoost) {
-    const displayPost = boostedPost ?? post.reference;
     return (
       <PostCard
-        post={displayPost}
+        post={post.reference}
         onUserClick={onUserClick}
         isLast={isLast}
         indicator={{

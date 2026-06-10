@@ -157,7 +157,6 @@ components:
       properties:
         content:
           type: string
-          minLength: 1
           maxLength: 300
         mediaIds:
           type: array
