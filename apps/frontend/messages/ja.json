@@ -625,8 +625,9 @@
     "showMore": "もっと見る",
     "showLess": "閉じる",
     "deletedPost": {
-      "user": "削除されたユーザー",
-      "message": "この投稿は削除されました"
+      "username": "ユーザー",
+      "initials": "ユ",
+      "label": "削除済み"
     }
   },
   "adminSetup": {

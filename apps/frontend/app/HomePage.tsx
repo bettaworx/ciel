@@ -10,6 +10,7 @@ import { usePost, useTimeline } from "@/lib/hooks/use-queries";
 import { useOwnerThreadTimelineItems } from "@/lib/hooks/use-owner-thread-timeline-items";
 import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
+import { DeletedPostCard } from "@/components/DeletedPostCard";
 import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
 import { WelcomeCard } from "@/components/WelcomeCard";
 import { ComposeCard } from "@/components/ComposeCard";
@@ -21,8 +22,8 @@ import type { components } from "@/lib/api/api";
 
 type Post = components["schemas"]["Post"];
 
-function isPureBoost(post: Post): post is Post & { reference: Post } {
-  return post.content === "" && !!post.referenceId && !!post.reference;
+function isPureBoost(post: Post): boolean {
+  return post.content === "" && !!post.referenceId;
 }
 
 type TimelinePostItemProps = {
@@ -70,20 +71,31 @@ function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) 
 
   if (pureBoost) {
     const displayPost = boostedPost ?? post.reference;
+    const boostIndicator = {
+      icon: <Rocket className="h-3.5 w-3.5" />,
+      label: t("postCard.actions.boostedBy", {
+        name: post.author.displayName || post.author.username,
+      }),
+      createdAt: post.createdAt,
+      sourcePostId: post.id,
+      actorUserId: post.author.id,
+    };
+    if (!displayPost) {
+      return (
+        <DeletedPostCard
+          referenceId={post.referenceId!}
+          variant="timeline"
+          isLast={isLast}
+          indicator={boostIndicator}
+        />
+      );
+    }
     return (
       <PostCard
         post={displayPost}
         onUserClick={onUserClick}
         isLast={isLast}
-        indicator={{
-          icon: <Rocket className="h-3.5 w-3.5" />,
-          label: t("postCard.actions.boostedBy", {
-            name: post.author.displayName || post.author.username,
-          }),
-          createdAt: post.createdAt,
-          sourcePostId: post.id,
-          actorUserId: post.author.id,
-        }}
+        indicator={boostIndicator}
       />
     );
   }

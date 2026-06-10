@@ -89,6 +89,10 @@ import {
   getPostCardDisplayConfig,
   type PostCardVariant,
 } from "@/components/post-card-display";
+import {
+  PostCardIndicatorRow,
+  type PostCardIndicator,
+} from "@/components/PostCardIndicatorRow";
 
 type Post = components["schemas"]["Post"];
 
@@ -136,13 +140,7 @@ function ThreadConnectorLine({
   );
 }
 
-export interface PostCardIndicator {
-  icon: ReactNode;
-  label: string;
-  createdAt?: string;
-  sourcePostId?: string;
-  actorUserId?: string;
-}
+export type { PostCardIndicator } from "@/components/PostCardIndicatorRow";
 
 export interface PostCardProps {
   post: Post;
@@ -523,12 +521,6 @@ export function PostCard({
       ? fullTimestamp
       : formatTimeAgo(createdAt, locale);
   const hasAuthorId = Boolean(post.author?.id);
-  const indicatorTimestamp = indicator?.createdAt
-    ? formatTimeAgo(new Date(indicator.createdAt), locale)
-    : null;
-  const indicatorFullTimestamp = indicator?.createdAt
-    ? formatFullTimestamp(new Date(indicator.createdAt), locale)
-    : null;
   const shouldCollapseContent = shouldCollapsePostContent({
     collapseContent,
     isExpanded: isContentExpanded,
@@ -920,24 +912,11 @@ export function PostCard({
   ));
 
   const indicatorNode = indicator && (
-    <div className="-mx-3 -mt-3 mb-1 flex items-center gap-3 px-3 pt-3 pb-1 text-xs text-c-foreground-1">
-      <div className="flex w-10 shrink-0 items-center justify-end sm:w-12">
-        {indicator.icon}
-      </div>
-      <div className="flex flex-1 min-w-0 items-center">
-        <MfmRenderer text={indicator.label} allowList={DISPLAY_NAME_ALLOW_LIST} />
-        {(indicatorTimestamp || (showMoreMenu && indicator.sourcePostId)) && (
-          <div className="ml-auto flex items-center gap-2 shrink-0">
-            {indicatorTimestamp && (
-              <span aria-label={indicatorFullTimestamp ?? undefined}>
-                {indicatorTimestamp}
-              </span>
-            )}
-            {showMoreMenu && indicatorMoreMenuNode}
-          </div>
-        )}
-      </div>
-    </div>
+    <PostCardIndicatorRow
+      indicator={indicator}
+      locale={locale}
+      menuNode={showMoreMenu ? indicatorMoreMenuNode : undefined}
+    />
   );
 
   const bodyNode = post.content && (

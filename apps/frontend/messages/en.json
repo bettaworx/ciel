@@ -625,8 +625,9 @@
     "showMore": "Show more",
     "showLess": "Show less",
     "deletedPost": {
-      "user": "Deleted user",
-      "message": "This post has been deleted."
+      "username": "User",
+      "initials": "U",
+      "label": "Deleted"
     }
   },
   "adminSetup": {
