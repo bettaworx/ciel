@@ -32,16 +32,17 @@ RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
 RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
     --mount=type=cache,id=go-build,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -tags postgres -trimpath \
-    -ldflags="-s -w" \
     -o /out/migrate github.com/golang-migrate/migrate/v4/cmd/migrate
 
-FROM alpine:3.22
+FROM debian:bookworm-slim
 ARG BUILD_COMMIT=dev
 ARG BUILD_BRANCH=dev
 LABEL org.opencontainers.image.revision=${BUILD_COMMIT}
 LABEL org.opencontainers.image.ref.name=${BUILD_BRANCH}
 
-RUN apk add --no-cache ca-certificates
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /out/backend /app/backend
 COPY --from=build /out/migrate /app/migrate
