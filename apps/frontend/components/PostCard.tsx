@@ -423,6 +423,28 @@ export function PostCard({
     setMenuOpen(false);
   }, [post.id, t]);
 
+  const handleCopyBoostPostId = useCallback(async () => {
+    if (!indicator?.sourcePostId) return;
+    try {
+      await navigator.clipboard.writeText(indicator.sourcePostId);
+      toast.success(t("copyPostIdSuccess"));
+    } catch {
+      toast.error(t("copyPostIdError"));
+    }
+    setIndicatorMenuOpen(false);
+  }, [indicator?.sourcePostId, t]);
+
+  const handleCopyBoostUserId = useCallback(async () => {
+    if (!indicator?.actorUserId) return;
+    try {
+      await navigator.clipboard.writeText(indicator.actorUserId);
+      toast.success(t("copySuccess"));
+    } catch {
+      toast.error(t("copyError"));
+    }
+    setIndicatorMenuOpen(false);
+  }, [indicator?.actorUserId, t]);
+
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     const postUrl = `${window.location.origin}/posts/${post.id}`;
     if (canNativeShare && e.shiftKey) {
@@ -817,20 +839,14 @@ export function PostCard({
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
-              {post.content && (
-                <DropdownMenuItem onSelect={handleCopyText}>
-                  <FileText className="h-4 w-4" />
-                  {t("actions.copyText")}
-                </DropdownMenuItem>
-              )}
               <DropdownMenuItem
-                onSelect={handleCopyUserId}
-                disabled={!hasAuthorId}
+                onSelect={handleCopyBoostUserId}
+                disabled={!indicator?.actorUserId}
               >
                 <User className="h-4 w-4" />
                 {t("actions.copyUserId")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={handleCopyPostId}>
+              <DropdownMenuItem onSelect={handleCopyBoostPostId}>
                 <MessageCircle className="h-4 w-4" />
                 {t("actions.copyPostId")}
               </DropdownMenuItem>
@@ -872,21 +888,11 @@ export function PostCard({
             </DrawerTrigger>
             <DrawerContent>
               <div className="flex flex-col gap-2 p-2 pb-4">
-                {post.content && (
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-2"
-                    onClick={handleCopyText}
-                  >
-                    <FileText className="h-4 w-4" />
-                    {t("actions.copyText")}
-                  </Button>
-                )}
                 <Button
                   variant="ghost"
                   className="w-full justify-start gap-2"
-                  onClick={handleCopyUserId}
-                  disabled={!hasAuthorId}
+                  onClick={handleCopyBoostUserId}
+                  disabled={!indicator?.actorUserId}
                 >
                   <User className="h-4 w-4" />
                   {t("actions.copyUserId")}
@@ -894,7 +900,7 @@ export function PostCard({
                 <Button
                   variant="ghost"
                   className="w-full justify-start gap-2"
-                  onClick={handleCopyPostId}
+                  onClick={handleCopyBoostPostId}
                 >
                   <MessageCircle className="h-4 w-4" />
                   {t("actions.copyPostId")}
