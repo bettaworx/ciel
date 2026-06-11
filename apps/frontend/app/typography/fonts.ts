@@ -1,6 +1,5 @@
 import {
-  BIZ_UDGothic,
-  Manrope,
+  BIZ_UDPGothic,
   Noto_Naskh_Arabic,
   Noto_Sans_Arabic,
   Noto_Sans_Hebrew,
@@ -17,14 +16,14 @@ import {
   Noto_Serif_Thai,
 } from "next/font/google";
 
-const manrope = Manrope({
+const bizUdpGothicLatin = BIZ_UDPGothic({
   variable: "--font-sans-latin",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
+  weight: ["400", "700"],
   display: "swap",
+  preload: false,
 });
 
-const bizUdGothic = BIZ_UDGothic({
+const bizUdpGothic = BIZ_UDPGothic({
   variable: "--font-sans-japanese",
   weight: ["400", "700"],
   display: "swap",
@@ -130,8 +129,8 @@ const notoSerifThai = Noto_Serif_Thai({
 });
 
 export const fontFaces = {
-  sansLatin: manrope,
-  sansJapanese: bizUdGothic,
+  sansLatin: bizUdpGothicLatin,
+  sansJapanese: bizUdpGothic,
   sansChineseSimplified: notoSansSc,
   sansChineseTraditional: notoSansTc,
   sansKorean: notoSansKr,
