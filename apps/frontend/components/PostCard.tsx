@@ -996,7 +996,7 @@ export function PostCard({
   const mediaNode = (ogpUrl || previewMedia.length > 0) && (
     <div
       className={cn(
-        verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
+        verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : !isEmbedded && "mb-2 sm:mb-3",
       )}
     >
       {/* OGP Link Preview – only when no media is attached */}
@@ -1211,7 +1211,7 @@ export function PostCard({
         <div className="flex items-start gap-3">
           {avatarNode}
           <div className="flex-1 min-w-0 flex flex-col">
-            <div className="mb-1 sm:mb-1.5">
+            <div className={cn((!isEmbedded || mediaNode) && "mb-1 sm:mb-1.5")}>
               <div className="flex min-w-0 items-center gap-2">
                 {identityStackNode}
                 {timestampPlacement === "header" && timestampNode}
