@@ -27,6 +27,10 @@
     --color-accent-foreground: var(--accent-foreground);
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
@@ -169,6 +173,11 @@
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
     --destructive-foreground: oklch(1 0 0);
+    /* destructive と明度を揃えた意味色 */
+    --success: oklch(0.577 0.155 152);
+    --success-foreground: oklch(1 0 0);
+    --warning: oklch(0.68 0.16 75);
+    --warning-foreground: oklch(0.25 0 0);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
@@ -275,6 +284,10 @@ html[lang="th"] {
     /* 状態色 */
     --destructive: oklch(0.6 0.19 25); /* 破壊的操作（赤系） */
     --destructive-foreground: oklch(0.985 0 0); /* 破壊的操作上のテキスト */
+    --success: oklch(0.68 0.14 152); /* 成功（緑系） */
+    --success-foreground: oklch(0.985 0 0); /* 成功上のテキスト */
+    --warning: oklch(0.78 0.14 75); /* 警告（アンバー系） */
+    --warning-foreground: oklch(0.205 0 0); /* 警告上のテキスト */
 
     /* ボーダー・入力・リング */
     --border: oklch(1 0 0 / 10%); /* ボーダー（薄い白） */
@@ -330,6 +343,16 @@ html[lang="th"] {
     .toaster {
         --offset-top: 1rem;
         --offset-bottom: 1rem;
+    }
+
+    /* Snappier toast enter/exit. Sonner's own 400ms transition lives on
+       `[data-sonner-toast]` in a stylesheet it injects at runtime, so these
+       selectors have to out-specify it rather than rely on source order.
+       Only the animation speed changes — how long a toast stays is unaffected. */
+    [data-sonner-toaster] [data-sonner-toast],
+    [data-sonner-toaster]
+        [data-sonner-toast][data-removed="true"][data-front="false"][data-swipe-out="false"][data-expanded="false"] {
+        transition-duration: 150ms;
     }
 
     /* Custom spinner animation - 2x faster than default */

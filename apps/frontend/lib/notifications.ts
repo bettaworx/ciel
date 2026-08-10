@@ -30,6 +30,37 @@ export function rendersAsPostCard(notification: Notification): boolean {
   }
 }
 
+/**
+ * How a notification is presented. Widens the API's `type` with `quote`, which
+ * the backend stores as a `boost` — the difference is whether the boosting post
+ * carries text of its own.
+ */
+export type NotificationDisplayType =
+  | Notification["type"]
+  | "quote";
+
+export function notificationDisplayType(
+  notification: Notification,
+): NotificationDisplayType {
+  const post = notification.post;
+  if (notification.type === "boost" && post && !isPureBoost(post)) {
+    return "quote";
+  }
+  return notification.type;
+}
+
+/**
+ * Text to show under a notification.
+ *
+ * A pure boost carries no text of its own, so fall back to the post it boosted —
+ * otherwise boost notifications would show nothing at all.
+ */
+export function notificationExcerpt(notification: Notification): string {
+  const post = notification.post;
+  if (!post) return "";
+  return post.content || post.reference?.content || "";
+}
+
 /** Post a notification should link to when tapped. */
 export function notificationTargetPostId(
   notification: Notification,

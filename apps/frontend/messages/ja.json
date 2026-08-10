@@ -1287,7 +1287,8 @@
       "reaction": "{name}がリアクションしました",
       "reply": "{name}が返信しました",
       "mention": "{name}がメンションしました",
-      "boost": "{name}がブーストしました"
+      "boost": "{name}がブーストしました",
+      "quote": "{name}が引用しました"
     }
   }
 }

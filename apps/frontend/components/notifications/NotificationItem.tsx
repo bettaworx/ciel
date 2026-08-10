@@ -3,21 +3,20 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { AtSign, Reply, Rocket } from "lucide-react";
 import { PostCard, type PostCardIndicator } from "@/components/PostCard";
-import { NotificationRow } from "@/components/notifications/NotificationRow";
-import { notificationTargetPostId, rendersAsPostCard } from "@/lib/notifications";
+import {
+  NOTIFICATION_ICONS,
+  NotificationRow,
+} from "@/components/notifications/NotificationRow";
+import {
+  notificationDisplayType,
+  notificationTargetPostId,
+  rendersAsPostCard,
+} from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import type { components } from "@/lib/api/api";
 
 type Notification = components["schemas"]["Notification"];
-
-const INDICATOR_ICONS = {
-  reply: Reply,
-  mention: AtSign,
-  boost: Rocket,
-  reaction: Rocket,
-} as const;
 
 export function NotificationItem({
   notification,
@@ -44,10 +43,11 @@ export function NotificationItem({
 
   const actorName =
     notification.actor?.displayName || notification.actor?.username || "";
-  const Icon = INDICATOR_ICONS[notification.type];
+  const displayType = notificationDisplayType(notification);
+  const Icon = NOTIFICATION_ICONS[displayType];
   const indicator: PostCardIndicator = {
     icon: <Icon className="h-3.5 w-3.5" />,
-    label: t(`types.${notification.type}`, { name: actorName }),
+    label: t(`types.${displayType}`, { name: actorName }),
     createdAt: notification.createdAt,
     actorUserId: notification.actor?.id,
   };
@@ -83,7 +83,11 @@ export function NotificationItem({
           }}
           className="cursor-pointer hover:bg-accent/40"
         >
-          <NotificationRow notification={notification} isLast={isLast} />
+          {/* The divider belongs to the list, not to the row itself. */}
+          <NotificationRow
+            notification={notification}
+            className={cn(!isLast && "border-b border-border")}
+          />
         </div>
       )}
     </div>

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from 'jotai';
@@ -10,6 +9,8 @@ import { userAtom } from '@/atoms/auth';
 import { queryKeys } from '@/lib/hooks/use-queries';
 import { useActivityTracker } from '@/lib/hooks/use-activity-tracker';
 import { WebSocketDisconnectAlert } from '@/components/realtime/WebSocketDisconnectAlert';
+import { NotificationRow } from '@/components/notifications/NotificationRow';
+import { notificationTargetPostId } from '@/lib/notifications';
 import { resolveWebSocketUrl } from '@/lib/api/base-url';
 import {
 	mergeReactionCountsForCurrentUser,
@@ -49,19 +50,18 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	const user = useAtomValue(userAtom);
 	const router = useRouter();
 	const pathname = usePathname();
-	const tNotifications = useTranslations('notifications');
 	// Read through a ref so the WebSocket handlers are not rebuilt on navigation.
 	const isOnNotificationsPageRef = useRef(false);
 	isOnNotificationsPageRef.current = pathname === '/notifications';
 	const handledNotificationIdsRef = useRef<Set<string>>(new Set());
 	// `connect` is rebuilt whenever the message handlers change, and every rebuild
-	// tears down and reopens the socket. Keep router/translations out of the
-	// dependency chain so a re-render cannot leave two sockets open at once.
+	// tears down and reopens the socket. Keep the router out of the dependency
+	// chain so a re-render cannot leave two sockets open at once.
 	const routerRef = useRef(router);
 	routerRef.current = router;
-	const tNotificationsRef = useRef(tNotifications);
-	tNotificationsRef.current = tNotifications;
 	const wsRef = useRef<WebSocket | null>(null);
+	/** Tears down the current socket without triggering its reconnect path. */
+	const disposeRef = useRef<(() => void) | null>(null);
 	const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const reconnectAttemptsRef = useRef(0);
 	const inactivityDisconnectRef = useRef(false);
@@ -342,25 +342,31 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 			return;
 		}
 
-		const actor = notification.actor;
-		const name = actor?.displayName || actor?.username || '';
-		const title = tNotificationsRef.current(`types.${notification.type}`, { name });
-		const description = notification.post?.content;
+		// Same destination as tapping the row in the list.
+		const targetPostId = notificationTargetPostId(notification);
 
 		// toast.custom so the whole surface is clickable, not just an action button.
+		// The body is the same row the notifications list renders, so the two
+		// presentations cannot drift apart.
+		//
+		// No surface or padding classes here: sonner renders this inside the toast
+		// element, which already carries them via the Toaster's `classNames.toast`.
 		toast.custom((id) => (
 			<button
 				type="button"
 				onClick={() => {
 					toast.dismiss(id);
-					routerRef.current.push('/notifications');
+					routerRef.current.push(
+						targetPostId ? `/posts/${targetPostId}` : '/notifications',
+					);
 				}}
-				className="w-full rounded-lg border border-border bg-card p-4 text-left text-foreground shadow-lg"
+				className="block w-full text-left"
 			>
-				<p className="text-sm font-medium">{title}</p>
-				{description ? (
-					<p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{description}</p>
-				) : null}
+				<NotificationRow
+					notification={notification}
+					showTimestamp={false}
+					className="p-0"
+				/>
 			</button>
 		));
 	}, [queryClient]);
@@ -412,6 +418,16 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	const connect = useCallback(() => {
 		if (typeof window === 'undefined') return;
 
+		// Never run two sockets at once: every extra socket delivers every event
+		// again, which shows duplicate notifications.
+		const existing = wsRef.current;
+		if (
+			existing &&
+			(existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)
+		) {
+			return;
+		}
+
 		const wsUrl = resolveWebSocketUrl();
 
 		try {
@@ -419,6 +435,17 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 			// for same-origin connections, providing cookie-based authentication
 			const ws = new WebSocket(wsUrl);
 			wsRef.current = ws;
+
+			// Tracked per socket rather than in a ref: a shared flag would be reset
+			// by the next connect() before this socket's onclose had run.
+			let disposed = false;
+			disposeRef.current = () => {
+				disposed = true;
+				ws.onclose = null;
+				ws.onmessage = null;
+				ws.close();
+				if (wsRef.current === ws) wsRef.current = null;
+			};
 
 			ws.onopen = () => {
 				reconnectAttemptsRef.current = 0;
@@ -438,7 +465,15 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 			};
 
 			ws.onclose = () => {
-				wsRef.current = null;
+				if (wsRef.current === ws) {
+					wsRef.current = null;
+				}
+
+				// We closed this socket ourselves (unmount / reconnect); reconnecting
+				// here would leave an orphaned socket behind for every remount.
+				if (disposed) {
+					return;
+				}
 
 				// Don't reconnect if disconnection was due to inactivity
 				if (inactivityDisconnectRef.current) {
@@ -502,9 +537,10 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 			if (reconnectTimeoutRef.current) {
 				clearTimeout(reconnectTimeoutRef.current);
 			}
-			if (wsRef.current) {
-				wsRef.current.close();
-			}
+			// Dispose rather than close(): a bare close() fires onclose, which would
+			// schedule a reconnect after this cleanup has already run.
+			disposeRef.current?.();
+			disposeRef.current = null;
 		};
 	}, [connect]);
 

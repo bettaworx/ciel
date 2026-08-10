@@ -47,6 +47,22 @@ export const Default: Story = {
       <Button
         variant="outline"
         onClick={() =>
+          toast.info("Heads up", { description: "Something worth knowing." })
+        }
+      >
+        Info
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() =>
+          toast.warning("Careful", { description: "This needs attention." })
+        }
+      >
+        Warning
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() =>
           toast("Event created", {
             description: "Monday, January 3rd at 6:00pm",
             action: { label: "Undo", onClick: () => {} },
@@ -54,6 +70,17 @@ export const Default: Story = {
         }
       >
         With Action
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() =>
+          toast.error("Upload failed", {
+            description:
+              "The file could not be processed because the server rejected it. Try a smaller image, or check your connection and attempt the upload again.",
+          })
+        }
+      >
+        Long Description
       </Button>
     </div>
   ),
