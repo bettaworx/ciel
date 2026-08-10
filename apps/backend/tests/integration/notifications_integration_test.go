@@ -128,6 +128,18 @@ func TestIntegration_Notifications_AllKinds(t *testing.T) {
 		t.Errorf("mention: expected post %v, got %v", mentionPost.Id, n.Post.Id)
 	}
 
+	// Repeating the parameter filters on several types at once — this is what the
+	// frontend's "mentions" tab uses to show mentions and replies together.
+	mentionsTab := listNotifications(t, app, aliceAuth, "?type=mention&type=reply")
+	if len(mentionsTab.Items) != 2 {
+		t.Fatalf("multi-type filter: expected 2 items, got %d: %+v", len(mentionsTab.Items), mentionsTab.Items)
+	}
+	for _, n := range mentionsTab.Items {
+		if n.Type != api.Mention && n.Type != api.Reply {
+			t.Errorf("multi-type filter leaked a %s notification", n.Type)
+		}
+	}
+
 	// Newest first.
 	for i := 1; i < len(page.Items); i++ {
 		if page.Items[i-1].CreatedAt.Before(page.Items[i].CreatedAt) {

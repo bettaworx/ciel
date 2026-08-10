@@ -23,6 +23,22 @@ export type PostThreadParams = {
   childLimit?: number;
 };
 
+type NotificationType = components["schemas"]["NotificationType"];
+type UnreadCount = components["schemas"]["UnreadCount"];
+
+/** Notification list tabs. "mentions" covers everything addressed at you. */
+export type NotificationTab = "all" | "mentions";
+
+export const NOTIFICATION_TAB_TYPES: Record<
+  NotificationTab,
+  readonly NotificationType[] | undefined
+> = {
+  all: undefined,
+  // A reply that also @-mentions you is stored as a single `reply` notification,
+  // so the mentions tab has to ask for both types.
+  mentions: ["mention", "reply"],
+};
+
 // Query keys
 export const queryKeys = {
   me: ["me"] as const,
@@ -62,6 +78,8 @@ export const queryKeys = {
   adminEmojis: (params?: { limit?: number; offset?: number }) =>
     ["adminEmojis", params] as const,
   ogp: (url: string) => ["ogp", url] as const,
+  notifications: (tab: NotificationTab) => ["notifications", tab] as const,
+  notificationsUnread: ["notificationsUnread"] as const,
 };
 
 // Current user
@@ -1113,4 +1131,106 @@ export function useOgp(url: string | null) {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+/** Notification list for the given tab, paged by cursor. */
+export function useNotifications(tab: NotificationTab) {
+  const api = useApi();
+  const authState = useAtomValue(authAtom);
+  const shouldFetch = authState.status === "ready" && authState.user !== null;
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.notifications(tab),
+    queryFn: async ({ pageParam }) => {
+      const result = await api.notifications({
+        limit: 30,
+        cursor: pageParam ?? null,
+        types: NOTIFICATION_TAB_TYPES[tab],
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: shouldFetch,
+    staleTime: 1000 * 30,
+  });
+}
+
+/**
+ * Unread badge count. Kept fresh by the realtime `notification_created` event
+ * and by mark-as-read, so it does not need to poll.
+ */
+export function useUnreadNotificationCount() {
+  const api = useApi();
+  const authState = useAtomValue(authAtom);
+  const shouldFetch = authState.status === "ready" && authState.user !== null;
+
+  return useQuery({
+    queryKey: queryKeys.notificationsUnread,
+    queryFn: async () => {
+      const result = await api.unreadNotificationCount();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    enabled: shouldFetch,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/** Marks the given notifications read, or every unread one when `ids` is omitted. */
+export function useMarkNotificationsRead() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids?: readonly string[]) => {
+      const result = await api.markNotificationsRead(ids);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (unread, ids) => {
+      queryClient.setQueryData<UnreadCount>(queryKeys.notificationsUnread, unread);
+      markNotificationsReadInCache(queryClient, ids);
+    },
+  });
+}
+
+/**
+ * Stamps `readAt` on cached notifications so the unread highlight clears without
+ * refetching. Passing no ids marks every cached notification read.
+ */
+export function markNotificationsReadInCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  ids?: readonly string[],
+) {
+  const idSet = ids ? new Set(ids) : null;
+  const readAt = new Date().toISOString();
+
+  queryClient.setQueriesData<{
+    pages?: Array<{ items?: components["schemas"]["Notification"][] }>;
+  }>(
+    { predicate: (query) => query.queryKey[0] === "notifications" },
+    (payload) => {
+      if (!payload || !Array.isArray(payload.pages)) return payload;
+      let changed = false;
+      const pages = payload.pages.map((page) => {
+        if (!page || !Array.isArray(page.items)) return page;
+        let pageChanged = false;
+        const items = page.items.map((item) => {
+          if (item.readAt || (idSet && !idSet.has(item.id))) return item;
+          pageChanged = true;
+          return { ...item, readAt };
+        });
+        if (!pageChanged) return page;
+        changed = true;
+        return { ...page, items };
+      });
+      return changed ? { ...payload, pages } : payload;
+    },
+  );
 }

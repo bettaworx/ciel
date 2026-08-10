@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAtomValue, useAtom } from "jotai";
-import { Home, SquarePen, Pin, PinOff, Info } from "lucide-react";
+import { Home, SquarePen, Pin, PinOff, Info, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarAvatar } from "@/components/SidebarAvatar";
 import { SidebarActionButton } from "@/components/SidebarActionButton";
+import { NotificationBadge } from "@/components/notifications/NotificationBadge";
 import { CreatePostDialog } from "@/components/CreatePostDialog";
 import { isAuthenticatedAtom } from "@/atoms/auth";
 import {
@@ -175,6 +176,22 @@ export function Sidebar() {
             canAnimate={canExpand}
             hoverBg={hoverBg}
           />
+          {isAuthenticated && (
+            <SidebarActionButton
+              href="/notifications"
+              icon={
+                <span className="relative flex shrink-0">
+                  <Bell className="w-5 h-5" />
+                  <NotificationBadge />
+                </span>
+              }
+              label={tNav("notifications")}
+              isActive={pathname === "/notifications"}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
         </div>
 
         <div className="flex flex-col gap-3">

@@ -1655,7 +1655,7 @@ LEFT JOIN posts p ON p.id = n.post_id
 WHERE n.user_id = sqlc.arg('user_id')::uuid
 	AND (n.post_id IS NULL OR p.deleted_at IS NULL)
 	AND (sqlc.narg('unread_only')::boolean IS NULL OR n.read_at IS NULL)
-	AND (sqlc.narg('type')::text IS NULL OR n.type = sqlc.narg('type'))
+	AND (sqlc.narg('types')::text[] IS NULL OR n.type = ANY(sqlc.narg('types')::text[]))
 	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
 		OR n.created_at < sqlc.narg('cursor_time')

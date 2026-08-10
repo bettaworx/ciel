@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAtomValue } from "jotai";
-import { Home, SquarePen } from "lucide-react";
+import { Home, SquarePen, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NotificationBadge } from "@/components/notifications/NotificationBadge";
 import { SidebarAvatar } from "@/components/SidebarAvatar";
 import { CreatePostDialog } from "@/components/CreatePostDialog";
 import { isAuthenticatedAtom } from "@/atoms/auth";
@@ -49,6 +50,22 @@ export function BottomNav() {
         >
           <Home className="w-6 h-6" />
         </Button>
+
+        {/* 通知ボタン */}
+        {isMounted && isAuthenticated && (
+          <Button
+            variant="ghost"
+            rounded="lg"
+            className="w-12 h-12"
+            onClick={() => router.push("/notifications")}
+            aria-label={tNav("notifications")}
+          >
+            <span className="relative flex">
+              <Bell className="w-6 h-6" />
+              <NotificationBadge />
+            </span>
+          </Button>
+        )}
 
         {/* 投稿ボタン */}
         {isMounted && isAuthenticated && (

@@ -501,7 +501,8 @@
     "pinSidebar": "サイドバーを固定",
     "unpinSidebar": "サイドバーのピンを解除",
     "serverInfo": "サーバーについて",
-    "versionInfo": "アプリ情報"
+    "versionInfo": "アプリ情報",
+    "notifications": "通知"
   },
   "videoPlayer": {
     "play": "再生",
@@ -509,7 +510,9 @@
     "mute": "ミュート",
     "unmute": "ミュート解除",
     "fullscreen": "全画面",
-    "exitFullscreen": "全画面を終了"
+    "exitFullscreen": "全画面終了",
+    "doubleSpeed": "2×",
+    "seekSeconds": "{seconds}秒"
   },
   "reactions": {
     "label": "{emoji} {count}件のリアクション",
@@ -1209,16 +1212,6 @@
       "filter": "フィルター"
     }
   },
-  "videoPlayer": {
-    "play": "再生",
-    "pause": "一時停止",
-    "mute": "ミュート",
-    "unmute": "ミュート解除",
-    "fullscreen": "全画面",
-    "exitFullscreen": "全画面終了",
-    "doubleSpeed": "2×",
-    "seekSeconds": "{seconds}秒"
-  },
   "imageCrop": {
     "apply": "適用",
     "cancel": "キャンセル",
@@ -1279,6 +1272,23 @@
       "medium": "中間の肌色",
       "mediumDark": "やや濃い肌色",
       "dark": "濃い肌色"
+    }
+  },
+  "notifications": {
+    "title": "通知",
+    "empty": "通知はありません",
+    "markAllRead": "すべて既読にする",
+    "unreadCount": "未読 {count} 件",
+    "toastView": "見る",
+    "tabs": {
+      "all": "すべて",
+      "mentions": "メンション"
+    },
+    "types": {
+      "reaction": "{name}がリアクションしました",
+      "reply": "{name}が返信しました",
+      "mention": "{name}がメンションしました",
+      "boost": "{name}がブーストしました"
     }
   }
 }

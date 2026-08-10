@@ -29,9 +29,11 @@
     - name: type
       in: query
       required: false
-      description: Restrict results to a single notification type.
+      description: Restrict results to the given notification types. Repeat the parameter for multiple types.
       schema:
-        $ref: ../schemas/enums.yml#/components/schemas/NotificationType
+        type: array
+        items:
+          $ref: ../schemas/enums.yml#/components/schemas/NotificationType
     responses:
       '200':
         description: OK

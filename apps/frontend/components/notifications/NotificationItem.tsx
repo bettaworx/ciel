@@ -1,0 +1,91 @@
+"use client";
+
+import { useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { AtSign, Reply, Rocket } from "lucide-react";
+import { PostCard, type PostCardIndicator } from "@/components/PostCard";
+import { NotificationRow } from "@/components/notifications/NotificationRow";
+import { notificationTargetPostId, rendersAsPostCard } from "@/lib/notifications";
+import { cn } from "@/lib/utils";
+import type { components } from "@/lib/api/api";
+
+type Notification = components["schemas"]["Notification"];
+
+const INDICATOR_ICONS = {
+  reply: Reply,
+  mention: AtSign,
+  boost: Rocket,
+  reaction: Rocket,
+} as const;
+
+export function NotificationItem({
+  notification,
+  isLast,
+  onSeen,
+}: {
+  notification: Notification;
+  isLast: boolean;
+  onSeen: (id: string) => void;
+}) {
+  const router = useRouter();
+  const t = useTranslations("notifications");
+  const isUnread = !notification.readAt;
+
+  const markSeen = useCallback(() => {
+    if (isUnread) onSeen(notification.id);
+  }, [isUnread, notification.id, onSeen]);
+
+  const targetPostId = notificationTargetPostId(notification);
+
+  const handleClick = useCallback(() => {
+    if (targetPostId) router.push(`/posts/${targetPostId}`);
+  }, [router, targetPostId]);
+
+  const actorName =
+    notification.actor?.displayName || notification.actor?.username || "";
+  const Icon = INDICATOR_ICONS[notification.type];
+  const indicator: PostCardIndicator = {
+    icon: <Icon className="h-3.5 w-3.5" />,
+    label: t(`types.${notification.type}`, { name: actorName }),
+    createdAt: notification.createdAt,
+    actorUserId: notification.actor?.id,
+  };
+
+  return (
+    <div
+      onMouseEnter={markSeen}
+      onFocus={markSeen}
+      // Touch devices never fire hover, so any interaction has to count as seen.
+      onClick={markSeen}
+      className={cn(
+        "transition-colors duration-500",
+        isUnread && "bg-c-1/10",
+      )}
+    >
+      {rendersAsPostCard(notification) && notification.post ? (
+        <PostCard
+          post={notification.post}
+          onUserClick={(username) => router.push(`/users/${username}`)}
+          isLast={isLast}
+          indicator={indicator}
+        />
+      ) : (
+        <div
+          role="link"
+          tabIndex={0}
+          onClick={handleClick}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleClick();
+            }
+          }}
+          className="cursor-pointer hover:bg-accent/40"
+        >
+          <NotificationRow notification={notification} isLast={isLast} />
+        </div>
+      )}
+    </div>
+  );
+}

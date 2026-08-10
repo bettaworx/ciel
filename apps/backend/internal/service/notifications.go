@@ -143,18 +143,22 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 		unreadOnly = sql.NullBool{Bool: true, Valid: true}
 	}
 
-	var typeFilter sql.NullString
+	// nil means "no filter"; an explicitly empty list matches nothing.
+	var types []string
 	if params.Type != nil {
-		if !params.Type.Valid() {
-			return api.NotificationsPage{}, NewError(http.StatusBadRequest, "invalid_request", "unknown notification type")
+		types = make([]string, 0, len(*params.Type))
+		for _, t := range *params.Type {
+			if !t.Valid() {
+				return api.NotificationsPage{}, NewError(http.StatusBadRequest, "invalid_request", "unknown notification type")
+			}
+			types = append(types, string(t))
 		}
-		typeFilter = sql.NullString{String: string(*params.Type), Valid: true}
 	}
 
 	rows, err := s.store.Q.ListNotifications(ctx, sqlc.ListNotificationsParams{
 		UserID:     userID,
 		UnreadOnly: unreadOnly,
-		Type:       typeFilter,
+		Types:      types,
 		CursorTime: cTime,
 		CursorID:   cID,
 		Limit:      int32(limit),

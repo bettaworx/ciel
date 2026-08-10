@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from 'jotai';
 import { userAtom } from '@/atoms/auth';
@@ -18,9 +21,12 @@ import type { components } from '@/lib/api/api';
 
 type Post = components['schemas']['Post'];
 type PostId = components['schemas']['PostId'];
+type UserId = components['schemas']['UserId'];
 type ReactionCounts = components['schemas']['ReactionCounts'];
 type ServerInfo = components['schemas']['ServerInfo'];
 type ServerConfig = components['schemas']['ServerConfig'];
+type Notification = components['schemas']['Notification'];
+type UnreadCount = components['schemas']['UnreadCount'];
 
 type RealtimeEvent =
 	| { type: 'post_created'; post: Post }
@@ -29,7 +35,8 @@ type RealtimeEvent =
 	| { type: 'user_registered' }
 	| { type: 'user_deleted' }
 	| { type: 'server_info_updated'; serverInfo: ServerInfo }
-	| { type: 'server_config_updated'; serverConfig: ServerConfig };
+	| { type: 'server_config_updated'; serverConfig: ServerConfig }
+	| { type: 'notification_created'; notification: Notification; targetUserId: UserId };
 
 interface RealtimeProviderProps {
 	children: React.ReactNode;
@@ -38,6 +45,12 @@ interface RealtimeProviderProps {
 export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	const queryClient = useQueryClient();
 	const user = useAtomValue(userAtom);
+	const router = useRouter();
+	const pathname = usePathname();
+	const tNotifications = useTranslations('notifications');
+	// Read through a ref so the WebSocket handlers are not rebuilt on navigation.
+	const isOnNotificationsPageRef = useRef(false);
+	isOnNotificationsPageRef.current = pathname === '/notifications';
 	const wsRef = useRef<WebSocket | null>(null);
 	const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const reconnectAttemptsRef = useRef(0);
@@ -294,6 +307,31 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		queryClient.setQueryData(queryKeys.serverConfig, serverConfig);
 	}, [queryClient]);
 
+	const handleNotificationCreated = useCallback((notification: Notification) => {
+		// Bump the badge locally — avoids an extra REST call
+		queryClient.setQueryData(queryKeys.notificationsUnread, (old: UnreadCount | undefined) => ({
+			count: (old?.count ?? 0) + 1,
+		}));
+		queryClient.invalidateQueries({
+			predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'notifications',
+		});
+
+		// The list is already on screen; a toast for it would just be noise.
+		if (isOnNotificationsPageRef.current) {
+			return;
+		}
+
+		const actor = notification.actor;
+		const name = actor?.displayName || actor?.username || '';
+		toast(tNotifications(`types.${notification.type}`, { name }), {
+			description: notification.post?.content || undefined,
+			action: {
+				label: tNotifications('toastView'),
+				onClick: () => router.push('/notifications'),
+			},
+		});
+	}, [queryClient, router, tNotifications]);
+
 	const handleMessage = useCallback(
 		(event: MessageEvent) => {
 			try {
@@ -326,12 +364,16 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 					case 'server_config_updated':
 						handleServerConfigUpdated(data.serverConfig);
 						break;
+
+					case 'notification_created':
+						handleNotificationCreated(data.notification);
+						break;
 				}
 			} catch (err) {
 				console.error('Failed to parse WebSocket message:', err);
 			}
 		},
-		[handlePostCreated, handlePostDeleted, handleReactionUpdated, handleUserRegistered, handleUserDeleted, handleServerInfoUpdated, handleServerConfigUpdated]
+		[handlePostCreated, handlePostDeleted, handleReactionUpdated, handleUserRegistered, handleUserDeleted, handleServerInfoUpdated, handleServerConfigUpdated, handleNotificationCreated]
 	);
 
 	const connect = useCallback(() => {

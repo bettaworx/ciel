@@ -501,7 +501,8 @@
     "pinSidebar": "Pin sidebar",
     "unpinSidebar": "Unpin sidebar",
     "serverInfo": "About this server",
-    "versionInfo": "App information"
+    "versionInfo": "App information",
+    "notifications": "Notifications"
   },
   "videoPlayer": {
     "play": "Play",
@@ -509,7 +510,9 @@
     "mute": "Mute",
     "unmute": "Unmute",
     "fullscreen": "Fullscreen",
-    "exitFullscreen": "Exit fullscreen"
+    "exitFullscreen": "Exit fullscreen",
+    "doubleSpeed": "2×",
+    "seekSeconds": "{seconds}s"
   },
   "reactions": {
     "label": "{emoji} {count} reactions",
@@ -1209,16 +1212,6 @@
       "filter": "Filter"
     }
   },
-  "videoPlayer": {
-    "play": "Play",
-    "pause": "Pause",
-    "mute": "Mute",
-    "unmute": "Unmute",
-    "fullscreen": "Fullscreen",
-    "exitFullscreen": "Exit fullscreen",
-    "doubleSpeed": "2×",
-    "seekSeconds": "{seconds}s"
-  },
   "imageCrop": {
     "apply": "Apply",
     "cancel": "Cancel",
@@ -1279,6 +1272,23 @@
       "medium": "Medium",
       "mediumDark": "Medium-Dark",
       "dark": "Dark"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet",
+    "markAllRead": "Mark all as read",
+    "unreadCount": "{count} unread",
+    "toastView": "View",
+    "tabs": {
+      "all": "All",
+      "mentions": "Mentions"
+    },
+    "types": {
+      "reaction": "{name} reacted to your post",
+      "reply": "{name} replied to you",
+      "mention": "{name} mentioned you",
+      "boost": "{name} boosted your post"
     }
   }
 }

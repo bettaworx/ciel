@@ -374,6 +374,29 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			return request<components['schemas']['TimelinePage']>('GET', `/posts/${postId}/replies${suffix}`);
 		},
 
+		notifications: (params?: {
+			limit?: number;
+			cursor?: string | null;
+			types?: readonly components['schemas']['NotificationType'][];
+		}) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			// Repeated `type` params: ?type=mention&type=reply
+			for (const type of params?.types ?? []) qs.append('type', type);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['NotificationsPage']>('GET', `/notifications${suffix}`);
+		},
+
+		unreadNotificationCount: () =>
+			request<components['schemas']['UnreadCount']>('GET', '/notifications/unread-count'),
+
+		/** Omit `ids` to mark every unread notification as read. */
+		markNotificationsRead: (ids?: readonly string[]) =>
+			request<components['schemas']['UnreadCount']>('POST', '/notifications/read', {
+				body: { ids: ids ? [...ids] : null },
+			}),
+
 		listCustomEmojis: (params?: { limit?: number; offset?: number }) => {
 			const qs = new URLSearchParams();
 			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
