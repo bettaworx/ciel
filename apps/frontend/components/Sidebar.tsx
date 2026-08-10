@@ -171,7 +171,7 @@ export function Sidebar() {
           </motion.div>
         </div>
 
-        <div className="flex flex-col gap-3 grow">
+        <div className="flex flex-col gap-1.5 grow">
           <SidebarActionButton
             onClick={handleHomeClick}
             icon={<Home className="w-5 h-5 shrink-0" />}
