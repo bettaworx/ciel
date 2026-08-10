@@ -1638,7 +1638,9 @@ RETURNING id, created_at;
 -- name: ListNotificationGroups :many
 -- One row per group.
 --
---   reaction   -> grouped by (reacted post, emoji)
+--   reaction   -> grouped by the reacted post. Emoji is *not* part of the key:
+--                 one row covers every reaction on a post, and each avatar
+--                 carries the emoji its actor used.
 --   pure boost -> grouped by the post that was boosted. A boost notification
 --                 points at the *boosting* post, which differs per booster, so
 --                 grouping has to follow reference_id instead.
@@ -1652,19 +1654,24 @@ RETURNING id, created_at;
 --
 -- ponytail: the cursor is a HAVING over the whole grouping, so each page groups
 -- this user's notifications. Fine for a personal inbox; if it stops being fine,
--- keep a materialised group table keyed by (user_id, type, group_target, subtype).
+-- keep a materialised group table keyed by (user_id, type, group_target).
 SELECT
 	-- Postgres has no max(uuid); compare as text. The value only has to be a
 	-- stable, unique member of the group to serve as the pagination tie-break.
 	CAST(max(n.id::text) AS uuid) AS id,
 	n.type,
-	n.subtype,
+	-- Only meaningful for a group of one, where it is that row's emoji. Grouped
+	-- rows read the per-actor emoji from ListNotificationGroupMembers instead.
+	CAST(max(n.subtype) AS text) AS subtype,
 	-- uuid.Nil stands in for "no post"; sqlc types max() as either
 	-- untyped or non-null, and NULL would fail to scan.
 	CAST(COALESCE(max(n.post_id::text), '00000000-0000-0000-0000-000000000000') AS uuid) AS post_id,
 	max(n.created_at)::timestamptz AS created_at,
 	CAST(COALESCE((CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), '00000000-0000-0000-0000-000000000000'::uuid) AS uuid) AS group_target,
 	count(*)::int AS group_count,
+	-- The label counts people, not reactions: one person can react several times
+	-- to the same post.
+	count(DISTINCT n.actor_user_id)::int AS actor_count,
 	bool_or(n.read_at IS NULL) AS group_unread,
 	CAST(COALESCE(max(n.actor_user_id::text), '00000000-0000-0000-0000-000000000000') AS uuid) AS actor_id
 FROM notifications n
@@ -1673,7 +1680,7 @@ WHERE n.user_id = sqlc.arg('user_id')::uuid
 	AND (n.post_id IS NULL OR p.deleted_at IS NULL)
 	AND (sqlc.narg('unread_only')::boolean IS NULL OR n.read_at IS NULL)
 	AND (sqlc.narg('types')::text[] IS NULL OR n.type = ANY(sqlc.narg('types')::text[]))
-GROUP BY n.type, (CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), n.subtype, (CASE
+GROUP BY n.type, (CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), (CASE
 		WHEN n.type = 'reaction' THEN NULL
 		WHEN n.type = 'boost' AND p.content = '' AND p.reference_id IS NOT NULL THEN NULL
 		ELSE n.id

@@ -1291,7 +1291,7 @@
       "quote": "{name} quoted your post"
     },
     "grouped": {
-      "reaction": "{name} and {count} others reacted to your post",
+      "reaction": "{count} users reacted to your post",
       "reply": "{name} and {count} others replied to you",
       "mention": "{name} and {count} others mentioned you",
       "boost": "{name} and {count} others boosted your post",

@@ -232,10 +232,12 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 			if items[i].Actor != nil || row.ActorID == uuid.Nil {
 				continue
 			}
-			if actor, ok := byID[row.ActorID]; ok {
-				a := actor
-				items[i].Actor = &a
-				items[i].Actors = &[]api.MentionUser{a}
+			if user, ok := byID[row.ActorID]; ok {
+				u := user
+				items[i].Actor = &u
+				items[i].Actors = &[]api.NotificationActor{
+					{User: u, Emoji: emojiOrNil(row.Subtype)},
+				}
 			}
 		}
 	}
@@ -374,16 +376,16 @@ func (s *NotificationsService) attachGroupMembers(
 	}
 
 	// The query returns every groupable notification for these targets, so bucket
-	// by the same key the grouping used. Members arrive newest first.
+	// by the same key the grouping used — emoji is deliberately not part of it.
+	// Members arrive newest first.
 	type groupKey struct {
-		typ     string
-		target  uuid.UUID
-		subtype string
+		typ    string
+		target uuid.UUID
 	}
 	byKey := make(map[groupKey][]sqlc.ListNotificationGroupMembersRow, len(targets))
 	actorIDs := make([]uuid.UUID, 0, len(members))
 	for _, m := range members {
-		k := groupKey{typ: m.Type, target: m.GroupTarget, subtype: m.Subtype}
+		k := groupKey{typ: m.Type, target: m.GroupTarget}
 		byKey[k] = append(byKey[k], m)
 		if m.ActorUserID.Valid {
 			actorIDs = append(actorIDs, m.ActorUserID.UUID)
@@ -401,30 +403,44 @@ func (s *NotificationsService) attachGroupMembers(
 		if row.GroupCount <= 1 {
 			continue
 		}
-		group := byKey[groupKey{typ: row.Type, target: row.GroupTarget, subtype: row.Subtype}]
+		group := byKey[groupKey{typ: row.Type, target: row.GroupTarget}]
 		if len(group) == 0 {
 			continue
 		}
 
 		ids := make([]uuid.UUID, 0, len(group))
-		actors := make([]api.MentionUser, 0, MaxGroupedActors)
+		actors := make([]api.NotificationActor, 0, MaxGroupedActors)
 		for _, m := range group {
 			ids = append(ids, m.ID)
 			if len(actors) >= MaxGroupedActors || !m.ActorUserID.Valid {
 				continue
 			}
-			if actor, ok := summaries[m.ActorUserID.UUID]; ok {
-				actors = append(actors, actor)
+			if user, ok := summaries[m.ActorUserID.UUID]; ok {
+				// One entry per reaction, so the same person can appear twice.
+				actors = append(actors, api.NotificationActor{
+					User:  user,
+					Emoji: emojiOrNil(m.Subtype),
+				})
 			}
 		}
 		items[i].NotificationIds = &ids
 		if len(actors) > 0 {
-			head := actors[0]
+			head := actors[0].User
 			items[i].Actor = &head
 			items[i].Actors = &actors
 		}
 	}
 	return nil
+}
+
+// emojiOrNil turns a notification subtype into the actor's emoji. Only reactions
+// carry one; every other kind stores an empty subtype.
+func emojiOrNil(subtype string) *api.Emoji {
+	if subtype == "" {
+		return nil
+	}
+	emoji := api.Emoji(subtype)
+	return &emoji
 }
 
 // userSummaries loads the lightweight user representation used for actors.
@@ -461,11 +477,13 @@ func (s *NotificationsService) userSummaries(
 // since they need a second query.
 func mapNotificationGroupRow(row sqlc.ListNotificationGroupsRow) api.Notification {
 	count := int(row.GroupCount)
+	actorCount := int(row.ActorCount)
 	n := api.Notification{
-		Id:        row.ID,
-		Type:      api.NotificationType(row.Type),
-		CreatedAt: row.CreatedAt,
-		Count:     &count,
+		Id:         row.ID,
+		Type:       api.NotificationType(row.Type),
+		CreatedAt:  row.CreatedAt,
+		Count:      &count,
+		ActorCount: &actorCount,
 		// Overwritten for real groups; a group of one covers only itself.
 		NotificationIds: &[]uuid.UUID{row.ID},
 	}

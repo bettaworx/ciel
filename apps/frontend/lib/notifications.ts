@@ -65,7 +65,17 @@ export function notificationActors(
   notification: Notification,
 ): NonNullable<Notification["actors"]> {
   if (notification.actors?.length) return notification.actors;
-  return notification.actor ? [notification.actor] : [];
+  return notification.actor
+    ? [{ user: notification.actor, emoji: notification.emoji }]
+    : [];
+}
+
+/**
+ * How many distinct people a row stands for. Differs from the notification
+ * count for reactions, where one person can react to a post several times.
+ */
+export function notificationActorCount(notification: Notification): number {
+  return notification.actorCount ?? notificationCount(notification);
 }
 
 /** How many notifications a row stands for. */

@@ -295,11 +295,13 @@ func TestIntegration_Notifications_MarkRead(t *testing.T) {
 	aliceAuth := issueBearer(t, app.TokenManager, alice)
 	bobAuth := issueBearer(t, app.TokenManager, bob)
 
-	post := createPost(t, client, base, aliceAuth, "mark me read")
-	for _, emoji := range []string{"👍", "🎉", "🔥"} {
+	// One reaction each on three posts: reactions on the *same* post collapse
+	// into a single row, and this test needs three separate ones.
+	for i := 0; i < 3; i++ {
+		post := createPost(t, client, base, aliceAuth, "mark me read")
 		if resp := postJSON(t, client, base+"/api/v1/posts/"+post.Id.String()+"/reactions",
-			map[string]any{"emoji": emoji}, bobAuth); resp.StatusCode != http.StatusOK {
-			t.Fatalf("react %s: expected 200, got %d", emoji, resp.StatusCode)
+			map[string]any{"emoji": "👍"}, bobAuth); resp.StatusCode != http.StatusOK {
+			t.Fatalf("react %d: expected 200, got %d", i, resp.StatusCode)
 		}
 	}
 	if got := unreadCount(t, app, aliceAuth); got != 3 {
@@ -441,15 +443,18 @@ func TestIntegration_Notifications_TypeFilterAndPagination(t *testing.T) {
 	aliceAuth := issueBearer(t, app.TokenManager, alice)
 	bobAuth := issueBearer(t, app.TokenManager, bob)
 
-	post := createPost(t, client, base, aliceAuth, "paginate me")
-	for _, emoji := range []string{"👍", "🎉", "🔥"} {
-		if resp := postJSON(t, client, base+"/api/v1/posts/"+post.Id.String()+"/reactions",
-			map[string]any{"emoji": emoji}, bobAuth); resp.StatusCode != http.StatusOK {
-			t.Fatalf("react %s: expected 200, got %d", emoji, resp.StatusCode)
+	// One reaction each on three posts, so the page holds three reaction rows:
+	// reactions on the same post collapse into one.
+	var lastPost api.Post
+	for i := 0; i < 3; i++ {
+		lastPost = createPost(t, client, base, aliceAuth, "paginate me")
+		if resp := postJSON(t, client, base+"/api/v1/posts/"+lastPost.Id.String()+"/reactions",
+			map[string]any{"emoji": "👍"}, bobAuth); resp.StatusCode != http.StatusOK {
+			t.Fatalf("react %d: expected 200, got %d", i, resp.StatusCode)
 		}
 	}
 	if resp := postJSON(t, client, base+"/api/v1/posts",
-		map[string]any{"content": "a reply", "parentId": post.Id.String()}, bobAuth); resp.StatusCode != http.StatusCreated {
+		map[string]any{"content": "a reply", "parentId": lastPost.Id.String()}, bobAuth); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("reply: expected 201, got %d", resp.StatusCode)
 	}
 

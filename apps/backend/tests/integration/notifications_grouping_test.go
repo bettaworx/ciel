@@ -112,19 +112,86 @@ func TestIntegration_Notifications_GroupingBoundaries(t *testing.T) {
 	first := createPost(t, client, base, aliceAuth, "first post")
 	second := createPost(t, client, base, aliceAuth, "second post")
 
-	// Same post, different emoji -> separate groups.
+	// Same post, different emoji -> one row: a row covers a whole post.
 	react(t, app, first.Id, "👍", bobAuth)
 	react(t, app, first.Id, "🎉", carolAuth)
-	// Different post, same emoji -> separate group again.
+	// A different post is still its own row.
 	react(t, app, second.Id, "👍", bobAuth)
 
 	page := listNotifications(t, app, aliceAuth, "")
-	if len(page.Items) != 3 {
-		t.Fatalf("emoji and post both split groups, expected 3 rows, got %d: %+v", len(page.Items), page.Items)
+	if len(page.Items) != 2 {
+		t.Fatalf("expected one row per post, got %d: %+v", len(page.Items), page.Items)
 	}
-	for _, n := range page.Items {
-		if n.Count == nil || *n.Count != 1 {
-			t.Errorf("expected each row to stand alone, got count %v", n.Count)
+
+	var grouped *api.Notification
+	for i := range page.Items {
+		if page.Items[i].Count != nil && *page.Items[i].Count == 2 {
+			grouped = &page.Items[i]
+		}
+	}
+	if grouped == nil {
+		t.Fatalf("expected the first post to collapse two reactions, got %+v", page.Items)
+	}
+	if grouped.Post == nil || grouped.Post.Id != first.Id {
+		t.Fatalf("expected the grouped row to be about the first post, got %+v", grouped.Post)
+	}
+	if grouped.ActorCount == nil || *grouped.ActorCount != 2 {
+		t.Fatalf("expected 2 distinct actors, got %v", grouped.ActorCount)
+	}
+
+	// Each avatar carries the emoji its actor used.
+	if grouped.Actors == nil || len(*grouped.Actors) != 2 {
+		t.Fatalf("expected 2 actors, got %v", grouped.Actors)
+	}
+	emojis := map[string]bool{}
+	for _, a := range *grouped.Actors {
+		if a.Emoji == nil {
+			t.Fatalf("expected every reaction actor to carry an emoji, got %+v", a)
+		}
+		emojis[string(*a.Emoji)] = true
+	}
+	if !emojis["👍"] || !emojis["🎉"] {
+		t.Fatalf("expected both emoji across the actors, got %v", emojis)
+	}
+}
+
+func TestIntegration_Notifications_OnePersonManyEmojiCountsOnce(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	alice := registerUser(t, client, base, "many_alice", "Password123")
+	bob := registerUser(t, client, base, "many_bob", "Password123")
+	aliceAuth := issueBearer(t, app.TokenManager, alice)
+	bobAuth := issueBearer(t, app.TokenManager, bob)
+
+	post := createPost(t, client, base, aliceAuth, "one person, three emoji")
+	for _, emoji := range []string{"👍", "🎉", "🔥"} {
+		react(t, app, post.Id, emoji, bobAuth)
+	}
+
+	page := listNotifications(t, app, aliceAuth, "")
+	if len(page.Items) != 1 {
+		t.Fatalf("expected a single row for the post, got %d: %+v", len(page.Items), page.Items)
+	}
+	item := page.Items[0]
+
+	// Three reactions, but only one person: the label counts people.
+	if item.Count == nil || *item.Count != 3 {
+		t.Fatalf("expected count 3, got %v", item.Count)
+	}
+	if item.ActorCount == nil || *item.ActorCount != 1 {
+		t.Fatalf("expected actorCount 1, got %v", item.ActorCount)
+	}
+	// The same person appears once per reaction, which is what the avatars show.
+	if item.Actors == nil || len(*item.Actors) != 3 {
+		t.Fatalf("expected 3 avatars for the same person, got %v", item.Actors)
+	}
+	for _, a := range *item.Actors {
+		if a.User.Id != bob.Id {
+			t.Errorf("expected every avatar to be bob, got %v", a.User.Id)
 		}
 	}
 }

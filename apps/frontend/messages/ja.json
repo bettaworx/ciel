@@ -1291,7 +1291,7 @@
       "quote": "{name}が引用しました"
     },
     "grouped": {
-      "reaction": "{name}さん他{count}人がリアクションしました",
+      "reaction": "{count}人がリアクションしました",
       "reply": "{name}さん他{count}人が返信しました",
       "mention": "{name}さん他{count}人がメンションしました",
       "boost": "{name}さん他{count}人がブーストしました",

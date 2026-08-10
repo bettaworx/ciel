@@ -2,12 +2,13 @@
 
 import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { AtSign, Heart, Quote, Reply, Rocket } from "lucide-react";
+import { AtSign, Quote, Reply, Rocket, Smile } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmojiInline } from "@/components/EmojiInline";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { NOTIFICATION_EXCERPT_ALLOW_LIST } from "@/lib/mfm/parse";
 import {
+  notificationActorCount,
   notificationActors,
   notificationCount,
   notificationDisplayType,
@@ -28,9 +29,10 @@ type Actor = NonNullable<Notification["actors"]>[number];
  */
 export const NOTIFICATION_ICONS: Record<
   NotificationDisplayType,
-  typeof Heart
+  typeof Smile
 > = {
-  reaction: Heart,
+  // Smile is the reaction affordance on a post card; keep the vocabulary shared.
+  reaction: Smile,
   reply: Reply,
   mention: AtSign,
   boost: Rocket,
@@ -46,21 +48,37 @@ const AVATARS_WIDE = 8;
 
 function ActorAvatar({
   actor,
+  size = "h-8 w-8",
+  showEmoji = true,
   className,
   onUserClick,
 }: {
   actor: Actor;
+  size?: string;
+  /** Off where the row already badges the type onto this same corner. */
+  showEmoji?: boolean;
   className?: string;
   onUserClick?: (username: string) => void;
 }) {
-  const name = actor.displayName || actor.username;
+  const user = actor.user;
+  const name = user.displayName || user.username;
   const avatar = (
-    <Avatar className={cn("h-8 w-8", className)}>
-      <AvatarImage src={actor.avatarUrl ?? undefined} alt={name} />
-      <AvatarFallback className="text-xs">
-        {name.slice(0, 2).toUpperCase()}
-      </AvatarFallback>
-    </Avatar>
+    <span className={cn("relative inline-flex", className)}>
+      <Avatar className={size}>
+        <AvatarImage src={user.avatarUrl ?? undefined} alt={name} />
+        <AvatarFallback className="text-xs">
+          {name.slice(0, 2).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      {/* A row covers a whole post, so each avatar carries its own emoji. */}
+      {showEmoji && actor.emoji && (
+        // Emoji images are sized in em (see .twemoji), so the font size is what
+        // fits them to the circle — width/height classes do nothing here.
+        <span className="absolute -right-1 -bottom-1 flex h-4 w-4 items-center justify-center overflow-hidden rounded-full bg-card text-[10px] leading-none ring-2 ring-card">
+          <EmojiInline emoji={actor.emoji} />
+        </span>
+      )}
+    </span>
   );
   if (!onUserClick) return avatar;
   return (
@@ -69,7 +87,7 @@ function ActorAvatar({
       // The whole row navigates to the post, so keep that from firing too.
       onClick={(e) => {
         e.stopPropagation();
-        onUserClick(actor.username);
+        onUserClick(user.username);
       }}
       aria-label={name}
       className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-c-ring"
@@ -111,17 +129,25 @@ export function NotificationRow({
   const t = useTranslations("notifications");
   const actors = notificationActors(notification);
   const count = notificationCount(notification);
-  const displayName = actors[0]?.displayName || actors[0]?.username || "";
+  const displayName =
+    actors[0]?.user.displayName || actors[0]?.user.username || "";
   const excerpt = notificationExcerpt(notification);
   const displayType = notificationDisplayType(notification);
   const Icon = NOTIFICATION_ICONS[displayType];
   const actorRowLayout = !singleActor && usesActorRowLayout(displayType);
 
   const primaryActor = actors[0];
+  const actorCount = notificationActorCount(notification);
+  // Reactions branch on people, not reactions: one person leaving three emoji is
+  // still one person, so it keeps the named form.
   const label =
-    count > 1
-      ? t(`grouped.${displayType}`, { name: displayName, count: count - 1 })
-      : t(`types.${displayType}`, { name: displayName });
+    displayType === "reaction"
+      ? actorCount > 1
+        ? t("grouped.reaction", { count: actorCount })
+        : t("types.reaction", { name: displayName })
+      : count > 1
+        ? t(`grouped.${displayType}`, { name: displayName, count: count - 1 })
+        : t(`types.${displayType}`, { name: displayName });
 
   // The name is linked by splitting the rendered sentence rather than by adding
   // a tag to the message: these same keys feed PostCardIndicatorRow, which
@@ -134,7 +160,7 @@ export function NotificationRow({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onUserClick(primaryActor.username);
+              onUserClick(primaryActor.user.username);
             }}
             className="font-medium hover:underline"
           >
@@ -154,8 +180,10 @@ export function NotificationRow({
   return (
     <div className={cn("flex items-start gap-3 p-3", className)}>
       {actorRowLayout ? (
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center text-c-1">
-          {typeGlyph("h-5 w-5")}
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center text-c-1 sm:h-12 sm:w-12">
+          {/* A row can span several emoji now, so the type icon leads and each
+              avatar carries the emoji its actor used. */}
+          <Icon className="h-5 w-5" />
         </span>
       ) : (
         <div className="relative shrink-0">
@@ -163,13 +191,14 @@ export function NotificationRow({
           {primaryActor ? (
             <ActorAvatar
               actor={primaryActor}
-              className="h-10 w-10"
+              size="h-10 w-10 sm:h-12 sm:w-12"
+              showEmoji={false}
               onUserClick={onUserClick}
             />
           ) : (
             <span className="block h-10 w-10 rounded-full bg-muted" />
           )}
-          <span className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full bg-background text-c-1">
+          <span className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full bg-card text-c-1 ring-2 ring-card">
             {typeGlyph("h-3.5 w-3.5")}
           </span>
         </div>
@@ -205,7 +234,7 @@ export function NotificationRow({
           <div className="mt-1.5 flex items-center gap-1">
             {actors.slice(0, AVATARS_WIDE).map((actor, index) => (
               <ActorAvatar
-                key={actor.id}
+                key={`${actor.user.id}:${actor.emoji ?? ""}`}
                 actor={actor}
                 onUserClick={onUserClick}
                 // Drop the last two on narrow screens rather than let the row
