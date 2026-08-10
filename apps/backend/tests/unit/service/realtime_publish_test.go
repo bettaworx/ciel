@@ -77,18 +77,24 @@ func TestPostsService_Create_BoostOnlyWithReferenceID(t *testing.T) {
 	userID := uuid.New()
 	postID := uuid.New()
 	referenceID := uuid.New()
+	referenceAuthorID := uuid.New()
+	notificationID := uuid.New()
 	created := time.Unix(1_700_000_000, 0).UTC()
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
 	mock.ExpectBegin()
-	mock.ExpectQuery(`SELECT id, parent_id, root_id, reference_id, deleted_at`).
+	mock.ExpectQuery(`SELECT id, user_id, parent_id, root_id, reference_id, deleted_at`).
 		WithArgs(referenceID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id", "root_id", "reference_id", "deleted_at"}).
-			AddRow(referenceID, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, sql.NullTime{Valid: false}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "parent_id", "root_id", "reference_id", "deleted_at"}).
+			AddRow(referenceID, referenceAuthorID, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, sql.NullTime{Valid: false}))
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at"}).
 			AddRow(postID, userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}, created, sql.NullTime{Valid: false}))
+	// Boosting someone else's post notifies its author.
+	mock.ExpectQuery(`INSERT INTO notifications`).
+		WithArgs(referenceAuthorID, string(api.Boost), uuid.NullUUID{UUID: userID, Valid: true}, uuid.NullUUID{UUID: postID, Valid: true}, "").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(notificationID, created))
 	mock.ExpectCommit()
 	expectGetPostWithAuthor(mock, api.PostId(postID), userID, created, userCreated)
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(postID).
@@ -120,10 +126,10 @@ func TestPostsService_Create_DuplicateBoostReturnsConflict(t *testing.T) {
 	referenceID := uuid.New()
 
 	mock.ExpectBegin()
-	mock.ExpectQuery(`SELECT id, parent_id, root_id, reference_id, deleted_at`).
+	mock.ExpectQuery(`SELECT id, user_id, parent_id, root_id, reference_id, deleted_at`).
 		WithArgs(referenceID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "parent_id", "root_id", "reference_id", "deleted_at"}).
-			AddRow(referenceID, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, sql.NullTime{Valid: false}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "parent_id", "root_id", "reference_id", "deleted_at"}).
+			AddRow(referenceID, uuid.New(), uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, sql.NullTime{Valid: false}))
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}).
 		WillReturnError(&pgconn.PgError{Code: "23505"})

@@ -123,3 +123,11 @@ components:
       - draft
       - published
       description: Publication status of agreement document
+    NotificationType:
+      type: string
+      enum:
+      - reaction
+      - mention
+      - reply
+      - boost
+      description: Kind of notification. New kinds are appended here.

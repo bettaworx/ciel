@@ -9,9 +9,11 @@ components:
         - $ref: '#/components/schemas/UserDeletedEvent'
         - $ref: '#/components/schemas/ServerInfoUpdatedEvent'
         - $ref: '#/components/schemas/ServerConfigUpdatedEvent'
+        - $ref: '#/components/schemas/NotificationCreatedEvent'
       discriminator:
         propertyName: type
         mapping:
+          notification_created: '#/components/schemas/NotificationCreatedEvent'
           post_created: '#/components/schemas/PostCreatedEvent'
           post_deleted: '#/components/schemas/PostDeletedEvent'
           reaction_updated: '#/components/schemas/ReactionUpdatedEvent'
@@ -97,3 +99,19 @@ components:
           enum: [server_config_updated]
         serverConfig:
           $ref: ./server.yml#/components/schemas/ServerConfig
+
+    NotificationCreatedEvent:
+      type: object
+      description: Delivered only to the WebSocket connections of targetUserId.
+      required:
+        - type
+        - notification
+        - targetUserId
+      properties:
+        type:
+          type: string
+          enum: [notification_created]
+        notification:
+          $ref: ./notification.yml#/components/schemas/Notification
+        targetUserId:
+          $ref: ./common.yml#/components/schemas/UserId

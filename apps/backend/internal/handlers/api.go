@@ -25,19 +25,20 @@ import (
 
 // API implements the generated OpenAPI server interface.
 type API struct {
-	Auth       *service.AuthService
-	Admin      *service.AdminService
-	Authz      *service.AuthzService
-	Users      *service.UsersService
-	Posts      *service.PostsService
-	Timeline   *service.TimelineService
-	Reactions  *service.ReactionsService
-	Media      *service.MediaService
-	Emojis     *service.EmojiService
-	Setup      *service.SetupService
-	Agreements *service.AgreementsService
-	Tokens     *auth.TokenManager
-	Redis      *redis.Client
+	Auth          *service.AuthService
+	Admin         *service.AdminService
+	Authz         *service.AuthzService
+	Users         *service.UsersService
+	Posts         *service.PostsService
+	Timeline      *service.TimelineService
+	Reactions     *service.ReactionsService
+	Notifications *service.NotificationsService
+	Media         *service.MediaService
+	Emojis        *service.EmojiService
+	Setup         *service.SetupService
+	Agreements    *service.AgreementsService
+	Tokens        *auth.TokenManager
+	Redis         *redis.Client
 
 	// Admin services
 	AdminInvites    *admin.InvitesService

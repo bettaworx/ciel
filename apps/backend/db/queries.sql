@@ -256,7 +256,7 @@ FROM posts
 WHERE id = $1;
 
 -- name: GetPostThreadInfoByID :one
-SELECT id, parent_id, root_id, reference_id, deleted_at
+SELECT id, user_id, parent_id, root_id, reference_id, deleted_at
 FROM posts
 WHERE id = $1;
 
@@ -1619,3 +1619,79 @@ FROM posts
 WHERE reference_id = ANY($1::uuid[])
   AND deleted_at IS NULL
 GROUP BY reference_id;
+
+-- ==================== Notifications ====================
+
+-- name: InsertNotification :many
+-- Returns 0 or 1 rows: the unique dedupe index makes repeat notifications a no-op.
+INSERT INTO notifications (user_id, type, actor_user_id, post_id, subtype)
+VALUES (
+	sqlc.arg('user_id')::uuid,
+	sqlc.arg('type')::text,
+	sqlc.narg('actor_user_id')::uuid,
+	sqlc.narg('post_id')::uuid,
+	sqlc.arg('subtype')::text
+)
+ON CONFLICT DO NOTHING
+RETURNING id, created_at;
+
+-- name: ListNotifications :many
+SELECT
+	n.id,
+	n.type,
+	n.subtype,
+	n.post_id,
+	n.read_at,
+	n.created_at,
+	a.id AS actor_id,
+	a.username AS actor_username,
+	a.display_name AS actor_display_name,
+	a.avatar_media_id AS actor_avatar_media_id,
+	am.ext AS actor_avatar_ext
+FROM notifications n
+LEFT JOIN users a ON a.id = n.actor_user_id
+LEFT JOIN media am ON am.id = a.avatar_media_id
+LEFT JOIN posts p ON p.id = n.post_id
+WHERE n.user_id = sqlc.arg('user_id')::uuid
+	AND (n.post_id IS NULL OR p.deleted_at IS NULL)
+	AND (sqlc.narg('unread_only')::boolean IS NULL OR n.read_at IS NULL)
+	AND (sqlc.narg('type')::text IS NULL OR n.type = sqlc.narg('type'))
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR n.created_at < sqlc.narg('cursor_time')
+		OR (n.created_at = sqlc.narg('cursor_time') AND n.id < sqlc.narg('cursor_id'))
+	)
+ORDER BY n.created_at DESC, n.id DESC
+LIMIT sqlc.arg('limit');
+
+-- name: GetNotificationByID :one
+SELECT
+	n.id,
+	n.type,
+	n.subtype,
+	n.post_id,
+	n.read_at,
+	n.created_at,
+	a.id AS actor_id,
+	a.username AS actor_username,
+	a.display_name AS actor_display_name,
+	a.avatar_media_id AS actor_avatar_media_id,
+	am.ext AS actor_avatar_ext
+FROM notifications n
+LEFT JOIN users a ON a.id = n.actor_user_id
+LEFT JOIN media am ON am.id = a.avatar_media_id
+WHERE n.id = $1;
+
+-- name: CountUnreadNotifications :one
+SELECT COUNT(*)::int FROM notifications
+WHERE user_id = $1 AND read_at IS NULL;
+
+-- name: MarkNotificationsRead :exec
+UPDATE notifications
+SET read_at = now()
+WHERE user_id = sqlc.arg('user_id')::uuid
+	AND read_at IS NULL
+	AND (sqlc.narg('ids')::uuid[] IS NULL OR id = ANY(sqlc.narg('ids')::uuid[]));
+
+-- name: DeleteOldNotifications :exec
+DELETE FROM notifications WHERE created_at < now() - INTERVAL '90 days';

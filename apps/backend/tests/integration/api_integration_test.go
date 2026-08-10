@@ -27,11 +27,13 @@ import (
 
 	"backend/internal/api"
 	"backend/internal/auth"
+	"backend/internal/cache"
 	"backend/internal/config"
 	"backend/internal/db"
 	"backend/internal/db/sqlc"
 	"backend/internal/handlers"
 	"backend/internal/middleware"
+	"backend/internal/realtime"
 	"backend/internal/repository"
 	"backend/internal/service"
 
@@ -46,6 +48,7 @@ type testApp struct {
 	TokenManager *auth.TokenManager
 	SQLDB        *sql.DB
 	RDB          *redis.Client
+	Hub          *realtime.Hub
 }
 
 func newTestApp(t *testing.T) *testApp {
@@ -98,6 +101,13 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 
 	store := repository.NewStore(sqlDB)
 
+	// Hub without Redis: events are fanned out in-process, which is all the
+	// tests need and keeps delivery synchronous enough to assert on.
+	hub := realtime.NewHub(nil)
+	hubCtx, hubCancel := context.WithCancel(context.Background())
+	go hub.Run(hubCtx)
+	t.Cleanup(hubCancel)
+
 	r := chi.NewRouter()
 	r.Use(middleware.OptionalAuth(tokenManager))
 	r.Use(middleware.AccessControl(rdb, middleware.AccessControlOptions{TrustProxy: false}))
@@ -118,24 +128,30 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 	r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
 	r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
 
-	postsSvc := service.NewPostsService(store, rdb, nil)
-	timelineSvc := service.NewTimelineService(store, rdb)
-	reactionsSvc := service.NewReactionsService(store, rdb, nil)
+	cacheImpl := cache.NewRedisCache(rdb)
+	postsSvc := service.NewPostsService(store, cacheImpl, hub)
+	timelineSvc := service.NewTimelineService(store, cacheImpl)
+	reactionsSvc := service.NewReactionsService(store, cacheImpl, hub)
+	notificationsSvc := service.NewNotificationsService(store)
 	postsSvc.SetReactionsService(reactionsSvc)
+	postsSvc.SetNotificationsService(notificationsSvc)
+	reactionsSvc.SetNotificationsService(notificationsSvc)
+	notificationsSvc.SetPostsService(postsSvc)
 	timelineSvc.SetReactionsService(reactionsSvc)
+	timelineSvc.SetPostsService(postsSvc)
 
 	apiServer := handlers.API{
-		Items:     service.NewItemsService(repository.NewItemsRepository(sqlDB)),
-		Auth:      service.NewAuthServiceWithOptions(store, tokenManager, authOpts),
-		Admin:     service.NewAdminService(store, rdb, nil),
-		Authz:     authzSvc,
-		Users:     service.NewUsersService(store),
-		Posts:     postsSvc,
-		Timeline:  timelineSvc,
-		Reactions: reactionsSvc,
-		Media:     mediaSvc,
+		Auth:          service.NewAuthServiceWithOptions(store, tokenManager, authOpts),
+		Admin:         service.NewAdminService(store, cacheImpl, nil, hub),
+		Authz:         authzSvc,
+		Users:         service.NewUsersService(store),
+		Posts:         postsSvc,
+		Timeline:      timelineSvc,
+		Reactions:     reactionsSvc,
+		Notifications: notificationsSvc,
+		Media:         mediaSvc,
 	}
-	api.HandlerFromMuxWithBaseURL(apiServer, r, "/api/v1")
+	api.HandlerFromMuxWithBaseURL(&apiServer, r, "/api/v1")
 
 	srv := httptest.NewServer(r)
 
@@ -144,6 +160,7 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 		TokenManager: tokenManager,
 		SQLDB:        sqlDB,
 		RDB:          rdb,
+		Hub:          hub,
 	}
 }
 
@@ -164,22 +181,21 @@ func (a *testApp) Close() {
 
 func resetDB(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `TRUNCATE TABLE
+		notifications,
 		post_reaction_events,
 		post_reaction_counts,
 		post_media,
 		media,
 		posts,
 		auth_credentials,
-		users,
-		items
+		users
 	RESTART IDENTITY CASCADE;`)
 	if err != nil {
 		return err
 	}
-	_, err = db.ExecContext(ctx, `INSERT INTO server_settings (id, signup_enabled)
-VALUES (1, TRUE)
-ON CONFLICT (id) DO UPDATE
-SET signup_enabled = EXCLUDED.signup_enabled;`)
+	_, err = db.ExecContext(ctx, `INSERT INTO server_settings (id)
+VALUES (1)
+ON CONFLICT (id) DO NOTHING;`)
 	return err
 }
 
@@ -267,6 +283,9 @@ func registerUser(t *testing.T, client *http.Client, baseURL, username, password
 	resp := postJSON(t, client, baseURL+"/api/v1/auth/register", map[string]any{
 		"username": username,
 		"password": password,
+		// resetDB seeds server_settings with the schema defaults.
+		"termsVersion":   1,
+		"privacyVersion": 1,
 	}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		errBody := decodeJSON[map[string]any](t, resp)
@@ -549,8 +568,10 @@ func TestIntegration_Health_Register_CreatePost_Timeline(t *testing.T) {
 	resp.Body.Close()
 
 	regResp := postJSON(t, client, base+"/api/v1/auth/register", map[string]any{
-		"username": "alice",
-		"password": "password123",
+		"username":       "alice",
+		"password":       "Password123",
+		"termsVersion":   1,
+		"privacyVersion": 1,
 	}, nil)
 	if regResp.StatusCode != http.StatusCreated {
 		errBody := decodeJSON[map[string]any](t, regResp)
@@ -618,8 +639,8 @@ func TestIntegration_Posts_Lifecycle_And_OwnerCheck(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u1 := registerUser(t, client, base, "p1", "password123")
-	u2 := registerUser(t, client, base, "p2", "password123")
+	u1 := registerUser(t, client, base, "user_p1", "Password123")
+	u2 := registerUser(t, client, base, "user_p2", "Password123")
 	a1 := issueBearer(t, app.TokenManager, u1)
 	a2 := issueBearer(t, app.TokenManager, u2)
 
@@ -657,7 +678,7 @@ func TestIntegration_Timeline_Pagination_And_DeleteReflection(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "t1", "password123")
+	u := registerUser(t, client, base, "user_t1", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	posts := make([]api.Post, 0, 3)
@@ -736,7 +757,7 @@ func TestIntegration_Reactions_Add_Duplicate_Remove(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "r1", "password123")
+	u := registerUser(t, client, base, "user_r1", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	cpResp := postJSON(t, client, base+"/api/v1/posts", map[string]any{"content": "hello"}, a)
@@ -796,7 +817,7 @@ func TestIntegration_Media_Upload_Attach_And_Serve(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "m1", "password123")
+	u := registerUser(t, client, base, "user_m1", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	media := uploadMediaPNG(t, client, base, a)
@@ -839,7 +860,7 @@ func TestIntegration_Posts_Create_MediaOnly_Success(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "mediaonly", "password123")
+	u := registerUser(t, client, base, "mediaonly", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	media := uploadMediaPNG(t, client, base, a)
@@ -875,8 +896,10 @@ func TestIntegration_Auth_Login_Success_And_ReplayPrevented(t *testing.T) {
 	base := app.Server.URL
 
 	regResp := postJSON(t, client, base+"/api/v1/auth/register", map[string]any{
-		"username": "bob",
-		"password": "password123",
+		"username":       "bob",
+		"password":       "Password123",
+		"termsVersion":   1,
+		"privacyVersion": 1,
 	}, nil)
 	if regResp.StatusCode != http.StatusCreated {
 		errBody := decodeJSON[map[string]any](t, regResp)
@@ -895,7 +918,7 @@ func TestIntegration_Auth_Login_Success_And_ReplayPrevented(t *testing.T) {
 	}
 	start := decodeJSON[api.LoginStartResponse](t, startResp)
 
-	clientFinalNonce, proof := computeClientProofB64(t, "bob", "password123", clientNonce, start.ServerNonce, start.Salt, start.Iterations)
+	clientFinalNonce, proof := computeClientProofB64(t, "bob", "Password123", clientNonce, start.ServerNonce, start.Salt, start.Iterations)
 	finishReq := api.LoginFinishRequest{
 		LoginSessionId:   start.LoginSessionId,
 		ClientFinalNonce: clientFinalNonce,
@@ -926,8 +949,10 @@ func TestIntegration_Auth_Login_InvalidNonce(t *testing.T) {
 	base := app.Server.URL
 
 	regResp := postJSON(t, client, base+"/api/v1/auth/register", map[string]any{
-		"username": "carol",
-		"password": "password123",
+		"username":       "carol",
+		"password":       "Password123",
+		"termsVersion":   1,
+		"privacyVersion": 1,
 	}, nil)
 	if regResp.StatusCode != http.StatusCreated {
 		_ = decodeJSON[map[string]any](t, regResp)
@@ -943,7 +968,7 @@ func TestIntegration_Auth_Login_InvalidNonce(t *testing.T) {
 	}
 	start := decodeJSON[api.LoginStartResponse](t, startResp)
 
-	_, proof := computeClientProofB64(t, "carol", "password123", clientNonce, start.ServerNonce, start.Salt, start.Iterations)
+	_, proof := computeClientProofB64(t, "carol", "Password123", clientNonce, start.ServerNonce, start.Salt, start.Iterations)
 	finishResp := postJSON(t, client, base+"/api/v1/auth/login/finish", api.LoginFinishRequest{
 		LoginSessionId:   start.LoginSessionId,
 		ClientFinalNonce: "wrong-nonce",
@@ -963,8 +988,10 @@ func TestIntegration_Auth_Login_InvalidProof(t *testing.T) {
 	base := app.Server.URL
 
 	regResp := postJSON(t, client, base+"/api/v1/auth/register", map[string]any{
-		"username": "dave",
-		"password": "password123",
+		"username":       "dave",
+		"password":       "Password123",
+		"termsVersion":   1,
+		"privacyVersion": 1,
 	}, nil)
 	if regResp.StatusCode != http.StatusCreated {
 		_ = decodeJSON[map[string]any](t, regResp)
@@ -980,7 +1007,7 @@ func TestIntegration_Auth_Login_InvalidProof(t *testing.T) {
 	}
 	start := decodeJSON[api.LoginStartResponse](t, startResp)
 
-	clientFinalNonce, proof := computeClientProofB64(t, "dave", "password123", clientNonce, start.ServerNonce, start.Salt, start.Iterations)
+	clientFinalNonce, proof := computeClientProofB64(t, "dave", "Password123", clientNonce, start.ServerNonce, start.Salt, start.Iterations)
 	badProof := proof
 	if len(badProof) > 0 {
 		badProof = badProof[:len(badProof)-1] + "A"
@@ -1004,8 +1031,10 @@ func TestIntegration_Auth_Login_ExpiredSession(t *testing.T) {
 	base := app.Server.URL
 
 	regResp := postJSON(t, client, base+"/api/v1/auth/register", map[string]any{
-		"username": "erin",
-		"password": "password123",
+		"username":       "erin",
+		"password":       "Password123",
+		"termsVersion":   1,
+		"privacyVersion": 1,
 	}, nil)
 	if regResp.StatusCode != http.StatusCreated {
 		_ = decodeJSON[map[string]any](t, regResp)
@@ -1023,7 +1052,7 @@ func TestIntegration_Auth_Login_ExpiredSession(t *testing.T) {
 
 	time.Sleep(60 * time.Millisecond)
 
-	clientFinalNonce, proof := computeClientProofB64(t, "erin", "password123", clientNonce, start.ServerNonce, start.Salt, start.Iterations)
+	clientFinalNonce, proof := computeClientProofB64(t, "erin", "Password123", clientNonce, start.ServerNonce, start.Salt, start.Iterations)
 	finishResp := postJSON(t, client, base+"/api/v1/auth/login/finish", api.LoginFinishRequest{
 		LoginSessionId:   start.LoginSessionId,
 		ClientFinalNonce: clientFinalNonce,
@@ -1044,10 +1073,12 @@ func TestIntegration_Auth_Register_DuplicateUsername(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	_ = registerUser(t, client, base, "dup", "password123")
+	_ = registerUser(t, client, base, "dup", "Password123")
 	resp := postJSON(t, client, base+"/api/v1/auth/register", map[string]any{
-		"username": "dup",
-		"password": "password123",
+		"username":       "dup",
+		"password":       "Password123",
+		"termsVersion":   1,
+		"privacyVersion": 1,
 	}, nil)
 	if resp.StatusCode != http.StatusConflict {
 		errBody := decodeJSON[map[string]any](t, resp)
@@ -1063,8 +1094,10 @@ func TestIntegration_Auth_Register_ShortPassword(t *testing.T) {
 	base := app.Server.URL
 
 	resp := postJSON(t, client, base+"/api/v1/auth/register", map[string]any{
-		"username": "shortpw",
-		"password": "short",
+		"username":       "shortpw",
+		"password":       "short",
+		"termsVersion":   1,
+		"privacyVersion": 1,
 	}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		errBody := decodeJSON[map[string]any](t, resp)
@@ -1109,7 +1142,7 @@ func TestIntegration_Users_Me_ReturnsCurrentUser(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "meuser", "password123")
+	u := registerUser(t, client, base, "meuser", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	resp := get(t, client, base+"/api/v1/me", a)
@@ -1130,7 +1163,7 @@ func TestIntegration_Users_Profile_Update(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "profileuser", "password123")
+	u := registerUser(t, client, base, "profileuser", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	resp := patchJSON(t, client, base+"/api/v1/me/profile", map[string]any{
@@ -1157,7 +1190,7 @@ func TestIntegration_Users_Avatar_Update(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "avataruser", "password123")
+	u := registerUser(t, client, base, "avataruser", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	updated := uploadAvatarPNG(t, client, base, a)
@@ -1193,7 +1226,7 @@ func TestIntegration_Users_Avatar_Update_DeletesOld(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "avatardelete", "password123")
+	u := registerUser(t, client, base, "avatardelete", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	// Upload first avatar
@@ -1244,7 +1277,7 @@ func TestIntegration_Users_Banner_Update(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "banneruser", "password123")
+	u := registerUser(t, client, base, "banneruser", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	updated := uploadBannerPNG(t, client, base, a)
@@ -1280,7 +1313,7 @@ func TestIntegration_Users_Banner_Update_DeletesOld(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "bannerdelete", "password123")
+	u := registerUser(t, client, base, "bannerdelete", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	updated1 := uploadBannerPNG(t, client, base, a)
@@ -1323,8 +1356,8 @@ func TestIntegration_Users_Posts_List(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u1 := registerUser(t, client, base, "listuser1", "password123")
-	u2 := registerUser(t, client, base, "listuser2", "password123")
+	u1 := registerUser(t, client, base, "listuser1", "Password123")
+	u2 := registerUser(t, client, base, "listuser2", "Password123")
 	a1 := issueBearer(t, app.TokenManager, u1)
 	a2 := issueBearer(t, app.TokenManager, u2)
 
@@ -1367,8 +1400,8 @@ func TestIntegration_Users_Posts_List_FilterByMediaType(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u1 := registerUser(t, client, base, "listmedia1", "password123")
-	u2 := registerUser(t, client, base, "listmedia2", "password123")
+	u1 := registerUser(t, client, base, "listmedia1", "Password123")
+	u2 := registerUser(t, client, base, "listmedia2", "Password123")
 	a1 := issueBearer(t, app.TokenManager, u1)
 	a2 := issueBearer(t, app.TokenManager, u2)
 
@@ -1488,7 +1521,7 @@ func TestIntegration_Users_GetByUsername_HidesAgreementFieldsEvenForSelf(t *test
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "selflookup", "password123")
+	u := registerUser(t, client, base, "selflookup", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	resp := get(t, client, base+"/api/v1/users/"+string(u.Username), a)
@@ -1542,7 +1575,7 @@ func TestIntegration_Posts_Create_EmptyContent_Returns400(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "pc0", "password123")
+	u := registerUser(t, client, base, "pc0", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	resp := postJSON(t, client, base+"/api/v1/posts", map[string]any{"content": "   "}, a)
@@ -1559,7 +1592,7 @@ func TestIntegration_Posts_Create_TooManyMediaIds_Returns400(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "pc1", "password123")
+	u := registerUser(t, client, base, "pc1", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	ids := []string{
@@ -1583,7 +1616,7 @@ func TestIntegration_Posts_Create_DuplicateMediaIds_Returns400(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "pc2", "password123")
+	u := registerUser(t, client, base, "pc2", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	id := "00000000-0000-0000-0000-000000000001"
@@ -1601,8 +1634,8 @@ func TestIntegration_Posts_Create_InvalidMediaIds_Returns400(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u1 := registerUser(t, client, base, "mowner", "password123")
-	u2 := registerUser(t, client, base, "mother", "password123")
+	u1 := registerUser(t, client, base, "mowner", "Password123")
+	u2 := registerUser(t, client, base, "mother", "Password123")
 	a1 := issueBearer(t, app.TokenManager, u1)
 	a2 := issueBearer(t, app.TokenManager, u2)
 
@@ -1637,7 +1670,7 @@ func TestIntegration_Media_Upload_UnsupportedExtension_Returns415(t *testing.T) 
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "mx", "password123")
+	u := registerUser(t, client, base, "user_mx", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	resp := uploadMediaMultipart(t, client, base, a, "test.txt", "text/plain", []byte("hello"))
@@ -1654,7 +1687,7 @@ func TestIntegration_Media_Upload_BadContent_Returns415(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "mbad", "password123")
+	u := registerUser(t, client, base, "mbad", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	resp := uploadMediaMultipart(t, client, base, a, "test.png", "image/png", []byte("not a real png"))
@@ -1689,7 +1722,7 @@ func TestIntegration_Media_Upload_LargeImage_AutoResize(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "largeimg", "password123")
+	u := registerUser(t, client, base, "largeimg", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	// Create a 6000x4000 image (24 megapixels) - exceeds old 4096x4096 limit
@@ -1748,7 +1781,7 @@ func TestIntegration_Media_Upload_ExtremelyLargeImage_Rejected(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "extremeimg", "password123")
+	u := registerUser(t, client, base, "extremeimg", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	// Create a 20000x10000 image (200 megapixels) - exceeds safety limit
@@ -1800,39 +1833,6 @@ func TestIntegration_Timeline_LimitOutOfRange_Returns400(t *testing.T) {
 	}
 }
 
-func TestIntegration_Items_CreateAndList(t *testing.T) {
-	app := newTestApp(t)
-	defer app.Close()
-
-	client := app.Server.Client()
-	base := app.Server.URL
-
-	create := postJSON(t, client, base+"/api/v1/items", map[string]any{"name": "item-1"}, nil)
-	if create.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(create.Body)
-		create.Body.Close()
-		t.Fatalf("create item: expected 201, got %d (body=%s)", create.StatusCode, string(body))
-	}
-	created := decodeJSON[api.Item](t, create)
-	if created.Name != "item-1" {
-		t.Fatalf("unexpected created item: %+v", created)
-	}
-
-	list := get(t, client, base+"/api/v1/items", nil)
-	if list.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(list.Body)
-		list.Body.Close()
-		t.Fatalf("list items: expected 200, got %d (body=%s)", list.StatusCode, string(body))
-	}
-	items := decodeJSON[[]api.Item](t, list)
-	if len(items) != 1 {
-		t.Fatalf("expected 1 item, got %d", len(items))
-	}
-	if items[0].Name != "item-1" {
-		t.Fatalf("unexpected item: %+v", items[0])
-	}
-}
-
 func TestIntegration_Admin_Roles_ForbiddenWithoutPermission(t *testing.T) {
 	app := newTestApp(t)
 	defer app.Close()
@@ -1840,7 +1840,7 @@ func TestIntegration_Admin_Roles_ForbiddenWithoutPermission(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "admin_no", "password123")
+	u := registerUser(t, client, base, "admin_no", "Password123")
 	authz := issueBearer(t, app.TokenManager, u)
 
 	resp := get(t, client, base+"/api/v1/admin/roles", authz)
@@ -1857,7 +1857,7 @@ func TestIntegration_Admin_Roles_WithAdminRole(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	adminUser := registerUser(t, client, base, "admin_yes", "password123")
+	adminUser := registerUser(t, client, base, "admin_yes", "Password123")
 	q := sqlc.New(app.SQLDB)
 	if err := q.AddUserRole(context.Background(), sqlc.AddUserRoleParams{UserID: adminUser.Id, RoleID: "admin"}); err != nil {
 		t.Fatalf("AddUserRole: %v", err)
@@ -1872,28 +1872,6 @@ func TestIntegration_Admin_Roles_WithAdminRole(t *testing.T) {
 	_ = decodeJSON[api.RoleList](t, resp)
 }
 
-func TestIntegration_Auth_Register_Disabled(t *testing.T) {
-	app := newTestApp(t)
-	defer app.Close()
-
-	q := sqlc.New(app.SQLDB)
-	if _, err := q.UpdateSignupEnabled(context.Background(), false); err != nil {
-		t.Fatalf("UpdateSignupEnabled: %v", err)
-	}
-
-	client := app.Server.Client()
-	base := app.Server.URL
-
-	resp := postJSON(t, client, base+"/api/v1/auth/register", map[string]any{
-		"username": "disabled",
-		"password": "password123",
-	}, nil)
-	if resp.StatusCode != http.StatusForbidden {
-		body := decodeJSON[map[string]any](t, resp)
-		t.Fatalf("expected 403, got %d (%v)", resp.StatusCode, body)
-	}
-}
-
 func TestIntegration_Admin_Ban_User(t *testing.T) {
 	app := newTestApp(t)
 	defer app.Close()
@@ -1901,8 +1879,8 @@ func TestIntegration_Admin_Ban_User(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	adminUser := registerUser(t, client, base, "ban_admin", "password123")
-	target := registerUser(t, client, base, "ban_user", "password123")
+	adminUser := registerUser(t, client, base, "ban_admin", "Password123")
+	target := registerUser(t, client, base, "ban_user", "Password123")
 
 	q := sqlc.New(app.SQLDB)
 	if err := q.AddUserRole(context.Background(), sqlc.AddUserRoleParams{UserID: adminUser.Id, RoleID: "admin"}); err != nil {
@@ -1932,8 +1910,8 @@ func TestIntegration_Permissions_PostsCreate_DenyOverride(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	adminUser := registerUser(t, client, base, "perm_admin1", "password123")
-	target := registerUser(t, client, base, "perm_user1", "password123")
+	adminUser := registerUser(t, client, base, "perm_admin1", "Password123")
+	target := registerUser(t, client, base, "perm_user1", "Password123")
 
 	q := sqlc.New(app.SQLDB)
 	if err := q.AddUserRole(context.Background(), sqlc.AddUserRoleParams{UserID: adminUser.Id, RoleID: "admin"}); err != nil {
@@ -1967,8 +1945,8 @@ func TestIntegration_Permissions_PostsCreate_AllowOverrideWithoutRole(t *testing
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	adminUser := registerUser(t, client, base, "perm_admin2", "password123")
-	target := registerUser(t, client, base, "perm_user2", "password123")
+	adminUser := registerUser(t, client, base, "perm_admin2", "Password123")
+	target := registerUser(t, client, base, "perm_user2", "Password123")
 
 	q := sqlc.New(app.SQLDB)
 	if err := q.AddUserRole(context.Background(), sqlc.AddUserRoleParams{UserID: adminUser.Id, RoleID: "admin"}); err != nil {

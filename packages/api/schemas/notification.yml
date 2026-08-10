@@ -1,0 +1,66 @@
+components:
+  schemas:
+    Notification:
+      type: object
+      required:
+      - id
+      - type
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: ./enums.yml#/components/schemas/NotificationType
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        actor:
+          allOf:
+          - $ref: ./user.yml#/components/schemas/MentionUser
+          nullable: true
+          description: User who triggered the notification. Null for system notifications.
+        post:
+          allOf:
+          - $ref: ./post.yml#/components/schemas/Post
+          nullable: true
+          description: Post the notification is about. Null when the notification is not tied to a post.
+        emoji:
+          allOf:
+          - $ref: ./common.yml#/components/schemas/Emoji
+          nullable: true
+          description: Emoji used, for reaction notifications.
+    NotificationsPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        nextCursor:
+          type: string
+          nullable: true
+    UnreadCount:
+      type: object
+      required:
+      - count
+      properties:
+        count:
+          type: integer
+          minimum: 0
+    MarkNotificationsReadRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          nullable: true
+          description: Notification IDs to mark as read. Omit or null to mark every unread notification as read.
+          items:
+            type: string
+            format: uuid

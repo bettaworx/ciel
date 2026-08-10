@@ -287,7 +287,7 @@ func main() {
 	authSvc.SetConfigManager(configMgr)
 	authSvc.SetPublisher(realtimeHub)
 
-	// Periodically clean up expired refresh tokens from the database
+	// Periodically clean up expired refresh tokens and stale notifications
 	if store != nil {
 		go func() {
 			ticker := time.NewTicker(24 * time.Hour)
@@ -295,6 +295,9 @@ func main() {
 			for range ticker.C {
 				if err := store.Q.DeleteExpiredRefreshTokens(context.Background()); err != nil {
 					slog.Warn("failed to delete expired refresh tokens", "error", err)
+				}
+				if err := store.Q.DeleteOldNotifications(context.Background()); err != nil {
+					slog.Warn("failed to delete old notifications", "error", err)
 				}
 			}
 		}()
@@ -342,7 +345,11 @@ func main() {
 	postsSvc := service.NewPostsService(store, cacheImpl, realtimeHub)
 	timelineSvc := service.NewTimelineService(store, cacheImpl)
 	reactionsSvc := service.NewReactionsService(store, cacheImpl, realtimeHub)
+	notificationsSvc := service.NewNotificationsService(store)
 	postsSvc.SetReactionsService(reactionsSvc)
+	postsSvc.SetNotificationsService(notificationsSvc)
+	reactionsSvc.SetNotificationsService(notificationsSvc)
+	notificationsSvc.SetPostsService(postsSvc)
 	timelineSvc.SetReactionsService(reactionsSvc)
 	timelineSvc.SetPostsService(postsSvc)
 
@@ -387,19 +394,20 @@ func main() {
 	r.Get("/emoji/{emojiId}/image.webp", mediaSvc.ServeEmojiImage)
 
 	apiServer := handlers.API{
-		Auth:       authSvc,
-		Admin:      adminSvc,
-		Authz:      authzSvc,
-		Users:      usersSvc,
-		Posts:      postsSvc,
-		Timeline:   timelineSvc,
-		Reactions:  reactionsSvc,
-		Media:      mediaSvc,
-		Emojis:     emojiSvc,
-		Setup:      setupSvc,
-		Agreements: agreementsSvc,
-		Tokens:     tokenManager,
-		Redis:      redisClient,
+		Auth:          authSvc,
+		Admin:         adminSvc,
+		Authz:         authzSvc,
+		Users:         usersSvc,
+		Posts:         postsSvc,
+		Timeline:      timelineSvc,
+		Reactions:     reactionsSvc,
+		Notifications: notificationsSvc,
+		Media:         mediaSvc,
+		Emojis:        emojiSvc,
+		Setup:         setupSvc,
+		Agreements:    agreementsSvc,
+		Tokens:        tokenManager,
+		Redis:         redisClient,
 
 		// Admin services
 		AdminInvites:    adminInvitesSvc,

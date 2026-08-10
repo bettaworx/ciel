@@ -17,6 +17,7 @@ const (
 	EventUserDeleted         EventType = "user_deleted"
 	EventServerInfoUpdated   EventType = "server_info_updated"
 	EventServerConfigUpdated EventType = "server_config_updated"
+	EventNotificationCreated EventType = "notification_created"
 )
 
 // Event is the payload delivered over realtime channels.
@@ -27,6 +28,18 @@ type Event struct {
 	ReactionCounts *api.ReactionCounts `json:"reactionCounts,omitempty"`
 	ServerInfo     *api.ServerInfo     `json:"serverInfo,omitempty"`
 	ServerConfig   *api.ServerConfig   `json:"serverConfig,omitempty"`
+	Notification   *api.Notification   `json:"notification,omitempty"`
+	// TargetUserId restricts delivery to that user's connections. Empty means
+	// the event is public and goes to every client.
+	TargetUserId *api.UserId `json:"targetUserId,omitempty"`
+}
+
+// target returns the user ID this event is restricted to, or "" when public.
+func (e Event) target() string {
+	if e.TargetUserId == nil {
+		return ""
+	}
+	return e.TargetUserId.String()
 }
 
 // Validate ensures required fields for each event type.
@@ -53,6 +66,13 @@ func (e Event) Validate() error {
 	case EventServerConfigUpdated:
 		if e.ServerConfig == nil {
 			return errors.New("serverConfig required")
+		}
+	case EventNotificationCreated:
+		if e.Notification == nil {
+			return errors.New("notification required")
+		}
+		if e.TargetUserId == nil {
+			return errors.New("targetUserId required")
 		}
 	default:
 		return errors.New("invalid event type")

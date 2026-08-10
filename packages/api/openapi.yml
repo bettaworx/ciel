@@ -29,6 +29,7 @@ tags:
 - name: Media
 - name: Reports
 - name: Emojis
+- name: Notifications
 components:
   securitySchemes:
     bearerAuth:
@@ -103,6 +104,12 @@ paths:
     $ref: ./paths/admin/moderation.yml#/~1admin~1users~1{userId}~1moderation-logs
   /admin/users/{userId}/note:
     $ref: ./paths/admin/moderation.yml#/~1admin~1users~1{userId}~1note
+  /notifications:
+    $ref: ./paths/notifications.yml#/~1notifications
+  /notifications/unread-count:
+    $ref: ./paths/notifications.yml#/~1notifications~1unread-count
+  /notifications/read:
+    $ref: ./paths/notifications.yml#/~1notifications~1read
   /reports:
     $ref: ./paths/reports.yml#/~1reports
   /admin/reports:

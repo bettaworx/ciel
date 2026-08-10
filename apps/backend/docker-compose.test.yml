@@ -17,10 +17,9 @@ services:
     tmpfs:
       - /var/lib/postgresql/data
     volumes:
-      # Schema + migrations (executed only when DB is empty).
+      # schema.sql is the final state (sqlc reads the same file), so it is the
+      # only thing the test DB needs; migrations are not replayed here.
       - ./db/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
-      - ./db/migrations/002_add_media_ext.sql:/docker-entrypoint-initdb.d/002_add_media_ext.sql:ro
-      - ./db/migrations/003_add_authz.sql:/docker-entrypoint-initdb.d/003_add_authz.sql:ro
 
   redis_test:
     image: redis:7-alpine
@@ -50,7 +49,9 @@ services:
       - gomodcache:/go/pkg/mod
       - gobuildcache:/root/.cache/go-build
     # Media integration tests require ffmpeg/ffprobe.
-    command: ["sh", "-c", "apk add --no-cache ffmpeg >/dev/null 2>&1; go test ./tests/... -count=1 -tags=integration"]
+    # -p 1: every integration package truncates the same database in its own
+    # resetDB, so running packages concurrently makes them wipe each other's rows.
+    command: ["sh", "-c", "apk add --no-cache ffmpeg >/dev/null 2>&1; go test ./tests/... -count=1 -p 1 -tags=integration"]
 
 volumes:
   gomodcache:

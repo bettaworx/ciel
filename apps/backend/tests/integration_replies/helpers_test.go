@@ -139,22 +139,21 @@ func (a *testApp) Close() {
 func resetDB(ctx context.Context, d *sql.DB) error {
 	_, err := d.ExecContext(ctx, `TRUNCATE TABLE
 		post_mentions,
+		notifications,
 		post_reaction_events,
 		post_reaction_counts,
 		post_media,
 		media,
 		posts,
 		auth_credentials,
-		users,
-		items
+		users
 	RESTART IDENTITY CASCADE;`)
 	if err != nil {
 		return err
 	}
-	_, err = d.ExecContext(ctx, `INSERT INTO server_settings (id, signup_enabled)
-VALUES (1, TRUE)
-ON CONFLICT (id) DO UPDATE
-SET signup_enabled = EXCLUDED.signup_enabled;`)
+	_, err = d.ExecContext(ctx, `INSERT INTO server_settings (id)
+VALUES (1)
+ON CONFLICT (id) DO NOTHING;`)
 	return err
 }
 
@@ -226,6 +225,9 @@ func registerUser(t *testing.T, client *http.Client, baseURL, username, password
 	resp := postJSON(t, client, baseURL+"/api/v1/auth/register", map[string]any{
 		"username": username,
 		"password": password,
+		// resetDB seeds server_settings with the schema defaults.
+		"termsVersion":   1,
+		"privacyVersion": 1,
 	}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		errBody := decodeJSON[map[string]any](t, resp)

@@ -18,13 +18,21 @@ type Publisher interface {
 	Publish(ctx context.Context, event Event) error
 }
 
+// outbound is a wire payload plus its optional delivery target. target is the
+// string form of Event.TargetUserId, extracted once at enqueue time so the
+// fan-out loop does not re-parse the payload per client.
+type outbound struct {
+	payload []byte
+	target  string
+}
+
 // Hub manages realtime clients and fan-out.
 type Hub struct {
 	rdb        *redis.Client
 	signer     *Signer
 	register   chan *Client
 	unregister chan *Client
-	broadcast  chan []byte
+	broadcast  chan outbound
 	clients    map[*Client]struct{}
 	subReady   chan struct{}
 	subOnce    sync.Once
@@ -37,7 +45,7 @@ func NewHub(rdb *redis.Client) *Hub {
 		signer:     NewSignerFromEnv(),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		broadcast:  make(chan []byte, 128),
+		broadcast:  make(chan outbound, 128),
 		clients:    make(map[*Client]struct{}),
 		subReady:   make(chan struct{}),
 	}
@@ -69,8 +77,13 @@ func (h *Hub) Run(ctx context.Context) {
 			}
 		case msg := <-h.broadcast:
 			for client := range h.clients {
+				// Targeted events reach only that user's connections; anonymous
+				// clients (empty userID) never match one.
+				if msg.target != "" && msg.target != client.userID {
+					continue
+				}
 				select {
-				case client.send <- msg:
+				case client.send <- msg.payload:
 				default:
 					delete(h.clients, client)
 					close(client.send)
@@ -101,18 +114,18 @@ func (h *Hub) Publish(ctx context.Context, event Event) error {
 	}
 	if h.rdb != nil {
 		if err := h.rdb.Publish(ctx, eventsChannel, wirePayload).Err(); err != nil {
-			h.enqueue(payload)
+			h.enqueue(payload, event.target())
 			return err
 		}
 		return nil
 	}
-	h.enqueue(payload)
+	h.enqueue(payload, event.target())
 	return nil
 }
 
-func (h *Hub) enqueue(payload []byte) {
+func (h *Hub) enqueue(payload []byte, target string) {
 	select {
-	case h.broadcast <- payload:
+	case h.broadcast <- outbound{payload: payload, target: target}:
 	default:
 	}
 }
@@ -199,15 +212,18 @@ func (h *Hub) handlePayload(payload []byte) {
 	if err := event.Validate(); err != nil {
 		return
 	}
-	h.enqueue(payload)
+	h.enqueue(payload, event.target())
 }
 
 // Client represents a websocket connection.
 type Client struct {
-	hub   *Hub
-	conn  *websocket.Conn
-	send  chan []byte
-	close func()
+	hub *Hub
+	// userID is the authenticated user's ID, or "" for anonymous connections.
+	// Targeted events are only delivered to matching clients.
+	userID string
+	conn   *websocket.Conn
+	send   chan []byte
+	close  func()
 }
 
 const (
@@ -218,13 +234,14 @@ const (
 	maxPayloadBytes = 1 << 20
 )
 
-// NewClient builds a new realtime client.
-func NewClient(hub *Hub, conn *websocket.Conn, onClose func()) *Client {
+// NewClient builds a new realtime client. userID is "" for anonymous connections.
+func NewClient(hub *Hub, conn *websocket.Conn, userID string, onClose func()) *Client {
 	return &Client{
-		hub:   hub,
-		conn:  conn,
-		send:  make(chan []byte, 16),
-		close: onClose,
+		hub:    hub,
+		userID: userID,
+		conn:   conn,
+		send:   make(chan []byte, 16),
+		close:  onClose,
 	}
 }
 

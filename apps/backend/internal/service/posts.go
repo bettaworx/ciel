@@ -31,10 +31,11 @@ const (
 )
 
 type PostsService struct {
-	store     *repository.Store
-	cache     cache.Cache
-	publisher realtime.Publisher
-	reactions *ReactionsService
+	store         *repository.Store
+	cache         cache.Cache
+	publisher     realtime.Publisher
+	reactions     *ReactionsService
+	notifications *NotificationsService
 }
 
 func NewPostsService(store *repository.Store, cache cache.Cache, publisher realtime.Publisher) *PostsService {
@@ -43,6 +44,10 @@ func NewPostsService(store *repository.Store, cache cache.Cache, publisher realt
 
 func (s *PostsService) SetReactionsService(reactions *ReactionsService) {
 	s.reactions = reactions
+}
+
+func (s *PostsService) SetNotificationsService(notifications *NotificationsService) {
+	s.notifications = notifications
 }
 
 func (s *PostsService) Create(ctx context.Context, user auth.User, req api.CreatePostRequest) (api.Post, error) {
@@ -87,8 +92,12 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 	}
 
 	var created sqlc.CreatePostRow
+	var createdNotifications []CreatedNotification
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
 		var parentID, rootID, referenceID uuid.NullUUID
+		var parentAuthorID, referenceAuthorID uuid.UUID
+		var mentionedIDs []uuid.UUID
+		createdNotifications = nil
 		if req.ParentId != nil {
 			parent, err := q.GetPostThreadInfoByID(ctx, *req.ParentId)
 			if err != nil {
@@ -101,6 +110,7 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 				return NewError(http.StatusNotFound, "not_found", "parent post not found")
 			}
 			parentID = uuid.NullUUID{UUID: parent.ID, Valid: true}
+			parentAuthorID = parent.UserID
 			if parent.RootID.Valid {
 				rootID = parent.RootID
 			} else {
@@ -124,6 +134,7 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 				}
 			} else {
 				referenceID = uuid.NullUUID{UUID: ref.ID, Valid: true}
+				referenceAuthorID = ref.UserID
 			}
 		}
 
@@ -169,6 +180,17 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 				}); err != nil {
 					return err
 				}
+				mentionedIDs = append(mentionedIDs, u.ID)
+			}
+		}
+
+		for _, target := range PostNotifyTargets(created.ID, user.ID, parentAuthorID, referenceAuthorID, mentionedIDs) {
+			id, err := Notify(ctx, q, target)
+			if err != nil {
+				return err
+			}
+			if id != uuid.Nil {
+				createdNotifications = append(createdNotifications, CreatedNotification{ID: id, UserID: target.UserID})
 			}
 		}
 		return nil
@@ -206,6 +228,7 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 	}
 
 	s.publish(ctx, realtime.Event{Type: realtime.EventPostCreated, Post: &post})
+	s.notifications.Publish(ctx, s.publisher, createdNotifications)
 	return post, nil
 }
 
@@ -475,6 +498,31 @@ func (s *PostsService) getVisiblePostsByIDs(ctx context.Context, ids []uuid.UUID
 	}
 	for _, row := range rows {
 		result[row.ID] = mapPostsByIDsRow(row)
+	}
+	return result, nil
+}
+
+// GetHydratedPostsByIDs returns fully hydrated posts (media, reactions, mentions,
+// counts, reference) keyed by post ID. Deleted posts are omitted. Used by
+// NotificationsService to embed posts without an N+1 per notification.
+func (s *PostsService) GetHydratedPostsByIDs(ctx context.Context, ids []uuid.UUID, userID *api.UserId) (map[uuid.UUID]api.Post, error) {
+	result := make(map[uuid.UUID]api.Post, len(ids))
+	if s.store == nil || len(ids) == 0 {
+		return result, nil
+	}
+	rows, err := s.store.Q.GetPostsByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	posts := make([]api.Post, 0, len(rows))
+	for _, row := range rows {
+		posts = append(posts, mapPostsByIDsRow(row))
+	}
+	if err := s.attachPostDetails(ctx, posts, userID); err != nil {
+		return nil, err
+	}
+	for _, post := range posts {
+		result[post.Id] = post
 	}
 	return result, nil
 }

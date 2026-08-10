@@ -21,13 +21,18 @@ import (
 )
 
 type ReactionsService struct {
-	store     *repository.Store
-	cache     cache.Cache
-	publisher realtime.Publisher
+	store         *repository.Store
+	cache         cache.Cache
+	publisher     realtime.Publisher
+	notifications *NotificationsService
 }
 
 func NewReactionsService(store *repository.Store, cache cache.Cache, publisher realtime.Publisher) *ReactionsService {
 	return &ReactionsService{store: store, cache: cache, publisher: publisher}
+}
+
+func (s *ReactionsService) SetNotificationsService(notifications *NotificationsService) {
+	s.notifications = notifications
 }
 
 func (s *ReactionsService) List(ctx context.Context, postID api.PostId, userID *api.UserId) (api.ReactionCounts, error) {
@@ -289,7 +294,9 @@ func (s *ReactionsService) Add(ctx context.Context, user auth.User, postID api.P
 		return api.ReactionCounts{}, NewError(http.StatusNotFound, "not_found", "post not found")
 	}
 
+	var createdNotifications []CreatedNotification
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		createdNotifications = nil
 		if _, err := q.AddReactionEvent(ctx, sqlc.AddReactionEventParams{UserID: user.ID, PostID: postID, Emoji: emoji}); err != nil {
 			if err == sql.ErrNoRows {
 				// ON CONFLICT DO NOTHING -> no row
@@ -299,6 +306,19 @@ func (s *ReactionsService) Add(ctx context.Context, user auth.User, postID api.P
 		}
 		if _, err := q.IncrementReactionCount(ctx, sqlc.IncrementReactionCountParams{PostID: postID, Emoji: emoji}); err != nil {
 			return err
+		}
+		id, err := Notify(ctx, q, NotifyParams{
+			UserID:  row.UserID,
+			Type:    api.Reaction,
+			ActorID: user.ID,
+			PostID:  postID,
+			Subtype: emoji,
+		})
+		if err != nil {
+			return err
+		}
+		if id != uuid.Nil {
+			createdNotifications = append(createdNotifications, CreatedNotification{ID: id, UserID: row.UserID})
 		}
 		return nil
 	}); err != nil {
@@ -314,6 +334,7 @@ func (s *ReactionsService) Add(ctx context.Context, user auth.User, postID api.P
 	s.setReactionCache(ctx, anonymizeReactionCounts(counts))
 	s.setUserReactionCache(ctx, user.ID, postID, selfReactionEmojis(counts))
 	s.publish(ctx, counts)
+	s.notifications.Publish(ctx, s.publisher, createdNotifications)
 	return counts, nil
 }
 
