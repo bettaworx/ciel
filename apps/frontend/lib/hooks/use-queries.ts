@@ -348,6 +348,38 @@ export function useUser(username: string | undefined) {
   });
 }
 
+// Follow / unfollow a user.
+//
+// The endpoints return the updated user, so the profile cache is written
+// directly from the response instead of being refetched.
+function useFollowMutation(follow: boolean) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const result = follow
+        ? await api.followUser(username)
+        : await api.unfollowUser(username);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (user, username) => {
+      queryClient.setQueryData(queryKeys.user(username), user);
+      // Following changes who appears in the home timeline.
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+    },
+  });
+}
+
+export function useFollowUser() {
+  return useFollowMutation(true);
+}
+
+export function useUnfollowUser() {
+  return useFollowMutation(false);
+}
+
 // User posts with infinite scroll
 export function useUserPosts(
   username: string | undefined,

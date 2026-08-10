@@ -274,6 +274,13 @@
     "noMedia": "メディアはまだありません",
     "notFound": "ユーザーが見つかりません",
     "noBio": "自己紹介がありません",
+    "follow": "フォロー",
+    "followBack": "フォローバック",
+    "followsYou": "フォローされています",
+    "following": "フォロー中",
+    "mutualFollow": "相互フォロー中",
+    "unfollow": "フォロー解除",
+    "followError": "フォローの更新に失敗しました",
     "editProfile": "編集",
     "shareProfile": "プロフィールを共有",
     "shareSuccess": "プロフィールURLをコピーしました",
@@ -1288,14 +1295,16 @@
       "reply": "{name}が返信しました",
       "mention": "{name}がメンションしました",
       "boost": "{name}がブーストしました",
-      "quote": "{name}が引用しました"
+      "quote": "{name}が引用しました",
+      "follow": "{name}にフォローされました"
     },
     "grouped": {
       "reaction": "{count}人がリアクションしました",
       "reply": "{name}さん他{count}人が返信しました",
       "mention": "{name}さん他{count}人がメンションしました",
       "boost": "{name}さん他{count}人がブーストしました",
-      "quote": "{name}さん他{count}人が引用しました"
+      "quote": "{name}さん他{count}人が引用しました",
+      "follow": "{count}人にフォローされました"
     }
   }
 }

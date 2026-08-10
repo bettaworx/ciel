@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { AtSign, Quote, Reply, Rocket, Smile } from "lucide-react";
+import { AtSign, Quote, Reply, Rocket, Smile, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmojiInline } from "@/components/EmojiInline";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
@@ -13,6 +13,7 @@ import {
   notificationCount,
   notificationDisplayType,
   notificationExcerpt,
+  usesActorCountLabel,
   usesActorRowLayout,
   type NotificationDisplayType,
 } from "@/lib/notifications";
@@ -37,6 +38,7 @@ export const NOTIFICATION_ICONS: Record<
   mention: AtSign,
   boost: Rocket,
   quote: Quote,
+  follow: UserPlus,
 };
 
 /**
@@ -138,16 +140,15 @@ export function NotificationRow({
 
   const primaryActor = actors[0];
   const actorCount = notificationActorCount(notification);
-  // Reactions branch on people, not reactions: one person leaving three emoji is
-  // still one person, so it keeps the named form.
-  const label =
-    displayType === "reaction"
-      ? actorCount > 1
-        ? t("grouped.reaction", { count: actorCount })
-        : t("types.reaction", { name: displayName })
-      : count > 1
-        ? t(`grouped.${displayType}`, { name: displayName, count: count - 1 })
-        : t(`types.${displayType}`, { name: displayName });
+  // Reactions and follows branch on people, not events: one person leaving three
+  // emoji is still one person, so they keep the named form.
+  const label = usesActorCountLabel(displayType)
+    ? actorCount > 1
+      ? t(`grouped.${displayType}`, { count: actorCount })
+      : t(`types.${displayType}`, { name: displayName })
+    : count > 1
+      ? t(`grouped.${displayType}`, { name: displayName, count: count - 1 })
+      : t(`types.${displayType}`, { name: displayName });
 
   // The name is linked by splitting the rendered sentence rather than by adding
   // a tag to the message: these same keys feed PostCardIndicatorRow, which

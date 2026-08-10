@@ -310,6 +310,12 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		userByUsername: (username: string) =>
 			request<components['schemas']['User']>('GET', `/users/${encodeURIComponent(username)}`),
 
+		followUser: (username: string) =>
+			request<components['schemas']['User']>('POST', `/users/${encodeURIComponent(username)}/follow`),
+
+		unfollowUser: (username: string) =>
+			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/follow`),
+
 		userPosts: (
 			username: string,
 			params?: { limit?: number; cursor?: string | null; mediaType?: 'image' | 'video' | 'media'; onlyReplies?: boolean; excludeForeignReplies?: boolean }

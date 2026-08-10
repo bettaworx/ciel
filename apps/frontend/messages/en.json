@@ -274,6 +274,13 @@
     "noMedia": "No media yet",
     "notFound": "User not found",
     "noBio": "No bio yet",
+    "follow": "Follow",
+    "followBack": "Follow back",
+    "followsYou": "Follows you",
+    "following": "Following",
+    "mutualFollow": "Mutual",
+    "unfollow": "Unfollow",
+    "followError": "Could not update follow",
     "editProfile": "Edit",
     "shareProfile": "Share profile",
     "shareSuccess": "Profile URL copied",
@@ -1288,14 +1295,16 @@
       "reply": "{name} replied to you",
       "mention": "{name} mentioned you",
       "boost": "{name} boosted your post",
-      "quote": "{name} quoted your post"
+      "quote": "{name} quoted your post",
+      "follow": "{name} followed you"
     },
     "grouped": {
       "reaction": "{count} users reacted to your post",
       "reply": "{name} and {count} others replied to you",
       "mention": "{name} and {count} others mentioned you",
       "boost": "{name} and {count} others boosted your post",
-      "quote": "{name} and {count} others quoted your post"
+      "quote": "{name} and {count} others quoted your post",
+      "follow": "{count} users followed you"
     }
   }
 }

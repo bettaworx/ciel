@@ -12,6 +12,8 @@ import {
   useUpdateProfile,
   useUpdateAvatar,
   useUpdateBanner,
+  useFollowUser,
+  useUnfollowUser,
   queryKeys,
 } from "@/lib/hooks/use-queries";
 import type { components } from "@/lib/api/api";
@@ -28,9 +30,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+  Check,
   Clipboard,
+  HeartHandshake,
+  Minus,
   MoreHorizontal,
   Pencil,
+  Plus,
   Rocket,
   Share,
   User,
@@ -177,6 +183,22 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     isLoading: userLoading,
     error: userError,
   } = useUser(username);
+
+  const followUser = useFollowUser();
+  const unfollowUser = useUnfollowUser();
+  const isFollowPending = followUser.isPending || unfollowUser.isPending;
+  const isFollowing = user?.isFollowing ?? false;
+  const isFollowedBy = user?.isFollowedBy ?? false;
+  // Only worth calling out once it goes both ways.
+  const isMutualFollow = isFollowing && isFollowedBy;
+  const showsFollowsYouBadge = isFollowedBy && !isOwnProfile;
+
+  const handleToggleFollow = () => {
+    const mutation = isFollowing ? unfollowUser : followUser;
+    mutation.mutate(username, {
+      onError: () => toast.error(t("user.followError")),
+    });
+  };
   const {
     data: postsData,
     isLoading: postsLoading,
@@ -564,6 +586,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                 </Drawer>
               )}
             </div>
+            {showsFollowsYouBadge && (
+              <div className="absolute top-3 left-3 border-transparent bg-black/50 text-white shadow-none rounded-full text-xs py-1.5 px-3">
+                {t("user.followsYou")}
+              </div>
+            )}
           </div>
 
           <div className="px-3">
@@ -636,8 +663,50 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                   )}
                 </div>
 
-                {/* Right: pencil / cancel + save */}
+                {/* Right: follow (others) / pencil / cancel + save */}
                 <div className="flex items-center gap-2">
+                  {!isOwnProfile && authUser && (
+                    <Button
+                      // Following reads as the neutral "done" state, so it wears
+                      // the same colour as the edit button; hovering it reveals
+                      // the destructive action it actually performs.
+                      variant={isFollowing ? "default" : "primary"}
+                      size="sm"
+                      className={
+                        isFollowing
+                          ? "group hover:bg-destructive hover:text-destructive-foreground"
+                          : undefined
+                      }
+                      onClick={handleToggleFollow}
+                      disabled={isFollowPending}
+                    >
+                      {isFollowing ? (
+                        <>
+                          <span className="inline-flex items-center gap-1 group-hover:hidden">
+                            {isMutualFollow ? (
+                              <HeartHandshake className="w-4 h-4" />
+                            ) : (
+                              <Check className="w-4 h-4" />
+                            )}
+                            {isMutualFollow
+                              ? t("user.mutualFollow")
+                              : t("user.following")}
+                          </span>
+                          <span className="hidden items-center gap-1 group-hover:inline-flex">
+                            <Minus className="w-4 h-4" />
+                            {t("user.unfollow")}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <Plus className="w-4 h-4" />
+                          {isFollowedBy
+                            ? t("user.followBack")
+                            : t("user.follow")}
+                        </span>
+                      )}
+                    </Button>
+                  )}
                   {isOwnProfile && !isEditing && (
                     <Button
                       variant="default"
