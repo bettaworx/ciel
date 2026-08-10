@@ -49,6 +49,17 @@ export function notificationDisplayType(
   return notification.type;
 }
 
+/**
+ * Whether a row shows the type on the left and its actors as a row of avatars.
+ *
+ * Only the groupable kinds do: replies, mentions and quotes each carry their own
+ * text and always have exactly one actor, so they keep the plain layout. Note
+ * this is not `rendersAsPostCard` — toasts use the row for every kind.
+ */
+export function usesActorRowLayout(type: NotificationDisplayType): boolean {
+  return type === "reaction" || type === "boost";
+}
+
 /** Actors to show on a row, newest first. Falls back to the single actor. */
 export function notificationActors(
   notification: Notification,

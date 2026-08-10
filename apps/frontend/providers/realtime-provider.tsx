@@ -368,9 +368,11 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 					}}
 					className="block w-full text-left"
 				>
+					{/* One event, one actor: never the grouped layout. */}
 					<NotificationRow
 						notification={notification}
 						showTimestamp={false}
+						singleActor
 						className="p-0"
 					/>
 				</button>

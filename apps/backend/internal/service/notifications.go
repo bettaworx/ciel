@@ -352,8 +352,9 @@ func (s *NotificationsService) build(ctx context.Context, c CreatedNotification)
 	return &n
 }
 
-// MaxGroupedActors caps how many avatars a grouped row carries.
-const MaxGroupedActors = 3
+// MaxGroupedActors caps how many avatars a grouped row carries. The row lays
+// them out side by side and shows roughly this many at full width.
+const MaxGroupedActors = 8
 
 // attachGroupMembers fills the grouped rows with their newest actors and the
 // ids they cover, in one query for the whole page.
