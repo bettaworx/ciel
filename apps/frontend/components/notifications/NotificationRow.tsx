@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { AtSign, Heart, Quote, Reply, Rocket } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -43,15 +44,38 @@ export const NOTIFICATION_ICONS: Record<
 const AVATARS_NARROW = 6;
 const AVATARS_WIDE = 8;
 
-function ActorAvatar({ actor, className }: { actor: Actor; className?: string }) {
+function ActorAvatar({
+  actor,
+  className,
+  onUserClick,
+}: {
+  actor: Actor;
+  className?: string;
+  onUserClick?: (username: string) => void;
+}) {
   const name = actor.displayName || actor.username;
-  return (
+  const avatar = (
     <Avatar className={cn("h-8 w-8", className)}>
       <AvatarImage src={actor.avatarUrl ?? undefined} alt={name} />
       <AvatarFallback className="text-xs">
         {name.slice(0, 2).toUpperCase()}
       </AvatarFallback>
     </Avatar>
+  );
+  if (!onUserClick) return avatar;
+  return (
+    <button
+      type="button"
+      // The whole row navigates to the post, so keep that from firing too.
+      onClick={(e) => {
+        e.stopPropagation();
+        onUserClick(actor.username);
+      }}
+      aria-label={name}
+      className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-c-ring"
+    >
+      {avatar}
+    </button>
   );
 }
 
@@ -68,6 +92,7 @@ export function NotificationRow({
   notification,
   showTimestamp = true,
   singleActor = false,
+  onUserClick,
   className,
 }: {
   notification: Notification;
@@ -78,6 +103,8 @@ export function NotificationRow({
    * one action by one actor, so there is no row of actors to show.
    */
   singleActor?: boolean;
+  /** When given, actor avatars and the name in the label open their profile. */
+  onUserClick?: (username: string) => void;
   className?: string;
 }) {
   const locale = useLocale() as "ja" | "en";
@@ -90,10 +117,31 @@ export function NotificationRow({
   const Icon = NOTIFICATION_ICONS[displayType];
   const actorRowLayout = !singleActor && usesActorRowLayout(displayType);
 
+  const primaryActor = actors[0];
   const label =
     count > 1
       ? t(`grouped.${displayType}`, { name: displayName, count: count - 1 })
       : t(`types.${displayType}`, { name: displayName });
+
+  // The name is linked by splitting the rendered sentence rather than by adding
+  // a tag to the message: these same keys feed PostCardIndicatorRow, which
+  // passes the label to MfmRenderer as source text and needs a plain string.
+  const labelNode =
+    onUserClick && primaryActor
+      ? linkifyName(label, displayName, (name) => (
+          <button
+            key="actor"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUserClick(primaryActor.username);
+            }}
+            className="font-medium hover:underline"
+          >
+            {name}
+          </button>
+        ))
+      : label;
 
   // Reactions show the emoji itself; every other kind shows its icon.
   const typeGlyph = (size: string) =>
@@ -112,8 +160,12 @@ export function NotificationRow({
       ) : (
         <div className="relative shrink-0">
           {/* Never grouped, so there is always exactly one actor here. */}
-          {actors[0] ? (
-            <ActorAvatar actor={actors[0]} className="h-10 w-10" />
+          {primaryActor ? (
+            <ActorAvatar
+              actor={primaryActor}
+              className="h-10 w-10"
+              onUserClick={onUserClick}
+            />
           ) : (
             <span className="block h-10 w-10 rounded-full bg-muted" />
           )}
@@ -127,7 +179,9 @@ export function NotificationRow({
         <div className="flex items-baseline gap-2">
           {/* Weight is explicit: inside a toast this sits in sonner's title
               wrapper, which would otherwise make it bolder than in the list. */}
-          <span className="min-w-0 truncate text-sm font-normal">{label}</span>
+          <span className="min-w-0 truncate text-sm font-normal">
+            {labelNode}
+          </span>
           {showTimestamp && (
             <time
               className="ml-auto shrink-0 text-xs text-muted-foreground"
@@ -153,6 +207,7 @@ export function NotificationRow({
               <ActorAvatar
                 key={actor.id}
                 actor={actor}
+                onUserClick={onUserClick}
                 // Drop the last two on narrow screens rather than let the row
                 // overflow.
                 className={index >= AVATARS_NARROW ? "hidden sm:flex" : undefined}
@@ -168,6 +223,27 @@ export function NotificationRow({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Wraps the first occurrence of `name` in the label so it can be made clickable.
+ * Returns the label untouched when the name is absent.
+ */
+function linkifyName(
+  label: string,
+  name: string,
+  render: (name: string) => ReactNode,
+): ReactNode {
+  if (!name) return label;
+  const at = label.indexOf(name);
+  if (at < 0) return label;
+  return (
+    <>
+      {label.slice(0, at)}
+      {render(name)}
+      {label.slice(at + name.length)}
+    </>
   );
 }
 

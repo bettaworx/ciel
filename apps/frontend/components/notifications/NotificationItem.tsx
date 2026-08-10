@@ -88,6 +88,7 @@ export function NotificationItem({
           {/* The divider belongs to the list, not to the row itself. */}
           <NotificationRow
             notification={notification}
+            onUserClick={(username) => router.push(`/users/${username}`)}
             className={cn(!isLast && "border-b border-border")}
           />
         </div>
