@@ -369,6 +369,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			return request<components['schemas']['TimelinePage']>('GET', `/timeline${suffix}`);
 		},
 
+		homeTimeline: (params?: { limit?: number; cursor?: string | null }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['TimelinePage']>('GET', `/timeline/home${suffix}`);
+		},
+
 		listReplies: (
 			postId: components['schemas']['PostId'],
 			params?: { limit?: number; cursor?: string | null }

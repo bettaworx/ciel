@@ -418,8 +418,13 @@
   "timeline": {
     "title": "Timeline",
     "noPosts": "No posts yet",
+    "noHomePosts": "No posts from anyone you follow yet",
     "loadMore": "Load More",
-    "showThread": "View thread"
+    "showThread": "View thread",
+    "scope": {
+      "home": "Home",
+      "global": "Global"
+    }
   },
   "createPost": {
     "title": "Create Post",

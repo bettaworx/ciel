@@ -46,7 +46,10 @@ export const queryKeys = {
   serverConfig: ["serverConfig"] as const,
   customEmojis: ["customEmojis"] as const,
   adminSettings: ["adminSettings"] as const,
+  // Prefix shared by every feed, so invalidating it refreshes all of them.
   timeline: ["timeline"] as const,
+  globalTimeline: ["timeline", "global"] as const,
+  homeTimeline: ["timeline", "home"] as const,
   post: (id: string) => ["post", id] as const,
   postContext: (id: string) => ["postContext", id] as const,
   postThread: (id: string, params?: PostThreadParams) =>
@@ -189,14 +192,15 @@ export function useMediaLimits() {
 }
 
 // Timeline with infinite scroll
-export function useTimeline(params?: { limit?: number }) {
+export function useTimeline(params?: { limit?: number; enabled?: boolean }) {
   const api = useApi();
+  const { enabled = true, ...queryParams } = params ?? {};
 
   return useInfiniteQuery({
-    queryKey: [...queryKeys.timeline, params],
+    queryKey: [...queryKeys.globalTimeline, queryParams],
     queryFn: async ({ pageParam }) => {
       const result = await api.timeline({
-        limit: params?.limit ?? 30,
+        limit: queryParams.limit ?? 30,
         cursor: pageParam ?? null,
       });
       if (!result.ok) throw new Error(result.errorText);
@@ -205,6 +209,32 @@ export function useTimeline(params?: { limit?: number }) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 1000 * 60, // 1分
+    enabled,
+  });
+}
+
+// Home timeline (posts by you and everyone you follow) with infinite scroll.
+//
+// `enabled` lets the caller keep both timeline hooks mounted and only run the
+// one being shown — hooks cannot be called conditionally.
+export function useHomeTimeline(params?: { limit?: number; enabled?: boolean }) {
+  const api = useApi();
+  const { enabled = true, ...queryParams } = params ?? {};
+
+  return useInfiniteQuery({
+    queryKey: [...queryKeys.homeTimeline, queryParams],
+    queryFn: async ({ pageParam }) => {
+      const result = await api.homeTimeline({
+        limit: queryParams.limit ?? 30,
+        cursor: pageParam ?? null,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 1000 * 60, // 1分
+    enabled,
   });
 }
 
@@ -367,7 +397,7 @@ function useFollowMutation(follow: boolean) {
     onSuccess: (user, username) => {
       queryClient.setQueryData(queryKeys.user(username), user);
       // Following changes who appears in the home timeline.
-      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: queryKeys.homeTimeline });
     },
   });
 }

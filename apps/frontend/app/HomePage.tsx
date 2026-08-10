@@ -3,10 +3,11 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
+import { timelineScopeAtom, type TimelineScope } from "@/atoms/timeline";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
-import { usePost, useTimeline } from "@/lib/hooks/use-queries";
+import { usePost, useTimeline, useHomeTimeline } from "@/lib/hooks/use-queries";
 import { useOwnerThreadTimelineItems } from "@/lib/hooks/use-owner-thread-timeline-items";
 import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
@@ -14,6 +15,7 @@ import { DeletedPostCard } from "@/components/DeletedPostCard";
 import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
 import { WelcomeCard } from "@/components/WelcomeCard";
 import { ComposeCard } from "@/components/ComposeCard";
+import { TimelineSwitcher } from "@/components/TimelineSwitcher";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -136,6 +138,16 @@ export function HomePage() {
   const t = useTranslations();
   const router = useRouter();
   const auth = useAtomValue(authAtom);
+  const [storedScope, setStoredScope] = useAtom(timelineScopeAtom);
+  // The home timeline needs a viewer, so signed-out visitors always get global.
+  // The stored choice is left untouched and returns on the next sign-in.
+  const scope: TimelineScope = auth.user ? storedScope : "global";
+  const showingHome = scope === "home";
+
+  // Both hooks stay mounted — hooks cannot be called conditionally — and only
+  // the visible one is allowed to fetch.
+  const globalTimeline = useTimeline({ enabled: !showingHome });
+  const homeTimeline = useHomeTimeline({ enabled: showingHome });
   const {
     data,
     isLoading,
@@ -143,7 +155,7 @@ export function HomePage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useTimeline();
+  } = showingHome ? homeTimeline : globalTimeline;
 
   const posts = useMemo(
     () => data?.pages.flatMap((page) => page.items ?? []) ?? [],
@@ -161,6 +173,9 @@ export function HomePage() {
     <PageContainer maxWidth="2xl">
       <div className="space-y-3">
         {auth.user ? <ComposeCard /> : <WelcomeCard />}
+        {auth.user && (
+          <TimelineSwitcher value={scope} onChange={setStoredScope} />
+        )}
         <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -173,7 +188,9 @@ export function HomePage() {
               </p>
             </div>
           ) : posts.length === 0 ? (
-            <p className="text-muted-foreground p-3">{t("timeline.noPosts")}</p>
+            <p className="text-muted-foreground p-3">
+              {showingHome ? t("timeline.noHomePosts") : t("timeline.noPosts")}
+            </p>
           ) : (
             timelineItems.map((item, index) =>
               item.type === "post" ? (

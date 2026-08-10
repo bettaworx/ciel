@@ -418,8 +418,13 @@
   "timeline": {
     "title": "タイムライン",
     "noPosts": "投稿がありません",
+    "noHomePosts": "フォロー中のユーザーの投稿がありません",
     "loadMore": "もっと見る",
-    "showThread": "スレッドを表示"
+    "showThread": "スレッドを表示",
+    "scope": {
+      "home": "ホーム",
+      "global": "全体"
+    }
   },
   "createPost": {
     "title": "投稿する",
