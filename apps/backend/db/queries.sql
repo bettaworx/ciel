@@ -1695,3 +1695,12 @@ WHERE user_id = sqlc.arg('user_id')::uuid
 
 -- name: DeleteOldNotifications :exec
 DELETE FROM notifications WHERE created_at < now() - INTERVAL '90 days';
+
+-- name: DeleteNotification :exec
+-- Used when the action a notification described is undone (e.g. un-reacting).
+DELETE FROM notifications
+WHERE user_id = sqlc.arg('user_id')::uuid
+	AND type = sqlc.arg('type')::text
+	AND actor_user_id = sqlc.narg('actor_user_id')::uuid
+	AND post_id = sqlc.narg('post_id')::uuid
+	AND subtype = sqlc.arg('subtype')::text;

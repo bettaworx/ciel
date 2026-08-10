@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from 'jotai';
 import { userAtom } from '@/atoms/auth';
-import { queryKeys } from '@/lib/hooks/use-queries';
+import { queryKeys, useMarkNotificationsRead } from '@/lib/hooks/use-queries';
 import { useActivityTracker } from '@/lib/hooks/use-activity-tracker';
 import { WebSocketDisconnectAlert } from '@/components/realtime/WebSocketDisconnectAlert';
 import { NotificationRow } from '@/components/notifications/NotificationRow';
@@ -59,6 +59,9 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	// chain so a re-render cannot leave two sockets open at once.
 	const routerRef = useRef(router);
 	routerRef.current = router;
+	const markNotificationsRead = useMarkNotificationsRead();
+	const markNotificationsReadRef = useRef(markNotificationsRead);
+	markNotificationsReadRef.current = markNotificationsRead;
 	const wsRef = useRef<WebSocket | null>(null);
 	/** Tears down the current socket without triggering its reconnect path. */
 	const disposeRef = useRef<(() => void) | null>(null);
@@ -357,6 +360,8 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 					type="button"
 					onClick={() => {
 						toast.dismiss(id);
+						// Acting on the toast counts as having seen it.
+						markNotificationsReadRef.current.mutate([notification.id]);
 						routerRef.current.push(
 							targetPostId ? `/posts/${targetPostId}` : '/notifications',
 						);

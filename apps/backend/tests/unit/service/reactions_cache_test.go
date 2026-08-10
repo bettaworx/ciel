@@ -217,6 +217,9 @@ func TestReactionsService_Remove_UpdatesCache(t *testing.T) {
 		t.Fatalf("redis set: %v", err)
 	}
 
+	// Remove looks up the post author first, to find the notification to drop.
+	// Here the author is the reacting user, so no notification was ever created.
+	expectGetPostWithAuthor(mock, postID, userID, created, userCreated)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`DELETE FROM post_reaction_events`).WithArgs(userID, postID, "👍").
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(userID))

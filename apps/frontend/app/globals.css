@@ -347,12 +347,23 @@ html[lang="th"] {
 
     /* Unread notification highlight, shared by the list and the realtime toast.
        Applied as a background *image* so it layers over whatever background the
-       element already has (the card) instead of replacing it. */
+       element already has (the card) instead of replacing it.
+
+       Mixed in srgb, not oklch: mixing toward `transparent` in a polar space
+       drags the hue/chroma out and leaves a washed-out grey.
+
+       The strength is per theme — the same alpha reads much weaker over a dark
+       card than over a white one. */
     .notification-unread-tint {
+        --notification-tint-strength: 12%;
         background-image: linear-gradient(
-            color-mix(in oklch, var(--c-1) 6%, transparent),
-            color-mix(in oklch, var(--c-1) 6%, transparent)
+            color-mix(in srgb, var(--c-1) var(--notification-tint-strength), transparent),
+            color-mix(in srgb, var(--c-1) var(--notification-tint-strength), transparent)
         );
+    }
+
+    .dark .notification-unread-tint {
+        --notification-tint-strength: 20%;
     }
 
     /* Snappier toast enter/exit. Sonner's own 400ms transition lives on

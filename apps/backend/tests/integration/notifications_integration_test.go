@@ -218,32 +218,54 @@ func TestIntegration_Notifications_ReplyWithMentionCollapsesToOne(t *testing.T) 
 	_ = bob
 }
 
-func TestIntegration_Notifications_ReactionDedupedAcrossUndo(t *testing.T) {
+func TestIntegration_Notifications_ReactionUndoRemovesNotification(t *testing.T) {
 	app := newTestApp(t)
 	defer app.Close()
 
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	alice := registerUser(t, client, base, "dedupe_alice", "Password123")
-	bob := registerUser(t, client, base, "dedupe_bob", "Password123")
+	alice := registerUser(t, client, base, "undo_alice", "Password123")
+	bob := registerUser(t, client, base, "undo_bob", "Password123")
 	aliceAuth := issueBearer(t, app.TokenManager, alice)
 	bobAuth := issueBearer(t, app.TokenManager, bob)
 
 	post := createPost(t, client, base, aliceAuth, "react to me")
 	reactURL := base + "/api/v1/posts/" + post.Id.String() + "/reactions"
+	thumbsUp := reactURL + "?emoji=%F0%9F%91%8D"
 
-	for i := 0; i < 3; i++ {
+	react := func(step string) {
+		t.Helper()
 		if resp := postJSON(t, client, reactURL, map[string]any{"emoji": "👍"}, bobAuth); resp.StatusCode != http.StatusOK {
-			t.Fatalf("react %d: expected 200, got %d", i, resp.StatusCode)
+			t.Fatalf("%s: react expected 200, got %d", step, resp.StatusCode)
 		}
-		if resp := deleteReq(t, client, reactURL+"?emoji=%F0%9F%91%8D", bobAuth); resp.StatusCode != http.StatusOK {
-			t.Fatalf("unreact %d: expected 200, got %d", i, resp.StatusCode)
+	}
+	unreact := func(step string) {
+		t.Helper()
+		if resp := deleteReq(t, client, thumbsUp, bobAuth); resp.StatusCode != http.StatusOK {
+			t.Fatalf("%s: unreact expected 200, got %d", step, resp.StatusCode)
 		}
 	}
 
+	react("first")
 	if got := unreadCount(t, app, aliceAuth); got != 1 {
-		t.Fatalf("react/unreact loop must yield exactly 1 notification, got %d", got)
+		t.Fatalf("expected 1 notification after reacting, got %d", got)
+	}
+
+	// Undoing the reaction takes the notification with it, so the dedupe index
+	// cannot suppress the same reaction forever.
+	unreact("first")
+	if got := unreadCount(t, app, aliceAuth); got != 0 {
+		t.Fatalf("expected the notification to be removed with the reaction, got %d", got)
+	}
+	if got := listNotifications(t, app, aliceAuth, ""); len(got.Items) != 0 {
+		t.Fatalf("expected no notifications listed after undo, got %+v", got.Items)
+	}
+
+	// The same reaction again must notify again.
+	react("second")
+	if got := unreadCount(t, app, aliceAuth); got != 1 {
+		t.Fatalf("re-reacting must notify again, got %d", got)
 	}
 
 	// A different emoji is a distinct notification.
@@ -252,6 +274,12 @@ func TestIntegration_Notifications_ReactionDedupedAcrossUndo(t *testing.T) {
 	}
 	if got := unreadCount(t, app, aliceAuth); got != 2 {
 		t.Fatalf("expected 2 notifications for 2 distinct emojis, got %d", got)
+	}
+
+	// Undoing one emoji must not disturb the other.
+	unreact("second")
+	if got := unreadCount(t, app, aliceAuth); got != 1 {
+		t.Fatalf("undoing one emoji should leave the other notification, got %d", got)
 	}
 }
 

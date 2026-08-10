@@ -65,6 +65,24 @@ func Notify(ctx context.Context, q *sqlc.Queries, p NotifyParams) (uuid.UUID, er
 	return rows[0].ID, nil
 }
 
+// Unnotify removes a notification because the action it described was undone.
+//
+// Without this, idx_notifications_dedupe would suppress the notification
+// forever: re-doing the same action would conflict with the stale row and the
+// recipient would never hear about it.
+func Unnotify(ctx context.Context, q *sqlc.Queries, p NotifyParams) error {
+	if p.UserID == uuid.Nil || p.UserID == p.ActorID {
+		return nil
+	}
+	return q.DeleteNotification(ctx, sqlc.DeleteNotificationParams{
+		UserID:      p.UserID,
+		Type:        string(p.Type),
+		ActorUserID: uuid.NullUUID{UUID: p.ActorID, Valid: p.ActorID != uuid.Nil},
+		PostID:      uuid.NullUUID{UUID: p.PostID, Valid: p.PostID != uuid.Nil},
+		Subtype:     p.Subtype,
+	})
+}
+
 // PostNotifyTargets resolves who gets notified about a newly created post.
 //
 // A recipient gets at most one notification even when several relationships

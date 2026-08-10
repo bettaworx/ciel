@@ -228,17 +228,24 @@ func TestReactionsService_Remove_PublishesEvent(t *testing.T) {
 	svc := service.NewReactionsService(store, nil, publisher)
 
 	userID := uuid.New()
+	postAuthorID := uuid.New()
 	postID := api.PostId(uuid.New())
 	created := time.Unix(1_700_000_000, 0).UTC()
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
+	// Remove looks up the post author first, to find the notification to drop.
+	expectGetPostWithAuthor(mock, postID, postAuthorID, created, userCreated)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`DELETE FROM post_reaction_events`).WithArgs(userID, postID, "👍").
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(userID))
+	// Un-reacting takes the notification with it, so the same reaction can notify again.
+	mock.ExpectExec(`DELETE FROM notifications`).
+		WithArgs(postAuthorID, string(api.Reaction), uuid.NullUUID{UUID: userID, Valid: true}, uuid.NullUUID{UUID: uuid.UUID(postID), Valid: true}, "👍").
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery(`UPDATE post_reaction_counts`).WithArgs(postID, "👍").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectCommit()
-	expectGetPostWithAuthor(mock, postID, userID, created, userCreated)
+	expectGetPostWithAuthor(mock, postID, postAuthorID, created, userCreated)
 	expectListReactionCountsWithUserStatus(mock, postID, userID, "👍", 1, false)
 
 	user := auth.User{ID: userID, Username: "alice"}

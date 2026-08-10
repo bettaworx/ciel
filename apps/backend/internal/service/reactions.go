@@ -347,11 +347,30 @@ func (s *ReactionsService) Remove(ctx context.Context, user auth.User, postID ap
 		return api.ReactionCounts{}, NewError(http.StatusBadRequest, "invalid_request", "emoji required")
 	}
 
+	// Needed to find the notification this reaction produced.
+	row, err := s.store.Q.GetPostWithAuthorByID(ctx, postID)
+	if err != nil && err != sql.ErrNoRows {
+		return api.ReactionCounts{}, err
+	}
+	postAuthorID := row.UserID
+
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
 		if _, err := q.RemoveReactionEvent(ctx, sqlc.RemoveReactionEventParams{UserID: user.ID, PostID: postID, Emoji: em}); err != nil {
 			if err == sql.ErrNoRows {
 				return NewError(http.StatusNotFound, "not_found", "reaction not found")
 			}
+			return err
+		}
+
+		// Drop the notification too, otherwise the dedupe index would stop the
+		// recipient ever hearing about this same reaction again.
+		if err := Unnotify(ctx, q, NotifyParams{
+			UserID:  postAuthorID,
+			Type:    api.Reaction,
+			ActorID: user.ID,
+			PostID:  postID,
+			Subtype: em,
+		}); err != nil {
 			return err
 		}
 		count, err := q.DecrementReactionCount(ctx, sqlc.DecrementReactionCountParams{PostID: postID, Emoji: em})
