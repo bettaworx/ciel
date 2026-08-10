@@ -151,6 +151,11 @@ export interface PostCardProps {
   variant?: PostCardVariant;
   threadLine?: PostCardThreadLine;
   indicator?: PostCardIndicator;
+  /**
+   * Badged onto the author's avatar. Notifications use it to mark the kind of
+   * notification without spending a whole row on an indicator.
+   */
+  avatarBadge?: ReactNode;
 }
 
 export interface PostTreeActionButtonProps {
@@ -230,6 +235,7 @@ export function PostCard({
   variant = "timeline",
   threadLine = "none",
   indicator,
+  avatarBadge,
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -581,7 +587,7 @@ export function PostCard({
     setLightboxOpen(true);
   }, []);
 
-  const avatarNode = (
+  const avatarButton = (
     <Button
       variant="ghost"
       size="icon"
@@ -597,6 +603,21 @@ export function PostCard({
         <AvatarFallback>{initials}</AvatarFallback>
       </Avatar>
     </Button>
+  );
+
+  // Without a badge the avatar keeps its original markup, so every existing
+  // caller is untouched.
+  const avatarNode = avatarBadge ? (
+    <span className="relative inline-flex shrink-0">
+      {avatarButton}
+      {/* Card-coloured with a matching ring, so it reads as cut out of the
+          avatar rather than as a chip sitting on top. */}
+      <span className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full bg-card text-c-1 ring-2 ring-card">
+        {avatarBadge}
+      </span>
+    </span>
+  ) : (
+    avatarButton
   );
 
   const identityStackNode = (

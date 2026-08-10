@@ -2,8 +2,7 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { PostCard, type PostCardIndicator } from "@/components/PostCard";
+import { PostCard } from "@/components/PostCard";
 import {
   NOTIFICATION_ICONS,
   NotificationRow,
@@ -29,7 +28,6 @@ export function NotificationItem({
   onSeen: (ids: readonly string[]) => void;
 }) {
   const router = useRouter();
-  const t = useTranslations("notifications");
   const isUnread = !notification.readAt;
 
   const markSeen = useCallback(() => {
@@ -43,16 +41,8 @@ export function NotificationItem({
     if (targetPostId) router.push(`/posts/${targetPostId}`);
   }, [router, targetPostId]);
 
-  const actorName =
-    notification.actor?.displayName || notification.actor?.username || "";
   const displayType = notificationDisplayType(notification);
   const Icon = NOTIFICATION_ICONS[displayType];
-  const indicator: PostCardIndicator = {
-    icon: <Icon className="h-3.5 w-3.5" />,
-    label: t(`types.${displayType}`, { name: actorName }),
-    createdAt: notification.createdAt,
-    actorUserId: notification.actor?.id,
-  };
 
   return (
     <div
@@ -70,7 +60,9 @@ export function NotificationItem({
           post={notification.post}
           onUserClick={(username) => router.push(`/users/${username}`)}
           isLast={isLast}
-          indicator={indicator}
+          // The card's author is the person who acted, so badge the kind onto
+          // their avatar instead of spending a row on an indicator.
+          avatarBadge={<Icon className="h-3 w-3" />}
         />
       ) : (
         <div
