@@ -99,8 +99,8 @@ export function NotificationsPage() {
           </TabsList>
           <Button
             variant="ghost"
-            size="icon"
-            className="shrink-0"
+            // Match TabsList's surface and shape so the row reads as one control.
+            className="h-12 w-12 shrink-0 rounded-2xl bg-card hover:bg-muted"
             aria-label={t("markAllRead")}
             title={t("markAllRead")}
             disabled={unreadCount === 0 || markAllRead.isPending}

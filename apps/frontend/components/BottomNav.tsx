@@ -62,7 +62,9 @@ export function BottomNav() {
           >
             <span className="relative flex">
               <Bell className="w-6 h-6" />
-              <NotificationBadge />
+              {/* Centred on the icon's top-right corner, so it clears the glyph
+                  regardless of how many digits it renders. */}
+              <NotificationBadge className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 ring-2 ring-background-1" />
             </span>
           </Button>
         )}

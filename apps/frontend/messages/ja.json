@@ -1279,7 +1279,6 @@
     "empty": "通知はありません",
     "markAllRead": "すべて既読にする",
     "unreadCount": "未読 {count} 件",
-    "toastView": "見る",
     "tabs": {
       "all": "すべて",
       "mentions": "メンション"

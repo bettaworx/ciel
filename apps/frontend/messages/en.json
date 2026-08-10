@@ -1279,7 +1279,6 @@
     "empty": "No notifications yet",
     "markAllRead": "Mark all as read",
     "unreadCount": "{count} unread",
-    "toastView": "View",
     "tabs": {
       "all": "All",
       "mentions": "Mentions"

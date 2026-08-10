@@ -22,7 +22,10 @@ import {
   sidebarExpandedAtom,
   sidebarMenuOpenAtom,
 } from "@/atoms/sidebar";
-import { useServerInfo } from "@/lib/hooks/use-queries";
+import {
+  useServerInfo,
+  useUnreadNotificationCount,
+} from "@/lib/hooks/use-queries";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { useTranslations } from "next-intl";
 import { motion, useAnimate } from "framer-motion";
@@ -38,6 +41,8 @@ export function Sidebar() {
   const [, setIsExpanded] = useAtom(sidebarExpandedAtom);
   const isMenuOpen = useAtomValue(sidebarMenuOpenAtom);
   const { data: serverInfo } = useServerInfo();
+  const { data: unread } = useUnreadNotificationCount();
+  const unreadCount = unread?.count ?? 0;
   const canExpand = useMediaQuery("(min-width: 1280px)");
   const tNav = useTranslations("nav");
   const tCreatePost = useTranslations("createPost");
@@ -182,10 +187,20 @@ export function Sidebar() {
               icon={
                 <span className="relative flex shrink-0">
                   <Bell className="w-5 h-5" />
-                  <NotificationBadge />
+                  {/* Collapsed there is no room for a number, so just mark that
+                      something is unread and show the count once expanded. */}
+                  {!isExpanded && (
+                    <NotificationBadge
+                      variant="dot"
+                      className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2"
+                    />
+                  )}
                 </span>
               }
               label={tNav("notifications")}
+              trailingIcon={
+                isExpanded && unreadCount > 0 ? <NotificationBadge /> : undefined
+              }
               isActive={pathname === "/notifications"}
               isExpanded={isExpanded}
               canAnimate={canExpand}

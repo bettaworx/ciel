@@ -26,7 +26,6 @@ type ReactionCounts = components['schemas']['ReactionCounts'];
 type ServerInfo = components['schemas']['ServerInfo'];
 type ServerConfig = components['schemas']['ServerConfig'];
 type Notification = components['schemas']['Notification'];
-type UnreadCount = components['schemas']['UnreadCount'];
 
 type RealtimeEvent =
 	| { type: 'post_created'; post: Post }
@@ -42,6 +41,9 @@ interface RealtimeProviderProps {
 	children: React.ReactNode;
 }
 
+/** How many recently handled notification ids to remember for de-duplication. */
+const MAX_TRACKED_NOTIFICATION_IDS = 100;
+
 export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	const queryClient = useQueryClient();
 	const user = useAtomValue(userAtom);
@@ -51,6 +53,14 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	// Read through a ref so the WebSocket handlers are not rebuilt on navigation.
 	const isOnNotificationsPageRef = useRef(false);
 	isOnNotificationsPageRef.current = pathname === '/notifications';
+	const handledNotificationIdsRef = useRef<Set<string>>(new Set());
+	// `connect` is rebuilt whenever the message handlers change, and every rebuild
+	// tears down and reopens the socket. Keep router/translations out of the
+	// dependency chain so a re-render cannot leave two sockets open at once.
+	const routerRef = useRef(router);
+	routerRef.current = router;
+	const tNotificationsRef = useRef(tNotifications);
+	tNotificationsRef.current = tNotifications;
 	const wsRef = useRef<WebSocket | null>(null);
 	const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const reconnectAttemptsRef = useRef(0);
@@ -308,10 +318,21 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	}, [queryClient]);
 
 	const handleNotificationCreated = useCallback((notification: Notification) => {
-		// Bump the badge locally — avoids an extra REST call
-		queryClient.setQueryData(queryKeys.notificationsUnread, (old: UnreadCount | undefined) => ({
-			count: (old?.count ?? 0) + 1,
-		}));
+		// A single page can briefly hold more than one socket (reconnects, React
+		// strict-mode remounts), so the same event can arrive twice. Deliver each
+		// notification's side effects once.
+		if (handledNotificationIdsRef.current.has(notification.id)) {
+			return;
+		}
+		handledNotificationIdsRef.current.add(notification.id);
+		if (handledNotificationIdsRef.current.size > MAX_TRACKED_NOTIFICATION_IDS) {
+			const oldest = handledNotificationIdsRef.current.values().next().value;
+			if (oldest) handledNotificationIdsRef.current.delete(oldest);
+		}
+
+		// Refetch rather than incrementing locally: the server owns the count, so
+		// a duplicate delivery or a read from another tab cannot skew the badge.
+		queryClient.invalidateQueries({ queryKey: queryKeys.notificationsUnread });
 		queryClient.invalidateQueries({
 			predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'notifications',
 		});
@@ -323,14 +344,26 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 
 		const actor = notification.actor;
 		const name = actor?.displayName || actor?.username || '';
-		toast(tNotifications(`types.${notification.type}`, { name }), {
-			description: notification.post?.content || undefined,
-			action: {
-				label: tNotifications('toastView'),
-				onClick: () => router.push('/notifications'),
-			},
-		});
-	}, [queryClient, router, tNotifications]);
+		const title = tNotificationsRef.current(`types.${notification.type}`, { name });
+		const description = notification.post?.content;
+
+		// toast.custom so the whole surface is clickable, not just an action button.
+		toast.custom((id) => (
+			<button
+				type="button"
+				onClick={() => {
+					toast.dismiss(id);
+					routerRef.current.push('/notifications');
+				}}
+				className="w-full rounded-lg border border-border bg-card p-4 text-left text-foreground shadow-lg"
+			>
+				<p className="text-sm font-medium">{title}</p>
+				{description ? (
+					<p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{description}</p>
+				) : null}
+			</button>
+		));
+	}, [queryClient]);
 
 	const handleMessage = useCallback(
 		(event: MessageEvent) => {
