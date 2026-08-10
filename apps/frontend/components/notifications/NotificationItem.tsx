@@ -2,6 +2,8 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useAtomValue } from "jotai";
+import { userAtom } from "@/atoms/auth";
 import { PostCard } from "@/components/PostCard";
 import {
   NOTIFICATION_ICONS,
@@ -28,6 +30,7 @@ export function NotificationItem({
   onSeen: (ids: readonly string[]) => void;
 }) {
   const router = useRouter();
+  const me = useAtomValue(userAtom);
   const isUnread = !notification.readAt;
 
   const markSeen = useCallback(() => {
@@ -38,8 +41,16 @@ export function NotificationItem({
   const targetPostId = notificationTargetPostId(notification);
 
   const handleClick = useCallback(() => {
-    if (targetPostId) router.push(`/posts/${targetPostId}`);
-  }, [router, targetPostId]);
+    if (targetPostId) {
+      router.push(`/posts/${targetPostId}`);
+      return;
+    }
+    // A follow notification has no post — send the user to the people who
+    // followed them, which is their own followers list.
+    if (notification.type === "follow" && me) {
+      router.push(`/users/${encodeURIComponent(me.username)}/followers`);
+    }
+  }, [router, targetPostId, notification.type, me]);
 
   const displayType = notificationDisplayType(notification);
   const Icon = NOTIFICATION_ICONS[displayType];
