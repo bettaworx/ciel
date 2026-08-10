@@ -200,7 +200,9 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 				postIDs = append(postIDs, row.PostID)
 			}
 		}
-		if row.GroupCount > 1 && row.GroupTarget != uuid.Nil {
+		// The nil target is not "no group": follows carry no post, so every
+		// follow of this user groups under it.
+		if row.GroupCount > 1 {
 			if _, ok := seenTarget[row.GroupTarget]; !ok {
 				seenTarget[row.GroupTarget] = struct{}{}
 				groupedTargets = append(groupedTargets, row.GroupTarget)

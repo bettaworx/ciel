@@ -23,7 +23,9 @@ func NewUsersService(store *repository.Store) *UsersService {
 	return &UsersService{store: store}
 }
 
-func (s *UsersService) GetByUsername(ctx context.Context, username api.Username) (api.User, error) {
+// GetByUsername loads a profile. viewer is the caller, used to resolve the
+// follow relationship; pass nil for anonymous requests.
+func (s *UsersService) GetByUsername(ctx context.Context, username api.Username, viewer *uuid.UUID) (api.User, error) {
 	if s.store == nil {
 		return api.User{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
@@ -38,10 +40,13 @@ func (s *UsersService) GetByUsername(ctx context.Context, username api.Username)
 		}
 		return api.User{}, err
 	}
-	return mapUserWithProfile(user.ID, user.Username, user.CreatedAt, user.DisplayName, user.Bio, user.AvatarMediaID, user.AvatarExt, user.BannerMediaID, user.BannerExt, user.BannerBlurhash, user.TermsVersion, user.PrivacyVersion, user.TermsAcceptedAt, user.PrivacyAcceptedAt), nil
+	out := mapUserWithProfile(user.ID, user.Username, user.CreatedAt, user.DisplayName, user.Bio, user.AvatarMediaID, user.AvatarExt, user.BannerMediaID, user.BannerExt, user.BannerBlurhash, user.TermsVersion, user.PrivacyVersion, user.TermsAcceptedAt, user.PrivacyAcceptedAt)
+	s.attachFollowStats(ctx, &out, viewer)
+	return out, nil
 }
 
-func (s *UsersService) GetByID(ctx context.Context, userID uuid.UUID) (api.User, error) {
+// GetByID loads a profile by id. See GetByUsername for viewer.
+func (s *UsersService) GetByID(ctx context.Context, userID uuid.UUID, viewer *uuid.UUID) (api.User, error) {
 	if s.store == nil {
 		return api.User{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
@@ -52,7 +57,41 @@ func (s *UsersService) GetByID(ctx context.Context, userID uuid.UUID) (api.User,
 		}
 		return api.User{}, err
 	}
-	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt), nil
+	out := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt)
+	s.attachFollowStats(ctx, &out, viewer)
+	return out, nil
+}
+
+// attachFollowStats fills the follow counters, and the caller's relationship to
+// this user when there is a caller. A failure here leaves the fields unset
+// rather than failing the whole profile request.
+func (s *UsersService) attachFollowStats(ctx context.Context, user *api.User, viewer *uuid.UUID) {
+	stats, err := s.store.Q.GetUserFollowStats(ctx, sqlc.GetUserFollowStatsParams{
+		UserID:   user.Id,
+		ViewerID: nullUUIDFromPtr(viewer),
+	})
+	if err != nil {
+		return
+	}
+	followers := int(stats.FollowersCount)
+	following := int(stats.FollowingCount)
+	user.FollowersCount = &followers
+	user.FollowingCount = &following
+	if viewer == nil {
+		return
+	}
+	isFollowing := stats.IsFollowing
+	isFollowedBy := stats.IsFollowedBy
+	user.IsFollowing = &isFollowing
+	user.IsFollowedBy = &isFollowedBy
+}
+
+// nullUUIDFromPtr converts an optional viewer id into a SQL nullable uuid.
+func nullUUIDFromPtr(id *uuid.UUID) uuid.NullUUID {
+	if id == nil {
+		return uuid.NullUUID{}
+	}
+	return uuid.NullUUID{UUID: *id, Valid: true}
 }
 
 func (s *UsersService) UpdateProfile(ctx context.Context, userID uuid.UUID, displayName *string, bio *string) (api.User, error) {

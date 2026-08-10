@@ -54,6 +54,32 @@ components:
           format: date-time
           nullable: true
           description: When user accepted Privacy Policy
+        followersCount:
+          type: integer
+          description: Number of users following this user. Omitted in list responses.
+        followingCount:
+          type: integer
+          description: Number of users this user follows. Omitted in list responses.
+        isFollowing:
+          type: boolean
+          description: Whether the caller follows this user. Omitted when unauthenticated.
+        isFollowedBy:
+          type: boolean
+          description: Whether this user follows the caller. Omitted when unauthenticated.
+    UsersPage:
+      type: object
+      description: Paginated list of users, newest relationship first.
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        nextCursor:
+          type: string
+          nullable: true
+          description: Cursor for the next page. Null when there are no more results.
     MentionUser:
       type: object
       description: Lightweight user representation for mentions in post content.

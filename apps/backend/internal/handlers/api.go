@@ -29,6 +29,7 @@ type API struct {
 	Admin         *service.AdminService
 	Authz         *service.AuthzService
 	Users         *service.UsersService
+	Follows       *service.FollowsService
 	Posts         *service.PostsService
 	Timeline      *service.TimelineService
 	Reactions     *service.ReactionsService
@@ -65,6 +66,11 @@ type publicUserResponse struct {
 	Id          openapi_types.UUID `json:"id"`
 	IsAdmin     *bool              `json:"isAdmin,omitempty"`
 	Username    api.Username       `json:"username"`
+
+	FollowersCount *int  `json:"followersCount,omitempty"`
+	FollowingCount *int  `json:"followingCount,omitempty"`
+	IsFollowing    *bool `json:"isFollowing,omitempty"`
+	IsFollowedBy   *bool `json:"isFollowedBy,omitempty"`
 }
 
 func toPublicUserResponse(user api.User) publicUserResponse {
@@ -77,6 +83,11 @@ func toPublicUserResponse(user api.User) publicUserResponse {
 		Id:          user.Id,
 		IsAdmin:     user.IsAdmin,
 		Username:    user.Username,
+
+		FollowersCount: user.FollowersCount,
+		FollowingCount: user.FollowingCount,
+		IsFollowing:    user.IsFollowing,
+		IsFollowedBy:   user.IsFollowedBy,
 	}
 }
 
@@ -278,7 +289,7 @@ func (h API) GetMe(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
 		return
 	}
-	me, err := h.Users.GetByID(r.Context(), user.ID)
+	me, err := h.Users.GetByID(r.Context(), user.ID, &user.ID)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -353,7 +364,7 @@ func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.Patch
 		return
 	}
 
-	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
+	updatedUser, err := h.Users.GetByID(r.Context(), user.ID, &user.ID)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -458,7 +469,7 @@ func (h API) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request, _ ap
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	updatedUser, err := h.Users.GetByID(r.Context(), user.ID)
+	updatedUser, err := h.Users.GetByID(r.Context(), user.ID, &user.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -510,7 +521,7 @@ func (h API) GetUsersUsername(w http.ResponseWriter, r *http.Request, username a
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})
 		return
 	}
-	u, err := h.Users.GetByUsername(r.Context(), username)
+	u, err := h.Users.GetByUsername(r.Context(), username, viewerID(r))
 	if err != nil {
 		writeServiceError(w, err)
 		return

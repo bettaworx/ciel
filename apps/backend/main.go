@@ -346,12 +346,15 @@ func main() {
 	timelineSvc := service.NewTimelineService(store, cacheImpl)
 	reactionsSvc := service.NewReactionsService(store, cacheImpl, realtimeHub)
 	notificationsSvc := service.NewNotificationsService(store)
+	followsSvc := service.NewFollowsService(store, cacheImpl, realtimeHub)
 	postsSvc.SetReactionsService(reactionsSvc)
 	postsSvc.SetNotificationsService(notificationsSvc)
 	reactionsSvc.SetNotificationsService(notificationsSvc)
 	notificationsSvc.SetPostsService(postsSvc)
 	timelineSvc.SetReactionsService(reactionsSvc)
 	timelineSvc.SetPostsService(postsSvc)
+	followsSvc.SetNotificationsService(notificationsSvc)
+	followsSvc.SetUsersService(usersSvc)
 
 	mediaDir := os.Getenv("MEDIA_DIR")
 	if mediaDir == "" {
@@ -398,6 +401,7 @@ func main() {
 		Admin:         adminSvc,
 		Authz:         authzSvc,
 		Users:         usersSvc,
+		Follows:       followsSvc,
 		Posts:         postsSvc,
 		Timeline:      timelineSvc,
 		Reactions:     reactionsSvc,
