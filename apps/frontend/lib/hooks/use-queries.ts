@@ -6,6 +6,7 @@ import {
   useMutation,
   useQueryClient,
   useInfiniteQuery,
+  type InfiniteData,
 } from "@tanstack/react-query";
 import { useApi } from "@/lib/api/use-api";
 import type { components } from "@/lib/api/api";
@@ -14,6 +15,7 @@ import { collectOwnerReplyThreadChunk } from "@/lib/post-thread";
 import { useSetAtom, useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { ERROR_CODES } from "@/lib/errors";
+import type { FollowTab } from "@/lib/follow-tabs";
 import type { OgpApiResponse } from "@/lib/ogp/types";
 
 export type PostThreadParams = {
@@ -25,9 +27,11 @@ export type PostThreadParams = {
 
 type NotificationType = components["schemas"]["NotificationType"];
 type UnreadCount = components["schemas"]["UnreadCount"];
+type UsersPage = components["schemas"]["UsersPage"];
 
 /** Notification list tabs. "mentions" covers everything addressed at you. */
 export type NotificationTab = "all" | "mentions";
+
 
 export const NOTIFICATION_TAB_TYPES: Record<
   NotificationTab,
@@ -58,6 +62,12 @@ export const queryKeys = {
   ownerReplyThread: (postId: string) => ["ownerReplyThread", postId] as const,
   user: (username: string) => ["user", username] as const,
   userPosts: (username: string) => ["userPosts", username] as const,
+  // Prefix shared by every follow list, so one follow can patch all of them.
+  follows: ["follows"] as const,
+  followList: (username: string, tab: FollowTab) =>
+    ["follows", username, tab] as const,
+  followersYouFollowPreview: (username: string) =>
+    ["followersYouFollowPreview", username] as const,
   reactions: (postId: string) => ["reactions", postId] as const,
   agreementVersions: ["agreementVersions"] as const,
   latestAgreement: (type: "terms" | "privacy", language: string) =>
@@ -398,6 +408,32 @@ function useFollowMutation(follow: boolean) {
       queryClient.setQueryData(queryKeys.user(username), user);
       // Following changes who appears in the home timeline.
       queryClient.invalidateQueries({ queryKey: queryKeys.homeTimeline });
+      // Patch the button state in every loaded follow list so it flips without
+      // waiting on a refetch...
+      queryClient.setQueriesData<InfiniteData<UsersPage>>(
+        { queryKey: queryKeys.follows },
+        (old) =>
+          old && {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.map((item) =>
+                item.username === username
+                  ? { ...item, isFollowing: follow }
+                  : item,
+              ),
+            })),
+          },
+      );
+      // ...but the lists also gained or lost a member, which no patch can fake:
+      // mark them stale so revisiting one refetches instead of serving a list
+      // the new follow is missing from.
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      // Follower/following counts, and who shows up in the facepile.
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({
+        queryKey: ["followersYouFollowPreview"],
+      });
     },
   });
 }
@@ -408,6 +444,52 @@ export function useFollowUser() {
 
 export function useUnfollowUser() {
   return useFollowMutation(false);
+}
+
+// One of the three follow lists, with infinite scroll.
+export function useFollowList(username: string | undefined, tab: FollowTab) {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: username
+      ? queryKeys.followList(username, tab)
+      : ["follows", "null", tab],
+    queryFn: async ({ pageParam }) => {
+      if (!username) throw new Error(ERROR_CODES.USERNAME_REQUIRED);
+      const result = await api.followList(username, tab, {
+        limit: 30,
+        cursor: pageParam ?? null,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: !!username,
+    staleTime: 1000 * 60,
+  });
+}
+
+// The first few known followers plus a total, for the profile card facepile.
+export function useFollowersYouFollowPreview(
+  username: string | undefined,
+  enabled: boolean,
+) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.followersYouFollowPreview(username ?? ""),
+    queryFn: async () => {
+      if (!username) throw new Error(ERROR_CODES.USERNAME_REQUIRED);
+      const result = await api.followList(username, "followers_you_follow", {
+        limit: 3,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    enabled: enabled && !!username,
+    staleTime: 1000 * 60 * 5,
+  });
 }
 
 // User posts with infinite scroll

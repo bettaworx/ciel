@@ -86,6 +86,19 @@ func (h API) GetUsersUsernameFollowing(w http.ResponseWriter, r *http.Request, u
 	writeJSON(w, http.StatusOK, page)
 }
 
+func (h API) GetUsersUsernameFollowersYouFollow(w http.ResponseWriter, r *http.Request, username api.Username, params api.GetUsersUsernameFollowersYouFollowParams) {
+	caller, ok := h.followsCaller(w, r)
+	if !ok {
+		return
+	}
+	page, err := h.Follows.ListFollowersYouFollow(r.Context(), username, params.Limit, params.Cursor, caller.ID)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}
+
 func (h API) GetTimelineHome(w http.ResponseWriter, r *http.Request, params api.GetTimelineHomeParams) {
 	if h.Timeline == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "timeline not configured"})

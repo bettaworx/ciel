@@ -1869,6 +1869,47 @@ WHERE f.follower_id = sqlc.arg('user_id')::uuid
 ORDER BY f.created_at DESC, u.id DESC
 LIMIT sqlc.arg('limit');
 
+-- name: ListFollowersYouFollow :many
+-- Followers of user_id that the viewer also follows. Same shape and ordering as
+-- ListFollowers so the cursor and row mapping are shared.
+SELECT
+	u.id,
+	u.username,
+	u.display_name,
+	u.bio,
+	u.avatar_media_id,
+	u.created_at AS user_created_at,
+	m.ext AS avatar_ext,
+	f.created_at AS followed_at,
+	TRUE AS is_following,
+	EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = u.id AND vf.followee_id = sqlc.arg('viewer_id')::uuid
+	) AS is_followed_by
+FROM follows f
+JOIN users u ON u.id = f.follower_id
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE f.followee_id = sqlc.arg('user_id')::uuid
+	AND EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = sqlc.arg('viewer_id')::uuid AND vf.followee_id = u.id
+	)
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR f.created_at < sqlc.narg('cursor_time')
+		OR (f.created_at = sqlc.narg('cursor_time') AND u.id < sqlc.narg('cursor_id'))
+	)
+ORDER BY f.created_at DESC, u.id DESC
+LIMIT sqlc.arg('limit');
+
+-- name: CountFollowersYouFollow :one
+SELECT COUNT(*)::int FROM follows f
+WHERE f.followee_id = sqlc.arg('user_id')::uuid
+	AND EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = sqlc.arg('viewer_id')::uuid AND vf.followee_id = f.follower_id
+	);
+
 -- name: ListFollowerIDs :many
 -- Fan-out target list: everyone who should get this author's post in their home timeline.
 SELECT follower_id

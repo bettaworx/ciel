@@ -474,3 +474,66 @@ func TestIntegration_Follow_Lists(t *testing.T) {
 		t.Fatalf("limit=0: expected 400, got %d", resp.StatusCode)
 	}
 }
+
+func TestIntegration_Follow_FollowersYouFollow(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	// alice follows bob; bob and dave both follow carol. From alice's point of
+	// view carol's followers she knows is exactly {bob}.
+	alice := registerUser(t, client, base, "fyf_alice", "Password123")
+	bob := registerUser(t, client, base, "fyf_bob", "Password123")
+	registerUser(t, client, base, "fyf_carol", "Password123")
+	dave := registerUser(t, client, base, "fyf_dave", "Password123")
+	aliceAuth := issueBearer(t, app.TokenManager, alice)
+	bobAuth := issueBearer(t, app.TokenManager, bob)
+	daveAuth := issueBearer(t, app.TokenManager, dave)
+
+	follow(t, app, aliceAuth, "fyf_bob")
+	follow(t, app, bobAuth, "fyf_carol")
+	follow(t, app, daveAuth, "fyf_carol")
+
+	page := decodeJSON[api.UsersPage](t, get(t, client, base+"/api/v1/users/fyf_carol/followers_you_follow", aliceAuth))
+	if len(page.Items) != 1 {
+		t.Fatalf("expected 1 known follower, got %d", len(page.Items))
+	}
+	if string(page.Items[0].Username) != "fyf_bob" {
+		t.Errorf("expected fyf_bob, got %q", page.Items[0].Username)
+	}
+	if !boolOrFalse(page.Items[0].IsFollowing) {
+		t.Error("every row here is someone the caller follows; expected isFollowing=true")
+	}
+	if intOrZero(page.TotalCount) != 1 {
+		t.Errorf("expected totalCount=1 on the first page, got %v", page.TotalCount)
+	}
+
+	// dave follows nobody, so he knows none of carol's followers.
+	empty := decodeJSON[api.UsersPage](t, get(t, client, base+"/api/v1/users/fyf_carol/followers_you_follow", daveAuth))
+	if len(empty.Items) != 0 || intOrZero(empty.TotalCount) != 0 {
+		t.Errorf("expected an empty page for dave, got %d items (total %v)", len(empty.Items), empty.TotalCount)
+	}
+
+	// Later pages carry no count: nothing renders it there.
+	second := decodeJSON[api.UsersPage](t, get(t, client,
+		base+"/api/v1/users/fyf_carol/followers_you_follow?limit=1&cursor="+*mustCursor(t, client, base, aliceAuth), aliceAuth))
+	if second.TotalCount != nil {
+		t.Errorf("expected no totalCount past the first page, got %v", second.TotalCount)
+	}
+
+	if resp := get(t, client, base+"/api/v1/users/fyf_carol/followers_you_follow", nil); resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("anonymous: expected 401, got %d", resp.StatusCode)
+	}
+}
+
+// mustCursor grabs the next-page cursor from a full first page of size 1.
+func mustCursor(t *testing.T, client *http.Client, base string, authz map[string]string) *string {
+	t.Helper()
+	page := decodeJSON[api.UsersPage](t, get(t, client, base+"/api/v1/users/fyf_carol/followers_you_follow?limit=1", authz))
+	if page.NextCursor == nil {
+		t.Fatal("expected a cursor on a full page")
+	}
+	return page.NextCursor
+}

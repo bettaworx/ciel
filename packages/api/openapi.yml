@@ -197,6 +197,8 @@ paths:
     $ref: ./paths/follows.yml#/~1users~1{username}~1followers
   /users/{username}/following:
     $ref: ./paths/follows.yml#/~1users~1{username}~1following
+  /users/{username}/followers_you_follow:
+    $ref: ./paths/follows.yml#/~1users~1{username}~1followers_you_follow
   /posts:
     $ref: ./paths/posts.yml#/~1posts
   /media:

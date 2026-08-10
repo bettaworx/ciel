@@ -210,6 +210,50 @@ func (s *FollowsService) ListFollowing(ctx context.Context, username api.Usernam
 	return api.UsersPage{Items: items, NextCursor: next}, nil
 }
 
+// ListFollowersYouFollow returns the named user's followers that the viewer also
+// follows, newest follow first. TotalCount is filled on the first page only: it
+// is what the profile facepile needs, and later pages have nothing to show it on.
+func (s *FollowsService) ListFollowersYouFollow(ctx context.Context, username api.Username, limit *int, cursor *string, viewer uuid.UUID) (api.UsersPage, error) {
+	userID, lim, cTime, cID, err := s.listArgs(ctx, username, limit, cursor)
+	if err != nil {
+		return api.UsersPage{}, err
+	}
+	rows, err := s.store.Q.ListFollowersYouFollow(ctx, sqlc.ListFollowersYouFollowParams{
+		UserID:     userID,
+		ViewerID:   viewer,
+		CursorTime: cTime,
+		CursorID:   cID,
+		Limit:      int32(lim),
+	})
+	if err != nil {
+		return api.UsersPage{}, err
+	}
+	items := make([]api.User, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
+			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, &viewer))
+	}
+	var next *string
+	if len(rows) == lim {
+		last := rows[len(rows)-1]
+		n := encodeCursor(timelineCursor{Score: last.FollowedAt.UnixMilli(), ID: last.ID.String()})
+		next = &n
+	}
+	page := api.UsersPage{Items: items, NextCursor: next}
+	if cursor == nil || *cursor == "" {
+		total, err := s.store.Q.CountFollowersYouFollow(ctx, sqlc.CountFollowersYouFollowParams{
+			UserID:   userID,
+			ViewerID: viewer,
+		})
+		if err != nil {
+			return api.UsersPage{}, err
+		}
+		t := int(total)
+		page.TotalCount = &t
+	}
+	return page, nil
+}
+
 // listArgs validates the shared paging inputs and resolves the subject user.
 func (s *FollowsService) listArgs(ctx context.Context, username api.Username, limit *int, cursor *string) (uuid.UUID, int, sql.NullTime, uuid.NullUUID, error) {
 	if s.store == nil {

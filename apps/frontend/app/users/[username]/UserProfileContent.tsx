@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
@@ -12,8 +13,7 @@ import {
   useUpdateProfile,
   useUpdateAvatar,
   useUpdateBanner,
-  useFollowUser,
-  useUnfollowUser,
+  useFollowersYouFollowPreview,
   queryKeys,
 } from "@/lib/hooks/use-queries";
 import type { components } from "@/lib/api/api";
@@ -30,13 +30,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Check,
   Clipboard,
-  HeartHandshake,
-  Minus,
   MoreHorizontal,
   Pencil,
-  Plus,
   Rocket,
   Share,
   User,
@@ -44,6 +40,7 @@ import {
   Save,
   Upload,
 } from "lucide-react";
+import { FollowButton } from "@/components/users/FollowButton";
 import { PageContainer } from "@/components/PageContainer";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -184,21 +181,16 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     error: userError,
   } = useUser(username);
 
-  const followUser = useFollowUser();
-  const unfollowUser = useUnfollowUser();
-  const isFollowPending = followUser.isPending || unfollowUser.isPending;
   const isFollowing = user?.isFollowing ?? false;
   const isFollowedBy = user?.isFollowedBy ?? false;
-  // Only worth calling out once it goes both ways.
-  const isMutualFollow = isFollowing && isFollowedBy;
   const showsFollowsYouBadge = isFollowedBy && !isOwnProfile;
 
-  const handleToggleFollow = () => {
-    const mutation = isFollowing ? unfollowUser : followUser;
-    mutation.mutate(username, {
-      onError: () => toast.error(t("user.followError")),
-    });
-  };
+  // "Followers you know" is only meaningful about someone else, while logged in.
+  const { data: knownFollowers } = useFollowersYouFollowPreview(
+    username,
+    !!authUser && !isOwnProfile,
+  );
+  const knownFollowerCount = knownFollowers?.totalCount ?? 0;
   const {
     data: postsData,
     isLoading: postsLoading,
@@ -665,48 +657,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
 
                 {/* Right: follow (others) / pencil / cancel + save */}
                 <div className="flex items-center gap-2">
-                  {!isOwnProfile && authUser && (
-                    <Button
-                      // Following reads as the neutral "done" state, so it wears
-                      // the same colour as the edit button; hovering it reveals
-                      // the destructive action it actually performs.
-                      variant={isFollowing ? "default" : "primary"}
-                      size="sm"
-                      className={
-                        isFollowing
-                          ? "group hover:bg-destructive hover:text-destructive-foreground"
-                          : undefined
-                      }
-                      onClick={handleToggleFollow}
-                      disabled={isFollowPending}
-                    >
-                      {isFollowing ? (
-                        <>
-                          <span className="inline-flex items-center gap-1 group-hover:hidden">
-                            {isMutualFollow ? (
-                              <HeartHandshake className="w-4 h-4" />
-                            ) : (
-                              <Check className="w-4 h-4" />
-                            )}
-                            {isMutualFollow
-                              ? t("user.mutualFollow")
-                              : t("user.following")}
-                          </span>
-                          <span className="hidden items-center gap-1 group-hover:inline-flex">
-                            <Minus className="w-4 h-4" />
-                            {t("user.unfollow")}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="inline-flex items-center gap-1">
-                          <Plus className="w-4 h-4" />
-                          {isFollowedBy
-                            ? t("user.followBack")
-                            : t("user.follow")}
-                        </span>
-                      )}
-                    </Button>
-                  )}
+                  <FollowButton
+                    username={username}
+                    isFollowing={isFollowing}
+                    isFollowedBy={isFollowedBy}
+                  />
                   {isOwnProfile && !isEditing && (
                     <Button
                       variant="default"
@@ -748,7 +703,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             </div>
 
             {/* User Info */}
-            <div className="select-text flex flex-col gap-3">
+            <div className="select-text flex flex-col gap-2 pb-3">
               <div className="flex flex-col gap-1">
                 {isEditing ? (
                   <Input
@@ -774,7 +729,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                 )}
               </div>
 
-              <div className="pb-3">
+              <div>
                 {isEditing ? (
                   <Textarea
                     value={editBio}
@@ -803,6 +758,71 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                   </>
                 )}
               </div>
+
+              {!isEditing && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-4 text-sm">
+                    <Link
+                      href={`/users/${encodeURIComponent(username)}/following`}
+                      className="text-muted-foreground hover:underline"
+                    >
+                      <span className="font-bold text-foreground">
+                        {user.followingCount ?? 0}
+                      </span>{" "}
+                      {t("user.followingCount")}
+                    </Link>
+                    <Link
+                      href={`/users/${encodeURIComponent(username)}/followers`}
+                      className="text-muted-foreground hover:underline"
+                    >
+                      <span className="font-bold text-foreground">
+                        {user.followersCount ?? 0}
+                      </span>{" "}
+                      {t("user.followersCount")}
+                    </Link>
+                  </div>
+
+                  {knownFollowerCount > 0 && knownFollowers && (
+                    <Link
+                      href={`/users/${encodeURIComponent(username)}/followers_you_follow`}
+                      className="flex items-center gap-2 text-sm text-muted-foreground hover:underline"
+                    >
+                      <div className="flex -space-x-2">
+                        {knownFollowers.items.map((known) => (
+                          <Avatar
+                            key={known.id}
+                            className="h-5 w-5 ring-2 ring-card"
+                          >
+                            <AvatarImage
+                              src={known.avatarUrl ?? undefined}
+                              alt={known.displayName || `@${known.username}`}
+                            />
+                            <AvatarFallback className="text-[10px]">
+                              {(known.displayName || known.username)
+                                .charAt(0)
+                                .toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        ))}
+                      </div>
+                      <span className="truncate">
+                        {knownFollowerCount > 1
+                          ? t("user.followedByMany", {
+                              name:
+                                knownFollowers.items[0]?.displayName ||
+                                `@${knownFollowers.items[0]?.username}`,
+                              count: knownFollowerCount - 1,
+                            })
+                          : t("user.followedByOne", {
+                              name:
+                                knownFollowers.items[0]?.displayName ||
+                                `@${knownFollowers.items[0]?.username}`,
+                            })}
+                      </span>
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
