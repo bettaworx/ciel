@@ -1294,6 +1294,9 @@ export function useNotifications(tab: NotificationTab) {
         limit: 30,
         cursor: pageParam ?? null,
         types: NOTIFICATION_TAB_TYPES[tab],
+        // Groups are cut at the day boundary; read inside queryFn so the zone is
+        // the browser's, not the rendering server's.
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       if (!result.ok) throw new Error(result.errorText);
       return result.data;

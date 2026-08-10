@@ -287,6 +287,76 @@ func TestIntegration_Notifications_GroupShrinksWhenReactionsAreUndone(t *testing
 	}
 }
 
+// backdateNotifications moves every notification an actor sent to a fixed time,
+// so grouping can be tested across a day boundary without waiting for one.
+func backdateNotifications(t *testing.T, app *testApp, recipient, actor uuid.UUID, at string) {
+	t.Helper()
+	res, err := app.SQLDB.Exec(
+		`UPDATE notifications SET created_at = $1::timestamptz WHERE user_id = $2 AND actor_user_id = $3`,
+		at, recipient, actor)
+	if err != nil {
+		t.Fatalf("backdate notifications: %v", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		t.Fatalf("backdate notifications: nothing matched for actor %v", actor)
+	}
+}
+
+func TestIntegration_Notifications_SplitsGroupsAtDayBoundary(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	alice := registerUser(t, client, base, "day_alice", "Password123")
+	bob := registerUser(t, client, base, "day_bob", "Password123")
+	carol := registerUser(t, client, base, "day_carol", "Password123")
+	aliceAuth := issueBearer(t, app.TokenManager, alice)
+	bobAuth := issueBearer(t, app.TokenManager, bob)
+	carolAuth := issueBearer(t, app.TokenManager, carol)
+
+	post := createPost(t, client, base, aliceAuth, "two days of reactions")
+	react(t, app, post.Id, "👍", bobAuth)
+	react(t, app, post.Id, "👍", carolAuth)
+
+	// Same UTC day, different Tokyo days: 23:00 and 01:00 JST either side of
+	// midnight. Whether these merge is decided purely by the tz argument.
+	backdateNotifications(t, app, alice.Id, bob.Id, "2026-08-10 14:00:00+00")
+	backdateNotifications(t, app, alice.Id, carol.Id, "2026-08-10 16:00:00+00")
+
+	tokyo := listNotifications(t, app, aliceAuth, "?tz=Asia%2FTokyo")
+	if len(tokyo.Items) != 2 {
+		t.Fatalf("expected the day boundary to split the group in two, got %d: %+v", len(tokyo.Items), tokyo.Items)
+	}
+	for _, n := range tokyo.Items {
+		if n.Count == nil || *n.Count != 1 {
+			t.Errorf("expected each side of the boundary to cover one notification, got %v", n.Count)
+		}
+		if n.NotificationIds == nil || len(*n.NotificationIds) != 1 {
+			t.Errorf("expected one covered id per row, got %v", n.NotificationIds)
+		}
+	}
+
+	// The very same rows are one group in UTC, where they share a day.
+	utc := listNotifications(t, app, aliceAuth, "?tz=UTC")
+	if len(utc.Items) != 1 {
+		t.Fatalf("expected one group within a single UTC day, got %d: %+v", len(utc.Items), utc.Items)
+	}
+	if c := utc.Items[0].Count; c == nil || *c != 2 {
+		t.Fatalf("expected the UTC group to cover both reactions, got %v", c)
+	}
+	// The members lookup buckets by day too, so the row must carry both ids.
+	if ids := utc.Items[0].NotificationIds; ids == nil || len(*ids) != 2 {
+		t.Fatalf("expected the UTC group to cover both ids, got %v", ids)
+	}
+
+	// An unknown zone is the caller's mistake, not a failed query.
+	if resp := get(t, client, base+"/api/v1/notifications?tz=Not%2FAZone", aliceAuth); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400 for an unknown time zone, got %d", resp.StatusCode)
+	}
+}
+
 func TestIntegration_Notifications_GroupedPaginationHasNoGaps(t *testing.T) {
 	app := newTestApp(t)
 	defer app.Close()

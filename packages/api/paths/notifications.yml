@@ -26,6 +26,17 @@
       schema:
         type: boolean
         default: false
+    - name: tz
+      in: query
+      required: false
+      description: >-
+        IANA time zone name used to decide the day boundary that splits grouped
+        notifications: notifications from different days never merge into one
+        row. Defaults to UTC.
+      schema:
+        type: string
+        default: UTC
+        example: Asia/Tokyo
     - name: type
       in: query
       required: false
