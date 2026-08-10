@@ -1644,6 +1644,9 @@ RETURNING id, created_at;
 --   pure boost -> grouped by the post that was boosted. A boost notification
 --                 points at the *boosting* post, which differs per booster, so
 --                 grouping has to follow reference_id instead.
+--   follow     -> all grouped together. A follow points at no post, so there is
+--                 no target to key on: every follow of this user shares one
+--                 group, regardless of when it happened.
 --   everything else, quotes included, groups by its own id and stays a group of
 --   one — quotes carry their own text and must not be merged.
 --
@@ -1683,6 +1686,7 @@ WHERE n.user_id = sqlc.arg('user_id')::uuid
 GROUP BY n.type, (CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), (CASE
 		WHEN n.type = 'reaction' THEN NULL
 		WHEN n.type = 'boost' AND p.content = '' AND p.reference_id IS NOT NULL THEN NULL
+		WHEN n.type = 'follow' THEN NULL
 		ELSE n.id
 	END)
 HAVING (
@@ -1696,21 +1700,26 @@ LIMIT sqlc.arg('limit');
 -- name: ListNotificationGroupMembers :many
 -- Members of the groups on a page, newest first. Supplies the stacked avatars
 -- and the ids a grouped row marks read. Only groupable kinds are returned.
+--
+-- group_target is COALESCEd to the nil uuid exactly as ListNotificationGroups
+-- does it: follows carry no post, and `NULL = ANY(...)` is never true, so
+-- without this they would never match the group they belong to.
 SELECT
 	n.id,
 	n.type,
 	n.subtype,
 	n.actor_user_id,
-	CAST((CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END) AS uuid) AS group_target
+	CAST(COALESCE((CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), '00000000-0000-0000-0000-000000000000'::uuid) AS uuid) AS group_target
 FROM notifications n
 LEFT JOIN posts p ON p.id = n.post_id
 WHERE n.user_id = sqlc.arg('user_id')::uuid
-	AND p.deleted_at IS NULL
+	AND (n.post_id IS NULL OR p.deleted_at IS NULL)
 	AND (
 		n.type = 'reaction'
+		OR n.type = 'follow'
 		OR (n.type = 'boost' AND p.content = '' AND p.reference_id IS NOT NULL)
 	)
-	AND (CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END)
+	AND COALESCE((CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), '00000000-0000-0000-0000-000000000000'::uuid)
 		= ANY(sqlc.arg('group_targets')::uuid[])
 ORDER BY n.created_at DESC, n.id DESC;
 
@@ -1759,9 +1768,203 @@ DELETE FROM notifications WHERE created_at < now() - INTERVAL '90 days';
 
 -- name: DeleteNotification :exec
 -- Used when the action a notification described is undone (e.g. un-reacting).
+-- IS NOT DISTINCT FROM, not =: a follow notification carries no post, and
+-- `post_id = NULL` never matches, which would silently delete nothing.
 DELETE FROM notifications
 WHERE user_id = sqlc.arg('user_id')::uuid
 	AND type = sqlc.arg('type')::text
-	AND actor_user_id = sqlc.narg('actor_user_id')::uuid
-	AND post_id = sqlc.narg('post_id')::uuid
+	AND actor_user_id IS NOT DISTINCT FROM sqlc.narg('actor_user_id')::uuid
+	AND post_id IS NOT DISTINCT FROM sqlc.narg('post_id')::uuid
 	AND subtype = sqlc.arg('subtype')::text;
+
+-- ============================================================================
+-- FOLLOWS
+-- ============================================================================
+
+-- name: FollowUser :execrows
+-- Returns 0 rows when the follow already existed, so callers can stay idempotent.
+INSERT INTO follows (follower_id, followee_id)
+VALUES (sqlc.arg('follower_id')::uuid, sqlc.arg('followee_id')::uuid)
+ON CONFLICT DO NOTHING;
+
+-- name: UnfollowUser :execrows
+DELETE FROM follows
+WHERE follower_id = sqlc.arg('follower_id')::uuid
+	AND followee_id = sqlc.arg('followee_id')::uuid;
+
+-- name: GetUserFollowStats :one
+-- Kept separate from GetUserByID/GetUserByUsername so the admin and auth paths
+-- that reuse those queries do not pay for counts they never read.
+SELECT
+	(SELECT COUNT(*) FROM follows WHERE followee_id = sqlc.arg('user_id')::uuid)::int AS followers_count,
+	(SELECT COUNT(*) FROM follows WHERE follower_id = sqlc.arg('user_id')::uuid)::int AS following_count,
+	EXISTS (
+		SELECT 1 FROM follows
+		WHERE follower_id = sqlc.narg('viewer_id')::uuid AND followee_id = sqlc.arg('user_id')::uuid
+	) AS is_following,
+	EXISTS (
+		SELECT 1 FROM follows
+		WHERE follower_id = sqlc.arg('user_id')::uuid AND followee_id = sqlc.narg('viewer_id')::uuid
+	) AS is_followed_by;
+
+-- name: ListFollowers :many
+-- Users who follow sqlc.arg('user_id'), newest follow first.
+SELECT
+	u.id,
+	u.username,
+	u.display_name,
+	u.bio,
+	u.avatar_media_id,
+	u.created_at AS user_created_at,
+	m.ext AS avatar_ext,
+	f.created_at AS followed_at,
+	EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = sqlc.narg('viewer_id')::uuid AND vf.followee_id = u.id
+	) AS is_following,
+	EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = u.id AND vf.followee_id = sqlc.narg('viewer_id')::uuid
+	) AS is_followed_by
+FROM follows f
+JOIN users u ON u.id = f.follower_id
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE f.followee_id = sqlc.arg('user_id')::uuid
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR f.created_at < sqlc.narg('cursor_time')
+		OR (f.created_at = sqlc.narg('cursor_time') AND u.id < sqlc.narg('cursor_id'))
+	)
+ORDER BY f.created_at DESC, u.id DESC
+LIMIT sqlc.arg('limit');
+
+-- name: ListFollowing :many
+-- Users that sqlc.arg('user_id') follows, newest follow first.
+SELECT
+	u.id,
+	u.username,
+	u.display_name,
+	u.bio,
+	u.avatar_media_id,
+	u.created_at AS user_created_at,
+	m.ext AS avatar_ext,
+	f.created_at AS followed_at,
+	EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = sqlc.narg('viewer_id')::uuid AND vf.followee_id = u.id
+	) AS is_following,
+	EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = u.id AND vf.followee_id = sqlc.narg('viewer_id')::uuid
+	) AS is_followed_by
+FROM follows f
+JOIN users u ON u.id = f.followee_id
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE f.follower_id = sqlc.arg('user_id')::uuid
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR f.created_at < sqlc.narg('cursor_time')
+		OR (f.created_at = sqlc.narg('cursor_time') AND u.id < sqlc.narg('cursor_id'))
+	)
+ORDER BY f.created_at DESC, u.id DESC
+LIMIT sqlc.arg('limit');
+
+-- name: ListFollowersYouFollow :many
+-- Followers of user_id that the viewer also follows. Same shape and ordering as
+-- ListFollowers so the cursor and row mapping are shared.
+SELECT
+	u.id,
+	u.username,
+	u.display_name,
+	u.bio,
+	u.avatar_media_id,
+	u.created_at AS user_created_at,
+	m.ext AS avatar_ext,
+	f.created_at AS followed_at,
+	TRUE AS is_following,
+	EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = u.id AND vf.followee_id = sqlc.arg('viewer_id')::uuid
+	) AS is_followed_by
+FROM follows f
+JOIN users u ON u.id = f.follower_id
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE f.followee_id = sqlc.arg('user_id')::uuid
+	AND EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = sqlc.arg('viewer_id')::uuid AND vf.followee_id = u.id
+	)
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR f.created_at < sqlc.narg('cursor_time')
+		OR (f.created_at = sqlc.narg('cursor_time') AND u.id < sqlc.narg('cursor_id'))
+	)
+ORDER BY f.created_at DESC, u.id DESC
+LIMIT sqlc.arg('limit');
+
+-- name: CountFollowersYouFollow :one
+SELECT COUNT(*)::int FROM follows f
+WHERE f.followee_id = sqlc.arg('user_id')::uuid
+	AND EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = sqlc.arg('viewer_id')::uuid AND vf.followee_id = f.follower_id
+	);
+
+-- name: ListFollowerIDs :many
+-- Fan-out target list: everyone who should get this author's post in their home timeline.
+SELECT follower_id
+FROM follows
+WHERE followee_id = sqlc.arg('followee_id')::uuid
+LIMIT sqlc.arg('limit');
+
+-- name: ListHomeTimelinePosts :many
+-- Posts by the viewer and everyone they follow. Replies and boosts are ordinary
+-- posts rows, so they need no special handling here.
+SELECT
+	p.id,
+	p.user_id,
+	p.content,
+	p.parent_id,
+	p.root_id,
+	p.reference_id,
+	p.created_at,
+	p.deleted_at,
+	u.username,
+	u.display_name,
+	u.bio,
+	u.avatar_media_id,
+	u.created_at AS user_created_at,
+	m.ext AS avatar_ext
+FROM posts p
+JOIN users u ON u.id = p.user_id
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE p.deleted_at IS NULL
+	AND (
+		p.user_id = sqlc.arg('viewer_id')::uuid
+		OR EXISTS (
+			SELECT 1 FROM follows f
+			WHERE f.follower_id = sqlc.arg('viewer_id')::uuid AND f.followee_id = p.user_id
+		)
+	)
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR p.created_at < sqlc.narg('cursor_time')
+		OR (p.created_at = sqlc.narg('cursor_time') AND p.id < sqlc.narg('cursor_id'))
+	)
+ORDER BY p.created_at DESC, p.id DESC
+LIMIT sqlc.arg('limit');
+
+-- name: ListHomeTimelinePostIDs :many
+-- Used to warm a cold home timeline ZSET after a cache miss.
+SELECT p.id, p.created_at
+FROM posts p
+WHERE p.deleted_at IS NULL
+	AND (
+		p.user_id = sqlc.arg('viewer_id')::uuid
+		OR EXISTS (
+			SELECT 1 FROM follows f
+			WHERE f.follower_id = sqlc.arg('viewer_id')::uuid AND f.followee_id = p.user_id
+		)
+	)
+ORDER BY p.created_at DESC, p.id DESC
+LIMIT sqlc.arg('limit');

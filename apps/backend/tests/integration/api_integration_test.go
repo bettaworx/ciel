@@ -139,12 +139,17 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 	notificationsSvc.SetPostsService(postsSvc)
 	timelineSvc.SetReactionsService(reactionsSvc)
 	timelineSvc.SetPostsService(postsSvc)
+	usersSvc := service.NewUsersService(store)
+	followsSvc := service.NewFollowsService(store, cacheImpl, hub)
+	followsSvc.SetNotificationsService(notificationsSvc)
+	followsSvc.SetUsersService(usersSvc)
 
 	apiServer := handlers.API{
 		Auth:          service.NewAuthServiceWithOptions(store, tokenManager, authOpts),
 		Admin:         service.NewAdminService(store, cacheImpl, nil, hub),
 		Authz:         authzSvc,
-		Users:         service.NewUsersService(store),
+		Users:         usersSvc,
+		Follows:       followsSvc,
 		Posts:         postsSvc,
 		Timeline:      timelineSvc,
 		Reactions:     reactionsSvc,
@@ -181,6 +186,7 @@ func (a *testApp) Close() {
 
 func resetDB(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `TRUNCATE TABLE
+		follows,
 		notifications,
 		post_reaction_events,
 		post_reaction_counts,

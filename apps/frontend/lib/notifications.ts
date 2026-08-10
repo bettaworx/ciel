@@ -57,7 +57,18 @@ export function notificationDisplayType(
  * this is not `rendersAsPostCard` — toasts use the row for every kind.
  */
 export function usesActorRowLayout(type: NotificationDisplayType): boolean {
-  return type === "reaction" || type === "boost";
+  return type === "reaction" || type === "boost" || type === "follow";
+}
+
+/**
+ * Whether a grouped row is labelled by how many *people* it covers rather than
+ * by naming one of them.
+ *
+ * Reactions count people because one person leaving three emoji is still one
+ * person; follows count people because there is nobody to single out.
+ */
+export function usesActorCountLabel(type: NotificationDisplayType): boolean {
+  return type === "reaction" || type === "follow";
 }
 
 /** Actors to show on a row, newest first. Falls back to the single actor. */

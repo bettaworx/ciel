@@ -59,7 +59,7 @@ func DecodeCursor(cursor *string) (*TimelineCursor, error) { return decodeCursor
 // ListFromRedis exposes the Redis timeline paging logic for unit tests.
 // This does not perform DB fallback.
 func (s *TimelineService) ListFromRedis(ctx context.Context, limit int, cursor *TimelineCursor) (postIDs []uuid.UUID, next *TimelineCursor, ok bool) {
-	return s.listFromRedis(ctx, limit, cursor)
+	return s.listFromRedis(ctx, timelineKeyGlobal(), limit, cursor)
 }
 
 func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams, userID *api.UserId) (api.TimelinePage, error) {
@@ -81,28 +81,14 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 
 	// Prefer Redis if configured.
 	if s.cache != nil {
-		postIDs, next, okRedis := s.listFromRedis(ctx, limit, cursor)
+		postIDs, next, okRedis := s.listFromRedis(ctx, timelineKeyGlobal(), limit, cursor)
 		if okRedis {
-			posts, err := s.fetchPosts(ctx, postIDs)
+			posts, err := s.fetchPosts(ctx, timelineKeyGlobal(), postIDs)
 			if err != nil {
 				return api.TimelinePage{}, err
 			}
-			if err := s.attachMediaToPosts(ctx, posts); err != nil {
+			if err := s.hydratePosts(ctx, posts, userID); err != nil {
 				return api.TimelinePage{}, err
-			}
-			if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
-				return api.TimelinePage{}, err
-			}
-			if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
-				return api.TimelinePage{}, err
-			}
-			if s.posts != nil {
-				if err := s.posts.attachBoostCountsToPosts(ctx, posts); err != nil {
-					return api.TimelinePage{}, err
-				}
-				if err := s.posts.attachReferencesToPosts(ctx, posts, userID); err != nil {
-					return api.TimelinePage{}, err
-				}
 			}
 			page := api.TimelinePage{Items: posts}
 			if next != nil {
@@ -133,22 +119,8 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	for _, row := range rows {
 		items = append(items, mapTimelineRow(row))
 	}
-	if err := s.attachMediaToPosts(ctx, items); err != nil {
+	if err := s.hydratePosts(ctx, items, userID); err != nil {
 		return api.TimelinePage{}, err
-	}
-	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
-		return api.TimelinePage{}, err
-	}
-	if err := s.attachReplyCountsToPosts(ctx, items); err != nil {
-		return api.TimelinePage{}, err
-	}
-	if s.posts != nil {
-		if err := s.posts.attachBoostCountsToPosts(ctx, items); err != nil {
-			return api.TimelinePage{}, err
-		}
-		if err := s.posts.attachReferencesToPosts(ctx, items, userID); err != nil {
-			return api.TimelinePage{}, err
-		}
 	}
 
 	var nextCursor *string
@@ -158,6 +130,154 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 		nextCursor = &n
 	}
 	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
+}
+
+// hydratePosts fills in everything a timeline row needs beyond the post itself.
+// Every feed goes through here so the shapes stay identical.
+func (s *TimelineService) hydratePosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+	if err := s.attachMediaToPosts(ctx, posts); err != nil {
+		return err
+	}
+	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+		return err
+	}
+	if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
+		return err
+	}
+	if s.posts == nil {
+		return nil
+	}
+	if err := s.posts.attachBoostCountsToPosts(ctx, posts); err != nil {
+		return err
+	}
+	return s.posts.attachReferencesToPosts(ctx, posts, userID)
+}
+
+// GetHome returns the timeline of posts by the viewer and everyone they follow.
+//
+// Unlike the global timeline this cannot trust an empty Redis result. A per-user
+// ZSET is always partial — it is capped, it expires, and it is dropped outright
+// on follow/unfollow — so "Redis returned nothing" and "the timeline is empty"
+// are different things. The cache is therefore only used when it can fill the
+// whole page; anything else falls through to the database, which is the source
+// of truth.
+func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHomeParams, userID api.UserId) (api.TimelinePage, error) {
+	if s.store == nil {
+		return api.TimelinePage{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	limit := 30
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	if limit < 1 || limit > 100 {
+		return api.TimelinePage{}, NewError(http.StatusBadRequest, "invalid_request", "limit must be 1..100")
+	}
+
+	cursor, err := decodeCursor(params.Cursor)
+	if err != nil {
+		return api.TimelinePage{}, NewError(http.StatusBadRequest, "invalid_request", "invalid cursor")
+	}
+
+	key := timelineKeyHome(userID)
+	if s.cache != nil {
+		// next is only set when the page came back full, which is exactly the
+		// condition under which the cache is trustworthy here.
+		postIDs, next, okRedis := s.listFromRedis(ctx, key, limit, cursor)
+		if okRedis && next != nil {
+			posts, err := s.fetchPosts(ctx, key, postIDs)
+			if err != nil {
+				return api.TimelinePage{}, err
+			}
+			// A post dropped by fetchPosts (deleted since being cached) would
+			// leave a short page, so only serve it when nothing was lost.
+			if len(posts) == limit {
+				if err := s.hydratePosts(ctx, posts, &userID); err != nil {
+					return api.TimelinePage{}, err
+				}
+				nc := encodeCursor(*next)
+				return api.TimelinePage{Items: posts, NextCursor: &nc}, nil
+			}
+		}
+	}
+
+	var cTime sql.NullTime
+	var cID uuid.NullUUID
+	if cursor != nil {
+		cTime = sql.NullTime{Time: time.UnixMilli(cursor.Score).UTC(), Valid: true}
+		if uid, err := uuid.Parse(cursor.ID); err == nil {
+			cID = uuid.NullUUID{UUID: uid, Valid: true}
+		}
+	}
+	rows, err := s.store.Q.ListHomeTimelinePosts(ctx, sqlc.ListHomeTimelinePostsParams{
+		ViewerID:   userID,
+		CursorTime: cTime,
+		CursorID:   cID,
+		Limit:      int32(limit),
+	})
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
+
+	items := make([]api.Post, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, mapHomeTimelineRow(row))
+	}
+	if err := s.hydratePosts(ctx, items, &userID); err != nil {
+		return api.TimelinePage{}, err
+	}
+
+	// Rebuild the cache on a first-page miss, so the next read can use it.
+	if cursor == nil {
+		s.warmHomeTimeline(ctx, userID)
+	}
+
+	var nextCursor *string
+	if len(rows) == limit {
+		last := rows[len(rows)-1]
+		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String()})
+		nextCursor = &n
+	}
+	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
+}
+
+// warmHomeTimeline repopulates a user's home ZSET from the database. Errors are
+// ignored; a cold cache only costs a database query on the next read.
+func (s *TimelineService) warmHomeTimeline(ctx context.Context, userID uuid.UUID) {
+	if s.cache == nil {
+		return
+	}
+	rows, err := s.store.Q.ListHomeTimelinePostIDs(ctx, sqlc.ListHomeTimelinePostIDsParams{
+		ViewerID: userID,
+		Limit:    homeTimelineMaxEntries,
+	})
+	if err != nil || len(rows) == 0 {
+		return
+	}
+	members := make([]cache.Z, 0, len(rows))
+	for _, row := range rows {
+		members = append(members, cache.Z{Score: float64(row.CreatedAt.UnixMilli()), Member: row.ID.String()})
+	}
+	key := timelineKeyHome(userID)
+	if err := s.cache.ZAdd(ctx, key, members...); err != nil {
+		return
+	}
+	_ = s.cache.Expire(ctx, key, homeTimelineTTL)
+}
+
+func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
+	return api.Post{
+		Id:          row.ID,
+		Content:     row.Content,
+		Media:       []api.Media{},
+		Reactions:   []api.ReactionCount{},
+		Mentions:    []api.MentionUser{},
+		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
+		RootId:      nullUUIDToPostIDPtr(row.RootID),
+		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		CreatedAt:   row.CreatedAt,
+		DeletedAt:   nil,
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+	}
 }
 
 func (s *TimelineService) attachReactionsToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
@@ -183,8 +303,7 @@ func (s *TimelineService) attachReactionsToPosts(ctx context.Context, posts []ap
 	return nil
 }
 
-func (s *TimelineService) listFromRedis(ctx context.Context, limit int, cursor *timelineCursor) (postIDs []uuid.UUID, next *timelineCursor, ok bool) {
-	key := timelineKeyGlobal()
+func (s *TimelineService) listFromRedis(ctx context.Context, key string, limit int, cursor *timelineCursor) (postIDs []uuid.UUID, next *timelineCursor, ok bool) {
 	max := "+inf"
 	if cursor != nil {
 		max = strconv.FormatInt(cursor.Score, 10)
@@ -241,7 +360,7 @@ func (s *TimelineService) listFromRedis(ctx context.Context, limit int, cursor *
 	return ids, nil, true
 }
 
-func (s *TimelineService) fetchPosts(ctx context.Context, ids []uuid.UUID) ([]api.Post, error) {
+func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid.UUID) ([]api.Post, error) {
 	if len(ids) == 0 {
 		return []api.Post{}, nil
 	}
@@ -257,9 +376,9 @@ func (s *TimelineService) fetchPosts(ctx context.Context, ids []uuid.UUID) ([]ap
 		found[row.ID] = struct{}{}
 	}
 
-	// Remove missing (likely deleted) from cache.
+	// Remove missing (likely deleted) from cache. Deleted posts are never
+	// removed from the per-user ZSETs on write, so this is how they get cleaned.
 	if s.cache != nil && len(found) != len(ids) {
-		key := timelineKeyGlobal()
 		missing := make([]interface{}, 0)
 		for _, id := range ids {
 			if _, ok := found[id]; !ok {

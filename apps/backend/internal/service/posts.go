@@ -225,6 +225,7 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		key := timelineKeyGlobal()
 		score := float64(post.CreatedAt.UnixMilli())
 		_ = s.cache.ZAdd(ctx, key, cache.Z{Score: score, Member: post.Id.String()})
+		s.fanOutToHomeTimelines(ctx, user.ID, post.Id, score)
 	}
 
 	s.publish(ctx, realtime.Event{Type: realtime.EventPostCreated, Post: &post})
@@ -978,9 +979,60 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 
 func timelineKeyGlobal() string { return "timeline:global" }
 
+// timelineKeyHome is the per-user home timeline ZSET, written by fan-out on
+// post creation. Unlike the global key this one is always partial, so an empty
+// result never means "the timeline is empty" — see TimelineService.GetHome.
+func timelineKeyHome(userID uuid.UUID) string { return "timeline:home:" + userID.String() }
+
 // TimelineKeyGlobal returns the Redis key used for the global timeline.
 // Primarily used by tests living outside this package.
 func TimelineKeyGlobal() string { return timelineKeyGlobal() }
+
+// TimelineKeyHome returns the Redis key used for a user's home timeline.
+// Primarily used by tests living outside this package.
+func TimelineKeyHome(userID uuid.UUID) string { return timelineKeyHome(userID) }
+
+// homeTimelineMaxEntries caps each per-user ZSET. Deep pagination falls back to
+// the database, so this only bounds how much of the feed stays hot.
+const homeTimelineMaxEntries = 800
+
+// homeTimelineTTL lets the timelines of dormant users expire instead of
+// accumulating in Redis forever.
+const homeTimelineTTL = 7 * 24 * time.Hour
+
+// maxFanoutFollowers caps how many followers a single post is pushed to.
+//
+// ponytail: synchronous fan-out on the request path, truncated at this many
+// followers. Anyone past the cap still gets the post from the database path,
+// just without the cache. Move to a queue if this shows up in post latency.
+const maxFanoutFollowers = 5000
+
+// fanOutToHomeTimelines pushes a new post into the author's own home timeline
+// and those of their followers.
+//
+// Every error is ignored: the database query is the source of truth for the
+// home timeline, so a cold or stale cache costs speed, never correctness.
+func (s *PostsService) fanOutToHomeTimelines(ctx context.Context, authorID uuid.UUID, postID uuid.UUID, score float64) {
+	if s.cache == nil || s.store == nil {
+		return
+	}
+	followerIDs, err := s.store.Q.ListFollowerIDs(ctx, sqlc.ListFollowerIDsParams{
+		FolloweeID: authorID,
+		Limit:      maxFanoutFollowers,
+	})
+	if err != nil {
+		return
+	}
+	member := postID.String()
+	for _, uid := range append(followerIDs, authorID) {
+		key := timelineKeyHome(uid)
+		if err := s.cache.ZAdd(ctx, key, cache.Z{Score: score, Member: member}); err != nil {
+			continue
+		}
+		_ = s.cache.ZRemRangeByRank(ctx, key, 0, -(homeTimelineMaxEntries + 1))
+		_ = s.cache.Expire(ctx, key, homeTimelineTTL)
+	}
+}
 
 func (s *PostsService) publish(ctx context.Context, event realtime.Event) {
 	if s.publisher == nil {

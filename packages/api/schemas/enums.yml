@@ -130,4 +130,5 @@ components:
       - mention
       - reply
       - boost
+      - follow
       description: Kind of notification. New kinds are appended here.

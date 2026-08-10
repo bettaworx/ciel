@@ -274,6 +274,21 @@
     "noMedia": "メディアはまだありません",
     "notFound": "ユーザーが見つかりません",
     "noBio": "自己紹介がありません",
+    "follow": "フォロー",
+    "followBack": "フォローバック",
+    "followsYou": "フォローされています",
+    "following": "フォロー中",
+    "mutualFollow": "相互フォロー中",
+    "unfollow": "フォロー解除",
+    "followError": "フォローの更新に失敗しました",
+    "followingCount": "フォロー",
+    "followersCount": "フォロワー",
+    "followersYouFollow": "知り合いのフォロワー",
+    "followedByOne": "{name} がフォローしています",
+    "followedByMany": "{name} 他 {count} 人がフォローしています",
+    "noFollowing": "まだ誰もフォローしていません",
+    "noFollowers": "フォロワーがいません",
+    "noFollowersYouFollow": "フォロー中のユーザーに、このユーザーをフォローしている人はいません",
     "editProfile": "編集",
     "shareProfile": "プロフィールを共有",
     "shareSuccess": "プロフィールURLをコピーしました",
@@ -411,8 +426,13 @@
   "timeline": {
     "title": "タイムライン",
     "noPosts": "投稿がありません",
+    "noHomePosts": "フォロー中のユーザーの投稿がありません",
     "loadMore": "もっと見る",
-    "showThread": "スレッドを表示"
+    "showThread": "スレッドを表示",
+    "scope": {
+      "home": "ホーム",
+      "global": "全体"
+    }
   },
   "createPost": {
     "title": "投稿する",
@@ -1288,14 +1308,16 @@
       "reply": "{name}が返信しました",
       "mention": "{name}がメンションしました",
       "boost": "{name}がブーストしました",
-      "quote": "{name}が引用しました"
+      "quote": "{name}が引用しました",
+      "follow": "{name}にフォローされました"
     },
     "grouped": {
       "reaction": "{count}人がリアクションしました",
       "reply": "{name}さん他{count}人が返信しました",
       "mention": "{name}さん他{count}人がメンションしました",
       "boost": "{name}さん他{count}人がブーストしました",
-      "quote": "{name}さん他{count}人が引用しました"
+      "quote": "{name}さん他{count}人が引用しました",
+      "follow": "{count}人にフォローされました"
     }
   }
 }

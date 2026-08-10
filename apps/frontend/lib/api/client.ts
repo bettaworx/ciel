@@ -310,6 +310,24 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		userByUsername: (username: string) =>
 			request<components['schemas']['User']>('GET', `/users/${encodeURIComponent(username)}`),
 
+		followUser: (username: string) =>
+			request<components['schemas']['User']>('POST', `/users/${encodeURIComponent(username)}/follow`),
+
+		unfollowUser: (username: string) =>
+			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/follow`),
+
+		followList: (
+			username: string,
+			tab: 'followers' | 'following' | 'followers_you_follow',
+			params?: { limit?: number; cursor?: string | null }
+		) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['UsersPage']>('GET', `/users/${encodeURIComponent(username)}/${tab}${suffix}`);
+		},
+
 		userPosts: (
 			username: string,
 			params?: { limit?: number; cursor?: string | null; mediaType?: 'image' | 'video' | 'media'; onlyReplies?: boolean; excludeForeignReplies?: boolean }
@@ -361,6 +379,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			if (params?.cursor) qs.set('cursor', params.cursor);
 			const suffix = qs.size ? `?${qs.toString()}` : '';
 			return request<components['schemas']['TimelinePage']>('GET', `/timeline${suffix}`);
+		},
+
+		homeTimeline: (params?: { limit?: number; cursor?: string | null }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['TimelinePage']>('GET', `/timeline/home${suffix}`);
 		},
 
 		listReplies: (

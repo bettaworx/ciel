@@ -23,6 +23,7 @@ tags:
 - name: Setup
 - name: Admin
 - name: Users
+- name: Follows
 - name: Posts
 - name: Timeline
 - name: Reactions
@@ -190,6 +191,14 @@ paths:
     $ref: ./paths/users.yml#/~1users~1{username}
   /users/{username}/posts:
     $ref: ./paths/users.yml#/~1users~1{username}~1posts
+  /users/{username}/follow:
+    $ref: ./paths/follows.yml#/~1users~1{username}~1follow
+  /users/{username}/followers:
+    $ref: ./paths/follows.yml#/~1users~1{username}~1followers
+  /users/{username}/following:
+    $ref: ./paths/follows.yml#/~1users~1{username}~1following
+  /users/{username}/followers_you_follow:
+    $ref: ./paths/follows.yml#/~1users~1{username}~1followers_you_follow
   /posts:
     $ref: ./paths/posts.yml#/~1posts
   /media:
@@ -204,6 +213,8 @@ paths:
     $ref: ./paths/posts.yml#/~1posts~1{postId}~1replies
   /timeline:
     $ref: ./paths/timeline.yml#/~1timeline
+  /timeline/home:
+    $ref: ./paths/timeline.yml#/~1timeline~1home
   /posts/{postId}/reactions:
     $ref: ./paths/reactions.yml#/~1posts~1{postId}~1reactions
   /posts/{postId}/reactions/users:
