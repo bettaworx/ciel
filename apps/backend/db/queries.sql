@@ -1646,9 +1646,14 @@ RETURNING id, created_at;
 --                 grouping has to follow reference_id instead.
 --   follow     -> all grouped together. A follow points at no post, so there is
 --                 no target to key on: every follow of this user shares one
---                 group, regardless of when it happened.
+--                 group.
 --   everything else, quotes included, groups by its own id and stays a group of
 --   one — quotes carry their own text and must not be merged.
+--
+-- Every group is also cut at the day boundary, so a row never grows without
+-- bound: reactions on a popular post, or a run of follows, become one row per
+-- day rather than one row forever. The day is the caller's calendar day, from
+-- the `tz` argument (an IANA zone name).
 --
 -- id/post_id/actor_id are max() rather than "the newest member's": for a group
 -- of one they are exactly that row's values, and for a real group the caller
@@ -1671,6 +1676,9 @@ SELECT
 	CAST(COALESCE(max(n.post_id::text), '00000000-0000-0000-0000-000000000000') AS uuid) AS post_id,
 	max(n.created_at)::timestamptz AS created_at,
 	CAST(COALESCE((CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), '00000000-0000-0000-0000-000000000000'::uuid) AS uuid) AS group_target,
+	-- `timestamptz AT TIME ZONE zone` is the wall clock in that zone, so this is
+	-- the day the recipient saw, not the server's.
+	CAST((n.created_at AT TIME ZONE sqlc.arg('tz')::text) AS date) AS group_day,
 	count(*)::int AS group_count,
 	-- The label counts people, not reactions: one person can react several times
 	-- to the same post.
@@ -1683,7 +1691,7 @@ WHERE n.user_id = sqlc.arg('user_id')::uuid
 	AND (n.post_id IS NULL OR p.deleted_at IS NULL)
 	AND (sqlc.narg('unread_only')::boolean IS NULL OR n.read_at IS NULL)
 	AND (sqlc.narg('types')::text[] IS NULL OR n.type = ANY(sqlc.narg('types')::text[]))
-GROUP BY n.type, (CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), (CASE
+GROUP BY n.type, (CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), CAST((n.created_at AT TIME ZONE sqlc.arg('tz')::text) AS date), (CASE
 		WHEN n.type = 'reaction' THEN NULL
 		WHEN n.type = 'boost' AND p.content = '' AND p.reference_id IS NOT NULL THEN NULL
 		WHEN n.type = 'follow' THEN NULL
@@ -1704,12 +1712,17 @@ LIMIT sqlc.arg('limit');
 -- group_target is COALESCEd to the nil uuid exactly as ListNotificationGroups
 -- does it: follows carry no post, and `NULL = ANY(...)` is never true, so
 -- without this they would never match the group they belong to.
+--
+-- ponytail: filtered by target only, so a target's other days come back too and
+-- the caller drops them when it buckets by (type, target, group_day). Pass the
+-- page's days as an array too if a target ever gets active enough to matter.
 SELECT
 	n.id,
 	n.type,
 	n.subtype,
 	n.actor_user_id,
-	CAST(COALESCE((CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), '00000000-0000-0000-0000-000000000000'::uuid) AS uuid) AS group_target
+	CAST(COALESCE((CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), '00000000-0000-0000-0000-000000000000'::uuid) AS uuid) AS group_target,
+	CAST((n.created_at AT TIME ZONE sqlc.arg('tz')::text) AS date) AS group_day
 FROM notifications n
 LEFT JOIN posts p ON p.id = n.post_id
 WHERE n.user_id = sqlc.arg('user_id')::uuid

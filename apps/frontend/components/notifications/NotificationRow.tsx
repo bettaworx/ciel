@@ -137,6 +137,10 @@ export function NotificationRow({
   const displayType = notificationDisplayType(notification);
   const Icon = NOTIFICATION_ICONS[displayType];
   const actorRowLayout = !singleActor && usesActorRowLayout(displayType);
+  // No excerpt and no actor row means the content is a single line. Beside a
+  // 48px avatar, top-aligned, that leaves the whole space under the label
+  // empty — centre it instead and keep the avatar small.
+  const compact = !excerpt && !actorRowLayout;
 
   const primaryActor = actors[0];
   const actorCount = notificationActorCount(notification);
@@ -179,7 +183,13 @@ export function NotificationRow({
     );
 
   return (
-    <div className={cn("flex items-start gap-3 p-3", className)}>
+    <div
+      className={cn(
+        "flex gap-3 p-3",
+        compact ? "items-center" : "items-start",
+        className,
+      )}
+    >
       {actorRowLayout ? (
         <span className="flex h-10 w-10 shrink-0 items-center justify-center text-c-1 sm:h-12 sm:w-12">
           {/* A row can span several emoji now, so the type icon leads and each
@@ -192,7 +202,7 @@ export function NotificationRow({
           {primaryActor ? (
             <ActorAvatar
               actor={primaryActor}
-              size="h-10 w-10 sm:h-12 sm:w-12"
+              size={compact ? "h-10 w-10" : "h-10 w-10 sm:h-12 sm:w-12"}
               showEmoji={false}
               onUserClick={onUserClick}
             />

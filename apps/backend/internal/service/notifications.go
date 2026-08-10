@@ -162,6 +162,16 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 		unreadOnly = sql.NullBool{Bool: true, Valid: true}
 	}
 
+	// The zone the day boundary between groups is drawn in. Validated here so an
+	// unknown name is a 400 rather than a failed query.
+	tz := "UTC"
+	if params.Tz != nil && *params.Tz != "" {
+		tz = *params.Tz
+		if _, err := time.LoadLocation(tz); err != nil {
+			return api.NotificationsPage{}, NewError(http.StatusBadRequest, "invalid_request", "unknown time zone")
+		}
+	}
+
 	// nil means "no filter"; an explicitly empty list matches nothing.
 	var types []string
 	if params.Type != nil {
@@ -175,6 +185,7 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 	}
 
 	rows, err := s.store.Q.ListNotificationGroups(ctx, sqlc.ListNotificationGroupsParams{
+		Tz:         tz,
 		UserID:     userID,
 		UnreadOnly: unreadOnly,
 		Types:      types,
@@ -212,7 +223,7 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 
 	// Only pages that actually contain a group pay for the member lookup.
 	if len(groupedTargets) > 0 {
-		if err := s.attachGroupMembers(ctx, userID, rows, items, groupedTargets); err != nil {
+		if err := s.attachGroupMembers(ctx, userID, tz, rows, items, groupedTargets); err != nil {
 			return api.NotificationsPage{}, err
 		}
 	}
@@ -365,11 +376,13 @@ const MaxGroupedActors = 8
 func (s *NotificationsService) attachGroupMembers(
 	ctx context.Context,
 	userID api.UserId,
+	tz string,
 	rows []sqlc.ListNotificationGroupsRow,
 	items []api.Notification,
 	targets []uuid.UUID,
 ) error {
 	members, err := s.store.Q.ListNotificationGroupMembers(ctx, sqlc.ListNotificationGroupMembersParams{
+		Tz:           tz,
 		UserID:       userID,
 		GroupTargets: targets,
 	})
@@ -377,17 +390,20 @@ func (s *NotificationsService) attachGroupMembers(
 		return err
 	}
 
-	// The query returns every groupable notification for these targets, so bucket
-	// by the same key the grouping used — emoji is deliberately not part of it.
-	// Members arrive newest first.
+	// The query returns every groupable notification for these targets, on every
+	// day, so bucket by the same key the grouping used — emoji is deliberately
+	// not part of it. Members arrive newest first.
 	type groupKey struct {
 		typ    string
 		target uuid.UUID
+		// A date, held as text: time.Time carries a Location and would not
+		// compare equal as a map key across the two queries.
+		day string
 	}
 	byKey := make(map[groupKey][]sqlc.ListNotificationGroupMembersRow, len(targets))
 	actorIDs := make([]uuid.UUID, 0, len(members))
 	for _, m := range members {
-		k := groupKey{typ: m.Type, target: m.GroupTarget}
+		k := groupKey{typ: m.Type, target: m.GroupTarget, day: m.GroupDay.Format(time.DateOnly)}
 		byKey[k] = append(byKey[k], m)
 		if m.ActorUserID.Valid {
 			actorIDs = append(actorIDs, m.ActorUserID.UUID)
@@ -405,7 +421,7 @@ func (s *NotificationsService) attachGroupMembers(
 		if row.GroupCount <= 1 {
 			continue
 		}
-		group := byKey[groupKey{typ: row.Type, target: row.GroupTarget}]
+		group := byKey[groupKey{typ: row.Type, target: row.GroupTarget, day: row.GroupDay.Format(time.DateOnly)}]
 		if len(group) == 0 {
 			continue
 		}

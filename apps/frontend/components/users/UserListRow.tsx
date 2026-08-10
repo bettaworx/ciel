@@ -37,9 +37,8 @@ export function UserListRow({ user, className }: UserListRowProps) {
     <Link
       href={`/users/${encodeURIComponent(user.username)}`}
       className={cn(
-        // accent is the theme's "brighter than card" step; muted sits too close
-        // to the card colour to read as a hover.
-        "flex gap-3 rounded-2xl bg-card p-3 transition-colors hover:bg-accent",
+        // card-hover is the shared row hover for anything sitting on a card.
+        "flex gap-3 rounded-2xl bg-card p-3 transition-colors hover:bg-card-hover",
         // With a bio the block is tall enough that centring it looks adrift.
         user.bio ? "items-start" : "items-center",
         className,

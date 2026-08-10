@@ -43,7 +43,7 @@ export function SettingsIndexContent() {
           return (
             <div key={category.id}>
               <Link href={category.href}>
-                <div className="flex items-center justify-between p-4 transition-colors cursor-pointer">
+                <div className="flex items-center justify-between p-4 transition-colors cursor-pointer hover:bg-card-hover">
                   <div className="flex items-center gap-3">
                     <Icon className="h-5 w-5" />
                     <span className="font-medium">{category.label}</span>

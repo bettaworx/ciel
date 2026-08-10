@@ -404,10 +404,13 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			limit?: number;
 			cursor?: string | null;
 			types?: readonly components['schemas']['NotificationType'][];
+			/** IANA zone the server draws the day boundary between groups in. */
+			tz?: string;
 		}) => {
 			const qs = new URLSearchParams();
 			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
 			if (params?.cursor) qs.set('cursor', params.cursor);
+			if (params?.tz) qs.set('tz', params.tz);
 			// Repeated `type` params: ?type=mention&type=reply
 			for (const type of params?.types ?? []) qs.append('type', type);
 			const suffix = qs.size ? `?${qs.toString()}` : '';

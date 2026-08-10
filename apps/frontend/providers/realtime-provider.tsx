@@ -345,8 +345,15 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 			return;
 		}
 
-		// Same destination as tapping the row in the list.
 		const targetPostId = notificationTargetPostId(notification);
+		// A notification with no post is a follow. Unlike the list row — which is
+		// grouped and so opens your followers list — a toast is always one actor,
+		// so open that person's profile.
+		const href = targetPostId
+			? `/posts/${targetPostId}`
+			: notification.actor
+				? `/users/${encodeURIComponent(notification.actor.username)}`
+				: '/notifications';
 
 		// toast.custom so the whole surface is clickable, not just an action button.
 		// The body is the same row the notifications list renders, so the two
@@ -362,9 +369,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 						toast.dismiss(id);
 						// Acting on the toast counts as having seen it.
 						markNotificationsReadRef.current.mutate([notification.id]);
-						routerRef.current.push(
-							targetPostId ? `/posts/${targetPostId}` : '/notifications',
-						);
+						routerRef.current.push(href);
 					}}
 					className="block w-full text-left"
 				>

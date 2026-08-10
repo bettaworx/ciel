@@ -23,7 +23,7 @@ export function AccountCard() {
   return (
     <button
       onClick={handleClick}
-      className="w-full p-3 rounded-lg bg-card hover:bg-accent transition-colors text-left mb-4"
+      className="w-full p-3 rounded-lg bg-card hover:bg-card-hover transition-colors text-left mb-4"
     >
       <div className="flex items-center gap-3">
         <Avatar className="h-12 w-12">

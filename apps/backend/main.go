@@ -11,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	// The runtime image is bare alpine with no tzdata package, so carry the zone
+	// database in the binary: notification grouping resolves IANA zone names.
+	_ "time/tzdata"
 
 	"backend/internal/api"
 	"backend/internal/auth"
