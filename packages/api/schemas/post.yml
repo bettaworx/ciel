@@ -11,6 +11,7 @@ components:
       - reactions
       - mentions
       - replyCount
+      - boostCount
       properties:
         id:
           $ref: ./common.yml#/components/schemas/PostId
@@ -18,7 +19,6 @@ components:
           $ref: ./user.yml#/components/schemas/User
         content:
           type: string
-          minLength: 1
           maxLength: 300
         media:
           type: array
@@ -38,6 +38,10 @@ components:
           type: integer
           minimum: 0
           description: Number of non-deleted direct replies to this post.
+        boostCount:
+          type: integer
+          minimum: 0
+          description: Number of boosts and quotes referencing this post.
         parentId:
           allOf:
           - $ref: ./common.yml#/components/schemas/PostId
@@ -48,6 +52,16 @@ components:
           - $ref: ./common.yml#/components/schemas/PostId
           nullable: true
           description: ID of the root post of the thread. Null for root posts themselves.
+        referenceId:
+          allOf:
+          - $ref: ./common.yml#/components/schemas/PostId
+          nullable: true
+          description: ID of the post being boosted or quoted. Null for original posts.
+        reference:
+          allOf:
+          - $ref: '#/components/schemas/Post'
+          nullable: true
+          description: The referenced (boosted/quoted) post data (one level deep). Null when the referenced post has been deleted or for non-boost posts.
         createdAt:
           type: string
           format: date-time
@@ -143,7 +157,6 @@ components:
       properties:
         content:
           type: string
-          minLength: 1
           maxLength: 300
         mediaIds:
           type: array
@@ -155,3 +168,7 @@ components:
           allOf:
           - $ref: ./common.yml#/components/schemas/PostId
           description: When set, the new post becomes a reply to the referenced post. Returns 404 if the parent does not exist or has been deleted.
+        referenceId:
+          allOf:
+          - $ref: ./common.yml#/components/schemas/PostId
+          description: When set, the new post is a boost (no content) or quote (with content) of the referenced post. Returns 404 if the referenced post does not exist or has been deleted.

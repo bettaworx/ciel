@@ -421,6 +421,10 @@
     "replyTitle": "返信する",
     "reply": "返信",
     "replying": "返信中...",
+    "quoteTitle": "引用投稿",
+    "quotePlaceholder": "コメントを追加",
+    "quotePost": "引用",
+    "quoting": "引用中...",
     "post": "投稿",
     "posting": "投稿中...",
     "formatBold": "太字",
@@ -591,10 +595,20 @@
       "copyUserId": "ユーザーID",
       "copyText": "テキスト",
       "copyPostId": "投稿ID",
+      "copyPostIdFull": "投稿IDをコピー",
       "share": "共有",
       "copyLink": "リンクをコピー",
       "shareSuccess": "投稿URLをコピーしました",
-      "shareError": "共有に失敗しました"
+      "shareError": "共有に失敗しました",
+      "boost": "ブースト",
+      "quote": "引用",
+      "boostedBy": "{name}がブーストしました",
+      "boostSuccess": "ブーストしました！",
+      "alreadyBoosted": "すでにブーストしています",
+      "boostError": "ブーストに失敗しました",
+      "undoBoost": "ブーストを取り消す",
+      "undoBoostSuccess": "ブーストを取り消しました",
+      "undoBoostError": "ブーストの取り消しに失敗しました"
     },
     "deleteConfirmTitle": "投稿を削除しますか？",
     "deleteConfirmDescription": "この操作は取り消せません。投稿はタイムラインから削除されます。",
@@ -610,7 +624,12 @@
     "copyPostIdSuccess": "投稿IDをコピーしました",
     "copyPostIdError": "投稿IDのコピーに失敗しました",
     "showMore": "もっと見る",
-    "showLess": "閉じる"
+    "showLess": "閉じる",
+    "deletedPost": {
+      "username": "ユーザー",
+      "initials": "ユ",
+      "label": "削除済み"
+    }
   },
   "adminSetup": {
     "title": "サーバー初期設定",

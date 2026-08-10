@@ -22,6 +22,7 @@ type TimelineService struct {
 	store     *repository.Store
 	cache     cache.Cache
 	reactions *ReactionsService
+	posts     *PostsService
 }
 
 func NewTimelineService(store *repository.Store, cache cache.Cache) *TimelineService {
@@ -30,6 +31,10 @@ func NewTimelineService(store *repository.Store, cache cache.Cache) *TimelineSer
 
 func (s *TimelineService) SetReactionsService(reactions *ReactionsService) {
 	s.reactions = reactions
+}
+
+func (s *TimelineService) SetPostsService(posts *PostsService) {
+	s.posts = posts
 }
 
 type timelineCursor struct {
@@ -91,6 +96,14 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 			if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
 				return api.TimelinePage{}, err
 			}
+			if s.posts != nil {
+				if err := s.posts.attachBoostCountsToPosts(ctx, posts); err != nil {
+					return api.TimelinePage{}, err
+				}
+				if err := s.posts.attachReferencesToPosts(ctx, posts, userID); err != nil {
+					return api.TimelinePage{}, err
+				}
+			}
 			page := api.TimelinePage{Items: posts}
 			if next != nil {
 				nc := encodeCursor(*next)
@@ -128,6 +141,14 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	}
 	if err := s.attachReplyCountsToPosts(ctx, items); err != nil {
 		return api.TimelinePage{}, err
+	}
+	if s.posts != nil {
+		if err := s.posts.attachBoostCountsToPosts(ctx, items); err != nil {
+			return api.TimelinePage{}, err
+		}
+		if err := s.posts.attachReferencesToPosts(ctx, items, userID); err != nil {
+			return api.TimelinePage{}, err
+		}
 	}
 
 	var nextCursor *string
@@ -359,32 +380,32 @@ func (s *TimelineService) attachReplyCountsToPosts(ctx context.Context, posts []
 
 func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 	return api.Post{
-		Id:        row.ID,
-		Content:   row.Content,
-		Media:     []api.Media{},
-		Reactions: []api.ReactionCount{},
-		Mentions:  []api.MentionUser{},
-		ParentId:  nullUUIDToPostIDPtr(row.ParentID),
-		RootId:    nullUUIDToPostIDPtr(row.RootID),
-		CreatedAt: row.CreatedAt,
-		DeletedAt: nil,
-		// Note: Timeline post author doesn't include agreement fields (not needed for display)
-		Author: mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Id:          row.ID,
+		Content:     row.Content,
+		Media:       []api.Media{},
+		Reactions:   []api.ReactionCount{},
+		Mentions:    []api.MentionUser{},
+		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
+		RootId:      nullUUIDToPostIDPtr(row.RootID),
+		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		CreatedAt:   row.CreatedAt,
+		DeletedAt:   nil,
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
 	}
 }
 
 func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 	return api.Post{
-		Id:        row.ID,
-		Content:   row.Content,
-		Media:     []api.Media{},
-		Reactions: []api.ReactionCount{},
-		Mentions:  []api.MentionUser{},
-		ParentId:  nullUUIDToPostIDPtr(row.ParentID),
-		RootId:    nullUUIDToPostIDPtr(row.RootID),
-		CreatedAt: row.CreatedAt,
-		DeletedAt: nil,
-		// Note: Post author doesn't include agreement fields (not needed for display)
-		Author: mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Id:          row.ID,
+		Content:     row.Content,
+		Media:       []api.Media{},
+		Reactions:   []api.ReactionCount{},
+		Mentions:    []api.MentionUser{},
+		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
+		RootId:      nullUUIDToPostIDPtr(row.RootID),
+		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		CreatedAt:   row.CreatedAt,
+		DeletedAt:   nil,
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
 	}
 }

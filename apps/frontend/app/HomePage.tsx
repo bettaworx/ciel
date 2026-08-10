@@ -10,15 +10,21 @@ import { usePost, useTimeline } from "@/lib/hooks/use-queries";
 import { useOwnerThreadTimelineItems } from "@/lib/hooks/use-owner-thread-timeline-items";
 import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
+import { DeletedPostCard } from "@/components/DeletedPostCard";
 import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
 import { WelcomeCard } from "@/components/WelcomeCard";
 import { ComposeCard } from "@/components/ComposeCard";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Rocket } from "lucide-react";
 import type { components } from "@/lib/api/api";
 
 type Post = components["schemas"]["Post"];
+
+function isPureBoost(post: Post): boolean {
+  return post.content === "" && !!post.referenceId;
+}
 
 type TimelinePostItemProps = {
   post: Post;
@@ -49,7 +55,11 @@ function TimelineParentPostSkeleton() {
 }
 
 function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) {
-  const parentId = post.parentId ?? undefined;
+  const t = useTranslations();
+  const pureBoost = isPureBoost(post);
+  const boostReferenceId = pureBoost ? post.referenceId! : undefined;
+  const parentId = pureBoost ? undefined : (post.parentId ?? undefined);
+  const { data: boostedPost } = usePost(boostReferenceId);
   const {
     data: parentPost,
     isLoading: isParentLoading,
@@ -58,6 +68,37 @@ function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) 
   const showParentSkeleton =
     Boolean(parentId) && !parentPost && (isParentLoading || isParentFetching);
   const hasVisibleParent = Boolean(parentPost || showParentSkeleton);
+
+  if (pureBoost) {
+    const displayPost = boostedPost ?? post.reference;
+    const boostIndicator = {
+      icon: <Rocket className="h-3.5 w-3.5" />,
+      label: t("postCard.actions.boostedBy", {
+        name: post.author.displayName || post.author.username,
+      }),
+      createdAt: post.createdAt,
+      sourcePostId: post.id,
+      actorUserId: post.author.id,
+    };
+    if (!displayPost) {
+      return (
+        <DeletedPostCard
+          referenceId={post.referenceId!}
+          variant="timeline"
+          isLast={isLast}
+          indicator={boostIndicator}
+        />
+      );
+    }
+    return (
+      <PostCard
+        post={displayPost}
+        onUserClick={onUserClick}
+        isLast={isLast}
+        indicator={boostIndicator}
+      />
+    );
+  }
 
   if (!parentId || !hasVisibleParent) {
     return (

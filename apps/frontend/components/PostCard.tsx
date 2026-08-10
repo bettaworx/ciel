@@ -15,6 +15,7 @@ import { ReactionBadge } from "@/components/ReactionBadge";
 import { ReactionUsersDialog } from "@/components/ReactionUsersDialog";
 import { ReactionPicker } from "@/components/ReactionPicker";
 import { CreateReplyDialog } from "@/components/CreateReplyDialog";
+import { CreateQuoteDialog } from "@/components/CreateQuoteDialog";
 import { formatFullTimestamp, formatTimeAgo } from "@/lib/utils/format-time";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
@@ -30,12 +31,17 @@ import {
   FileText,
   Link2,
   MessageCircle,
+  Quote,
+  Rocket,
   MoreHorizontal,
+  RotateCcw,
   Share,
   Trash2,
   User,
 } from "lucide-react";
-import { useDeletePost } from "@/lib/hooks/use-queries";
+import { useDeletePost, queryKeys } from "@/lib/hooks/use-queries";
+import { useApi } from "@/lib/api/use-api";
+import { useQueryClient } from "@tanstack/react-query";
 import { OgpCard } from "@/components/OgpCard";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
@@ -75,6 +81,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { components } from "@/lib/api/api";
+import { DeletedPostCard } from "@/components/DeletedPostCard";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { PostMediaPreview } from "@/components/PostMediaPreview";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
@@ -82,6 +89,10 @@ import {
   getPostCardDisplayConfig,
   type PostCardVariant,
 } from "@/components/post-card-display";
+import {
+  PostCardIndicatorRow,
+  type PostCardIndicator,
+} from "@/components/PostCardIndicatorRow";
 
 type Post = components["schemas"]["Post"];
 
@@ -129,6 +140,8 @@ function ThreadConnectorLine({
   );
 }
 
+export type { PostCardIndicator } from "@/components/PostCardIndicatorRow";
+
 export interface PostCardProps {
   post: Post;
   onUserClick?: (username: string) => void;
@@ -137,6 +150,7 @@ export interface PostCardProps {
   isLast?: boolean;
   variant?: PostCardVariant;
   threadLine?: PostCardThreadLine;
+  indicator?: PostCardIndicator;
 }
 
 export interface PostTreeActionButtonProps {
@@ -215,6 +229,7 @@ export function PostCard({
   isLast = false,
   variant = "timeline",
   threadLine = "none",
+  indicator,
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -226,17 +241,23 @@ export function PostCard({
     post.reactions,
   );
   const auth = useAtomValue(authAtom);
+  const api = useApi();
+  const queryClient = useQueryClient();
   const deletePost = useDeletePost();
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [boostMenuOpen, setBoostMenuOpen] = useState(false);
+  const [isBoosting, setIsBoosting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [reactionDialogOpen, setReactionDialogOpen] = useState(false);
   const [replyDialogOpen, setReplyDialogOpen] = useState(false);
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
   const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(
     null,
   );
+  const [indicatorMenuOpen, setIndicatorMenuOpen] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
@@ -245,6 +266,7 @@ export function PostCard({
   const contentRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
   const isOwner = auth.user?.id === post.author?.id;
+  const canUndoBoost = indicator?.actorUserId != null && indicator.actorUserId === auth.user?.id;
   const hasReactions = reactions.length > 0;
   const displayConfig = getPostCardDisplayConfig(variant);
   const {
@@ -253,9 +275,11 @@ export function PostCard({
     timestampFormat,
     timestampPlacement,
     showReactions,
+    showMoreMenu,
   } = displayConfig;
   const verticalIdentity = displayConfig.identityLayout === "vertical";
   const isCompact = variant === "compact";
+  const isEmbedded = variant === "embedded";
 
   const showAboveLine = threadLine === "above" || threadLine === "both";
   const wantsBelowLine = threadLine === "below" || threadLine === "both";
@@ -273,6 +297,32 @@ export function PostCard({
       'PostCard: threadLine "below"/"both" is not supported with variant="detail" — the line below the avatar will be omitted.',
     );
   }
+
+  const media = useMemo(() => post.media || [], [post.media]);
+
+  // Convert API Media[] to PreviewMediaItem[] for the shared component
+  const previewMedia: PreviewMediaItem[] = useMemo(
+    () =>
+      media.map((m) => ({
+        id: m.id,
+        type: m.type as "image" | "video",
+        url: m.url,
+        width: m.width,
+        height: m.height,
+        thumbnailUrl: m.thumbnailUrl,
+        blurhash: m.blurhash,
+      })),
+    [media],
+  );
+
+  // OGP: Extract the first URL from post content, but only if no media is attached.
+  const ogpUrl = useMemo(
+    () =>
+      media.length === 0 && post.content && !post.referenceId
+        ? extractFirstUrl(post.content)
+        : null,
+    [media.length, post.content, post.referenceId],
+  );
 
   useEffect(() => {
     if (!collapseContent) {
@@ -373,6 +423,28 @@ export function PostCard({
     setMenuOpen(false);
   }, [post.id, t]);
 
+  const handleCopyBoostPostId = useCallback(async () => {
+    if (!indicator?.sourcePostId) return;
+    try {
+      await navigator.clipboard.writeText(indicator.sourcePostId);
+      toast.success(t("copyPostIdSuccess"));
+    } catch {
+      toast.error(t("copyPostIdError"));
+    }
+    setIndicatorMenuOpen(false);
+  }, [indicator?.sourcePostId, t]);
+
+  const handleCopyBoostUserId = useCallback(async () => {
+    if (!indicator?.actorUserId) return;
+    try {
+      await navigator.clipboard.writeText(indicator.actorUserId);
+      toast.success(t("copySuccess"));
+    } catch {
+      toast.error(t("copyError"));
+    }
+    setIndicatorMenuOpen(false);
+  }, [indicator?.actorUserId, t]);
+
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     const postUrl = `${window.location.origin}/posts/${post.id}`;
     if (canNativeShare && e.shiftKey) {
@@ -418,6 +490,44 @@ export function PostCard({
     });
   }, [deletePost, onDeleteSuccess, post.id, t]);
 
+  const handleBoost = useCallback(async () => {
+    if (!auth.user) {
+      toast.error(t("actions.boostError"));
+      return;
+    }
+    if (isBoosting) return;
+    setIsBoosting(true);
+    try {
+      const result = await api.createPost({ referenceId: post.id });
+      if (!result.ok) {
+        if (result.status === 409) {
+          toast.info(t("actions.alreadyBoosted"));
+        } else {
+          toast.error(t("actions.boostError"));
+        }
+        return;
+      }
+      toast.success(t("actions.boostSuccess"));
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: queryKeys.post(post.id) });
+    } catch {
+      toast.error(t("actions.boostError"));
+    } finally {
+      setIsBoosting(false);
+    }
+  }, [auth.user, isBoosting, api, post.id, t, queryClient]);
+
+  const handleUndoBoost = useCallback(async () => {
+    if (!indicator?.sourcePostId) return;
+    setIndicatorMenuOpen(false);
+    try {
+      await deletePost.mutateAsync(indicator.sourcePostId);
+      toast.success(t("actions.undoBoostSuccess"));
+    } catch {
+      toast.error(t("actions.undoBoostError"));
+    }
+  }, [indicator?.sourcePostId, deletePost, t]);
+
   const handleUserClick = useCallback(() => {
     if (onUserClick && post.author?.username) {
       onUserClick(post.author.username);
@@ -438,30 +548,7 @@ export function PostCard({
     timestampFormat === "full"
       ? fullTimestamp
       : formatTimeAgo(createdAt, locale);
-  const media = useMemo(() => post.media || [], [post.media]);
   const hasAuthorId = Boolean(post.author?.id);
-
-  // Convert API Media[] to PreviewMediaItem[] for the shared component
-  const previewMedia: PreviewMediaItem[] = useMemo(
-    () =>
-      media.map((m) => ({
-        id: m.id,
-        type: m.type as "image" | "video",
-        url: m.url,
-        width: m.width,
-        height: m.height,
-        thumbnailUrl: m.thumbnailUrl,
-        blurhash: m.blurhash,
-      })),
-    [media],
-  );
-
-  // OGP: Extract the first URL from post content, but only if no media is attached.
-  const ogpUrl = useMemo(
-    () =>
-      media.length === 0 && post.content ? extractFirstUrl(post.content) : null,
-    [media.length, post.content],
-  );
   const shouldCollapseContent = shouldCollapsePostContent({
     collapseContent,
     isExpanded: isContentExpanded,
@@ -498,11 +585,14 @@ export function PostCard({
     <Button
       variant="ghost"
       size="icon"
-      className="h-10 w-10 sm:h-12 sm:w-12 rounded-full p-0 hover:bg-transparent shrink-0"
+      className={cn(
+        "rounded-full p-0 hover:bg-transparent shrink-0",
+        isEmbedded ? "h-6 w-6" : "h-10 w-10 sm:h-12 sm:w-12",
+      )}
       onClick={handleUserClick}
       aria-label={t("viewProfile", { name: displayName })}
     >
-      <Avatar className="h-11 w-11 sm:h-12 sm:w-12">
+      <Avatar className={isEmbedded ? "h-6 w-6" : "h-11 w-11 sm:h-12 sm:w-12"}>
         <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
         <AvatarFallback>{initials}</AvatarFallback>
       </Avatar>
@@ -563,7 +653,7 @@ export function PostCard({
     </Button>
   ) : (
     <span
-      className="text-muted-foreground text-xs shrink-0"
+      className="ml-auto text-muted-foreground text-xs shrink-0"
       aria-label={fullTimestamp}
     >
       {timestampText}
@@ -729,6 +819,118 @@ export function PostCard({
     </div>
   );
 
+  const indicatorMoreMenuNode = indicator?.sourcePostId && (isDesktop ? (
+    <DropdownMenu open={indicatorMenuOpen} onOpenChange={setIndicatorMenuOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-my-4 h-8 w-8 p-0 transition-colors duration-160 ease"
+          aria-label={t("actions.more")}
+        >
+          <MoreHorizontal className="h-5 w-5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Copy className="h-4 w-4" />
+            {t("actions.copy")}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                onSelect={handleCopyBoostUserId}
+                disabled={!indicator?.actorUserId}
+              >
+                <User className="h-4 w-4" />
+                {t("actions.copyUserId")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleCopyBoostPostId}>
+                <MessageCircle className="h-4 w-4" />
+                {t("actions.copyPostId")}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+        {canUndoBoost && (
+          <DropdownMenuItem onSelect={handleUndoBoost}>
+            <RotateCcw className="h-4 w-4" />
+            {t("actions.undoBoost")}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : (
+    <Drawer open={indicatorMenuOpen} onOpenChange={setIndicatorMenuOpen}>
+      <DrawerTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-my-4 h-8 w-8 p-0 transition-colors duration-160 ease"
+          aria-label={t("actions.more")}
+        >
+          <MoreHorizontal className="h-5 w-5" />
+        </Button>
+      </DrawerTrigger>
+      <DrawerContent>
+        <div className="flex flex-col gap-2 p-2 pb-4">
+          <Drawer nested>
+            <DrawerTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2"
+              >
+                <Copy className="h-4 w-4" />
+                {t("actions.copy")}
+                <ChevronRight className="ml-auto h-4 w-4" />
+              </Button>
+            </DrawerTrigger>
+            <DrawerContent>
+              <div className="flex flex-col gap-2 p-2 pb-4">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2"
+                  onClick={handleCopyBoostUserId}
+                  disabled={!indicator?.actorUserId}
+                >
+                  <User className="h-4 w-4" />
+                  {t("actions.copyUserId")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2"
+                  onClick={handleCopyBoostPostId}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {t("actions.copyPostId")}
+                </Button>
+              </div>
+            </DrawerContent>
+          </Drawer>
+          {canUndoBoost && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={handleUndoBoost}
+            >
+              <RotateCcw className="h-4 w-4" />
+              {t("actions.undoBoost")}
+            </Button>
+          )}
+        </div>
+      </DrawerContent>
+    </Drawer>
+  ));
+
+  const indicatorNode = indicator && (
+    <PostCardIndicatorRow
+      indicator={indicator}
+      locale={locale}
+      menuNode={showMoreMenu ? indicatorMoreMenuNode : undefined}
+    />
+  );
+
   const bodyNode = post.content && (
     <>
       <div
@@ -773,10 +975,28 @@ export function PostCard({
     </>
   );
 
-  const mediaNode = (ogpUrl || previewMedia.length > 0) && (
+  const referenceNode = !isEmbedded && (post.reference ? (
     <div
       className={cn(
         verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
+      )}
+    >
+      <PostCard post={post.reference} variant="embedded" isLast onUserClick={onUserClick} />
+    </div>
+  ) : post.referenceId ? (
+    <div
+      className={cn(
+        verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
+      )}
+    >
+      <DeletedPostCard referenceId={post.referenceId} variant="embedded" isLast />
+    </div>
+  ) : null);
+
+  const mediaNode = (ogpUrl || previewMedia.length > 0) && (
+    <div
+      className={cn(
+        verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : !isEmbedded && "mb-2 sm:mb-3",
       )}
     >
       {/* OGP Link Preview – only when no media is attached */}
@@ -832,10 +1052,7 @@ export function PostCard({
       {/* Action Area */}
       <div className={cn("flex items-center justify-between")}>
         <div className="flex items-center gap-1.5">
-          <ReactionPicker
-            onEmojiSelect={handleToggleReaction}
-            disabled={isPending}
-          />
+          {/* Reply */}
           <Button
             variant="ghost"
             size="sm"
@@ -851,6 +1068,83 @@ export function PostCard({
               <span className="text-xs tabular-nums">{post.replyCount}</span>
             )}
           </Button>
+
+          {/* Boost */}
+          {isDesktop ? (
+            <DropdownMenu open={boostMenuOpen} onOpenChange={setBoostMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
+                    post.boostCount > 0 ? "px-2 gap-1" : "w-8 p-0",
+                  )}
+                  aria-label={t("actions.boost")}
+                >
+                  <Rocket className="h-5 w-5" />
+                  {post.boostCount > 0 && (
+                    <span className="text-xs tabular-nums">{post.boostCount}</span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={() => { setBoostMenuOpen(false); handleBoost(); }}>
+                  <Rocket className="h-4 w-4" />
+                  {t("actions.boost")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => { setBoostMenuOpen(false); setQuoteDialogOpen(true); }}>
+                  <Quote className="h-4 w-4" />
+                  {t("actions.quote")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Drawer open={boostMenuOpen} onOpenChange={setBoostMenuOpen}>
+              <DrawerTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-8 text-muted-foreground transition-colors duration-160 ease hover:text-foreground",
+                    post.boostCount > 0 ? "px-2 gap-1" : "w-8 p-0",
+                  )}
+                  aria-label={t("actions.boost")}
+                >
+                  <Rocket className="h-5 w-5" />
+                  {post.boostCount > 0 && (
+                    <span className="text-xs tabular-nums">{post.boostCount}</span>
+                  )}
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent>
+                <div className="flex flex-col gap-2 p-2 pb-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={() => { setBoostMenuOpen(false); handleBoost(); }}
+                  >
+                    <Rocket className="h-4 w-4" />
+                    {t("actions.boost")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={() => { setBoostMenuOpen(false); setQuoteDialogOpen(true); }}
+                  >
+                    <Quote className="h-4 w-4" />
+                    {t("actions.quote")}
+                  </Button>
+                </div>
+              </DrawerContent>
+            </Drawer>
+          )}
+
+          {/* Reaction Picker */}
+          <ReactionPicker
+            onEmojiSelect={handleToggleReaction}
+            disabled={isPending}
+          />
         </div>
         <Button
           variant="ghost"
@@ -869,6 +1163,12 @@ export function PostCard({
         parentId={post.id}
         contentPrefix={post.author?.username ? `@${post.author.username} ` : undefined}
       />
+      <CreateQuoteDialog
+        open={quoteDialogOpen}
+        onOpenChange={setQuoteDialogOpen}
+        referenceId={post.id}
+        quotedPost={post}
+      />
     </>
   );
 
@@ -877,13 +1177,16 @@ export function PostCard({
       ref={articleRef}
       className={cn(
         "relative text-card-foreground p-3 transition-colors",
-        !isLast && !showBelowLine && "border-b border-border",
+        !isLast && !showBelowLine && !isEmbedded && "border-b border-border",
         isCompact && "max-h-48 overflow-hidden",
+        isEmbedded && "border border-border rounded-xl overflow-hidden",
         className,
       )}
     >
       {showAboveLine && <ThreadConnectorLine position="above" />}
       {showBelowLine && <ThreadConnectorLine position="below" />}
+
+      {indicatorNode}
 
       {verticalIdentity ? (
         <>
@@ -895,10 +1198,11 @@ export function PostCard({
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {timestampPlacement === "header" && timestampNode}
-              {moreMenuNode}
+              {showMoreMenu && moreMenuNode}
             </div>
           </div>
           {bodyNode}
+          {referenceNode}
           {mediaNode}
           {timestampPlacement === "afterContent" && standaloneTimestampNode}
           {showReactions && reactionsRowNode}
@@ -907,14 +1211,15 @@ export function PostCard({
         <div className="flex items-start gap-3">
           {avatarNode}
           <div className="flex-1 min-w-0 flex flex-col">
-            <div className="mb-1 sm:mb-1.5">
+            <div className={cn((!isEmbedded || mediaNode) && "mb-1 sm:mb-1.5")}>
               <div className="flex min-w-0 items-center gap-2">
                 {identityStackNode}
                 {timestampPlacement === "header" && timestampNode}
-                {moreMenuNode}
+                {showMoreMenu && moreMenuNode}
               </div>
               {bodyNode}
             </div>
+            {referenceNode}
             {mediaNode}
             {timestampPlacement === "afterContent" && standaloneTimestampNode}
             {showReactions && reactionsRowNode}

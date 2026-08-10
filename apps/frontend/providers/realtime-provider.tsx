@@ -176,6 +176,37 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		});
 	}, [queryClient]);
 
+	const nullifyReference = useCallback((deletedPostId: PostId, payload: unknown) => {
+		if (!payload || typeof payload !== 'object') return payload;
+		const typed = payload as { pages?: Array<{ items?: Post[] }>; items?: Post[] };
+		if (Array.isArray(typed.pages)) {
+			let anyChanged = false;
+			const pages = typed.pages.map((page) => {
+				if (!page || !Array.isArray(page.items)) return page;
+				let pageChanged = false;
+				const items = page.items.map((item) => {
+					if (item?.referenceId !== deletedPostId || !item.reference) return item;
+					pageChanged = true;
+					return { ...item, reference: null };
+				});
+				if (!pageChanged) return page;
+				anyChanged = true;
+				return { ...page, items };
+			});
+			return anyChanged ? { ...(typed as object), pages } : payload;
+		}
+		if (Array.isArray(typed.items)) {
+			let changed = false;
+			const items = typed.items.map((item) => {
+				if (item?.referenceId !== deletedPostId || !item.reference) return item;
+				changed = true;
+				return { ...item, reference: null };
+			});
+			return changed ? { ...(typed as object), items } : payload;
+		}
+		return payload;
+	}, []);
+
 	const handlePostDeleted = useCallback((postId: PostId) => {
 		queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
 		queryClient.invalidateQueries({ queryKey: queryKeys.post(postId) });
@@ -198,12 +229,21 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 			{ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'userPosts' },
 			(payload) => removePostFromList(postId, payload)
 		);
+		// Null out reference on posts that referenced the deleted post
+		queryClient.setQueriesData(
+			{ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'timeline' },
+			(payload) => nullifyReference(postId, payload)
+		);
+		queryClient.setQueriesData(
+			{ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'userPosts' },
+			(payload) => nullifyReference(postId, payload)
+		);
 		// Decrement postCount locally
 		queryClient.setQueryData(queryKeys.serverInfo, (old: ServerInfo | undefined) => {
 			if (!old) return old;
 			return { ...old, stats: { ...old.stats, postCount: Math.max(0, old.stats.postCount - 1) } };
 		});
-	}, [queryClient, removePostFromCache, removePostFromList]);
+	}, [queryClient, removePostFromCache, removePostFromList, nullifyReference]);
 
 	const handleReactionUpdated = useCallback((counts: ReactionCounts) => {
 		const selfEmojis = getKnownSelfEmojis(counts.postId);

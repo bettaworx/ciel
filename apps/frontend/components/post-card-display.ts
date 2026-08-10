@@ -1,4 +1,4 @@
-export type PostCardVariant = "timeline" | "detail" | "compact";
+export type PostCardVariant = "timeline" | "detail" | "compact" | "embedded";
 export type PostCardIdentityLayout = "inline" | "vertical";
 export type PostCardTimestampFormat = "relative" | "full";
 export type PostCardTimestampPlacement = "header" | "afterContent";
@@ -10,6 +10,7 @@ export type PostCardDisplayConfig = {
   timestampFormat: PostCardTimestampFormat;
   timestampPlacement: PostCardTimestampPlacement;
   showReactions: boolean;
+  showMoreMenu: boolean;
 };
 
 export const POST_CARD_DISPLAY_CONFIGS = {
@@ -20,6 +21,7 @@ export const POST_CARD_DISPLAY_CONFIGS = {
     timestampFormat: "relative",
     timestampPlacement: "header",
     showReactions: true,
+    showMoreMenu: true,
   },
   detail: {
     linkToDetail: false,
@@ -28,6 +30,7 @@ export const POST_CARD_DISPLAY_CONFIGS = {
     timestampFormat: "full",
     timestampPlacement: "afterContent",
     showReactions: true,
+    showMoreMenu: true,
   },
   compact: {
     linkToDetail: true,
@@ -36,6 +39,16 @@ export const POST_CARD_DISPLAY_CONFIGS = {
     timestampFormat: "relative",
     timestampPlacement: "header",
     showReactions: false,
+    showMoreMenu: true,
+  },
+  embedded: {
+    linkToDetail: true,
+    identityLayout: "inline",
+    collapseContent: true,
+    timestampFormat: "relative",
+    timestampPlacement: "header",
+    showReactions: false,
+    showMoreMenu: false,
   },
 } as const satisfies Record<PostCardVariant, PostCardDisplayConfig>;
 

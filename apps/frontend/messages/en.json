@@ -421,6 +421,10 @@
     "replyTitle": "Write a reply",
     "reply": "Reply",
     "replying": "Replying...",
+    "quoteTitle": "Quote post",
+    "quotePlaceholder": "Add your thoughts",
+    "quotePost": "Quote",
+    "quoting": "Quoting...",
     "post": "Post",
     "posting": "Posting...",
     "formatBold": "Bold",
@@ -591,10 +595,20 @@
       "copyUserId": "User ID",
       "copyText": "Text",
       "copyPostId": "Post ID",
+      "copyPostIdFull": "Copy Post ID",
       "share": "Share",
       "copyLink": "Copy link",
       "shareSuccess": "Post URL copied",
-      "shareError": "Failed to share"
+      "shareError": "Failed to share",
+      "boost": "Boost",
+      "quote": "Quote",
+      "boostedBy": "{name} boosted",
+      "boostSuccess": "Boosted!",
+      "alreadyBoosted": "Already boosted",
+      "boostError": "Failed to boost",
+      "undoBoost": "Undo boost",
+      "undoBoostSuccess": "Boost removed",
+      "undoBoostError": "Failed to undo boost"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
@@ -610,7 +624,12 @@
     "copyPostIdSuccess": "Post ID copied",
     "copyPostIdError": "Failed to copy post ID",
     "showMore": "Show more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "deletedPost": {
+      "username": "User",
+      "initials": "U",
+      "label": "Deleted"
+    }
   },
   "adminSetup": {
     "title": "Server Initial Setup",

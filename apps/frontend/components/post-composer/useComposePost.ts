@@ -58,6 +58,11 @@ interface UseComposePostOptions {
    * without surfacing it as editable text.
    */
   contentPrefix?: string;
+  /**
+   * When set, the created post quotes (references) the given post.
+   * Content is required for quote posts (empty content = boost).
+   */
+  referenceId?: string;
 }
 
 function isVideoFile(file: File): boolean {
@@ -121,7 +126,7 @@ function getVideoDimensions(blobUrl: string): Promise<{ width: number; height: n
  * - Video size limit is separate from image size limit (fetched from server).
  */
 export function useComposePost(options: UseComposePostOptions = {}) {
-  const { onSuccess, autoResize = true, parentId, contentPrefix } = options;
+  const { onSuccess, autoResize = true, parentId, contentPrefix, referenceId } = options;
   const t = useTranslations();
   const mediaLimits = useMediaLimits();
   const queryClient = useQueryClient();
@@ -181,7 +186,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     createPostMutation.isPending ||
     isUploading;
   const canPost =
-    (hasContent || hasMedia) &&
+    (referenceId ? hasContent : (hasContent || hasMedia)) &&
     isContentValid &&
     !createPostMutation.isPending &&
     !isUploading;
@@ -720,6 +725,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         content: submittedContent,
         mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
         parentId,
+        referenceId,
       } as components["schemas"]["CreatePostRequest"]);
 
       // For replies, refresh the parent post (replyCount) and reply list
@@ -737,6 +743,10 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         queryClient.invalidateQueries({
           predicate: (query) => query.queryKey[0] === "ownerReplyThread",
         });
+      }
+
+      if (referenceId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.post(referenceId) });
       }
 
       toast.success(t("createPost.success"));

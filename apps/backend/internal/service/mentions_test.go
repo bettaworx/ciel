@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestExtractMentions(t *testing.T) {
@@ -126,6 +128,85 @@ func TestExtractMentions(t *testing.T) {
 			got := ExtractMentions(tt.content, tt.cap)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ExtractMentions(%q, %d) = %v, want %v", tt.content, tt.cap, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractPostReference(t *testing.T) {
+	t.Parallel()
+
+	validID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	tests := []struct {
+		name    string
+		content string
+		want    *uuid.UUID
+	}{
+		{
+			name:    "empty content",
+			content: "",
+			want:    nil,
+		},
+		{
+			name:    "no URL",
+			content: "just a normal post",
+			want:    nil,
+		},
+		{
+			name:    "unrelated URL",
+			content: "check out https://example.com/foo",
+			want:    nil,
+		},
+		{
+			name:    "valid post URL",
+			content: "look at this https://example.com/posts/" + validID.String(),
+			want:    &validID,
+		},
+		{
+			name:    "different domain",
+			content: "see https://other-frontend.example.org/posts/" + validID.String(),
+			want:    &validID,
+		},
+		{
+			name:    "with subpath",
+			content: "https://example.com/app/posts/" + validID.String(),
+			want:    &validID,
+		},
+		{
+			name:    "post URL in middle of text",
+			content: "I saw https://example.com/posts/" + validID.String() + " and it was great",
+			want:    &validID,
+		},
+		{
+			name:    "multiple post URLs returns first",
+			content: "https://a.com/posts/" + validID.String() + " and https://b.com/posts/00000000-0000-0000-0000-000000000001",
+			want:    &validID,
+		},
+		{
+			name:    "invalid UUID format",
+			content: "https://example.com/posts/not-a-uuid",
+			want:    nil,
+		},
+		{
+			name:    "path without scheme",
+			content: "/posts/" + validID.String(),
+			want:    nil,
+		},
+		{
+			name:    "http scheme",
+			content: "http://localhost:3000/posts/" + validID.String(),
+			want:    &validID,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ExtractPostReference(tt.content)
+			if tt.want == nil && got != nil {
+				t.Errorf("ExtractPostReference(%q) = %v, want nil", tt.content, got)
+			} else if tt.want != nil && (got == nil || *got != *tt.want) {
+				t.Errorf("ExtractPostReference(%q) = %v, want %v", tt.content, got, tt.want)
 			}
 		})
 	}
