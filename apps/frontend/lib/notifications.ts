@@ -49,6 +49,29 @@ export function notificationDisplayType(
   return notification.type;
 }
 
+/** Actors to show on a row, newest first. Falls back to the single actor. */
+export function notificationActors(
+  notification: Notification,
+): NonNullable<Notification["actors"]> {
+  if (notification.actors?.length) return notification.actors;
+  return notification.actor ? [notification.actor] : [];
+}
+
+/** How many notifications a row stands for. */
+export function notificationCount(notification: Notification): number {
+  return notification.count ?? 1;
+}
+
+/**
+ * Every notification a row covers. A grouped row has to mark all of its members
+ * read, not just the one whose id it carries.
+ */
+export function notificationIds(notification: Notification): string[] {
+  return notification.notificationIds?.length
+    ? notification.notificationIds
+    : [notification.id];
+}
+
 /**
  * Text to show under a notification.
  *

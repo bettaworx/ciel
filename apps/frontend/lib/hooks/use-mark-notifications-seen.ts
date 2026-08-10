@@ -50,11 +50,18 @@ export function useMarkNotificationsSeen() {
     queryClient.invalidateQueries({ queryKey: queryKeys.notificationsUnread });
   }, [api, queryClient]);
 
+  // Takes every id a row covers: a grouped row stands for several notifications
+  // and has to mark all of them read.
   const markSeen = useCallback(
-    (id: string) => {
-      if (sentRef.current.has(id)) return;
-      sentRef.current.add(id);
-      pendingRef.current.add(id);
+    (ids: readonly string[]) => {
+      let added = false;
+      for (const id of ids) {
+        if (sentRef.current.has(id)) continue;
+        sentRef.current.add(id);
+        pendingRef.current.add(id);
+        added = true;
+      }
+      if (!added) return;
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => void flush(), FLUSH_DELAY_MS);
     },

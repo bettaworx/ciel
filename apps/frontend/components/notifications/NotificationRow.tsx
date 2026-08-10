@@ -5,6 +5,8 @@ import { AtSign, Heart, Quote, Reply, Rocket } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmojiInline } from "@/components/EmojiInline";
 import {
+  notificationActors,
+  notificationCount,
   notificationDisplayType,
   notificationExcerpt,
   type NotificationDisplayType,
@@ -49,8 +51,10 @@ export function NotificationRow({
 }) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("notifications");
-  const actor = notification.actor;
-  const displayName = actor?.displayName || actor?.username || "";
+  const actors = notificationActors(notification);
+  const count = notificationCount(notification);
+  const displayName =
+    actors[0]?.displayName || actors[0]?.username || "";
   const excerpt = notificationExcerpt(notification);
   const displayType = notificationDisplayType(notification);
   const Icon = NOTIFICATION_ICONS[displayType];
@@ -58,12 +62,24 @@ export function NotificationRow({
   return (
     <div className={cn("flex items-start gap-3 p-3", className)}>
       <div className="relative shrink-0">
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={actor?.avatarUrl ?? undefined} alt={displayName} />
-          <AvatarFallback>
-            {displayName.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <div className="flex">
+          {actors.map((actor, index) => {
+            const name = actor.displayName || actor.username;
+            return (
+              <Avatar
+                key={actor.id}
+                className={cn(
+                  "h-10 w-10",
+                  // Overlap the extra avatars, ringed so they read as a stack.
+                  index > 0 && "-ml-5 ring-2 ring-card",
+                )}
+              >
+                <AvatarImage src={actor.avatarUrl ?? undefined} alt={name} />
+                <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+            );
+          })}
+        </div>
         <span className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full bg-background text-c-1">
           {notification.type === "reaction" && notification.emoji ? (
             <EmojiInline emoji={notification.emoji} className="h-3.5 w-3.5" />
@@ -78,7 +94,12 @@ export function NotificationRow({
           {/* Weight is explicit: inside a toast this sits in sonner's title
               wrapper, which would otherwise make it bolder than in the list. */}
           <span className="min-w-0 truncate text-sm font-normal">
-            {t(`types.${displayType}`, { name: displayName })}
+            {count > 1
+              ? t(`grouped.${displayType}`, {
+                  name: displayName,
+                  count: count - 1,
+                })
+              : t(`types.${displayType}`, { name: displayName })}
           </span>
           {showTimestamp && (
             <time

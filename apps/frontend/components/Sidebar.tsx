@@ -187,12 +187,13 @@ export function Sidebar() {
               icon={
                 <span className="relative flex shrink-0">
                   <Bell className="w-5 h-5" />
-                  {/* Collapsed there is no room for a number, so just mark that
-                      something is unread and show the count once expanded. */}
+                  {/* A dot while collapsed, because the count shows up once the
+                      sidebar expands. Where it can never expand, that count is
+                      unreachable, so put the number on the icon instead. */}
                   {!isExpanded && (
                     <NotificationBadge
-                      variant="dot"
-                      className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2"
+                      variant={canExpand ? "dot" : "count"}
+                      className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 ring-2 ring-background"
                     />
                   )}
                 </span>

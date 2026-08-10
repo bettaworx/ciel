@@ -1635,34 +1635,88 @@ VALUES (
 ON CONFLICT DO NOTHING
 RETURNING id, created_at;
 
--- name: ListNotifications :many
+-- name: ListNotificationGroups :many
+-- One row per group.
+--
+--   reaction   -> grouped by (reacted post, emoji)
+--   pure boost -> grouped by the post that was boosted. A boost notification
+--                 points at the *boosting* post, which differs per booster, so
+--                 grouping has to follow reference_id instead.
+--   everything else, quotes included, groups by its own id and stays a group of
+--   one — quotes carry their own text and must not be merged.
+--
+-- id/post_id/actor_id are max() rather than "the newest member's": for a group
+-- of one they are exactly that row's values, and for a real group the caller
+-- replaces them from ListNotificationGroupMembers. id only has to be stable and
+-- unique to serve as the pagination tie-break.
+--
+-- ponytail: the cursor is a HAVING over the whole grouping, so each page groups
+-- this user's notifications. Fine for a personal inbox; if it stops being fine,
+-- keep a materialised group table keyed by (user_id, type, group_target, subtype).
 SELECT
-	n.id,
+	-- Postgres has no max(uuid); compare as text. The value only has to be a
+	-- stable, unique member of the group to serve as the pagination tie-break.
+	CAST(max(n.id::text) AS uuid) AS id,
 	n.type,
 	n.subtype,
-	n.post_id,
-	n.read_at,
-	n.created_at,
-	a.id AS actor_id,
-	a.username AS actor_username,
-	a.display_name AS actor_display_name,
-	a.avatar_media_id AS actor_avatar_media_id,
-	am.ext AS actor_avatar_ext
+	-- uuid.Nil stands in for "no post"; sqlc types max() as either
+	-- untyped or non-null, and NULL would fail to scan.
+	CAST(COALESCE(max(n.post_id::text), '00000000-0000-0000-0000-000000000000') AS uuid) AS post_id,
+	max(n.created_at)::timestamptz AS created_at,
+	CAST(COALESCE((CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), '00000000-0000-0000-0000-000000000000'::uuid) AS uuid) AS group_target,
+	count(*)::int AS group_count,
+	bool_or(n.read_at IS NULL) AS group_unread,
+	CAST(COALESCE(max(n.actor_user_id::text), '00000000-0000-0000-0000-000000000000') AS uuid) AS actor_id
 FROM notifications n
-LEFT JOIN users a ON a.id = n.actor_user_id
-LEFT JOIN media am ON am.id = a.avatar_media_id
 LEFT JOIN posts p ON p.id = n.post_id
 WHERE n.user_id = sqlc.arg('user_id')::uuid
 	AND (n.post_id IS NULL OR p.deleted_at IS NULL)
 	AND (sqlc.narg('unread_only')::boolean IS NULL OR n.read_at IS NULL)
 	AND (sqlc.narg('types')::text[] IS NULL OR n.type = ANY(sqlc.narg('types')::text[]))
-	AND (
-		sqlc.narg('cursor_time')::timestamptz IS NULL
-		OR n.created_at < sqlc.narg('cursor_time')
-		OR (n.created_at = sqlc.narg('cursor_time') AND n.id < sqlc.narg('cursor_id'))
-	)
-ORDER BY n.created_at DESC, n.id DESC
+GROUP BY n.type, (CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), n.subtype, (CASE
+		WHEN n.type = 'reaction' THEN NULL
+		WHEN n.type = 'boost' AND p.content = '' AND p.reference_id IS NOT NULL THEN NULL
+		ELSE n.id
+	END)
+HAVING (
+	sqlc.narg('cursor_time')::timestamptz IS NULL
+	OR max(n.created_at) < sqlc.narg('cursor_time')
+	OR (max(n.created_at) = sqlc.narg('cursor_time') AND max(n.id::text) < sqlc.narg('cursor_id')::text)
+)
+ORDER BY max(n.created_at) DESC, max(n.id::text) DESC
 LIMIT sqlc.arg('limit');
+
+-- name: ListNotificationGroupMembers :many
+-- Members of the groups on a page, newest first. Supplies the stacked avatars
+-- and the ids a grouped row marks read. Only groupable kinds are returned.
+SELECT
+	n.id,
+	n.type,
+	n.subtype,
+	n.actor_user_id,
+	CAST((CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END) AS uuid) AS group_target
+FROM notifications n
+LEFT JOIN posts p ON p.id = n.post_id
+WHERE n.user_id = sqlc.arg('user_id')::uuid
+	AND p.deleted_at IS NULL
+	AND (
+		n.type = 'reaction'
+		OR (n.type = 'boost' AND p.content = '' AND p.reference_id IS NOT NULL)
+	)
+	AND (CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END)
+		= ANY(sqlc.arg('group_targets')::uuid[])
+ORDER BY n.created_at DESC, n.id DESC;
+
+-- name: ListUserSummariesByIDs :many
+SELECT
+	u.id,
+	u.username,
+	u.display_name,
+	u.avatar_media_id,
+	m.ext AS avatar_ext
+FROM users u
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE u.id = ANY($1::uuid[]);
 
 -- name: GetNotificationByID :one
 SELECT

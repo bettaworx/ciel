@@ -10,6 +10,7 @@ import {
 } from "@/components/notifications/NotificationRow";
 import {
   notificationDisplayType,
+  notificationIds,
   notificationTargetPostId,
   rendersAsPostCard,
 } from "@/lib/notifications";
@@ -25,15 +26,16 @@ export function NotificationItem({
 }: {
   notification: Notification;
   isLast: boolean;
-  onSeen: (id: string) => void;
+  onSeen: (ids: readonly string[]) => void;
 }) {
   const router = useRouter();
   const t = useTranslations("notifications");
   const isUnread = !notification.readAt;
 
   const markSeen = useCallback(() => {
-    if (isUnread) onSeen(notification.id);
-  }, [isUnread, notification.id, onSeen]);
+    // A grouped row covers several notifications; mark them all.
+    if (isUnread) onSeen(notificationIds(notification));
+  }, [isUnread, notification, onSeen]);
 
   const targetPostId = notificationTargetPostId(notification);
 

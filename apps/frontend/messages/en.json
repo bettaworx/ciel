@@ -581,9 +581,9 @@
   "postCard": {
     "openDetail": "Open post details",
     "justNow": "just now",
-    "minutesAgo": "{count}m ago",
-    "hoursAgo": "{count}h ago",
-    "daysAgo": "{count}d ago",
+    "minutesAgo": "{count}m",
+    "hoursAgo": "{count}h",
+    "daysAgo": "{count}d",
     "addReaction": "Add reaction",
     "removeReaction": "Remove reaction",
     "viewProfile": "View {name}'s profile",
@@ -1289,6 +1289,13 @@
       "mention": "{name} mentioned you",
       "boost": "{name} boosted your post",
       "quote": "{name} quoted your post"
+    },
+    "grouped": {
+      "reaction": "{name} and {count} others reacted to your post",
+      "reply": "{name} and {count} others replied to you",
+      "mention": "{name} and {count} others mentioned you",
+      "boost": "{name} and {count} others boosted your post",
+      "quote": "{name} and {count} others quoted your post"
     }
   }
 }

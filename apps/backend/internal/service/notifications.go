@@ -148,11 +148,12 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 	}
 
 	var cTime sql.NullTime
-	var cID uuid.NullUUID
+	// The grouped query compares ids as text, since Postgres has no max(uuid).
+	var cID sql.NullString
 	if cursor != nil {
 		cTime = sql.NullTime{Time: time.UnixMilli(cursor.Score).UTC(), Valid: true}
 		if uid, perr := uuid.Parse(cursor.ID); perr == nil {
-			cID = uuid.NullUUID{UUID: uid, Valid: true}
+			cID = sql.NullString{String: uid.String(), Valid: true}
 		}
 	}
 
@@ -173,7 +174,7 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 		}
 	}
 
-	rows, err := s.store.Q.ListNotifications(ctx, sqlc.ListNotificationsParams{
+	rows, err := s.store.Q.ListNotificationGroups(ctx, sqlc.ListNotificationGroupsParams{
 		UserID:     userID,
 		UnreadOnly: unreadOnly,
 		Types:      types,
@@ -188,12 +189,53 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 	items := make([]api.Notification, 0, len(rows))
 	postIDs := make([]uuid.UUID, 0, len(rows))
 	seenPost := make(map[uuid.UUID]struct{}, len(rows))
+	// Targets of rows that actually collapsed several notifications together.
+	groupedTargets := make([]uuid.UUID, 0)
+	seenTarget := make(map[uuid.UUID]struct{})
 	for _, row := range rows {
-		items = append(items, mapNotificationRow(row))
-		if row.PostID.Valid {
-			if _, ok := seenPost[row.PostID.UUID]; !ok {
-				seenPost[row.PostID.UUID] = struct{}{}
-				postIDs = append(postIDs, row.PostID.UUID)
+		items = append(items, mapNotificationGroupRow(row))
+		if row.PostID != uuid.Nil {
+			if _, ok := seenPost[row.PostID]; !ok {
+				seenPost[row.PostID] = struct{}{}
+				postIDs = append(postIDs, row.PostID)
+			}
+		}
+		if row.GroupCount > 1 && row.GroupTarget != uuid.Nil {
+			if _, ok := seenTarget[row.GroupTarget]; !ok {
+				seenTarget[row.GroupTarget] = struct{}{}
+				groupedTargets = append(groupedTargets, row.GroupTarget)
+			}
+		}
+	}
+
+	// Only pages that actually contain a group pay for the member lookup.
+	if len(groupedTargets) > 0 {
+		if err := s.attachGroupMembers(ctx, userID, rows, items, groupedTargets); err != nil {
+			return api.NotificationsPage{}, err
+		}
+	}
+
+	// Fill in the single-actor rows, and any group whose members query found
+	// nothing, from the row's own actor.
+	actorIDs := make([]uuid.UUID, 0, len(rows))
+	for i, row := range rows {
+		if items[i].Actor == nil && row.ActorID != uuid.Nil {
+			actorIDs = append(actorIDs, row.ActorID)
+		}
+	}
+	if len(actorIDs) > 0 {
+		byID, err := s.userSummaries(ctx, actorIDs)
+		if err != nil {
+			return api.NotificationsPage{}, err
+		}
+		for i, row := range rows {
+			if items[i].Actor != nil || row.ActorID == uuid.Nil {
+				continue
+			}
+			if actor, ok := byID[row.ActorID]; ok {
+				a := actor
+				items[i].Actor = &a
+				items[i].Actors = &[]api.MentionUser{a}
 			}
 		}
 	}
@@ -206,10 +248,10 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 			return api.NotificationsPage{}, err
 		}
 		for i, row := range rows {
-			if !row.PostID.Valid {
+			if row.PostID == uuid.Nil {
 				continue
 			}
-			if post, ok := byID[row.PostID.UUID]; ok {
+			if post, ok := byID[row.PostID]; ok {
 				p := post
 				items[i].Post = &p
 			}
@@ -298,7 +340,7 @@ func (s *NotificationsService) build(ctx context.Context, c CreatedNotification)
 	if err != nil {
 		return nil
 	}
-	n := mapNotificationRow(sqlc.ListNotificationsRow(row))
+	n := mapNotificationRow(row)
 	if row.PostID.Valid && s.posts != nil {
 		userID := api.UserId(c.UserID)
 		if byID, err := s.posts.GetHydratedPostsByIDs(ctx, []uuid.UUID{row.PostID.UUID}, &userID); err == nil {
@@ -310,7 +352,137 @@ func (s *NotificationsService) build(ctx context.Context, c CreatedNotification)
 	return &n
 }
 
-func mapNotificationRow(row sqlc.ListNotificationsRow) api.Notification {
+// MaxGroupedActors caps how many avatars a grouped row carries.
+const MaxGroupedActors = 3
+
+// attachGroupMembers fills the grouped rows with their newest actors and the
+// ids they cover, in one query for the whole page.
+func (s *NotificationsService) attachGroupMembers(
+	ctx context.Context,
+	userID api.UserId,
+	rows []sqlc.ListNotificationGroupsRow,
+	items []api.Notification,
+	targets []uuid.UUID,
+) error {
+	members, err := s.store.Q.ListNotificationGroupMembers(ctx, sqlc.ListNotificationGroupMembersParams{
+		UserID:       userID,
+		GroupTargets: targets,
+	})
+	if err != nil {
+		return err
+	}
+
+	// The query returns every groupable notification for these targets, so bucket
+	// by the same key the grouping used. Members arrive newest first.
+	type groupKey struct {
+		typ     string
+		target  uuid.UUID
+		subtype string
+	}
+	byKey := make(map[groupKey][]sqlc.ListNotificationGroupMembersRow, len(targets))
+	actorIDs := make([]uuid.UUID, 0, len(members))
+	for _, m := range members {
+		k := groupKey{typ: m.Type, target: m.GroupTarget, subtype: m.Subtype}
+		byKey[k] = append(byKey[k], m)
+		if m.ActorUserID.Valid {
+			actorIDs = append(actorIDs, m.ActorUserID.UUID)
+		}
+	}
+	if len(actorIDs) == 0 {
+		return nil
+	}
+	summaries, err := s.userSummaries(ctx, actorIDs)
+	if err != nil {
+		return err
+	}
+
+	for i, row := range rows {
+		if row.GroupCount <= 1 {
+			continue
+		}
+		group := byKey[groupKey{typ: row.Type, target: row.GroupTarget, subtype: row.Subtype}]
+		if len(group) == 0 {
+			continue
+		}
+
+		ids := make([]uuid.UUID, 0, len(group))
+		actors := make([]api.MentionUser, 0, MaxGroupedActors)
+		for _, m := range group {
+			ids = append(ids, m.ID)
+			if len(actors) >= MaxGroupedActors || !m.ActorUserID.Valid {
+				continue
+			}
+			if actor, ok := summaries[m.ActorUserID.UUID]; ok {
+				actors = append(actors, actor)
+			}
+		}
+		items[i].NotificationIds = &ids
+		if len(actors) > 0 {
+			head := actors[0]
+			items[i].Actor = &head
+			items[i].Actors = &actors
+		}
+	}
+	return nil
+}
+
+// userSummaries loads the lightweight user representation used for actors.
+func (s *NotificationsService) userSummaries(
+	ctx context.Context,
+	ids []uuid.UUID,
+) (map[uuid.UUID]api.MentionUser, error) {
+	rows, err := s.store.Q.ListUserSummariesByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uuid.UUID]api.MentionUser, len(rows))
+	for _, row := range rows {
+		user := api.MentionUser{Id: row.ID, Username: row.Username}
+		if row.DisplayName.Valid {
+			if v := strings.TrimSpace(row.DisplayName.String); v != "" {
+				user.DisplayName = &v
+			}
+		}
+		if row.AvatarMediaID.Valid {
+			ext := ""
+			if row.AvatarExt.Valid {
+				ext = row.AvatarExt.String
+			}
+			url := mediaImageURL(row.AvatarMediaID.UUID, ext)
+			user.AvatarUrl = &url
+		}
+		out[row.ID] = user
+	}
+	return out, nil
+}
+
+// mapNotificationGroupRow maps a grouped row. Actors are filled in afterwards,
+// since they need a second query.
+func mapNotificationGroupRow(row sqlc.ListNotificationGroupsRow) api.Notification {
+	count := int(row.GroupCount)
+	n := api.Notification{
+		Id:        row.ID,
+		Type:      api.NotificationType(row.Type),
+		CreatedAt: row.CreatedAt,
+		Count:     &count,
+		// Overwritten for real groups; a group of one covers only itself.
+		NotificationIds: &[]uuid.UUID{row.ID},
+	}
+	// A group counts as read only once every member is.
+	if !row.GroupUnread {
+		t := row.CreatedAt
+		n.ReadAt = &t
+	}
+	if row.Subtype != "" {
+		emoji := api.Emoji(row.Subtype)
+		n.Emoji = &emoji
+	}
+	return n
+}
+
+// mapNotificationRow maps a single notification, as pushed over realtime.
+// Always a group of one: a live event describes one action by one actor.
+func mapNotificationRow(row sqlc.GetNotificationByIDRow) api.Notification {
 	n := api.Notification{
 		Id:        row.ID,
 		Type:      api.NotificationType(row.Type),

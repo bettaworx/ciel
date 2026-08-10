@@ -34,6 +34,27 @@ components:
           - $ref: ./common.yml#/components/schemas/Emoji
           nullable: true
           description: Emoji used, for reaction notifications.
+        count:
+          type: integer
+          minimum: 1
+          default: 1
+          description: >-
+            How many notifications this row represents. Reactions sharing a post
+            and emoji, and plain boosts of the same post, collapse into one row.
+            Everything else is always 1.
+        actors:
+          type: array
+          description: >-
+            Up to three actors, newest first, for the avatars on a grouped row.
+            `actor` remains the most recent one.
+          items:
+            $ref: ./user.yml#/components/schemas/MentionUser
+        notificationIds:
+          type: array
+          description: The notifications this row covers, for marking them read.
+          items:
+            type: string
+            format: uuid
     NotificationsPage:
       type: object
       required:
