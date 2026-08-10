@@ -16,7 +16,7 @@ const buttonVariants = cva(
         primary_disabled: "bg-c-1/80 text-c-foreground/80 hover:bg-c-2",
         sidebar: "rounded-2xl transition-colors",
         sidebar_primary: "bg-c-1 text-c-foreground hover:bg-c-2 rounded-2xl transition-colors",
-        list_row: "flex w-full justify-between font-normal text-foreground hover:bg-accent !rounded-none",
+        list_row: "flex w-full justify-between font-normal text-foreground hover:bg-card-hover !rounded-none",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:

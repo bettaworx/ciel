@@ -86,7 +86,7 @@ export function NotificationItem({
               handleClick();
             }
           }}
-          className="cursor-pointer hover:bg-accent/40"
+          className="cursor-pointer transition-colors hover:bg-card-hover"
         >
           {/* The divider belongs to the list, not to the row itself. */}
           <NotificationRow

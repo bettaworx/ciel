@@ -13,6 +13,7 @@
     --color-background-1: var(--background-1);
     --color-foreground: var(--foreground);
     --color-card: var(--card);
+    --color-card-hover: var(--card-hover);
     --color-card-foreground: var(--card-foreground);
     --color-popover: var(--popover);
     --color-popover-foreground: var(--popover-foreground);
@@ -160,6 +161,9 @@
     --background-1: oklch(1 0 0);
     --foreground: oklch(0.25 0 0);
     --card: oklch(1 0 0);
+    /* カード面のリスト行ホバー。テーマごとに数値が違うのは、card との明度差を
+       同じだけ知覚させるため（単一の alpha では片方のテーマで潰れる）。 */
+    --card-hover: oklch(0.95 0 0);
     --card-foreground: oklch(0.25 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.25 0 0);
@@ -264,6 +268,7 @@ html[lang="th"] {
     --background: oklch(0.145 0 0); /* メイン背景（最も暗い） */
     --background-1: oklch(0.18 0 0); /* 第2背景（backgroundより明るい） */
     --card: oklch(0.205 0 0); /* カード背景 */
+    --card-hover: oklch(0.26 0 0); /* カード面のリスト行ホバー */
     --popover: oklch(0.205 0 0); /* ポップオーバー背景 */
 
     /* テキスト色 */
