@@ -60,7 +60,7 @@ export function NotificationItem({
       onClick={markSeen}
       className={cn(
         "transition-colors duration-500",
-        isUnread && "bg-c-1/10",
+        isUnread && "notification-unread-tint",
       )}
     >
       {rendersAsPostCard(notification) && notification.post ? (

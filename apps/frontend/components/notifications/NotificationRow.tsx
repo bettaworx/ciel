@@ -82,7 +82,7 @@ export function NotificationRow({
           </span>
           {showTimestamp && (
             <time
-              className="shrink-0 text-xs text-muted-foreground"
+              className="ml-auto shrink-0 text-xs text-muted-foreground"
               dateTime={notification.createdAt}
             >
               {formatTimeAgo(new Date(notification.createdAt), locale)}

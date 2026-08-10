@@ -345,6 +345,16 @@ html[lang="th"] {
         --offset-bottom: 1rem;
     }
 
+    /* Unread notification highlight, shared by the list and the realtime toast.
+       Applied as a background *image* so it layers over whatever background the
+       element already has (the card) instead of replacing it. */
+    .notification-unread-tint {
+        background-image: linear-gradient(
+            color-mix(in oklch, var(--c-1) 6%, transparent),
+            color-mix(in oklch, var(--c-1) 6%, transparent)
+        );
+    }
+
     /* Snappier toast enter/exit. Sonner's own 400ms transition lives on
        `[data-sonner-toast]` in a stylesheet it injects at runtime, so these
        selectors have to out-specify it rather than rely on source order.

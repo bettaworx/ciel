@@ -351,24 +351,29 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		//
 		// No surface or padding classes here: sonner renders this inside the toast
 		// element, which already carries them via the Toaster's `classNames.toast`.
-		toast.custom((id) => (
-			<button
-				type="button"
-				onClick={() => {
-					toast.dismiss(id);
-					routerRef.current.push(
-						targetPostId ? `/posts/${targetPostId}` : '/notifications',
-					);
-				}}
-				className="block w-full text-left"
-			>
-				<NotificationRow
-					notification={notification}
-					showTimestamp={false}
-					className="p-0"
-				/>
-			</button>
-		));
+		toast.custom(
+			(id) => (
+				<button
+					type="button"
+					onClick={() => {
+						toast.dismiss(id);
+						routerRef.current.push(
+							targetPostId ? `/posts/${targetPostId}` : '/notifications',
+						);
+					}}
+					className="block w-full text-left"
+				>
+					<NotificationRow
+						notification={notification}
+						showTimestamp={false}
+						className="p-0"
+					/>
+				</button>
+			),
+			// A pushed notification is unread by definition, so carry the same
+			// highlight the list uses.
+			{ classNames: { toast: 'notification-unread-tint' } },
+		);
 	}, [queryClient]);
 
 	const handleMessage = useCallback(

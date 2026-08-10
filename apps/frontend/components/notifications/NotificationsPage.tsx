@@ -89,7 +89,11 @@ export function NotificationsPage() {
   const unreadCount = unread?.count ?? 0;
 
   return (
-    <PageContainer maxWidth="2xl" header={<PageHeader>{t("title")}</PageHeader>}>
+    <PageContainer
+      maxWidth="2xl"
+      // Reached from the nav, so there is nothing to go back to.
+      header={<PageHeader showBackButton={false}>{t("title")}</PageHeader>}
+    >
       <DynamicTitle title={t("title")} />
       <Tabs value={tab} onValueChange={(value) => setTab(value as NotificationTab)}>
         <div className="flex items-center gap-2">
