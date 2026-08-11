@@ -155,16 +155,20 @@ export function UserMenuContent({
         <Separator />
 
         {/* メニュー項目 */}
+        {/* プロフィールと設定はデスクトップではサイドバーに常設されているので、
+            メニューにはモバイルでのみ出す */}
         <div className="p-2 space-y-1">
-          <Button
-            variant="ghost"
-            rounded="md"
-            className="w-full justify-start"
-            onClick={onProfileClick}
-          >
-            <User className="h-4 w-4" />
-            {t("userMenu.viewProfile")}
-          </Button>
+          {isMobile && (
+            <Button
+              variant="ghost"
+              rounded="md"
+              className="w-full justify-start"
+              onClick={onProfileClick}
+            >
+              <User className="h-4 w-4" />
+              {t("userMenu.viewProfile")}
+            </Button>
+          )}
 
           <Button
             variant="ghost"
@@ -192,15 +196,17 @@ export function UserMenuContent({
             <ChevronRight className="h-4 w-4" />
           </Button>
 
-          <Button
-            variant="ghost"
-            rounded="md"
-            className="w-full justify-start"
-            onClick={onSettingsClick}
-          >
-            <SettingsIcon className="h-4 w-4" />
-            {t("settings.title")}
-          </Button>
+          {isMobile && (
+            <Button
+              variant="ghost"
+              rounded="md"
+              className="w-full justify-start"
+              onClick={onSettingsClick}
+            >
+              <SettingsIcon className="h-4 w-4" />
+              {t("settings.title")}
+            </Button>
+          )}
         </div>
         <Separator />
 
