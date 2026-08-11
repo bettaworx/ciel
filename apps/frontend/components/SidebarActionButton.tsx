@@ -11,6 +11,7 @@ interface SidebarActionBaseProps {
   trailingIcon?: ReactNode;
   isExpanded: boolean;
   canAnimate?: boolean;
+  textWidth?: number;
   isActive?: boolean;
   hoverBg?: string;
   buttonVariant?: "sidebar" | "sidebar_primary";
@@ -34,6 +35,7 @@ export function SidebarActionButton({
   trailingIcon,
   isExpanded,
   canAnimate = true,
+  textWidth = 172,
   isActive = false,
   hoverBg,
   buttonVariant = "sidebar",
@@ -64,7 +66,7 @@ export function SidebarActionButton({
       </div>
       <motion.div
         animate={{
-          width: isExpanded ? 172 : 0,
+          width: isExpanded ? textWidth : 0,
           opacity: isExpanded ? 1 : 0,
         }}
         transition={

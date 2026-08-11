@@ -39,11 +39,15 @@ export function Sidebar() {
   const router = useRouter();
   const [isPinned, setIsPinned] = useAtom(sidebarPinnedAtom);
   const [, setIsExpanded] = useAtom(sidebarExpandedAtom);
-  const isMenuOpen = useAtomValue(sidebarMenuOpenAtom);
+  const [isMenuOpen, setIsMenuOpen] = useAtom(sidebarMenuOpenAtom);
   const { data: serverInfo } = useServerInfo();
   const { data: unread } = useUnreadNotificationCount();
   const unreadCount = unread?.count ?? 0;
   const canExpand = useMediaQuery("(min-width: 1280px)");
+  // ServerInfo carries no host, so read it off the browser. In an effect to
+  // keep the SSR markup and the hydrated markup identical.
+  const [host, setHost] = useState("");
+  useEffect(() => setHost(window.location.host), []);
   const tNav = useTranslations("nav");
   const tCreatePost = useTranslations("createPost");
 
@@ -54,13 +58,25 @@ export function Sidebar() {
     setIsExpanded(isExpanded);
   }, [isExpanded, setIsExpanded]);
 
+  const asideRef = useRef<HTMLElement>(null);
+
+  // An open menu covers the sidebar and blocks pointer events, so mouseleave
+  // never fires and the hover state goes stale. Rather than assume the pointer
+  // left, ask the DOM once the menu is gone — otherwise closing the menu with
+  // the pointer still on the sidebar collapses it, and navigating away from a
+  // menu item leaves it stuck open. A frame's delay lets the overlay release
+  // pointer events first, without which nothing can match :hover.
   const prevIsMenuOpenRef = useRef(isMenuOpen);
   useEffect(() => {
-    if (prevIsMenuOpenRef.current && !isMenuOpen && !isPinned) {
-      setIsHovered(false);
+    if (prevIsMenuOpenRef.current && !isMenuOpen) {
+      const frame = requestAnimationFrame(() =>
+        setIsHovered(asideRef.current?.matches(":hover") ?? false),
+      );
+      prevIsMenuOpenRef.current = isMenuOpen;
+      return () => cancelAnimationFrame(frame);
     }
     prevIsMenuOpenRef.current = isMenuOpen;
-  }, [isMenuOpen, isPinned]);
+  }, [isMenuOpen]);
 
   const [pinIconRef, animatePinIcon] = useAnimate();
   const hoverBg = "hover:bg-sidebar-hover";
@@ -86,6 +102,7 @@ export function Sidebar() {
   return (
     <>
       <motion.aside
+        ref={asideRef}
         animate={{ width: isExpanded ? 256 : 72 }}
         transition={
           canExpand
@@ -102,31 +119,54 @@ export function Sidebar() {
         }}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="flex items-center h-12 gap-3">
-          <DropdownMenu>
+        <div className="flex items-center justify-between h-12 gap-3">
+          {/* Radix owns the open state; mirror it so the sidebar stays
+              expanded while the dropdown is up. */}
+          <DropdownMenu onOpenChange={setIsMenuOpen}>
             <DropdownMenuTrigger asChild>
-              <div
-                className={cn(
-                  "flex items-center justify-center w-[48px] h-[48px] rounded-2xl cursor-pointer shrink-0 overflow-hidden",
-                  hoverBg,
-                )}
+              <SidebarActionButton
+                icon={
+                  <motion.div
+                    initial={false}
+                    animate={{
+                      width: isExpanded ? 36 : 48,
+                      height: isExpanded ? 36 : 48,
+                      borderRadius: isExpanded ? "12px" : "16px",
+                    }}
+                    transition={
+                      canExpand
+                        ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
+                        : { duration: 0 }
+                    }
+                    className={cn(
+                      "shrink-0 overflow-hidden",
+                      isExpanded ? "h-9 w-9" : "h-12 w-12",
+                    )}
+                  >
+                    {serverInfo?.serverIconUrl ? (
+                      <Image
+                        src={serverInfo.serverIconUrl}
+                        alt="Server icon"
+                        width={48}
+                        height={48}
+                        unoptimized
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-primary" />
+                    )}
+                  </motion.div>
+                }
+                label={serverInfo?.serverName || host}
+                subLabel={serverInfo?.serverName ? host : undefined}
+                textWidth={128}
+                isExpanded={isExpanded}
+                canAnimate={canExpand}
+                className="w-auto"
                 aria-label={tNav("serverInfo")}
-              >
-                {serverInfo?.serverIconUrl ? (
-                  <Image
-                    src={serverInfo.serverIconUrl}
-                    alt="Server icon"
-                    width={48}
-                    height={48}
-                    unoptimized
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-primary rounded-2xl" />
-                )}
-              </div>
+              />
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start">
+            <DropdownMenuContent side="bottom" align="start">
               <DropdownMenuItem onClick={() => router.push("/about")}>
                 <Info className="w-4 h-4" />
                 {tNav("serverInfo")}
