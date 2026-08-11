@@ -308,7 +308,6 @@ export function Sidebar() {
               isExpanded={isExpanded}
               canAnimate={canExpand}
               buttonVariant="sidebar_primary"
-              className="mt-1.5"
               onClick={() => setIsPostDialogOpen(true)}
             />
           )}
