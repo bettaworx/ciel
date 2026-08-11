@@ -43,6 +43,7 @@ import { useDeletePost, queryKeys } from "@/lib/hooks/use-queries";
 import { useApi } from "@/lib/api/use-api";
 import { useQueryClient } from "@tanstack/react-query";
 import { OgpCard } from "@/components/OgpCard";
+import { BookmarkButton } from "@/components/BookmarkButton";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { authAtom } from "@/atoms/auth";
@@ -1167,15 +1168,18 @@ export function PostCard({
             disabled={isPending}
           />
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
-          aria-label={!canNativeShare || shiftHeld ? t("actions.copyLink") : t("actions.share")}
-          onClick={handleShare}
-        >
-          {!canNativeShare || shiftHeld ? <Link2 className="h-5 w-5" /> : <Share className="h-5 w-5" />}
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <BookmarkButton postId={post.id} initialListIds={post.bookmarkListIds} />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
+            aria-label={!canNativeShare || shiftHeld ? t("actions.copyLink") : t("actions.share")}
+            onClick={handleShare}
+          >
+            {!canNativeShare || shiftHeld ? <Link2 className="h-5 w-5" /> : <Share className="h-5 w-5" />}
+          </Button>
+        </div>
       </div>
 
       <CreateReplyDialog

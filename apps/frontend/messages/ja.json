@@ -424,7 +424,8 @@
       "setup": "プロフィール設定",
       "adminSetup": "サーバー初期設定",
       "postDetail": "投稿",
-      "search": "検索"
+      "search": "検索",
+      "bookmarks": "ブックマーク"
     }
   },
   "timeline": {
@@ -544,7 +545,8 @@
     "serverInfo": "サーバーについて",
     "versionInfo": "アプリ情報",
     "notifications": "通知",
-    "search": "検索"
+    "search": "検索",
+    "bookmarks": "ブックマーク"
   },
   "videoPlayer": {
     "play": "再生",
@@ -653,7 +655,10 @@
       "boostError": "ブーストに失敗しました",
       "undoBoost": "ブーストを取り消す",
       "undoBoostSuccess": "ブーストを取り消しました",
-      "undoBoostError": "ブーストの取り消しに失敗しました"
+      "undoBoostError": "ブーストの取り消しに失敗しました",
+      "bookmark": "ブックマーク",
+      "bookmarkError": "ブックマークを保存できませんでした",
+      "bookmarkLoginRequired": "ブックマークするにはログインが必要です"
     },
     "deleteConfirmTitle": "投稿を削除しますか？",
     "deleteConfirmDescription": "この操作は取り消せません。投稿はタイムラインから削除されます。",
@@ -1341,5 +1346,29 @@
       "quote": "{name}さん他{count}人が引用しました",
       "follow": "{count}人にフォローされました"
     }
+  },
+  "bookmarks": {
+    "title": "ブックマーク",
+    "defaultListName": "ブックマーク",
+    "createList": "リストを作成",
+    "editList": "リストを編集",
+    "deleteList": "リストを削除",
+    "deleteConfirm": "「{name}」を削除します。保存された{count}件の投稿もこのリストから外れます。投稿自体は削除されません。",
+    "listActions": "リストの操作",
+    "listName": "リスト名",
+    "listNamePlaceholder": "リスト名を入力",
+    "listIcon": "アイコン",
+    "create": "作成",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "empty": "リストがありません",
+    "emptyDescription": "リストを作ると、気になった投稿をまとめておけます。",
+    "emptyList": "このリストにはまだ投稿がありません",
+    "noLists": "リストがありません",
+    "postCount": "{count}件",
+    "createError": "リストを作成できませんでした",
+    "updateError": "リストを更新できませんでした",
+    "deleteError": "リストを削除できませんでした"
   }
 }

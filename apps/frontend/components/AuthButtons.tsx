@@ -95,6 +95,11 @@ export function AuthButtons() {
     }
   };
 
+  const handleBookmarksClick = () => {
+    setIsMenuOpen(false);
+    router.push("/bookmarks");
+  };
+
   const handleSettingsClick = () => {
     setIsMenuOpen(false);
     router.push("/settings");
@@ -132,6 +137,7 @@ export function AuthButtons() {
           onLogoutClick={handleLogoutClick}
           onLogoutConfirm={handleLogoutConfirm}
           onProfileClick={handleProfileClick}
+          onBookmarksClick={handleBookmarksClick}
           onSettingsClick={handleSettingsClick}
           onUserInfoClick={handleUserInfoClick}
         />
@@ -154,6 +160,7 @@ export function AuthButtons() {
           onLanguageChange={handleLanguageChange}
           onLogoutClick={handleLogoutClick}
           onProfileClick={handleProfileClick}
+          onBookmarksClick={handleBookmarksClick}
           onSettingsClick={handleSettingsClick}
           onUserInfoClick={handleUserInfoClick}
         />

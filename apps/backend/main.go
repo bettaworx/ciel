@@ -364,6 +364,8 @@ func main() {
 	reactionsSvc := service.NewReactionsService(store, cacheImpl, realtimeHub)
 	notificationsSvc := service.NewNotificationsService(store)
 	followsSvc := service.NewFollowsService(store, cacheImpl, realtimeHub)
+	bookmarksSvc := service.NewBookmarksService(store, postsSvc)
+	postsSvc.SetBookmarksService(bookmarksSvc)
 	postsSvc.SetReactionsService(reactionsSvc)
 	postsSvc.SetNotificationsService(notificationsSvc)
 	reactionsSvc.SetNotificationsService(notificationsSvc)
@@ -443,6 +445,7 @@ func main() {
 		Timeline:      timelineSvc,
 		Search:        searchSvc,
 		Reactions:     reactionsSvc,
+		Bookmarks:     bookmarksSvc,
 		Notifications: notificationsSvc,
 		Media:         mediaSvc,
 		Emojis:        emojiSvc,

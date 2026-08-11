@@ -424,7 +424,8 @@
       "setup": "Setup Profile",
       "adminSetup": "Server Setup",
       "postDetail": "Post",
-      "search": "Search"
+      "search": "Search",
+      "bookmarks": "Bookmarks"
     }
   },
   "timeline": {
@@ -544,7 +545,8 @@
     "serverInfo": "About this server",
     "versionInfo": "App information",
     "notifications": "Notifications",
-    "search": "Search"
+    "search": "Search",
+    "bookmarks": "Bookmarks"
   },
   "videoPlayer": {
     "play": "Play",
@@ -653,7 +655,10 @@
       "boostError": "Failed to boost",
       "undoBoost": "Undo boost",
       "undoBoostSuccess": "Boost removed",
-      "undoBoostError": "Failed to undo boost"
+      "undoBoostError": "Failed to undo boost",
+      "bookmark": "Bookmark",
+      "bookmarkError": "Could not save the bookmark",
+      "bookmarkLoginRequired": "Log in to bookmark posts"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
@@ -1341,5 +1346,29 @@
       "quote": "{name} and {count} others quoted your post",
       "follow": "{count} users followed you"
     }
+  },
+  "bookmarks": {
+    "title": "Bookmarks",
+    "defaultListName": "Bookmarks",
+    "createList": "Create list",
+    "editList": "Edit list",
+    "deleteList": "Delete list",
+    "deleteConfirm": "Delete \"{name}\". The {count} posts saved here will be removed from the list. The posts themselves are kept.",
+    "listActions": "List actions",
+    "listName": "List name",
+    "listNamePlaceholder": "Enter a list name",
+    "listIcon": "Icon",
+    "create": "Create",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "empty": "No lists yet",
+    "emptyDescription": "Create a list to collect the posts you want to come back to.",
+    "emptyList": "Nothing saved in this list yet",
+    "noLists": "No lists yet",
+    "postCount": "{count}",
+    "createError": "Could not create the list",
+    "updateError": "Could not update the list",
+    "deleteError": "Could not delete the list"
   }
 }

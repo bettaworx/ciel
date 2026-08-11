@@ -38,6 +38,7 @@ interface DesktopUserMenuProps {
   onLogoutClick: () => void;
   onLogoutConfirm: () => Promise<void>;
   onProfileClick: () => void;
+  onBookmarksClick: () => void;
   onSettingsClick: () => void;
   onUserInfoClick: () => void;
   /** サイドバー展開時にユーザー名を表示するか */
@@ -62,6 +63,7 @@ export function DesktopUserMenu({
   onLogoutClick,
   onLogoutConfirm,
   onProfileClick,
+  onBookmarksClick,
   onSettingsClick,
   onUserInfoClick,
   isExpanded = false,
@@ -135,6 +137,7 @@ export function DesktopUserMenu({
             locale={locale}
             onLanguageChange={onLanguageChange}
             onProfileClick={onProfileClick}
+            onBookmarksClick={onBookmarksClick}
             onSettingsClick={onSettingsClick}
             onLogoutClick={onLogoutClick}
             onUserInfoClick={onUserInfoClick}
