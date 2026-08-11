@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"backend/internal/repository"
+	"backend/internal/service"
 	"backend/internal/service/moderation"
 
 	"github.com/google/uuid"
@@ -14,6 +15,13 @@ import (
 type ProfileService struct {
 	store       *repository.Store
 	logsService *moderation.LogsService
+	search      *service.SearchService
+}
+
+// SetSearchService wires the search index so profile fields cleared by a
+// moderator stop matching user search.
+func (s *ProfileService) SetSearchService(search *service.SearchService) {
+	s.search = search
 }
 
 // NewProfileService creates a new ProfileService
@@ -67,6 +75,7 @@ func (s *ProfileService) DeleteUserDisplayName(ctx context.Context, userID, admi
 		fmt.Printf("warning: failed to log display name deletion: %v\n", err)
 	}
 
+	s.search.ReindexUser(ctx, userID)
 	return nil
 }
 
@@ -90,5 +99,6 @@ func (s *ProfileService) DeleteUserBio(ctx context.Context, userID, adminUserID 
 		fmt.Printf("warning: failed to log bio deletion: %v\n", err)
 	}
 
+	s.search.ReindexUser(ctx, userID)
 	return nil
 }

@@ -1981,3 +1981,74 @@ WHERE p.deleted_at IS NULL
 	)
 ORDER BY p.created_at DESC, p.id DESC
 LIMIT sqlc.arg('limit');
+
+-- name: GetUsersByIDs :many
+-- Profiles for a set of ids, with the viewer's follow relationship resolved in
+-- the same query. Used by search to hydrate results without a query per hit.
+SELECT
+	u.id,
+	u.username,
+	u.display_name,
+	u.bio,
+	u.avatar_media_id,
+	u.created_at AS user_created_at,
+	m.ext AS avatar_ext,
+	EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = sqlc.narg('viewer_id')::uuid AND vf.followee_id = u.id
+	) AS is_following,
+	EXISTS (
+		SELECT 1 FROM follows vf
+		WHERE vf.follower_id = u.id AND vf.followee_id = sqlc.narg('viewer_id')::uuid
+	) AS is_followed_by
+FROM users u
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE u.id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: GetPostForIndex :one
+-- Everything the search index stores for one post, plus the flags that decide
+-- whether the post belongs in the index at all.
+SELECT
+	p.id,
+	p.user_id,
+	p.content,
+	p.created_at,
+	p.visibility,
+	p.deleted_at
+FROM posts p
+WHERE p.id = $1;
+
+-- name: ListPostsForIndex :many
+-- Indexable posts in ascending keyset order, for the startup backfill.
+SELECT
+	p.id,
+	p.user_id,
+	p.content,
+	p.created_at
+FROM posts p
+WHERE p.deleted_at IS NULL
+	AND p.visibility = 'public'
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR p.created_at > sqlc.narg('cursor_time')
+		OR (p.created_at = sqlc.narg('cursor_time') AND p.id > sqlc.narg('cursor_id'))
+	)
+ORDER BY p.created_at ASC, p.id ASC
+LIMIT sqlc.arg('limit');
+
+-- name: ListUsersForIndex :many
+-- Users in ascending keyset order, for the startup backfill.
+SELECT
+	u.id,
+	u.username,
+	u.display_name,
+	u.bio,
+	u.created_at
+FROM users u
+WHERE (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR u.created_at > sqlc.narg('cursor_time')
+		OR (u.created_at = sqlc.narg('cursor_time') AND u.id > sqlc.narg('cursor_id'))
+	)
+ORDER BY u.created_at ASC, u.id ASC
+LIMIT sqlc.arg('limit');

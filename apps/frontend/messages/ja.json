@@ -423,7 +423,8 @@
       "settingsSecurity": "セキュリティ",
       "setup": "プロフィール設定",
       "adminSetup": "サーバー初期設定",
-      "postDetail": "投稿"
+      "postDetail": "投稿",
+      "search": "検索"
     }
   },
   "timeline": {
@@ -435,6 +436,23 @@
     "scope": {
       "home": "ホーム",
       "global": "全体"
+    }
+  },
+  "search": {
+    "title": "検索",
+    "placeholder": "投稿やユーザーを検索",
+    "clear": "入力を消す",
+    "tabs": {
+      "posts": "投稿",
+      "users": "ユーザー"
+    },
+    "prompt": "検索したい語を入力してください",
+    "noPosts": "一致する投稿はありません",
+    "noUsers": "一致するユーザーはいません",
+    "unavailable": "このサーバーでは検索が利用できません",
+    "history": {
+      "label": "検索履歴",
+      "remove": "「{query}」を履歴から削除"
     }
   },
   "createPost": {
@@ -525,7 +543,8 @@
     "unpinSidebar": "サイドバーのピンを解除",
     "serverInfo": "サーバーについて",
     "versionInfo": "アプリ情報",
-    "notifications": "通知"
+    "notifications": "通知",
+    "search": "検索"
   },
   "videoPlayer": {
     "play": "再生",

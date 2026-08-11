@@ -47,6 +47,24 @@ Edit `.env` and set the required secrets (passwords, JWT secret, etc.):
 nano .env
 ```
 
+### Search
+
+Full-text search for posts and users is served by a Meilisearch container
+declared in `docker-compose.yml`. Set `MEILI_MASTER_KEY` (16 characters or
+more) and the matching `MEILISEARCH_API_KEY` in `.env`:
+
+```bash
+openssl rand -base64 32
+```
+
+On first start the backend creates the indexes and loads every existing post
+and user into them; afterwards the index is kept up to date as content changes.
+Set `SEARCH_BACKFILL=force` to reindex everything on the next start, which is
+how a drifted index is repaired.
+
+To run without search, set `SEARCH_PROVIDER=none`. The `/search/*` endpoints
+then return 503 and nothing is indexed; the rest of the server is unaffected.
+
 Build the images:
 
 ```bash

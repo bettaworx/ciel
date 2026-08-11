@@ -16,11 +16,16 @@ import (
 )
 
 type UsersService struct {
-	store *repository.Store
+	store  *repository.Store
+	search *SearchService
 }
 
 func NewUsersService(store *repository.Store) *UsersService {
 	return &UsersService{store: store}
+}
+
+func (s *UsersService) SetSearchService(search *SearchService) {
+	s.search = search
 }
 
 // GetByUsername loads a profile. viewer is the caller, used to resolve the
@@ -125,6 +130,7 @@ func (s *UsersService) UpdateProfile(ctx context.Context, userID uuid.UUID, disp
 		}
 		return api.User{}, err
 	}
+	s.search.ReindexUser(ctx, userID)
 	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, sql.NullString{}, row.BannerMediaID, sql.NullString{}, sql.NullString{}, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt), nil
 }
 
@@ -197,5 +203,7 @@ func (s *UsersService) UpdateUsername(ctx context.Context, userID uuid.UUID, new
 		}
 		return err
 	}
+	// Posts are indexed by author id, so only the user document needs updating.
+	s.search.ReindexUser(ctx, userID)
 	return nil
 }

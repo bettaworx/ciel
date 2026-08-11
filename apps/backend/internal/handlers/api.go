@@ -32,6 +32,7 @@ type API struct {
 	Follows       *service.FollowsService
 	Posts         *service.PostsService
 	Timeline      *service.TimelineService
+	Search        *service.SearchService
 	Reactions     *service.ReactionsService
 	Notifications *service.NotificationsService
 	Media         *service.MediaService

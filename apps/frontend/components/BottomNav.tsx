@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAtomValue } from "jotai";
-import { Home, SquarePen, Bell } from "lucide-react";
+import { Home, Search, SquarePen, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBadge } from "@/components/notifications/NotificationBadge";
 import { SidebarAvatar } from "@/components/SidebarAvatar";
 import { CreatePostDialog } from "@/components/CreatePostDialog";
 import { isAuthenticatedAtom } from "@/atoms/auth";
+import { useServerInfo } from "@/lib/hooks/use-queries";
 import { useTranslations } from "next-intl";
 
 /**
@@ -23,6 +24,10 @@ export function BottomNav() {
   const router = useRouter();
   const tNav = useTranslations("nav");
   const tCreatePost = useTranslations("createPost");
+  const { data: serverInfo } = useServerInfo();
+  // Show while the server info is still loading and hide only once search is
+  // known to be off, so the bar does not grow an extra button after mount.
+  const showSearch = serverInfo?.searchEnabled !== false;
 
   const handleHomeClick = () => {
     if (pathname === "/") {
@@ -50,6 +55,19 @@ export function BottomNav() {
         >
           <Home className="w-6 h-6" />
         </Button>
+
+        {/* 検索ボタン */}
+        {isMounted && isAuthenticated && showSearch && (
+          <Button
+            variant="ghost"
+            rounded="lg"
+            className="w-12 h-12"
+            onClick={() => router.push("/search")}
+            aria-label={tNav("search")}
+          >
+            <Search className="w-6 h-6" />
+          </Button>
+        )}
 
         {/* 通知ボタン */}
         {isMounted && isAuthenticated && (

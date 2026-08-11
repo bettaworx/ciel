@@ -25,6 +25,7 @@ import (
 	"backend/internal/middleware"
 	"backend/internal/realtime"
 	"backend/internal/repository"
+	"backend/internal/search"
 	"backend/internal/service"
 	"backend/internal/service/admin"
 	"backend/internal/service/moderation"
@@ -73,6 +74,19 @@ func main() {
 			hint:      "set a simple passphrase for initial server setup",
 			forbidden: []string{},
 		},
+	}
+
+	// The search engine's API key is only required when search is switched on.
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("SEARCH_PROVIDER")), "meilisearch") {
+		requiredSecrets["MEILISEARCH_API_KEY"] = struct {
+			minLength int
+			hint      string
+			forbidden []string
+		}{
+			minLength: 16,
+			hint:      "must match MEILI_MASTER_KEY; generate with: openssl rand -base64 32",
+			forbidden: []string{"replace", "changeme", "masterkey", "meili-key"},
+		}
 	}
 
 	// In production, additional secrets are required
@@ -359,6 +373,26 @@ func main() {
 	followsSvc.SetNotificationsService(notificationsSvc)
 	followsSvc.SetUsersService(usersSvc)
 
+	// Search. An unset SEARCH_PROVIDER yields a no-op provider: indexing calls
+	// become no-ops and the /search routes answer 503, like the other optional
+	// dependencies.
+	searchProvider, err := search.New()
+	if err != nil {
+		slog.Error("search provider unavailable; search will be disabled", "error", err)
+		searchProvider = search.NoOp{}
+	}
+	searchSvc := service.NewSearchService(store, searchProvider)
+	searchSvc.SetPostsService(postsSvc)
+	postsSvc.SetSearchService(searchSvc)
+	usersSvc.SetSearchService(searchSvc)
+	authSvc.SetSearchService(searchSvc)
+	modPostsSvc.SetSearchService(searchSvc)
+	adminProfileSvc.SetSearchService(searchSvc)
+	if searchSvc.Enabled() {
+		slog.Info("search enabled", "provider", searchProvider.Name())
+		searchSvc.StartBackfill(context.Background(), cacheImpl, os.Getenv("SEARCH_BACKFILL") == "force")
+	}
+
 	mediaDir := os.Getenv("MEDIA_DIR")
 	if mediaDir == "" {
 		mediaDir = filepath.FromSlash("./data/media")
@@ -407,6 +441,7 @@ func main() {
 		Follows:       followsSvc,
 		Posts:         postsSvc,
 		Timeline:      timelineSvc,
+		Search:        searchSvc,
 		Reactions:     reactionsSvc,
 		Notifications: notificationsSvc,
 		Media:         mediaSvc,

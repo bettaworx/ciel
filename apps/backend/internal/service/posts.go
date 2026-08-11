@@ -36,6 +36,7 @@ type PostsService struct {
 	publisher     realtime.Publisher
 	reactions     *ReactionsService
 	notifications *NotificationsService
+	search        *SearchService
 }
 
 func NewPostsService(store *repository.Store, cache cache.Cache, publisher realtime.Publisher) *PostsService {
@@ -48,6 +49,10 @@ func (s *PostsService) SetReactionsService(reactions *ReactionsService) {
 
 func (s *PostsService) SetNotificationsService(notifications *NotificationsService) {
 	s.notifications = notifications
+}
+
+func (s *PostsService) SetSearchService(search *SearchService) {
+	s.search = search
 }
 
 func (s *PostsService) Create(ctx context.Context, user auth.User, req api.CreatePostRequest) (api.Post, error) {
@@ -230,6 +235,7 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 
 	s.publish(ctx, realtime.Event{Type: realtime.EventPostCreated, Post: &post})
 	s.notifications.Publish(ctx, s.publisher, createdNotifications)
+	s.search.ReindexPost(ctx, post.Id)
 	return post, nil
 }
 
@@ -823,6 +829,7 @@ func (s *PostsService) Delete(ctx context.Context, user auth.User, postID api.Po
 	}
 	pid := postID
 	s.publish(ctx, realtime.Event{Type: realtime.EventPostDeleted, PostId: &pid})
+	s.search.ReindexPost(ctx, postID)
 	return nil
 }
 

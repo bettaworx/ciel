@@ -389,6 +389,24 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			return request<components['schemas']['TimelinePage']>('GET', `/timeline/home${suffix}`);
 		},
 
+		// Search is offset-paged rather than cursor-paged: results come back in
+		// relevance order, which no cursor can express.
+		searchPosts: (params: { q: string; limit?: number; offset?: number }) => {
+			const qs = new URLSearchParams();
+			qs.set('q', params.q);
+			if (params.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params.offset !== undefined) qs.set('offset', String(params.offset));
+			return request<components['schemas']['PostSearchPage']>('GET', `/search/posts?${qs.toString()}`);
+		},
+
+		searchUsers: (params: { q: string; limit?: number; offset?: number }) => {
+			const qs = new URLSearchParams();
+			qs.set('q', params.q);
+			if (params.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params.offset !== undefined) qs.set('offset', String(params.offset));
+			return request<components['schemas']['UserSearchPage']>('GET', `/search/users?${qs.toString()}`);
+		},
+
 		listReplies: (
 			postId: components['schemas']['PostId'],
 			params?: { limit?: number; cursor?: string | null }

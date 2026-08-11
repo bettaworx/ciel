@@ -28,6 +28,7 @@ export type PostThreadParams = {
 type NotificationType = components["schemas"]["NotificationType"];
 type UnreadCount = components["schemas"]["UnreadCount"];
 type UsersPage = components["schemas"]["UsersPage"];
+type UserSearchPage = components["schemas"]["UserSearchPage"];
 
 /** Notification list tabs. "mentions" covers everything addressed at you. */
 export type NotificationTab = "all" | "mentions";
@@ -93,6 +94,10 @@ export const queryKeys = {
   ogp: (url: string) => ["ogp", url] as const,
   notifications: (tab: NotificationTab) => ["notifications", tab] as const,
   notificationsUnread: ["notificationsUnread"] as const,
+  searchPosts: (query: string) => ["search", "posts", query] as const,
+  // Prefix shared by every user search, so one follow can patch all of them.
+  searchUsersAll: ["search", "users"] as const,
+  searchUsers: (query: string) => ["search", "users", query] as const,
 };
 
 // Current user
@@ -388,6 +393,26 @@ export function useUser(username: string | undefined) {
   });
 }
 
+// Flips one user's follow state wherever a paged list of users is cached, so
+// every button showing that user updates at once. Shared by the follow lists
+// and the search results, whose pages differ in everything but `items`.
+function patchFollowedUser<TPage extends { items: components["schemas"]["User"][] }>(
+  cached: InfiniteData<TPage> | undefined,
+  username: string,
+  isFollowing: boolean,
+): InfiniteData<TPage> | undefined {
+  if (!cached) return cached;
+  return {
+    ...cached,
+    pages: cached.pages.map((page) => ({
+      ...page,
+      items: page.items.map((item) =>
+        item.username === username ? { ...item, isFollowing } : item,
+      ),
+    })),
+  };
+}
+
 // Follow / unfollow a user.
 //
 // The endpoints return the updated user, so the profile cache is written
@@ -412,18 +437,14 @@ function useFollowMutation(follow: boolean) {
       // waiting on a refetch...
       queryClient.setQueriesData<InfiniteData<UsersPage>>(
         { queryKey: queryKeys.follows },
-        (old) =>
-          old && {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) =>
-                item.username === username
-                  ? { ...item, isFollowing: follow }
-                  : item,
-              ),
-            })),
-          },
+        (old) => patchFollowedUser(old, username, follow),
+      );
+      // ...and in search results, which show the same button. Following someone
+      // does not change whether they match the query, so unlike the follow
+      // lists these only need the patch, never a refetch.
+      queryClient.setQueriesData<InfiniteData<UserSearchPage>>(
+        { queryKey: queryKeys.searchUsersAll },
+        (old) => patchFollowedUser(old, username, follow),
       );
       // ...but the lists also gained or lost a member, which no patch can fake:
       // mark them stale so revisiting one refetches instead of serving a list
@@ -1380,4 +1401,73 @@ export function markNotificationsReadInCache(
       return changed ? { ...payload, pages } : payload;
     },
   );
+}
+
+const SEARCH_PAGE_SIZE = 30;
+
+/** The API rejects offsets past this, so stop paging instead of asking for a 400. */
+const MAX_SEARCH_OFFSET = 1000;
+
+/**
+ * Works out the next offset from what the page reports about itself.
+ *
+ * Counting the returned items would be wrong: hydration drops posts deleted or
+ * hidden since they were indexed, so a short page is not necessarily the last
+ * one. The echoed offset and limit describe the window that was asked for,
+ * which is what has to advance.
+ */
+function nextSearchOffset(page: { offset: number; limit: number; estimatedTotal: number }) {
+  const next = page.offset + page.limit;
+  if (next >= page.estimatedTotal || next > MAX_SEARCH_OFFSET) return undefined;
+  return next;
+}
+
+/** Post search results in relevance order. Pass enabled: false for the hidden tab. */
+export function useSearchPosts(query: string, enabled = true) {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.searchPosts(query),
+    queryFn: async ({ pageParam }) => {
+      const result = await api.searchPosts({
+        q: query,
+        limit: SEARCH_PAGE_SIZE,
+        offset: pageParam,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: nextSearchOffset,
+    enabled: enabled && query.length > 0,
+    // A rejected query syntax and an unconfigured engine both fail the same way
+    // on every attempt, and retrying only eats into the search rate limit.
+    retry: false,
+    staleTime: 1000 * 60,
+  });
+}
+
+/** User search results in relevance order. */
+export function useSearchUsers(query: string, enabled = true) {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.searchUsers(query),
+    queryFn: async ({ pageParam }) => {
+      const result = await api.searchUsers({
+        q: query,
+        limit: SEARCH_PAGE_SIZE,
+        offset: pageParam,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: nextSearchOffset,
+    enabled: enabled && query.length > 0,
+    // A rejected query syntax and an unconfigured engine both fail the same way
+    // on every attempt, and retrying only eats into the search rate limit.
+    retry: false,
+    staleTime: 1000 * 60,
+  });
 }
