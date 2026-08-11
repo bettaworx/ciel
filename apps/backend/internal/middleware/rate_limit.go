@@ -76,6 +76,10 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		{routeKey: "users_posts_get", limit: 120, window: 1 * time.Minute, subject: subjectIP},
 		// Public media delivery (GET /media/*): very loose, per-IP.
 		{routeKey: "media_get", limit: 600, window: 1 * time.Minute, subject: subjectIP},
+		// Search: per-user, since the routes require authentication. Each hit
+		// costs a search-engine query plus a hydration round trip, so this is
+		// tighter than a timeline read.
+		{routeKey: "search", limit: 60, window: 1 * time.Minute, subject: subjectUser},
 	}
 
 	return func(next http.Handler) http.Handler {
@@ -284,6 +288,15 @@ func classifyTimelineRoute(method, path string) string {
 	return ""
 }
 
+// classifySearchRoute classifies search routes. Both post and user search hit
+// the same engine, so they share one budget.
+func classifySearchRoute(method, path string) string {
+	if method == http.MethodGet && strings.HasPrefix(path, "/api/v1/search/") {
+		return "search"
+	}
+	return ""
+}
+
 // classifyRoute maps request paths to stable route keys for rate limiting / access control.
 // This is intentionally simple prefix matching so it works in global chi middlewares.
 func classifyRoute(r *http.Request) string {
@@ -309,6 +322,9 @@ func classifyRoute(r *http.Request) string {
 		return route
 	}
 	if route := classifyTimelineRoute(method, path); route != "" {
+		return route
+	}
+	if route := classifySearchRoute(method, path); route != "" {
 		return route
 	}
 

@@ -537,6 +537,44 @@ publisher.Publish(realtime.Event{
 })
 ```
 
+## Search (`internal/search/`)
+
+**Implementation**: `internal/search/` (provider abstraction) and
+`internal/service/search.go` (query handling and index synchronisation).
+
+The engine is chosen at startup from `SEARCH_PROVIDER`. `meilisearch` uses
+`internal/search/meili.go`; anything else (including unset) selects
+`internal/search/noop.go`, which drops writes and answers reads with
+`search.ErrUnavailable` so `/search/*` returns 503 while the rest of the server
+keeps working. To add another engine, implement `search.Provider` and add a case
+to `search.New`.
+
+**What is indexed**: only the fields needed to match and filter — post content
+plus author id and timestamp, and username, display name, bio and timestamp for
+users. Responses are always hydrated from the database via
+`PostsService.GetHydratedPostsByIDs` and `GetUsersByIDs`, so a stale index can
+never leak deleted or hidden content. Posts are indexed by **author id**, not
+username, so renaming a user does not invalidate their posts.
+
+**Query syntax**: `internal/search/query.go` parses `from:`, `since:`, `until:`,
+quoted phrases and a bare uppercase `OR`/`AND` out of the query string. `OR`
+maps to the engine's matching strategy for the whole query; it is not a per-term
+boolean expression.
+
+**Keeping the index in step**: any code that creates, deletes, hides or
+un-hides a post must call `SearchService.ReindexPost(ctx, postID)`, and any code
+that changes a profile must call `SearchService.ReindexUser(ctx, userID)`. Both
+read the current row and decide for themselves whether to upsert or delete, so
+the call is the same one line at every site. Deleting a user cascades their
+posts away, so that path calls `SearchService.RemoveUser` instead. Errors are
+logged and swallowed: a search index failure must never fail the write that
+triggered it.
+
+**Backfill**: `SearchService.StartBackfill` runs in the background at startup,
+applies the index settings, and loads existing rows when the index is empty. A
+Redis `SetNX` lock keeps multiple replicas from doing it at once. Set
+`SEARCH_BACKFILL=force` to reindex regardless — this is the drift repair.
+
 ## Build & Development Commands
 
 ```bash

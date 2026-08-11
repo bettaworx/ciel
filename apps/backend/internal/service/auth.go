@@ -37,6 +37,7 @@ type AuthService struct {
 	configMgr      *config.Manager
 	inviteSvc      InviteServiceInterface
 	publisher      realtime.Publisher
+	search         *SearchService
 }
 
 func NewAuthService(store *repository.Store, tokens *auth.TokenManager) *AuthService {
@@ -102,6 +103,12 @@ func (s *AuthService) SetInviteService(inviteSvc InviteServiceInterface) {
 // SetPublisher sets the realtime event publisher.
 func (s *AuthService) SetPublisher(publisher realtime.Publisher) {
 	s.publisher = publisher
+}
+
+// SetSearchService wires the search index so new and deleted accounts show up
+// in, and disappear from, user search.
+func (s *AuthService) SetSearchService(search *SearchService) {
+	s.search = search
 }
 
 // validateRegistrationInput validates username and password from registration request
@@ -338,6 +345,7 @@ func (s *AuthService) Register(ctx context.Context, req api.RegisterRequest) (ap
 			slog.Warn("failed to publish user_registered event", "error", err)
 		}
 	}
+	s.search.ReindexUser(ctx, created.ID)
 
 	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt), nil
 }
@@ -708,7 +716,11 @@ func (s *AuthService) DeleteAccount(ctx context.Context, user auth.User) error {
 		slog.Warn("failed to revoke refresh tokens before account deletion", "error", err, "user_id", user.ID.String())
 	}
 
-	return s.store.Q.DeleteUserByID(ctx, user.ID)
+	if err := s.store.Q.DeleteUserByID(ctx, user.ID); err != nil {
+		return err
+	}
+	s.search.RemoveUser(ctx, user.ID)
+	return nil
 }
 
 func auditStepup(ctx context.Context, event, outcome string, user auth.User, reason string) {

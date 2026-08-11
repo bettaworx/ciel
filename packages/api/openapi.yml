@@ -26,6 +26,7 @@ tags:
 - name: Follows
 - name: Posts
 - name: Timeline
+- name: Search
 - name: Reactions
 - name: Media
 - name: Reports
@@ -215,6 +216,10 @@ paths:
     $ref: ./paths/timeline.yml#/~1timeline
   /timeline/home:
     $ref: ./paths/timeline.yml#/~1timeline~1home
+  /search/posts:
+    $ref: ./paths/search.yml#/~1search~1posts
+  /search/users:
+    $ref: ./paths/search.yml#/~1search~1users
   /posts/{postId}/reactions:
     $ref: ./paths/reactions.yml#/~1posts~1{postId}~1reactions
   /posts/{postId}/reactions/users:

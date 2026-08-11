@@ -9,6 +9,7 @@ import (
 	"backend/internal/db/sqlc"
 	"backend/internal/realtime"
 	"backend/internal/repository"
+	"backend/internal/service"
 
 	"github.com/google/uuid"
 )
@@ -18,6 +19,13 @@ type PostsService struct {
 	store       *repository.Store
 	logsService *LogsService
 	publisher   realtime.Publisher
+	search      *service.SearchService
+}
+
+// SetSearchService wires the search index so moderation actions are reflected
+// in search results. Safe to leave unset; the calls are no-ops then.
+func (s *PostsService) SetSearchService(search *service.SearchService) {
+	s.search = search
 }
 
 // NewPostsService creates a new PostsService
@@ -125,6 +133,7 @@ func (s *PostsService) DeletePost(ctx context.Context, postID, deletedBy uuid.UU
 		fmt.Printf("warning: failed to log post deletion: %v\n", err)
 	}
 
+	s.search.ReindexPost(ctx, postID)
 	return nil
 }
 
@@ -152,6 +161,7 @@ func (s *PostsService) HidePost(ctx context.Context, postID, adminUserID uuid.UU
 		fmt.Printf("warning: failed to log post hide: %v\n", err)
 	}
 
+	s.search.ReindexPost(ctx, postID)
 	return nil
 }
 
@@ -175,5 +185,6 @@ func (s *PostsService) UnhidePost(ctx context.Context, postID, adminUserID uuid.
 		fmt.Printf("warning: failed to log post unhide: %v\n", err)
 	}
 
+	s.search.ReindexPost(ctx, postID)
 	return nil
 }
