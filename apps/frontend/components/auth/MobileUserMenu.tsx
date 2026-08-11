@@ -31,6 +31,7 @@ interface MobileUserMenuProps {
   onLanguageChange: (locale: Locale) => void;
   onLogoutClick: () => void;
   onProfileClick: () => void;
+  onBookmarksClick: () => void;
   onSettingsClick: () => void;
   onUserInfoClick: () => void;
 }
@@ -48,6 +49,7 @@ export function MobileUserMenu({
   onLanguageChange,
   onLogoutClick,
   onProfileClick,
+  onBookmarksClick,
   onSettingsClick,
   onUserInfoClick,
 }: MobileUserMenuProps) {
@@ -81,6 +83,7 @@ export function MobileUserMenu({
           locale={locale}
           onLanguageChange={onLanguageChange}
           onProfileClick={onProfileClick}
+          onBookmarksClick={onBookmarksClick}
           onSettingsClick={onSettingsClick}
           onLogoutClick={onLogoutClick}
           onUserInfoClick={onUserInfoClick}

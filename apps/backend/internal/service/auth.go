@@ -280,6 +280,12 @@ func (s *AuthService) createUserTransaction(
 			return err
 		}
 
+		// Everyone starts with one bookmark list. Its name is left NULL so the
+		// client can label it in the reader's own language.
+		if err := q.CreateDefaultBookmarkList(ctx, u.ID); err != nil {
+			return err
+		}
+
 		// Record invite code usage within the same transaction
 		if inviteCodeID != uuid.Nil {
 			_, err = q.RecordInviteCodeUse(ctx, sqlc.RecordInviteCodeUseParams{

@@ -12,11 +12,14 @@ type PageHeaderProps = {
    * where there is nothing meaningful to go back to.
    */
   showBackButton?: boolean;
+  /** Right-aligned slot for a page-level action, e.g. "create". */
+  action?: React.ReactNode;
 };
 
 export function PageHeader({
   children,
   showBackButton = true,
+  action,
 }: PageHeaderProps) {
   const router = useRouter();
 
@@ -31,8 +34,12 @@ export function PageHeader({
       <div
         className={cn(
           "pointer-events-auto flex items-center h-full gap-2",
+          // Left only: the right edge belongs to the action and must not move
+          // with the back button. An icon button carries ~8px around its glyph,
+          // so pr-2 lands that glyph on the same 16px inset as the title.
+          "pr-2",
           // Without the button, the title needs the inset it used to provide.
-          showBackButton ? "px-1" : "px-4",
+          showBackButton ? "pl-1" : "pl-4",
         )}
       >
         {showBackButton && (
@@ -49,6 +56,7 @@ export function PageHeader({
         <span className="text-base font-semibold text-foreground truncate">
           {children}
         </span>
+        {action && <div className="ml-auto shrink-0">{action}</div>}
       </div>
     </div>
   );

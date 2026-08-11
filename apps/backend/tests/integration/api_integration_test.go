@@ -143,6 +143,8 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 	followsSvc := service.NewFollowsService(store, cacheImpl, hub)
 	followsSvc.SetNotificationsService(notificationsSvc)
 	followsSvc.SetUsersService(usersSvc)
+	bookmarksSvc := service.NewBookmarksService(store, postsSvc)
+	postsSvc.SetBookmarksService(bookmarksSvc)
 
 	apiServer := handlers.API{
 		Auth:          service.NewAuthServiceWithOptions(store, tokenManager, authOpts),
@@ -153,6 +155,7 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 		Posts:         postsSvc,
 		Timeline:      timelineSvc,
 		Reactions:     reactionsSvc,
+		Bookmarks:     bookmarksSvc,
 		Notifications: notificationsSvc,
 		Media:         mediaSvc,
 	}

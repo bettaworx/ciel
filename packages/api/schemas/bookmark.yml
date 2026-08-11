@@ -1,0 +1,87 @@
+components:
+  schemas:
+    BookmarkListId:
+      type: string
+      format: uuid
+    BookmarkList:
+      type: object
+      required:
+      - id
+      - name
+      - icon
+      - isDefault
+      - postCount
+      - createdAt
+      properties:
+        id:
+          $ref: '#/components/schemas/BookmarkListId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          nullable: true
+          description: Null on an untouched default list. The server has no locale, so the client substitutes its own translated label when this is null.
+        icon:
+          $ref: ./common.yml#/components/schemas/Emoji
+        isDefault:
+          type: boolean
+          description: The list created at signup. It can be renamed and re-iconed but not deleted.
+        postCount:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+    BookmarkListsResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookmarkList'
+    CreateBookmarkListRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        icon:
+          $ref: ./common.yml#/components/schemas/Emoji
+    UpdateBookmarkListRequest:
+      type: object
+      description: Omitted fields are left unchanged.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        icon:
+          $ref: ./common.yml#/components/schemas/Emoji
+    SetPostBookmarksRequest:
+      type: object
+      required:
+      - listIds
+      properties:
+        listIds:
+          type: array
+          description: The complete set of the caller's lists that should hold this post. An empty array removes the bookmark everywhere.
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/BookmarkListId'
+    PostBookmarks:
+      type: object
+      required:
+      - postId
+      - listIds
+      properties:
+        postId:
+          $ref: ./common.yml#/components/schemas/PostId
+        listIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookmarkListId'

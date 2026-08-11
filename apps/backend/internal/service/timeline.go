@@ -138,7 +138,7 @@ func (s *TimelineService) hydratePosts(ctx context.Context, posts []api.Post, us
 	if err := s.attachMediaToPosts(ctx, posts); err != nil {
 		return err
 	}
-	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
 		return err
 	}
 	if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
@@ -278,6 +278,21 @@ func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
 		DeletedAt:   nil,
 		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
 	}
+}
+
+// attachViewerStateToPosts mirrors PostsService: the per-viewer fields are the
+// same set wherever posts are read. The bookmarks service is reached through
+// PostsService rather than injected again, since a timeline without one has no
+// post hydration either.
+func (s *TimelineService) attachViewerStateToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+		return err
+	}
+	var bookmarks *BookmarksService
+	if s.posts != nil {
+		bookmarks = s.posts.bookmarks
+	}
+	return attachBookmarkListIDs(ctx, bookmarks, posts, userID)
 }
 
 func (s *TimelineService) attachReactionsToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {

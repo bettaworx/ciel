@@ -12,6 +12,7 @@ import {
   PinOff,
   Info,
   Bell,
+  Bookmark,
   User,
   Settings,
 } from "lucide-react";
@@ -274,6 +275,17 @@ export function Sidebar() {
                 isExpanded && unreadCount > 0 ? <NotificationBadge /> : undefined
               }
               isActive={pathname === "/notifications"}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
+          {isAuthenticated && (
+            <SidebarActionButton
+              href="/bookmarks"
+              icon={<Bookmark className="w-5 h-5 shrink-0" />}
+              label={tNav("bookmarks")}
+              isActive={pathname.startsWith("/bookmarks")}
               isExpanded={isExpanded}
               canAnimate={canExpand}
               hoverBg={hoverBg}

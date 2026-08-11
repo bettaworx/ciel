@@ -28,6 +28,7 @@ tags:
 - name: Timeline
 - name: Search
 - name: Reactions
+- name: Bookmarks
 - name: Media
 - name: Reports
 - name: Emojis
@@ -224,6 +225,14 @@ paths:
     $ref: ./paths/reactions.yml#/~1posts~1{postId}~1reactions
   /posts/{postId}/reactions/users:
     $ref: ./paths/reactions.yml#/~1posts~1{postId}~1reactions~1users
+  /bookmarks/lists:
+    $ref: ./paths/bookmarks.yml#/~1bookmarks~1lists
+  /bookmarks/lists/{listId}:
+    $ref: ./paths/bookmarks.yml#/~1bookmarks~1lists~1{listId}
+  /bookmarks/lists/{listId}/posts:
+    $ref: ./paths/bookmarks.yml#/~1bookmarks~1lists~1{listId}~1posts
+  /posts/{postId}/bookmarks:
+    $ref: ./paths/bookmarks.yml#/~1posts~1{postId}~1bookmarks
   /emojis:
     $ref: ./paths/emojis.yml#/~1emojis
   /emojis/{shortcode}:

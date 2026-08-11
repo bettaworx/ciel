@@ -2052,3 +2052,115 @@ WHERE (
 	)
 ORDER BY u.created_at ASC, u.id ASC
 LIMIT sqlc.arg('limit');
+
+-- ============================================================================
+-- BOOKMARKS
+-- ============================================================================
+
+-- name: CreateDefaultBookmarkList :exec
+-- Idempotent, so a signup retry can never leave a user with two default lists.
+-- name is left NULL because the server has no locale: the client substitutes
+-- its own translated label whenever it sees NULL.
+INSERT INTO bookmark_lists (user_id, is_default)
+VALUES (sqlc.arg('user_id')::uuid, TRUE)
+ON CONFLICT (user_id) WHERE is_default DO NOTHING;
+
+-- name: ListBookmarkListsByUser :many
+-- Default list first, then oldest created first.
+SELECT
+	l.id,
+	l.name,
+	l.icon,
+	l.is_default,
+	l.created_at,
+	(SELECT COUNT(*) FROM bookmarks b WHERE b.list_id = l.id)::int AS post_count
+FROM bookmark_lists l
+WHERE l.user_id = sqlc.arg('user_id')::uuid
+ORDER BY l.is_default DESC, l.created_at ASC, l.id ASC;
+
+-- name: GetBookmarkList :one
+-- Scoped by user_id, so someone else's list id reads as "not found" rather than
+-- confirming it exists.
+SELECT
+	l.id,
+	l.name,
+	l.icon,
+	l.is_default,
+	l.created_at,
+	(SELECT COUNT(*) FROM bookmarks b WHERE b.list_id = l.id)::int AS post_count
+FROM bookmark_lists l
+WHERE l.id = sqlc.arg('id')::uuid
+	AND l.user_id = sqlc.arg('user_id')::uuid;
+
+-- name: CountBookmarkListsByUser :one
+SELECT COUNT(*)::int FROM bookmark_lists
+WHERE user_id = sqlc.arg('user_id')::uuid;
+
+-- name: CountOwnedBookmarkLists :one
+-- Ownership check for a whole set of list ids in one round trip: the caller
+-- compares the result against len(ids).
+SELECT COUNT(*)::int FROM bookmark_lists
+WHERE user_id = sqlc.arg('user_id')::uuid
+	AND id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: CreateBookmarkList :one
+INSERT INTO bookmark_lists (user_id, name, icon)
+VALUES (sqlc.arg('user_id')::uuid, sqlc.arg('name')::text, sqlc.arg('icon')::text)
+RETURNING id, name, icon, is_default, created_at;
+
+-- name: UpdateBookmarkList :one
+-- COALESCE so a PATCH may carry either field on its own.
+UPDATE bookmark_lists
+SET
+	name = COALESCE(sqlc.narg('name')::text, name),
+	icon = COALESCE(sqlc.narg('icon')::text, icon)
+WHERE id = sqlc.arg('id')::uuid
+	AND user_id = sqlc.arg('user_id')::uuid
+RETURNING id, name, icon, is_default, created_at;
+
+-- name: DeleteBookmarkList :execrows
+-- The default list is not deletable. 0 rows leaves the caller to work out
+-- whether that was the reason or the list simply is not theirs.
+DELETE FROM bookmark_lists
+WHERE id = sqlc.arg('id')::uuid
+	AND user_id = sqlc.arg('user_id')::uuid
+	AND NOT is_default;
+
+-- name: ListBookmarkedPostIDs :many
+-- Ids only: the rows are hydrated through PostsService.GetHydratedPostsByIDs,
+-- the same path search uses, so hidden or deleted posts can never leak.
+SELECT b.post_id, b.created_at
+FROM bookmarks b
+JOIN posts p ON p.id = b.post_id
+WHERE b.list_id = sqlc.arg('list_id')::uuid
+	AND p.deleted_at IS NULL
+	AND p.visibility = 'public'
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR b.created_at < sqlc.narg('cursor_time')
+		OR (b.created_at = sqlc.narg('cursor_time') AND b.post_id < sqlc.narg('cursor_id'))
+	)
+ORDER BY b.created_at DESC, b.post_id DESC
+LIMIT sqlc.arg('limit');
+
+-- name: ListBookmarkListIDsForPosts :many
+-- Which of the caller's lists hold each of these posts. One index hit per
+-- timeline page, which is the whole reason bookmarks carries a denormalised
+-- user_id instead of joining back through bookmark_lists.
+SELECT post_id, list_id
+FROM bookmarks
+WHERE user_id = sqlc.arg('user_id')::uuid
+	AND post_id = ANY(sqlc.arg('post_ids')::uuid[]);
+
+-- name: AddBookmark :exec
+INSERT INTO bookmarks (list_id, post_id, user_id)
+VALUES (sqlc.arg('list_id')::uuid, sqlc.arg('post_id')::uuid, sqlc.arg('user_id')::uuid)
+ON CONFLICT DO NOTHING;
+
+-- name: RemoveBookmarksNotIn :exec
+-- Drops the post from every list of the caller's outside the new set. An empty
+-- set clears it everywhere, which is how "remove bookmark" is expressed.
+DELETE FROM bookmarks
+WHERE user_id = sqlc.arg('user_id')::uuid
+	AND post_id = sqlc.arg('post_id')::uuid
+	AND NOT (list_id = ANY(sqlc.arg('list_ids')::uuid[]));

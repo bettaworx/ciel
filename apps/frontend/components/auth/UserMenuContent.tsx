@@ -7,6 +7,7 @@ import {
   Palette,
   Languages,
   Settings as SettingsIcon,
+  Bookmark,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -40,6 +41,7 @@ interface UserMenuContentProps {
   locale: Locale;
   onLanguageChange: (locale: Locale) => void;
   onProfileClick: () => void;
+  onBookmarksClick: () => void;
   onSettingsClick: () => void;
   onLogoutClick: () => void;
   onUserInfoClick?: () => void;
@@ -57,6 +59,7 @@ export function UserMenuContent({
   locale,
   onLanguageChange,
   onProfileClick,
+  onBookmarksClick,
   onSettingsClick,
   onLogoutClick,
   onUserInfoClick,
@@ -167,6 +170,18 @@ export function UserMenuContent({
             >
               <User className="h-4 w-4" />
               {t("userMenu.viewProfile")}
+            </Button>
+          )}
+
+          {isMobile && (
+            <Button
+              variant="ghost"
+              rounded="md"
+              className="w-full justify-start"
+              onClick={onBookmarksClick}
+            >
+              <Bookmark className="h-4 w-4" />
+              {t("nav.bookmarks")}
             </Button>
           )}
 

@@ -70,6 +70,8 @@ export const queryKeys = {
   followersYouFollowPreview: (username: string) =>
     ["followersYouFollowPreview", username] as const,
   reactions: (postId: string) => ["reactions", postId] as const,
+  bookmarkLists: ["bookmarkLists"] as const,
+  bookmarkListPosts: (listId: string) => ["bookmarkListPosts", listId] as const,
   agreementVersions: ["agreementVersions"] as const,
   latestAgreement: (type: "terms" | "privacy", language: string) =>
     ["latestAgreement", type, language] as const,

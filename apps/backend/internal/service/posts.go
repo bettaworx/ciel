@@ -37,6 +37,7 @@ type PostsService struct {
 	reactions     *ReactionsService
 	notifications *NotificationsService
 	search        *SearchService
+	bookmarks     *BookmarksService
 }
 
 func NewPostsService(store *repository.Store, cache cache.Cache, publisher realtime.Publisher) *PostsService {
@@ -53,6 +54,13 @@ func (s *PostsService) SetNotificationsService(notifications *NotificationsServi
 
 func (s *PostsService) SetSearchService(search *SearchService) {
 	s.search = search
+}
+
+// SetBookmarksService injects the bookmarks service. It has to be a setter:
+// BookmarksService takes PostsService in its constructor to hydrate list pages,
+// so the dependency only closes in one direction at build time.
+func (s *PostsService) SetBookmarksService(bookmarks *BookmarksService) {
+	s.bookmarks = bookmarks
 }
 
 func (s *PostsService) Create(ctx context.Context, user auth.User, req api.CreatePostRequest) (api.Post, error) {
@@ -258,7 +266,7 @@ func (s *PostsService) Get(ctx context.Context, postID api.PostId, userID *api.U
 		return api.Post{}, err
 	}
 	posts := []api.Post{post}
-	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
 		return api.Post{}, err
 	}
 	if err := s.attachMentionsToPosts(ctx, posts); err != nil {
@@ -538,7 +546,7 @@ func (s *PostsService) attachPostDetails(ctx context.Context, posts []api.Post, 
 	if err := s.attachMediaToPosts(ctx, posts); err != nil {
 		return err
 	}
-	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
 		return err
 	}
 	if err := s.attachMentionsToPosts(ctx, posts); err != nil {
@@ -626,7 +634,7 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 	if err := s.attachMediaToPosts(ctx, items); err != nil {
 		return api.UserPostsPage{}, err
 	}
-	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, items, userID); err != nil {
 		return api.UserPostsPage{}, err
 	}
 	if err := s.attachMentionsToPosts(ctx, items); err != nil {
@@ -658,6 +666,17 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 		nextCursor = &n
 	}
 	return api.UserPostsPage{Items: items, NextCursor: nextCursor}, nil
+}
+
+// attachViewerStateToPosts fills the fields of a page of posts that depend on
+// who is reading: reactions with the caller's own marked, and the caller's
+// bookmark lists. Every read path funnels through here, so a new viewer-scoped
+// field only has to be wired in one place.
+func (s *PostsService) attachViewerStateToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+		return err
+	}
+	return attachBookmarkListIDs(ctx, s.bookmarks, posts, userID)
 }
 
 func (s *PostsService) attachReactionsToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
@@ -959,7 +978,7 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 	if err := s.attachMediaToPosts(ctx, items); err != nil {
 		return api.TimelinePage{}, err
 	}
-	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, items, userID); err != nil {
 		return api.TimelinePage{}, err
 	}
 	if err := s.attachMentionsToPosts(ctx, items); err != nil {
@@ -1113,7 +1132,7 @@ func (s *PostsService) attachReferencesToPosts(ctx context.Context, posts []api.
 	if err := s.attachMediaToPosts(ctx, refPosts); err != nil {
 		return err
 	}
-	if err := s.attachReactionsToPosts(ctx, refPosts, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, refPosts, userID); err != nil {
 		return err
 	}
 	if err := s.attachMentionsToPosts(ctx, refPosts); err != nil {

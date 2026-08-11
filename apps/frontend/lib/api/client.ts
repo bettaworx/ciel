@@ -479,6 +479,39 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			);
 		},
 
+		bookmarkLists: () =>
+			request<components['schemas']['BookmarkListsResponse']>('GET', '/bookmarks/lists'),
+
+		createBookmarkList: (body: components['schemas']['CreateBookmarkListRequest']) =>
+			request<components['schemas']['BookmarkList']>('POST', '/bookmarks/lists', { body }),
+
+		updateBookmarkList: (
+			listId: components['schemas']['BookmarkListId'],
+			body: components['schemas']['UpdateBookmarkListRequest']
+		) => request<components['schemas']['BookmarkList']>('PATCH', `/bookmarks/lists/${listId}`, { body }),
+
+		deleteBookmarkList: (listId: components['schemas']['BookmarkListId']) =>
+			request<void>('DELETE', `/bookmarks/lists/${listId}`),
+
+		bookmarkListPosts: (
+			listId: components['schemas']['BookmarkListId'],
+			params?: { limit?: number; cursor?: string | null }
+		) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['UserPostsPage']>(
+				'GET',
+				`/bookmarks/lists/${listId}/posts${suffix}`
+			);
+		},
+
+		setPostBookmarks: (
+			postId: components['schemas']['PostId'],
+			body: components['schemas']['SetPostBookmarksRequest']
+		) => request<components['schemas']['PostBookmarks']>('PUT', `/posts/${postId}/bookmarks`, { body }),
+
 		adminRoles: () => request<components['schemas']['RoleList']>('GET', '/admin/roles'),
 
 		adminPermissions: () =>

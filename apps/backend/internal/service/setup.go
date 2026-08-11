@@ -220,6 +220,11 @@ func (s *SetupService) CreateAdminAccount(ctx context.Context, setupToken, usern
 			return err
 		}
 
+		// Same default bookmark list every other account gets at signup.
+		if err := q.CreateDefaultBookmarkList(ctx, u.ID); err != nil {
+			return err
+		}
+
 		return nil
 	})
 

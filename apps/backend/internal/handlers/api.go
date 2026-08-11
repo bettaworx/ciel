@@ -34,6 +34,7 @@ type API struct {
 	Timeline      *service.TimelineService
 	Search        *service.SearchService
 	Reactions     *service.ReactionsService
+	Bookmarks     *service.BookmarksService
 	Notifications *service.NotificationsService
 	Media         *service.MediaService
 	Emojis        *service.EmojiService
