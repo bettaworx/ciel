@@ -117,7 +117,12 @@ export function Sidebar() {
             setIsHovered(true);
           }
         }}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseLeave={() => {
+          // An opening menu blanks body pointer-events, which fires a bogus
+          // mouseleave. Trusting it collapses the sidebar for a frame once the
+          // menu closes, until the :hover re-check above expands it again.
+          if (!isMenuOpen) setIsHovered(false);
+        }}
       >
         <div className="flex items-center justify-between h-12 gap-3">
           {/* Radix owns the open state; mirror it so the sidebar stays
