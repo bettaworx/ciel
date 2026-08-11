@@ -236,6 +236,15 @@ export function parseMfmToPlaintext(text: string): MfmNode[] {
   return extractPlainAndEmoji(parsed);
 }
 
+/**
+ * Parse MFM text and return just its visible characters, with all syntax
+ * markers removed. For places that need a bare string rather than nodes —
+ * `alt`, `aria-label`, avatar initials.
+ */
+export function mfmToPlainText(text: string): string {
+  return extractPlainText(mfm.parse(text));
+}
+
 function extractVisibleContent(nodes: MfmNode[]): MfmNode[] {
   const result: MfmNode[] = [];
 

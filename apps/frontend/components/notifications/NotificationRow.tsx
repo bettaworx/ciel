@@ -6,7 +6,11 @@ import { AtSign, Quote, Reply, Rocket, Smile, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmojiInline } from "@/components/EmojiInline";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { NOTIFICATION_EXCERPT_ALLOW_LIST } from "@/lib/mfm/parse";
+import {
+  DISPLAY_NAME_ALLOW_LIST,
+  NOTIFICATION_EXCERPT_ALLOW_LIST,
+  mfmToPlainText,
+} from "@/lib/mfm/parse";
 import {
   notificationActorCount,
   notificationActors,
@@ -63,7 +67,9 @@ function ActorAvatar({
   onUserClick?: (username: string) => void;
 }) {
   const user = actor.user;
-  const name = user.displayName || user.username;
+  // alt, aria-label and the initials all need a bare string, so the MFM in a
+  // display name is stripped rather than rendered here.
+  const name = mfmToPlainText(user.displayName || user.username);
   const avatar = (
     <span className={cn("relative inline-flex", className)}>
       <Avatar className={size}>
@@ -154,25 +160,30 @@ export function NotificationRow({
       ? t(`grouped.${displayType}`, { name: displayName, count: count - 1 })
       : t(`types.${displayType}`, { name: displayName });
 
-  // The name is linked by splitting the rendered sentence rather than by adding
-  // a tag to the message: these same keys feed PostCardIndicatorRow, which
-  // passes the label to MfmRenderer as source text and needs a plain string.
-  const labelNode =
-    onUserClick && primaryActor
-      ? linkifyName(label, displayName, (name) => (
-          <button
-            key="actor"
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onUserClick(primaryActor.user.username);
-            }}
-            className="font-medium hover:underline"
-          >
-            {name}
-          </button>
-        ))
-      : label;
+  // The name is picked out of the rendered sentence rather than tagged in the
+  // message: these same keys feed PostCardIndicatorRow, which passes the label
+  // to MfmRenderer as source text and needs a plain string.
+  const labelNode = replaceName(label, displayName, (name) => {
+    // A display name carries MFM, but only what fits on one line — the
+    // allow-list drops everything that would animate or resize the row.
+    const rendered = (
+      <MfmRenderer text={name} allowList={DISPLAY_NAME_ALLOW_LIST} />
+    );
+    if (!onUserClick || !primaryActor) return rendered;
+    return (
+      <button
+        key="actor"
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onUserClick(primaryActor.user.username);
+        }}
+        className="font-medium hover:underline"
+      >
+        {rendered}
+      </button>
+    );
+  });
 
   // Reactions show the emoji itself; every other kind shows its icon.
   const typeGlyph = (size: string) =>
@@ -267,10 +278,11 @@ export function NotificationRow({
 }
 
 /**
- * Wraps the first occurrence of `name` in the label so it can be made clickable.
- * Returns the label untouched when the name is absent.
+ * Hands the first occurrence of `name` in the label to `render`, so it can be
+ * rendered as MFM and made clickable. Returns the label untouched when the name
+ * is absent — the grouped reaction and follow labels never name anyone.
  */
-function linkifyName(
+function replaceName(
   label: string,
   name: string,
   render: (name: string) => ReactNode,
