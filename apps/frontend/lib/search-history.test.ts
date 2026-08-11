@@ -5,6 +5,7 @@ import {
 	filterSearchHistory,
 	isSearchHistory,
 	pushSearchHistory,
+	removeSearchHistory,
 } from '@/lib/search-history';
 
 describe('pushSearchHistory', () => {
@@ -38,6 +39,26 @@ describe('pushSearchHistory', () => {
 		const history = ['a'];
 		pushSearchHistory(history, 'b');
 		expect(history).toEqual(['a']);
+	});
+});
+
+describe('removeSearchHistory', () => {
+	it('drops the named entry and keeps the order of the rest', () => {
+		expect(removeSearchHistory(['a', 'b', 'c'], 'b')).toEqual(['a', 'c']);
+	});
+
+	it('leaves the list alone when the entry is not there', () => {
+		expect(removeSearchHistory(['a', 'b'], 'z')).toEqual(['a', 'b']);
+	});
+
+	it('matches exactly, so a similar entry survives', () => {
+		expect(removeSearchHistory(['cat', 'cats'], 'cat')).toEqual(['cats']);
+	});
+
+	it('does not mutate the input', () => {
+		const history = ['a', 'b'];
+		removeSearchHistory(history, 'a');
+		expect(history).toEqual(['a', 'b']);
 	});
 });
 

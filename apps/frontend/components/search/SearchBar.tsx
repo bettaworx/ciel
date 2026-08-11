@@ -7,7 +7,11 @@ import { useAtom } from "jotai";
 import { Clock, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { searchHistoryAtom } from "@/atoms/search-history";
-import { filterSearchHistory, pushSearchHistory } from "@/lib/search-history";
+import {
+  filterSearchHistory,
+  pushSearchHistory,
+  removeSearchHistory,
+} from "@/lib/search-history";
 import { searchUrl, type SearchTab } from "@/lib/search-tabs";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +63,14 @@ export function SearchBar({ query, tab }: SearchBarProps) {
     setIsFocused(false);
     inputRef.current?.blur();
     router.push(searchUrl(trimmed, tab));
+  };
+
+  const removeEntry = (entry: string) => {
+    setHistory((current) => removeSearchHistory(current, entry));
+    // The rows below shift up, so a held highlight would land on a different
+    // entry than the pointer is over.
+    setActiveIndex(-1);
+    inputRef.current?.focus();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -171,6 +183,27 @@ export function SearchBar({ query, tab }: SearchBarProps) {
                 aria-hidden="true"
               />
               <span className="truncate">{entry}</span>
+              <button
+                type="button"
+                // Nothing inside the listbox is focusable: the input keeps
+                // focus and drives the list through aria-activedescendant.
+                tabIndex={-1}
+                aria-label={t("history.remove", { query: entry })}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={(event) => {
+                  // Otherwise the row underneath runs the search we just removed.
+                  event.stopPropagation();
+                  removeEntry(entry);
+                }}
+                className={cn(
+                  "ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground hover:bg-popover hover:text-foreground",
+                  // The row reveals it on hover, but touch has no hover, so
+                  // below sm it simply stays put.
+                  index === activeIndex ? "sm:flex" : "sm:hidden",
+                )}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </li>
           ))}
         </ul>

@@ -19,6 +19,14 @@ export function pushSearchHistory(history: readonly string[], query: string): st
 	);
 }
 
+/** Drops one past search. Unknown entries leave the list unchanged. */
+export function removeSearchHistory(
+	history: readonly string[],
+	query: string,
+): string[] {
+	return history.filter((entry) => entry !== query);
+}
+
 /**
  * The history entries worth offering for what has been typed so far: all of
  * them while the box is empty, otherwise the ones containing the input.

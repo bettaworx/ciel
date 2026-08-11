@@ -451,7 +451,8 @@
     "noUsers": "一致するユーザーはいません",
     "unavailable": "このサーバーでは検索が利用できません",
     "history": {
-      "label": "検索履歴"
+      "label": "検索履歴",
+      "remove": "「{query}」を履歴から削除"
     }
   },
   "createPost": {

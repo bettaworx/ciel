@@ -451,7 +451,8 @@
     "noUsers": "No users match",
     "unavailable": "Search is not available on this server",
     "history": {
-      "label": "Search history"
+      "label": "Search history",
+      "remove": "Remove \"{query}\" from history"
     }
   },
   "createPost": {
