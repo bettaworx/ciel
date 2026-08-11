@@ -28,6 +28,7 @@ export type PostThreadParams = {
 type NotificationType = components["schemas"]["NotificationType"];
 type UnreadCount = components["schemas"]["UnreadCount"];
 type UsersPage = components["schemas"]["UsersPage"];
+type UserSearchPage = components["schemas"]["UserSearchPage"];
 
 /** Notification list tabs. "mentions" covers everything addressed at you. */
 export type NotificationTab = "all" | "mentions";
@@ -94,6 +95,8 @@ export const queryKeys = {
   notifications: (tab: NotificationTab) => ["notifications", tab] as const,
   notificationsUnread: ["notificationsUnread"] as const,
   searchPosts: (query: string) => ["search", "posts", query] as const,
+  // Prefix shared by every user search, so one follow can patch all of them.
+  searchUsersAll: ["search", "users"] as const,
   searchUsers: (query: string) => ["search", "users", query] as const,
 };
 
@@ -390,6 +393,26 @@ export function useUser(username: string | undefined) {
   });
 }
 
+// Flips one user's follow state wherever a paged list of users is cached, so
+// every button showing that user updates at once. Shared by the follow lists
+// and the search results, whose pages differ in everything but `items`.
+function patchFollowedUser<TPage extends { items: components["schemas"]["User"][] }>(
+  cached: InfiniteData<TPage> | undefined,
+  username: string,
+  isFollowing: boolean,
+): InfiniteData<TPage> | undefined {
+  if (!cached) return cached;
+  return {
+    ...cached,
+    pages: cached.pages.map((page) => ({
+      ...page,
+      items: page.items.map((item) =>
+        item.username === username ? { ...item, isFollowing } : item,
+      ),
+    })),
+  };
+}
+
 // Follow / unfollow a user.
 //
 // The endpoints return the updated user, so the profile cache is written
@@ -414,18 +437,14 @@ function useFollowMutation(follow: boolean) {
       // waiting on a refetch...
       queryClient.setQueriesData<InfiniteData<UsersPage>>(
         { queryKey: queryKeys.follows },
-        (old) =>
-          old && {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) =>
-                item.username === username
-                  ? { ...item, isFollowing: follow }
-                  : item,
-              ),
-            })),
-          },
+        (old) => patchFollowedUser(old, username, follow),
+      );
+      // ...and in search results, which show the same button. Following someone
+      // does not change whether they match the query, so unlike the follow
+      // lists these only need the patch, never a refetch.
+      queryClient.setQueriesData<InfiniteData<UserSearchPage>>(
+        { queryKey: queryKeys.searchUsersAll },
+        (old) => patchFollowedUser(old, username, follow),
       );
       // ...but the lists also gained or lost a member, which no patch can fake:
       // mark them stale so revisiting one refetches instead of serving a list
