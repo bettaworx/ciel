@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAtomValue, useAtom } from "jotai";
-import { Home, SquarePen, Pin, PinOff, Info, Bell } from "lucide-react";
+import { Home, Search, SquarePen, Pin, PinOff, Info, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -43,6 +43,9 @@ export function Sidebar() {
   const { data: serverInfo } = useServerInfo();
   const { data: unread } = useUnreadNotificationCount();
   const unreadCount = unread?.count ?? 0;
+  // Show while the server info is still loading and hide only once search is
+  // known to be off, so the nav does not grow an extra item after mount.
+  const showSearch = serverInfo?.searchEnabled !== false;
   const canExpand = useMediaQuery("(min-width: 1280px)");
   // ServerInfo carries no host, so read it off the browser. In an effect to
   // keep the SSR markup and the hydrated markup identical.
@@ -226,6 +229,17 @@ export function Sidebar() {
             canAnimate={canExpand}
             hoverBg={hoverBg}
           />
+          {isAuthenticated && showSearch && (
+            <SidebarActionButton
+              href="/search"
+              icon={<Search className="w-5 h-5 shrink-0" />}
+              label={tNav("search")}
+              isActive={pathname === "/search"}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
           {isAuthenticated && (
             <SidebarActionButton
               href="/notifications"

@@ -93,6 +93,8 @@ export const queryKeys = {
   ogp: (url: string) => ["ogp", url] as const,
   notifications: (tab: NotificationTab) => ["notifications", tab] as const,
   notificationsUnread: ["notificationsUnread"] as const,
+  searchPosts: (query: string) => ["search", "posts", query] as const,
+  searchUsers: (query: string) => ["search", "users", query] as const,
 };
 
 // Current user
@@ -1380,4 +1382,73 @@ export function markNotificationsReadInCache(
       return changed ? { ...payload, pages } : payload;
     },
   );
+}
+
+const SEARCH_PAGE_SIZE = 30;
+
+/** The API rejects offsets past this, so stop paging instead of asking for a 400. */
+const MAX_SEARCH_OFFSET = 1000;
+
+/**
+ * Works out the next offset from what the page reports about itself.
+ *
+ * Counting the returned items would be wrong: hydration drops posts deleted or
+ * hidden since they were indexed, so a short page is not necessarily the last
+ * one. The echoed offset and limit describe the window that was asked for,
+ * which is what has to advance.
+ */
+function nextSearchOffset(page: { offset: number; limit: number; estimatedTotal: number }) {
+  const next = page.offset + page.limit;
+  if (next >= page.estimatedTotal || next > MAX_SEARCH_OFFSET) return undefined;
+  return next;
+}
+
+/** Post search results in relevance order. Pass enabled: false for the hidden tab. */
+export function useSearchPosts(query: string, enabled = true) {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.searchPosts(query),
+    queryFn: async ({ pageParam }) => {
+      const result = await api.searchPosts({
+        q: query,
+        limit: SEARCH_PAGE_SIZE,
+        offset: pageParam,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: nextSearchOffset,
+    enabled: enabled && query.length > 0,
+    // A rejected query syntax and an unconfigured engine both fail the same way
+    // on every attempt, and retrying only eats into the search rate limit.
+    retry: false,
+    staleTime: 1000 * 60,
+  });
+}
+
+/** User search results in relevance order. */
+export function useSearchUsers(query: string, enabled = true) {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.searchUsers(query),
+    queryFn: async ({ pageParam }) => {
+      const result = await api.searchUsers({
+        q: query,
+        limit: SEARCH_PAGE_SIZE,
+        offset: pageParam,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: nextSearchOffset,
+    enabled: enabled && query.length > 0,
+    // A rejected query syntax and an unconfigured engine both fail the same way
+    // on every attempt, and retrying only eats into the search rate limit.
+    retry: false,
+    staleTime: 1000 * 60,
+  });
 }

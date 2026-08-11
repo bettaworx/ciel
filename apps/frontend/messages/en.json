@@ -423,7 +423,8 @@
       "settingsSecurity": "Security",
       "setup": "Setup Profile",
       "adminSetup": "Server Setup",
-      "postDetail": "Post"
+      "postDetail": "Post",
+      "search": "Search"
     }
   },
   "timeline": {
@@ -435,6 +436,22 @@
     "scope": {
       "home": "Home",
       "global": "Global"
+    }
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search posts and users",
+    "clear": "Clear search",
+    "tabs": {
+      "posts": "Posts",
+      "users": "Users"
+    },
+    "prompt": "Type something to search for",
+    "noPosts": "No posts match",
+    "noUsers": "No users match",
+    "unavailable": "Search is not available on this server",
+    "history": {
+      "label": "Search history"
     }
   },
   "createPost": {
@@ -525,7 +542,8 @@
     "unpinSidebar": "Unpin sidebar",
     "serverInfo": "About this server",
     "versionInfo": "App information",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "search": "Search"
   },
   "videoPlayer": {
     "play": "Play",
