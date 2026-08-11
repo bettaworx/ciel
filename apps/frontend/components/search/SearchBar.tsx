@@ -174,7 +174,9 @@ export function SearchBar({ query, tab }: SearchBarProps) {
               onClick={() => submit(entry)}
               onMouseEnter={() => setActiveIndex(index)}
               className={cn(
-                "flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-sm",
+                // Fixed height, so the delete button appearing and disappearing
+                // with the pointer cannot resize the row under it.
+                "flex h-10 cursor-pointer items-center gap-2 rounded-xl px-3 text-sm",
                 index === activeIndex ? "bg-card-hover" : "bg-transparent",
               )}
             >
