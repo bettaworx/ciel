@@ -66,6 +66,19 @@ components:
         isFollowedBy:
           type: boolean
           description: Whether this user follows the caller. Omitted when unauthenticated.
+        isPrivate:
+          type: boolean
+          description: >-
+            Whether this account is private. A private account's posts and
+            interactions are visible only to accepted followers, and following it
+            creates a follow request instead of a follow. Clients show a lock
+            beside the display name wherever the name stands on its own, but not
+            where it is substituted into a sentence such as notification text.
+        followRequestSent:
+          type: boolean
+          description: >-
+            Whether the caller has a follow request awaiting this user's approval.
+            Omitted when unauthenticated.
     UsersPage:
       type: object
       description: Paginated list of users, newest relationship first.
@@ -113,6 +126,25 @@ components:
         bio:
           type: string
           maxLength: 200
+          nullable: true
+    UpdatePrivacyRequest:
+      type: object
+      required:
+      - isPrivate
+      properties:
+        isPrivate:
+          type: boolean
+    FollowRequestsPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        nextCursor:
+          type: string
           nullable: true
     UpdateUsernameRequest:
       type: object

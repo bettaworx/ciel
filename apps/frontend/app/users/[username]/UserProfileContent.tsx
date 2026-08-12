@@ -31,6 +31,7 @@ import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Clipboard,
+  Lock,
   MoreHorizontal,
   Pencil,
   Rocket,
@@ -48,7 +49,8 @@ import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { useOwnerThreadTimelineItems } from "@/lib/hooks/use-owner-thread-timeline-items";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DisplayName } from "@/components/users/DisplayName";
+import { BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
 import { DeletedPostCard } from "@/components/DeletedPostCard";
 import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
@@ -184,6 +186,12 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   const isFollowing = user?.isFollowing ?? false;
   const isFollowedBy = user?.isFollowedBy ?? false;
   const showsFollowsYouBadge = isFollowedBy && !isOwnProfile;
+
+  // A private account's activity is for accepted followers and the owner only.
+  // The server enforces this; the flag exists so the page can say why the tabs
+  // are missing instead of showing three empty ones.
+  const isActivityHidden =
+    Boolean(user?.isPrivate) && !isOwnProfile && !isFollowing;
 
   // "Followers you know" is only meaningful about someone else, while logged in.
   const { data: knownFollowers } = useFollowersYouFollowPreview(
@@ -460,9 +468,9 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
       maxWidth="2xl"
       header={
         <PageHeader>
-          <MfmRenderer
-            text={user.displayName || `@${user.username}`}
-            allowList={DISPLAY_NAME_ALLOW_LIST}
+          <DisplayName
+            name={user.displayName || `@${user.username}`}
+            isPrivate={user.isPrivate}
           />
         </PageHeader>
       }
@@ -661,6 +669,8 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                     username={username}
                     isFollowing={isFollowing}
                     isFollowedBy={isFollowedBy}
+                    isPrivate={user.isPrivate}
+                    followRequestSent={user.followRequestSent}
                   />
                   {isOwnProfile && !isEditing && (
                     <Button
@@ -716,9 +726,9 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                   />
                 ) : (
                   <h1 className="text-xl font-bold text-foreground">
-                    <MfmRenderer
-                      text={user.displayName || `@${user.username}`}
-                      allowList={DISPLAY_NAME_ALLOW_LIST}
+                    <DisplayName
+                      name={user.displayName || `@${user.username}`}
+                      isPrivate={user.isPrivate}
                     />
                   </h1>
                 )}
@@ -827,7 +837,20 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           </div>
         </div>
 
-        {/* Posts / Replies / Media Tabs */}
+        {/* A private account still shows its profile above; only the activity
+            below is withheld. The server already returns nothing here, so this
+            is purely to explain the emptiness rather than to enforce it. */}
+        {isActivityHidden ? (
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            <Lock className="h-8 w-8 text-muted-foreground" />
+            <p className="font-medium text-foreground">
+              {t("user.privatePostsHidden")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("user.privatePostsHiddenDescription")}
+            </p>
+          </div>
+        ) : (
         <Tabs defaultValue="posts">
           <TabsList className="mb-3 w-full">
             <TabsTrigger value="posts">{t("user.posts")}</TabsTrigger>
@@ -994,6 +1017,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             />
           </TabsContent>
         </Tabs>
+        )}
       </div>
 
       {cropDialogOpen && cropImageSrc && pendingCropFile && (

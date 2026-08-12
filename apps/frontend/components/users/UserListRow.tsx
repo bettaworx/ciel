@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DisplayName } from "@/components/users/DisplayName";
+import { BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { FollowButton } from "@/components/users/FollowButton";
 import { cn } from "@/lib/utils";
 import type { components } from "@/lib/api/api";
@@ -52,10 +53,7 @@ export function UserListRow({ user, className }: UserListRowProps) {
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
           <div className="truncate text-sm font-bold text-foreground">
-            <MfmRenderer
-              text={displayName}
-              allowList={DISPLAY_NAME_ALLOW_LIST}
-            />
+            <DisplayName name={displayName} isPrivate={user.isPrivate} />
           </div>
           {/* Without a display name this row is the handle, so the badge
               belongs here rather than on a handle row that never renders. */}
@@ -79,6 +77,8 @@ export function UserListRow({ user, className }: UserListRowProps) {
       <FollowButton
         username={user.username}
         isFollowing={user.isFollowing ?? false}
+        isPrivate={user.isPrivate}
+        followRequestSent={user.followRequestSent}
         isFollowedBy={user.isFollowedBy ?? false}
         className="shrink-0"
       />

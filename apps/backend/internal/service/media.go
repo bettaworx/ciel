@@ -177,13 +177,14 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 	isPublic, err := s.store.Q.IsMediaPublic(r.Context(), sqlc.IsMediaPublicParams{
 		MediaID:           id,
 		ServerIconMediaID: serverIconMediaID,
+		ViewerID:          viewerFromRequest(r),
 	})
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	if !isPublic.Valid || !isPublic.Bool {
+	if !isPublic.IsPublic.Valid || !isPublic.IsPublic.Bool {
 		// Media not public - require authentication and ownership
 		user, ok := auth.UserFromContext(r.Context())
 		if !ok {
@@ -238,7 +239,7 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 
 	// Set Content-Type and caching headers
 	w.Header().Set("Content-Type", mimeForExt(ext))
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Cache-Control", mediaCacheControl(isPublic.IsRestricted))
 
 	// Use http.ServeContent for Range Request support (efficient seeking)
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
@@ -266,6 +267,8 @@ func (s *MediaService) serveEmojiImageFromMediaRoute(w http.ResponseWriter, r *h
 
 	filename := "image." + ext
 	w.Header().Set("Content-Type", mimeForExt(ext))
+	// Custom emojis are server assets with no owning account, so account privacy
+	// never applies and the long immutable cache stands.
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
 }
@@ -310,13 +313,14 @@ func (s *MediaService) ServeVideo(w http.ResponseWriter, r *http.Request) {
 	isPublic, err := s.store.Q.IsMediaPublic(r.Context(), sqlc.IsMediaPublicParams{
 		MediaID:           id,
 		ServerIconMediaID: serverIconMediaID,
+		ViewerID:          viewerFromRequest(r),
 	})
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	if !isPublic.Valid || !isPublic.Bool {
+	if !isPublic.IsPublic.Valid || !isPublic.IsPublic.Bool {
 		user, ok := auth.UserFromContext(r.Context())
 		if !ok {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -346,7 +350,7 @@ func (s *MediaService) ServeVideo(w http.ResponseWriter, r *http.Request) {
 
 	// Set Content-Type and caching headers
 	w.Header().Set("Content-Type", mimeForExt(row.Ext))
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Cache-Control", mediaCacheControl(isPublic.IsRestricted))
 
 	// Use http.ServeContent for Range Request support (essential for video seeking)
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
@@ -392,13 +396,14 @@ func (s *MediaService) ServeThumbnail(w http.ResponseWriter, r *http.Request) {
 	isPublic, err := s.store.Q.IsMediaPublic(r.Context(), sqlc.IsMediaPublicParams{
 		MediaID:           id,
 		ServerIconMediaID: serverIconMediaID,
+		ViewerID:          viewerFromRequest(r),
 	})
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	if !isPublic.Valid || !isPublic.Bool {
+	if !isPublic.IsPublic.Valid || !isPublic.IsPublic.Bool {
 		user, ok := auth.UserFromContext(r.Context())
 		if !ok {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -428,7 +433,7 @@ func (s *MediaService) ServeThumbnail(w http.ResponseWriter, r *http.Request) {
 
 	// Set Content-Type and caching headers
 	w.Header().Set("Content-Type", "image/webp")
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Cache-Control", mediaCacheControl(isPublic.IsRestricted))
 
 	// Use http.ServeContent for consistency
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
@@ -469,6 +474,35 @@ func (s *MediaService) requireEncoding() error {
 }
 
 // mimeForExt returns the Content-Type for a stored image extension.
+// viewerFromRequest reads the optional authenticated user off the request.
+// Media routes are reachable anonymously, and an absent user simply means the
+// privacy gate answers with its strictest result.
+func viewerFromRequest(r *http.Request) uuid.NullUUID {
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		return uuid.NullUUID{}
+	}
+	return uuid.NullUUID{UUID: user.ID, Valid: true}
+}
+
+// mediaCacheControl keeps the year-long immutable cache for ordinary media and
+// withholds it from anything owned by a private account.
+//
+// Without this, going private would leave images being served out of browser and
+// CDN caches for up to a year afterwards, which is exactly the delayed-effect
+// case this feature must not have. no-store also keeps Cloudflare from holding a
+// shared copy that would be handed to users who cannot see the post.
+//
+// Known limit: a copy already cached by someone who fetched it while the account
+// was public stays in that browser until it is evicted. Nothing short of
+// rotating the media URL can reach it, and no new request will succeed.
+func mediaCacheControl(restricted bool) string {
+	if restricted {
+		return "private, no-store"
+	}
+	return "public, max-age=31536000, immutable"
+}
+
 func mimeForExt(ext string) string {
 	ext = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(ext)), ".")
 	switch ext {

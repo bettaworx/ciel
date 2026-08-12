@@ -316,6 +316,21 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		unfollowUser: (username: string) =>
 			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/follow`),
 
+		// Following a private account creates one of these instead of a follow.
+		followRequests: (params?: { limit?: number; cursor?: string | null }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['FollowRequestsPage']>('GET', `/me/follow-requests${suffix}`);
+		},
+
+		acceptFollowRequest: (username: string) =>
+			request<components['schemas']['User']>('POST', `/me/follow-requests/${encodeURIComponent(username)}/accept`),
+
+		rejectFollowRequest: (username: string) =>
+			request<components['schemas']['User']>('POST', `/me/follow-requests/${encodeURIComponent(username)}/reject`),
+
 		followList: (
 			username: string,
 			tab: 'followers' | 'following' | 'followers_you_follow',
@@ -557,6 +572,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		updateProfile: (body: components['schemas']['UpdateProfileRequest']) =>
 			request<components['schemas']['User']>('PATCH', '/me/profile', { body }),
+
+		updatePrivacy: (body: components['schemas']['UpdatePrivacyRequest']) =>
+			request<components['schemas']['User']>('PATCH', '/me/privacy', { body }),
 
 		updateAvatar: (file: File) => {
 			const form = new FormData();

@@ -83,7 +83,7 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	if s.cache != nil {
 		postIDs, next, okRedis := s.listFromRedis(ctx, timelineKeyGlobal(), limit, cursor)
 		if okRedis {
-			posts, err := s.fetchPosts(ctx, timelineKeyGlobal(), postIDs)
+			posts, err := s.fetchPosts(ctx, timelineKeyGlobal(), postIDs, userID)
 			if err != nil {
 				return api.TimelinePage{}, err
 			}
@@ -110,7 +110,12 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 			cID = uuid.NullUUID{UUID: uid, Valid: true}
 		}
 	}
-	rows, err := s.store.Q.ListTimelinePosts(ctx, sqlc.ListTimelinePostsParams{CursorTime: cTime, CursorID: cID, Limit: int32(limit)})
+	rows, err := s.store.Q.ListTimelinePosts(ctx, sqlc.ListTimelinePostsParams{
+		ViewerID:   nullUUIDFromPtr(userID),
+		CursorTime: cTime,
+		CursorID:   cID,
+		Limit:      int32(limit),
+	})
 	if err != nil {
 		return api.TimelinePage{}, err
 	}
@@ -184,7 +189,7 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 		// condition under which the cache is trustworthy here.
 		postIDs, next, okRedis := s.listFromRedis(ctx, key, limit, cursor)
 		if okRedis && next != nil {
-			posts, err := s.fetchPosts(ctx, key, postIDs)
+			posts, err := s.fetchPosts(ctx, key, postIDs, &userID)
 			if err != nil {
 				return api.TimelinePage{}, err
 			}
@@ -375,11 +380,17 @@ func (s *TimelineService) listFromRedis(ctx context.Context, key string, limit i
 	return ids, nil, true
 }
 
-func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid.UUID) ([]api.Post, error) {
+func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid.UUID, userID *api.UserId) ([]api.Post, error) {
 	if len(ids) == 0 {
 		return []api.Post{}, nil
 	}
-	rows, err := s.store.Q.GetPostsByIDs(ctx, ids)
+	// The ZSETs hold ids only, so this re-read is what applies the privacy gate
+	// to a cache hit. A post whose author just went private drops out here on the
+	// very next request, without anything having to expire.
+	rows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
+		Ids:      ids,
+		ViewerID: nullUUIDFromPtr(userID),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +404,15 @@ func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid
 
 	// Remove missing (likely deleted) from cache. Deleted posts are never
 	// removed from the per-user ZSETs on write, so this is how they get cleaned.
-	if s.cache != nil && len(found) != len(ids) {
+	//
+	// Never do this to the global ZSET. A row can now also be missing because
+	// this particular viewer may not see its author, and evicting on that would
+	// let one stranger's request strip a private user's posts out of a shared
+	// timeline for everybody, permanently. Per-user home ZSETs are already
+	// treated as lossy — capped, expiring, dropped on follow changes, and only
+	// trusted when they fill a whole page — so an over-eager eviction there
+	// costs nothing but a database fallback.
+	if s.cache != nil && key != timelineKeyGlobal() && len(found) != len(ids) {
 		missing := make([]interface{}, 0)
 		for _, id := range ids {
 			if _, ok := found[id]; !ok {

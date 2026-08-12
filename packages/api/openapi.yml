@@ -189,6 +189,14 @@ paths:
     $ref: ./paths/users.yml#/~1me~1banner
   /me/agreements:
     $ref: ./paths/users.yml#/~1me~1agreements
+  /me/privacy:
+    $ref: ./paths/users.yml#/~1me~1privacy
+  /me/follow-requests:
+    $ref: ./paths/follows.yml#/~1me~1follow-requests
+  /me/follow-requests/{username}/accept:
+    $ref: ./paths/follows.yml#/~1me~1follow-requests~1{username}~1accept
+  /me/follow-requests/{username}/reject:
+    $ref: ./paths/follows.yml#/~1me~1follow-requests~1{username}~1reject
   /users/{username}:
     $ref: ./paths/users.yml#/~1users~1{username}
   /users/{username}/posts:

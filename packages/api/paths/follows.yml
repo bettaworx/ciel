@@ -206,3 +206,103 @@
           application/json:
             schema:
               $ref: ../schemas/common.yml#/components/schemas/Error
+/me/follow-requests:
+  get:
+    tags:
+    - Follows
+    summary: List follow requests awaiting the caller's approval
+    description: >-
+      Only a private account accumulates these. Requesters are shown even if they
+      are themselves private, since the request is aimed at the caller and would
+      otherwise be impossible to act on.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+    - name: cursor
+      in: query
+      required: false
+      description: Cursor returned by previous call.
+      schema:
+        type: string
+        nullable: true
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/FollowRequestsPage
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+/me/follow-requests/{username}/accept:
+  post:
+    tags:
+    - Follows
+    summary: Approve a follow request
+    description: The requester becomes a follower and can see the caller's activity from then on.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: username
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/common.yml#/components/schemas/Username
+    responses:
+      '200':
+        description: OK. Returns the requester with refreshed follow state.
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/User
+      '401':
+        description: Unauthorized
+      '404':
+        description: No such pending request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/follow-requests/{username}/reject:
+  post:
+    tags:
+    - Follows
+    summary: Decline a follow request
+    description: The request is removed. The requester may send a new one later.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: username
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/common.yml#/components/schemas/Username
+    responses:
+      '200':
+        description: OK. Returns the requester with refreshed follow state.
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/User
+      '401':
+        description: Unauthorized
+      '404':
+        description: No such pending request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

@@ -225,6 +225,7 @@ func (s *BookmarksService) ListPosts(ctx context.Context, userID uuid.UUID, list
 
 	rows, err := s.store.Q.ListBookmarkedPostIDs(ctx, sqlc.ListBookmarkedPostIDsParams{
 		ListID:     listID,
+		ViewerID:   uuid.NullUUID{UUID: userID, Valid: true},
 		CursorTime: cTime,
 		CursorID:   cID,
 		Limit:      int32(lim),
@@ -281,7 +282,10 @@ func (s *BookmarksService) SetPostBookmarks(ctx context.Context, userID uuid.UUI
 		return api.PostBookmarks{}, NewError(http.StatusBadRequest, "invalid_request", "too many lists")
 	}
 
-	row, err := s.store.Q.GetPostWithAuthorByID(ctx, postID)
+	row, err := s.store.Q.GetPostWithAuthorByID(ctx, sqlc.GetPostWithAuthorByIDParams{
+		ID:       postID,
+		ViewerID: uuid.NullUUID{UUID: userID, Valid: true},
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return api.PostBookmarks{}, NewError(http.StatusNotFound, "not_found", "post not found")

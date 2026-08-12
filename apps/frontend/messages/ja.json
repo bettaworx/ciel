@@ -217,7 +217,14 @@
       "en": "English"
     },
     "account": {
-      "title": "アカウント"
+      "title": "アカウント",
+      "privateAccount": {
+        "title": "非公開アカウント",
+        "description": "フォロワーだけが投稿とアクティビティを見られるようになります。新しいフォローは承認制になります。",
+        "enabled": "アカウントを非公開にしました",
+        "disabled": "アカウントを公開しました",
+        "error": "設定を変更できませんでした"
+      }
     },
     "security": {
       "title": "セキュリティ"
@@ -301,7 +308,13 @@
     "copyIdSuccess": "ユーザーIDをコピーしました",
     "copyIdError": "ユーザーIDのコピーに失敗しました",
     "unknown": "不明なユーザー",
-    "unknownUsername": "不明"
+    "unknownUsername": "不明",
+    "privateAccount": "非公開アカウント",
+    "privatePostsHidden": "このアカウントは非公開です",
+    "privatePostsHiddenDescription": "承認されたフォロワーだけが投稿を見られます。",
+    "requestFollow": "フォローリクエスト",
+    "followRequested": "リクエスト済み",
+    "cancelFollowRequest": "リクエストを取り消す"
   },
   "login": {
     "title": "ログイン",
@@ -1336,7 +1349,8 @@
       "mention": "{name}がメンションしました",
       "boost": "{name}がブーストしました",
       "quote": "{name}が引用しました",
-      "follow": "{name}にフォローされました"
+      "follow": "{name}にフォローされました",
+      "follow_request": "{name}がフォローリクエストを送りました"
     },
     "grouped": {
       "reaction": "{count}人がリアクションしました",
@@ -1344,7 +1358,8 @@
       "mention": "{name}さん他{count}人がメンションしました",
       "boost": "{name}さん他{count}人がブーストしました",
       "quote": "{name}さん他{count}人が引用しました",
-      "follow": "{count}人にフォローされました"
+      "follow": "{count}人にフォローされました",
+      "follow_request": "{count}人がフォローリクエストを送りました"
     }
   },
   "bookmarks": {
@@ -1370,5 +1385,14 @@
     "createError": "リストを作成できませんでした",
     "updateError": "リストを更新できませんでした",
     "deleteError": "リストを削除できませんでした"
+  },
+  "followRequests": {
+    "title": "フォローリクエスト",
+    "empty": "フォローリクエストはありません",
+    "accept": "承認",
+    "reject": "拒否",
+    "accepted": "フォローリクエストを承認しました",
+    "rejected": "フォローリクエストを拒否しました",
+    "error": "フォローリクエストを処理できませんでした"
   }
 }

@@ -18,7 +18,7 @@ import { CreateReplyDialog } from "@/components/CreateReplyDialog";
 import { CreateQuoteDialog } from "@/components/CreateQuoteDialog";
 import { formatFullTimestamp, formatTimeAgo } from "@/lib/utils/format-time";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DisplayName } from "@/components/users/DisplayName";
 import { useReactions } from "@/lib/hooks/use-reactions";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -638,9 +638,9 @@ export function PostCard({
           verticalIdentity && "leading-tight",
         )}
       >
-        <MfmRenderer
-          text={displayName}
-          allowList={DISPLAY_NAME_ALLOW_LIST}
+        <DisplayName
+          name={displayName}
+          isPrivate={post.author?.isPrivate}
           className="block max-w-full min-w-0 truncate overflow-hidden whitespace-nowrap [&_*]:max-w-full"
         />
       </button>

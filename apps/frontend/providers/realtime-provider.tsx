@@ -34,6 +34,7 @@ type RealtimeEvent =
 	| { type: 'reaction_updated'; reactionCounts: ReactionCounts }
 	| { type: 'user_registered' }
 	| { type: 'user_deleted' }
+	| { type: 'user_privacy_changed'; username: string }
 	| { type: 'server_info_updated'; serverInfo: ServerInfo }
 	| { type: 'server_config_updated'; serverConfig: ServerConfig }
 	| { type: 'notification_created'; notification: Notification; targetUserId: UserId };
@@ -308,6 +309,21 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		});
 	}, [queryClient]);
 
+	// An account switched between public and private. Everything this client is
+	// holding about them was fetched under the old setting, so it is dropped
+	// rather than trusted for the rest of the cache lifetime. The server is
+	// already refusing it; this only stops an open tab from carrying on showing
+	// what it fetched a moment ago.
+	const handleUserPrivacyChanged = useCallback((username: string) => {
+		queryClient.invalidateQueries({ queryKey: queryKeys.user(username) });
+		queryClient.invalidateQueries({ queryKey: queryKeys.userPosts(username) });
+		queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+		queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+		// Posts are keyed by id, so there is no way to pick out just theirs.
+		queryClient.invalidateQueries({ queryKey: ['post'] });
+		queryClient.invalidateQueries({ queryKey: ['notifications'] });
+	}, [queryClient]);
+
 	const handleServerInfoUpdated = useCallback((info: ServerInfo) => {
 		// Merge pushed info but keep locally-tracked stats so we don't clobber incremental counts
 		queryClient.setQueryData(queryKeys.serverInfo, (old: ServerInfo | undefined) => ({
@@ -413,6 +429,10 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 						handleUserDeleted();
 						break;
 
+					case 'user_privacy_changed':
+						handleUserPrivacyChanged(data.username);
+						break;
+
 					case 'server_info_updated':
 						handleServerInfoUpdated(data.serverInfo);
 						break;
@@ -429,7 +449,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 				console.error('Failed to parse WebSocket message:', err);
 			}
 		},
-		[handlePostCreated, handlePostDeleted, handleReactionUpdated, handleUserRegistered, handleUserDeleted, handleServerInfoUpdated, handleServerConfigUpdated, handleNotificationCreated]
+		[handlePostCreated, handlePostDeleted, handleReactionUpdated, handleUserRegistered, handleUserDeleted, handleUserPrivacyChanged, handleServerInfoUpdated, handleServerConfigUpdated, handleNotificationCreated]
 	);
 
 	const connect = useCallback(() => {

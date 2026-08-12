@@ -73,6 +73,9 @@ type publicUserResponse struct {
 	FollowingCount *int  `json:"followingCount,omitempty"`
 	IsFollowing    *bool `json:"isFollowing,omitempty"`
 	IsFollowedBy   *bool `json:"isFollowedBy,omitempty"`
+
+	IsPrivate         *bool `json:"isPrivate,omitempty"`
+	FollowRequestSent *bool `json:"followRequestSent,omitempty"`
 }
 
 func toPublicUserResponse(user api.User) publicUserResponse {
@@ -90,6 +93,12 @@ func toPublicUserResponse(user api.User) publicUserResponse {
 		FollowingCount: user.FollowingCount,
 		IsFollowing:    user.IsFollowing,
 		IsFollowedBy:   user.IsFollowedBy,
+
+		// A private account still shows its profile: the client needs isPrivate
+		// to draw the lock and to offer "request" instead of "follow", and
+		// followRequestSent to show a request already sent.
+		IsPrivate:         user.IsPrivate,
+		FollowRequestSent: user.FollowRequestSent,
 	}
 }
 
@@ -329,6 +338,29 @@ func (h API) PatchMeProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	updated, err := h.Users.UpdateProfile(r.Context(), user.ID, req.DisplayName, req.Bio)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (h API) PatchMePrivacy(w http.ResponseWriter, r *http.Request) {
+	if h.Users == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})
+		return
+	}
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	var req api.UpdatePrivacyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "invalid json"})
+		return
+	}
+	updated, err := h.Users.SetPrivate(r.Context(), user.ID, req.IsPrivate)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -788,7 +820,7 @@ func (h API) GetPostsPostIdReactionsUsers(w http.ResponseWriter, r *http.Request
 	if params.Limit != nil {
 		limit = *params.Limit
 	}
-	page, err := h.Reactions.ListUsers(r.Context(), postId, params.Emoji, limit, params.Cursor)
+	page, err := h.Reactions.ListUsers(r.Context(), postId, params.Emoji, limit, params.Cursor, viewerID(r))
 	if err != nil {
 		writeServiceError(w, err)
 		return

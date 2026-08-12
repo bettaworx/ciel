@@ -20,7 +20,10 @@ CREATE TABLE IF NOT EXISTS users (
   terms_version INT NOT NULL DEFAULT 0,
   privacy_version INT NOT NULL DEFAULT 0,
   terms_accepted_at TIMESTAMPTZ,
-  privacy_accepted_at TIMESTAMPTZ
+  privacy_accepted_at TIMESTAMPTZ,
+  -- Private accounts: activity is visible only to accepted followers. Nothing
+  -- is withheld at write time, so flipping back to false restores the history.
+  is_private BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS auth_credentials (
@@ -373,14 +376,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_dedupe_no_post
   ON notifications (user_id, type, actor_user_id, subtype)
   WHERE actor_user_id IS NOT NULL AND post_id IS NULL;
 
--- Follow relationships. Following is instant: there is no pending/accepted state.
+-- Follow relationships. Following a public user is instant; following a private
+-- user inserts a row with accepted_at NULL, which is a pending follow request
+-- and must never be treated as a follow.
 CREATE TABLE IF NOT EXISTS follows (
   follower_id UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   followee_id UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  accepted_at TIMESTAMPTZ,
   PRIMARY KEY (follower_id, followee_id),
   CONSTRAINT follows_no_self CHECK (follower_id <> followee_id)
 );
+
+-- The pending-request inbox. Partial, because pending rows are the rare case.
+CREATE INDEX IF NOT EXISTS idx_follows_pending
+  ON follows (followee_id, created_at DESC)
+  WHERE accepted_at IS NULL;
 
 -- The primary key already serves "who does X follow" lookups and the
 -- isFollowing check. These two cover the paginated list endpoints.
@@ -426,6 +437,38 @@ CREATE INDEX IF NOT EXISTS idx_bookmarks_list_created
 
 CREATE INDEX IF NOT EXISTS idx_bookmarks_user_post
   ON bookmarks (user_id, post_id);
+
+-- ============================================================================
+-- FUNCTIONS
+-- ============================================================================
+
+-- can_view_user is the single definition of "may viewer see author's activity".
+-- It exists as a SQL function because sqlc has no way to share a predicate and
+-- roughly twenty queries need this one: a copy in each would drift, and a drift
+-- here is a privacy leak.
+--
+-- A NULL viewer (anonymous) fails both the self check and the EXISTS, so
+-- unauthenticated requests get the strictest answer.
+--
+-- ponytail: this looks users up by primary key once per row. Almost every user
+-- is public, so LIMITed queries stop early and it stays cheap. If a query does
+-- show up slow, inline the predicate against the users row it already joins.
+CREATE OR REPLACE FUNCTION can_view_user(viewer uuid, author uuid)
+RETURNS boolean LANGUAGE sql STABLE PARALLEL SAFE AS $$
+  SELECT NOT u.is_private
+      -- IS NOT DISTINCT FROM, not =: with an anonymous (NULL) viewer, `u.id =
+      -- viewer` is NULL, and false OR NULL OR false is NULL rather than false.
+      -- A NULL filters correctly in a WHERE clause but breaks the callers that
+      -- scan this into a Go bool, so the function is kept strictly boolean.
+      OR u.id IS NOT DISTINCT FROM viewer
+      OR EXISTS (
+           SELECT 1 FROM follows f
+           WHERE f.follower_id = viewer
+             AND f.followee_id = u.id
+             AND f.accepted_at IS NOT NULL
+         )
+  FROM users u WHERE u.id = author
+$$;
 
 -- ============================================================================
 -- INITIAL DATA

@@ -101,6 +101,39 @@
               $ref: ../schemas/common.yml#/components/schemas/Error
       '401':
         description: Unauthorized
+/me/privacy:
+  patch:
+    tags:
+    - Users
+    summary: Turn the account's private mode on or off
+    description: >-
+      Turning this on hides the account's posts and interactions from everyone
+      who is not an accepted follower, and turns new follows into follow
+      requests. Nothing is deleted, so turning it off makes the whole history
+      visible again and auto-accepts any requests still waiting.
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/user.yml#/components/schemas/UpdatePrivacyRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/User
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
 /me/avatar:
   post:
     tags:
