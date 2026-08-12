@@ -387,6 +387,8 @@ func main() {
 	searchSvc.SetPostsService(postsSvc)
 	postsSvc.SetSearchService(searchSvc)
 	usersSvc.SetSearchService(searchSvc)
+	usersSvc.SetCache(cacheImpl)
+	usersSvc.SetPublisher(realtimeHub)
 	authSvc.SetSearchService(searchSvc)
 	modPostsSvc.SetSearchService(searchSvc)
 	adminProfileSvc.SetSearchService(searchSvc)

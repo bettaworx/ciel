@@ -12,12 +12,11 @@ import (
 func OptionalAuth(tokenManager *auth.TokenManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Skip auth for public media endpoints
-			if strings.HasPrefix(r.URL.Path, "/media/") {
-				next.ServeHTTP(w, r)
-				return
-			}
-
+			// /media/ used to skip auth entirely. It cannot any more: media
+			// attached to a private user's post is only served to their accepted
+			// followers, and that decision needs to know who is asking. Auth here
+			// is still optional — an anonymous request simply gets the strictest
+			// answer, exactly as before for everything that is public.
 			// Try to get token from cookie first
 			var token string
 			var isCookieAuth bool

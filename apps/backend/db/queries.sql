@@ -11,7 +11,7 @@ RETURNING id, name, created_at;
 -- name: CreateUser :one
 INSERT INTO users (username, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, username, display_name, bio, avatar_media_id, banner_media_id, created_at, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at;
+RETURNING id, username, display_name, bio, avatar_media_id, banner_media_id, created_at, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at, is_private;
 
 -- name: GetUserByUsername :one
 SELECT
@@ -26,6 +26,7 @@ SELECT
 	u.privacy_version,
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash
@@ -47,6 +48,7 @@ SELECT
 	u.privacy_version,
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash
@@ -75,7 +77,8 @@ RETURNING
 	terms_version,
 	privacy_version,
 	terms_accepted_at,
-	privacy_accepted_at;
+	privacy_accepted_at,
+	is_private;
 
 -- name: UpdateUserProfile :one
 UPDATE users
@@ -93,7 +96,8 @@ RETURNING
 	terms_version,
 	privacy_version,
 	terms_accepted_at,
-	privacy_accepted_at;
+	privacy_accepted_at,
+	is_private;
 
 -- name: UpdateUserAvatar :one
 WITH prev AS (
@@ -103,7 +107,7 @@ updated AS (
 	UPDATE users AS u
 	SET avatar_media_id = $2
 	WHERE u.id = $1
-	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at
+	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private
 )
 SELECT
 	updated.id,
@@ -117,6 +121,7 @@ SELECT
 	updated.privacy_version,
 	updated.terms_accepted_at,
 	updated.privacy_accepted_at,
+	updated.is_private,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash,
@@ -133,7 +138,7 @@ updated AS (
 	UPDATE users AS u
 	SET banner_media_id = $2
 	WHERE u.id = $1
-	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at
+	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private
 )
 SELECT
 	updated.id,
@@ -147,6 +152,7 @@ SELECT
 	updated.privacy_version,
 	updated.terms_accepted_at,
 	updated.privacy_accepted_at,
+	updated.is_private,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash,
@@ -230,6 +236,8 @@ VALUES ($1, $2, sqlc.narg('parent_id'), sqlc.narg('root_id'), sqlc.narg('referen
 RETURNING id, user_id, content, parent_id, root_id, reference_id, created_at, deleted_at;
 
 -- name: GetPostWithAuthorByID :one
+-- viewer_id is NULL for anonymous readers, which can_view_user treats as the
+-- strictest case. Callers still check deleted_at themselves.
 SELECT
 	p.id,
 	p.user_id,
@@ -244,11 +252,19 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
-	m.ext AS avatar_ext
+	u.is_private,
+	m.ext AS avatar_ext,
+	-- True when this post is a reply whose parent the viewer may not see
+	-- because its author is private. Lets the client show a redacted parent
+	-- card instead of silently dropping it. False for an accepted follower,
+	-- who gets the real parent.
+	COALESCE(pp.id IS NOT NULL AND NOT can_view_user(sqlc.narg('viewer_id')::uuid, pp.user_id), false)::boolean AS parent_private
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
-WHERE p.id = $1;
+LEFT JOIN posts pp ON pp.id = p.parent_id
+WHERE p.id = sqlc.arg('id')::uuid
+	AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id);
 
 -- name: GetPostOwnerByID :one
 SELECT user_id
@@ -256,9 +272,23 @@ FROM posts
 WHERE id = $1;
 
 -- name: GetPostThreadInfoByID :one
-SELECT id, user_id, parent_id, root_id, reference_id, deleted_at
-FROM posts
-WHERE id = $1;
+-- Used when creating a reply, boost or quote to validate the target post.
+--
+-- can_view decides whether the caller may interact with it at all, and
+-- author_is_private drives the separate rule that nobody, not even an accepted
+-- follower, may boost or quote a private user's post.
+SELECT
+	p.id,
+	p.user_id,
+	p.parent_id,
+	p.root_id,
+	p.reference_id,
+	p.deleted_at,
+	u.is_private AS author_is_private,
+	can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id) AS can_view
+FROM posts p
+JOIN users u ON u.id = p.user_id
+WHERE p.id = sqlc.arg('id')::uuid;
 
 -- name: ListRepliesByParentID :many
 SELECT
@@ -275,12 +305,14 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
 WHERE p.deleted_at IS NULL
 	AND p.parent_id = $1
+	AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
 	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
 		OR p.created_at > sqlc.narg('cursor_time')
@@ -320,6 +352,7 @@ SELECT
 	child.bio,
 	child.avatar_media_id,
 	child.user_created_at,
+	child.is_private,
 	child.avatar_ext,
 	requested.parent_id::uuid AS thread_parent_id
 FROM unnest(sqlc.arg('parent_ids')::uuid[]) WITH ORDINALITY AS requested(parent_id, parent_order)
@@ -338,12 +371,14 @@ JOIN LATERAL (
 		u.bio,
 		u.avatar_media_id,
 		u.created_at AS user_created_at,
+		u.is_private,
 		m.ext AS avatar_ext
 	FROM posts p
 	JOIN users u ON u.id = p.user_id
 	LEFT JOIN media m ON m.id = u.avatar_media_id
 	WHERE p.deleted_at IS NULL
 		AND p.parent_id = requested.parent_id
+		AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
 		AND (
 			sqlc.narg('cursor_parent_id')::uuid IS NULL
 			OR p.parent_id <> sqlc.narg('cursor_parent_id')::uuid
@@ -422,15 +457,34 @@ SELECT EXISTS(
 ) AS is_attached;
 
 -- name: IsMediaPublic :one
-SELECT (
-	EXISTS(SELECT 1 FROM post_media WHERE media_id = $1)
-	OR
-	EXISTS(SELECT 1 FROM users WHERE avatar_media_id = $1)
-	OR
-	EXISTS(SELECT 1 FROM users WHERE banner_media_id = $1)
-	OR
-	($1 = sqlc.narg('server_icon_media_id')::uuid)
-) AS is_public;
+-- Media attached to a post inherits that post author's privacy, so a private
+-- user's images stop being fetchable by URL. Avatars and banners deliberately do
+-- not: a private account still shows its profile.
+--
+-- is_restricted reports whether this media belongs to a private user's post. The
+-- caller uses it to drop the year-long immutable caching, which would otherwise
+-- keep serving the file from browser and CDN caches after the account is locked.
+SELECT
+	(
+		EXISTS(
+			SELECT 1 FROM post_media pm
+			JOIN posts p ON p.id = pm.post_id
+			WHERE pm.media_id = $1
+				AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
+		)
+		OR
+		EXISTS(SELECT 1 FROM users WHERE avatar_media_id = $1)
+		OR
+		EXISTS(SELECT 1 FROM users WHERE banner_media_id = $1)
+		OR
+		($1 = sqlc.narg('server_icon_media_id')::uuid)
+	) AS is_public,
+	EXISTS(
+		SELECT 1 FROM post_media pm
+		JOIN posts p ON p.id = pm.post_id
+		JOIN users u ON u.id = p.user_id
+		WHERE pm.media_id = $1 AND u.is_private
+	) AS is_restricted;
 
 -- name: AttachMediaToPost :exec
 INSERT INTO post_media (post_id, media_id, sort_order)
@@ -490,11 +544,19 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
-	m.ext AS avatar_ext
+	u.is_private,
+	m.ext AS avatar_ext,
+	-- True when this post is a reply whose parent the viewer may not see
+	-- because its author is private. Lets the client show a redacted parent
+	-- card instead of silently dropping it. False for an accepted follower,
+	-- who gets the real parent.
+	COALESCE(pp.id IS NOT NULL AND NOT can_view_user(sqlc.narg('viewer_id')::uuid, pp.user_id), false)::boolean AS parent_private
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN posts pp ON pp.id = p.parent_id
 WHERE p.deleted_at IS NULL
+	AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
 	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
 		OR p.created_at < sqlc.narg('cursor_time')
@@ -518,13 +580,20 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
-	m.ext AS avatar_ext
+	u.is_private,
+	m.ext AS avatar_ext,
+	-- True when this post is a reply whose parent the viewer may not see
+	-- because its author is private. Lets the client show a redacted parent
+	-- card instead of silently dropping it. False for an accepted follower,
+	-- who gets the real parent.
+	COALESCE(pp.id IS NOT NULL AND NOT can_view_user(sqlc.narg('viewer_id')::uuid, pp.user_id), false)::boolean AS parent_private
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
 LEFT JOIN posts pp ON pp.id = p.parent_id
 WHERE p.deleted_at IS NULL
 	AND u.username = $1
+	AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
 	AND (
 		sqlc.narg('media_type')::text IS NULL
 		OR (
@@ -576,6 +645,11 @@ ORDER BY p.created_at DESC, p.id DESC
 LIMIT sqlc.arg('limit');
 
 -- name: GetPostsByIDs :many
+-- The busiest gate in the codebase: Redis timeline hits, search results,
+-- notification hydration, bookmarks and quoted-post expansion all land here and
+-- rebuild their rows from this query. Because every one of those re-reads the
+-- database rather than trusting its own cache, filtering here is what makes a
+-- privacy change take effect immediately instead of when some cache expires.
 SELECT
 	p.id,
 	p.user_id,
@@ -590,13 +664,21 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
-	m.ext AS avatar_ext
+	u.is_private,
+	m.ext AS avatar_ext,
+	-- True when this post is a reply whose parent the viewer may not see
+	-- because its author is private. Lets the client show a redacted parent
+	-- card instead of silently dropping it. False for an accepted follower,
+	-- who gets the real parent.
+	COALESCE(pp.id IS NOT NULL AND NOT can_view_user(sqlc.narg('viewer_id')::uuid, pp.user_id), false)::boolean AS parent_private
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN posts pp ON pp.id = p.parent_id
 WHERE p.deleted_at IS NULL
-	AND p.id = ANY($1::uuid[])
-ORDER BY array_position($1::uuid[], p.id);
+	AND p.id = ANY(sqlc.arg('ids')::uuid[])
+	AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
+ORDER BY array_position(sqlc.arg('ids')::uuid[], p.id);
 
 -- name: ListReactionCounts :many
 SELECT emoji, count
@@ -661,6 +743,8 @@ DELETE FROM post_reaction_counts
 WHERE post_id = $1 AND emoji = $2 AND count <= 0;
 
 -- name: ListReactionUsers :many
+-- Private users are dropped from the list while their reaction still counts
+-- toward the total: identities are hidden, aggregate numbers are not.
 SELECT
 	pre.user_id,
 	u.username,
@@ -668,6 +752,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	pre.created_at AS reacted_at
 FROM post_reaction_events pre
@@ -675,6 +760,7 @@ JOIN users u ON u.id = pre.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
 WHERE pre.post_id = $1
 	AND pre.emoji = $2
+	AND can_view_user(sqlc.narg('viewer_id')::uuid, pre.user_id)
 	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
 		OR pre.created_at < sqlc.narg('cursor_time')
@@ -1184,7 +1270,8 @@ WHERE expires_at IS NOT NULL AND expires_at <= NOW();
 
 -- name: SearchUsers :many
 SELECT id, username, display_name, bio, avatar_media_id, created_at,
-       terms_version, privacy_version, terms_accepted_at, privacy_accepted_at
+       terms_version, privacy_version, terms_accepted_at, privacy_accepted_at,
+       is_private
 FROM users
 WHERE (sqlc.narg('search')::text IS NULL 
        OR username ILIKE '%' || sqlc.narg('search') || '%'
@@ -1689,6 +1776,15 @@ FROM notifications n
 LEFT JOIN posts p ON p.id = n.post_id
 WHERE n.user_id = sqlc.arg('user_id')::uuid
 	AND (n.post_id IS NULL OR p.deleted_at IS NULL)
+	-- Activity by a private user reaches only their accepted followers. The row
+	-- is kept either way, so going public again restores these notifications.
+	-- follow and follow_request are exempt: they are aimed at the recipient, and
+	-- hiding a request would make it impossible to approve.
+	AND (
+		n.actor_user_id IS NULL
+		OR n.type IN ('follow', 'follow_request')
+		OR can_view_user(n.user_id, n.actor_user_id)
+	)
 	AND (sqlc.narg('unread_only')::boolean IS NULL OR n.read_at IS NULL)
 	AND (sqlc.narg('types')::text[] IS NULL OR n.type = ANY(sqlc.narg('types')::text[]))
 GROUP BY n.type, (CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), CAST((n.created_at AT TIME ZONE sqlc.arg('tz')::text) AS date), (CASE
@@ -1727,6 +1823,15 @@ FROM notifications n
 LEFT JOIN posts p ON p.id = n.post_id
 WHERE n.user_id = sqlc.arg('user_id')::uuid
 	AND (n.post_id IS NULL OR p.deleted_at IS NULL)
+	-- Activity by a private user reaches only their accepted followers. The row
+	-- is kept either way, so going public again restores these notifications.
+	-- follow and follow_request are exempt: they are aimed at the recipient, and
+	-- hiding a request would make it impossible to approve.
+	AND (
+		n.actor_user_id IS NULL
+		OR n.type IN ('follow', 'follow_request')
+		OR can_view_user(n.user_id, n.actor_user_id)
+	)
 	AND (
 		n.type = 'reaction'
 		OR n.type = 'follow'
@@ -1763,11 +1868,26 @@ SELECT
 FROM notifications n
 LEFT JOIN users a ON a.id = n.actor_user_id
 LEFT JOIN media am ON am.id = a.avatar_media_id
-WHERE n.id = $1;
+WHERE n.id = $1
+	-- This feeds the realtime push, so the gate has to hold here too: without it
+	-- a private user's reaction would be delivered live to a stranger even
+	-- though the same row is filtered out of their notification list.
+	AND (
+		n.actor_user_id IS NULL
+		OR n.type IN ('follow', 'follow_request')
+		OR can_view_user(n.user_id, n.actor_user_id)
+	);
 
 -- name: CountUnreadNotifications :one
-SELECT COUNT(*)::int FROM notifications
-WHERE user_id = $1 AND read_at IS NULL;
+-- Must apply the same actor gate as the list, or the badge would count rows the
+-- user can never open.
+SELECT COUNT(*)::int FROM notifications n
+WHERE n.user_id = $1 AND n.read_at IS NULL
+	AND (
+		n.actor_user_id IS NULL
+		OR n.type IN ('follow', 'follow_request')
+		OR can_view_user(n.user_id, n.actor_user_id)
+	);
 
 -- name: MarkNotificationsRead :exec
 UPDATE notifications
@@ -1795,30 +1915,108 @@ WHERE user_id = sqlc.arg('user_id')::uuid
 -- ============================================================================
 
 -- name: FollowUser :execrows
--- Returns 0 rows when the follow already existed, so callers can stay idempotent.
-INSERT INTO follows (follower_id, followee_id)
-VALUES (sqlc.arg('follower_id')::uuid, sqlc.arg('followee_id')::uuid)
+-- accepted = false records a pending follow request, which is what following a
+-- private user creates. Returns 0 rows when a row already existed, so callers
+-- can stay idempotent.
+INSERT INTO follows (follower_id, followee_id, accepted_at)
+VALUES (
+	sqlc.arg('follower_id')::uuid,
+	sqlc.arg('followee_id')::uuid,
+	CASE WHEN sqlc.arg('accepted')::boolean THEN now() ELSE NULL END
+)
 ON CONFLICT DO NOTHING;
+
+-- name: AcceptFollowRequest :execrows
+-- 0 rows means there was no pending request, so the caller can 404 without a
+-- separate existence check.
+UPDATE follows SET accepted_at = now()
+WHERE follower_id = sqlc.arg('follower_id')::uuid
+	AND followee_id = sqlc.arg('followee_id')::uuid
+	AND accepted_at IS NULL;
+
+-- name: RejectFollowRequest :execrows
+DELETE FROM follows
+WHERE follower_id = sqlc.arg('follower_id')::uuid
+	AND followee_id = sqlc.arg('followee_id')::uuid
+	AND accepted_at IS NULL;
+
+-- name: AcceptAllFollowRequests :many
+-- Run when a user turns privacy off: holding requests back has no meaning once
+-- the account is public. Returns the requesters so their home timeline caches
+-- can be dropped and their follow notifications sent.
+UPDATE follows SET accepted_at = now()
+WHERE followee_id = sqlc.arg('followee_id')::uuid
+	AND accepted_at IS NULL
+RETURNING follower_id;
+
+-- name: ListFollowRequests :many
+-- Pending requests addressed to sqlc.arg('user_id'), newest first.
+SELECT
+	u.id,
+	u.username,
+	u.display_name,
+	u.bio,
+	u.avatar_media_id,
+	u.created_at AS user_created_at,
+	u.is_private,
+	m.ext AS avatar_ext,
+	f.created_at AS requested_at
+FROM follows f
+JOIN users u ON u.id = f.follower_id
+LEFT JOIN media m ON m.id = u.avatar_media_id
+WHERE f.followee_id = sqlc.arg('user_id')::uuid
+	AND f.accepted_at IS NULL
+	AND (
+		sqlc.narg('cursor_time')::timestamptz IS NULL
+		OR f.created_at < sqlc.narg('cursor_time')
+		OR (f.created_at = sqlc.narg('cursor_time') AND u.id < sqlc.narg('cursor_id'))
+	)
+ORDER BY f.created_at DESC, u.id DESC
+LIMIT sqlc.arg('limit');
 
 -- name: UnfollowUser :execrows
 DELETE FROM follows
 WHERE follower_id = sqlc.arg('follower_id')::uuid
 	AND followee_id = sqlc.arg('followee_id')::uuid;
 
+-- name: SetUserPrivate :exec
+UPDATE users SET is_private = sqlc.arg('is_private')::boolean
+WHERE id = sqlc.arg('id')::uuid;
+
+-- name: CanViewUser :one
+-- The gate on its own, for the places that decide whether a whole page is
+-- allowed rather than filtering rows: a private account's follower and following
+-- lists are withheld entirely from anyone who is not an accepted follower.
+SELECT can_view_user(sqlc.narg('viewer_id')::uuid, sqlc.arg('user_id')::uuid) AS can_view;
+
+-- name: IsUserPrivate :one
+-- One column, because the realtime publish path needs this on every post and a
+-- full profile read would be wasted work.
+SELECT is_private FROM users WHERE id = $1;
+
 -- name: GetUserFollowStats :one
 -- Kept separate from GetUserByID/GetUserByUsername so the admin and auth paths
 -- that reuse those queries do not pay for counts they never read.
+-- Pending requests are excluded everywhere here: a request is not a follow, and
+-- counting one as such would hand the requester a private user's activity.
 SELECT
-	(SELECT COUNT(*) FROM follows WHERE followee_id = sqlc.arg('user_id')::uuid)::int AS followers_count,
-	(SELECT COUNT(*) FROM follows WHERE follower_id = sqlc.arg('user_id')::uuid)::int AS following_count,
+	(SELECT COUNT(*) FROM follows WHERE followee_id = sqlc.arg('user_id')::uuid AND accepted_at IS NOT NULL)::int AS followers_count,
+	(SELECT COUNT(*) FROM follows WHERE follower_id = sqlc.arg('user_id')::uuid AND accepted_at IS NOT NULL)::int AS following_count,
 	EXISTS (
 		SELECT 1 FROM follows
 		WHERE follower_id = sqlc.narg('viewer_id')::uuid AND followee_id = sqlc.arg('user_id')::uuid
+			AND accepted_at IS NOT NULL
 	) AS is_following,
 	EXISTS (
 		SELECT 1 FROM follows
 		WHERE follower_id = sqlc.arg('user_id')::uuid AND followee_id = sqlc.narg('viewer_id')::uuid
-	) AS is_followed_by;
+			AND accepted_at IS NOT NULL
+	) AS is_followed_by,
+	EXISTS (
+		SELECT 1 FROM follows
+		WHERE follower_id = sqlc.narg('viewer_id')::uuid AND followee_id = sqlc.arg('user_id')::uuid
+			AND accepted_at IS NULL
+	) AS follow_request_sent;
 
 -- name: ListFollowers :many
 -- Users who follow sqlc.arg('user_id'), newest follow first.
@@ -1829,20 +2027,25 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	EXISTS (
 		SELECT 1 FROM follows vf
 		WHERE vf.follower_id = sqlc.narg('viewer_id')::uuid AND vf.followee_id = u.id
+			AND vf.accepted_at IS NOT NULL
 	) AS is_following,
 	EXISTS (
 		SELECT 1 FROM follows vf
 		WHERE vf.follower_id = u.id AND vf.followee_id = sqlc.narg('viewer_id')::uuid
+			AND vf.accepted_at IS NOT NULL
 	) AS is_followed_by
 FROM follows f
 JOIN users u ON u.id = f.follower_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
 WHERE f.followee_id = sqlc.arg('user_id')::uuid
+	AND f.accepted_at IS NOT NULL
+	AND can_view_user(sqlc.narg('viewer_id')::uuid, u.id)
 	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
 		OR f.created_at < sqlc.narg('cursor_time')
@@ -1860,20 +2063,25 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	EXISTS (
 		SELECT 1 FROM follows vf
 		WHERE vf.follower_id = sqlc.narg('viewer_id')::uuid AND vf.followee_id = u.id
+			AND vf.accepted_at IS NOT NULL
 	) AS is_following,
 	EXISTS (
 		SELECT 1 FROM follows vf
 		WHERE vf.follower_id = u.id AND vf.followee_id = sqlc.narg('viewer_id')::uuid
+			AND vf.accepted_at IS NOT NULL
 	) AS is_followed_by
 FROM follows f
 JOIN users u ON u.id = f.followee_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
 WHERE f.follower_id = sqlc.arg('user_id')::uuid
+	AND f.accepted_at IS NOT NULL
+	AND can_view_user(sqlc.narg('viewer_id')::uuid, u.id)
 	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
 		OR f.created_at < sqlc.narg('cursor_time')
@@ -1892,20 +2100,24 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	TRUE AS is_following,
 	EXISTS (
 		SELECT 1 FROM follows vf
 		WHERE vf.follower_id = u.id AND vf.followee_id = sqlc.arg('viewer_id')::uuid
+			AND vf.accepted_at IS NOT NULL
 	) AS is_followed_by
 FROM follows f
 JOIN users u ON u.id = f.follower_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
 WHERE f.followee_id = sqlc.arg('user_id')::uuid
+	AND f.accepted_at IS NOT NULL
 	AND EXISTS (
 		SELECT 1 FROM follows vf
 		WHERE vf.follower_id = sqlc.arg('viewer_id')::uuid AND vf.followee_id = u.id
+			AND vf.accepted_at IS NOT NULL
 	)
 	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
@@ -1918,9 +2130,11 @@ LIMIT sqlc.arg('limit');
 -- name: CountFollowersYouFollow :one
 SELECT COUNT(*)::int FROM follows f
 WHERE f.followee_id = sqlc.arg('user_id')::uuid
+	AND f.accepted_at IS NOT NULL
 	AND EXISTS (
 		SELECT 1 FROM follows vf
 		WHERE vf.follower_id = sqlc.arg('viewer_id')::uuid AND vf.followee_id = f.follower_id
+			AND vf.accepted_at IS NOT NULL
 	);
 
 -- name: ListFollowerIDs :many
@@ -1928,6 +2142,7 @@ WHERE f.followee_id = sqlc.arg('user_id')::uuid
 SELECT follower_id
 FROM follows
 WHERE followee_id = sqlc.arg('followee_id')::uuid
+	AND accepted_at IS NOT NULL
 LIMIT sqlc.arg('limit');
 
 -- name: ListHomeTimelinePosts :many
@@ -1947,16 +2162,24 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
-	m.ext AS avatar_ext
+	u.is_private,
+	m.ext AS avatar_ext,
+	-- True when this post is a reply whose parent the viewer may not see
+	-- because its author is private. Lets the client show a redacted parent
+	-- card instead of silently dropping it. False for an accepted follower,
+	-- who gets the real parent.
+	COALESCE(pp.id IS NOT NULL AND NOT can_view_user(sqlc.arg('viewer_id')::uuid, pp.user_id), false)::boolean AS parent_private
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN posts pp ON pp.id = p.parent_id
 WHERE p.deleted_at IS NULL
 	AND (
 		p.user_id = sqlc.arg('viewer_id')::uuid
 		OR EXISTS (
 			SELECT 1 FROM follows f
 			WHERE f.follower_id = sqlc.arg('viewer_id')::uuid AND f.followee_id = p.user_id
+				AND f.accepted_at IS NOT NULL
 		)
 	)
 	AND (
@@ -1977,6 +2200,7 @@ WHERE p.deleted_at IS NULL
 		OR EXISTS (
 			SELECT 1 FROM follows f
 			WHERE f.follower_id = sqlc.arg('viewer_id')::uuid AND f.followee_id = p.user_id
+				AND f.accepted_at IS NOT NULL
 		)
 	)
 ORDER BY p.created_at DESC, p.id DESC
@@ -1992,14 +2216,17 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	EXISTS (
 		SELECT 1 FROM follows vf
 		WHERE vf.follower_id = sqlc.narg('viewer_id')::uuid AND vf.followee_id = u.id
+			AND vf.accepted_at IS NOT NULL
 	) AS is_following,
 	EXISTS (
 		SELECT 1 FROM follows vf
 		WHERE vf.follower_id = u.id AND vf.followee_id = sqlc.narg('viewer_id')::uuid
+			AND vf.accepted_at IS NOT NULL
 	) AS is_followed_by
 FROM users u
 LEFT JOIN media m ON m.id = u.avatar_media_id
@@ -2135,6 +2362,9 @@ JOIN posts p ON p.id = b.post_id
 WHERE b.list_id = sqlc.arg('list_id')::uuid
 	AND p.deleted_at IS NULL
 	AND p.visibility = 'public'
+	-- A bookmark survives its author going private, but stops resolving for a
+	-- viewer who cannot see them. Re-following makes it reappear.
+	AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
 	AND (
 		sqlc.narg('cursor_time')::timestamptz IS NULL
 		OR b.created_at < sqlc.narg('cursor_time')

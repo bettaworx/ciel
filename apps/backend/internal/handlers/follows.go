@@ -116,3 +116,42 @@ func (h API) GetTimelineHome(w http.ResponseWriter, r *http.Request, params api.
 	}
 	writeJSON(w, http.StatusOK, page)
 }
+
+func (h API) GetMeFollowRequests(w http.ResponseWriter, r *http.Request, params api.GetMeFollowRequestsParams) {
+	caller, ok := h.followsCaller(w, r)
+	if !ok {
+		return
+	}
+	page, err := h.Follows.ListFollowRequests(r.Context(), caller.ID, params.Limit, params.Cursor)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}
+
+func (h API) PostMeFollowRequestsUsernameAccept(w http.ResponseWriter, r *http.Request, username api.Username) {
+	caller, ok := h.followsCaller(w, r)
+	if !ok {
+		return
+	}
+	user, err := h.Follows.AcceptFollowRequest(r.Context(), caller, username)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, user)
+}
+
+func (h API) PostMeFollowRequestsUsernameReject(w http.ResponseWriter, r *http.Request, username api.Username) {
+	caller, ok := h.followsCaller(w, r)
+	if !ok {
+		return
+	}
+	user, err := h.Follows.RejectFollowRequest(r.Context(), caller, username)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, user)
+}

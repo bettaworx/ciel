@@ -47,6 +47,13 @@ components:
           - $ref: ./common.yml#/components/schemas/PostId
           nullable: true
           description: ID of the post this post replies to. Null for root posts or when the parent has been hard-deleted (e.g., parent author deleted their account).
+        parentPrivate:
+          type: boolean
+          description: >-
+            True when this post replies to a post the caller may not see because
+            its author is private. Clients render a redacted parent card rather
+            than dropping the parent silently. False for an accepted follower,
+            who receives the real parent, and false once the account goes public.
         rootId:
           allOf:
           - $ref: ./common.yml#/components/schemas/PostId

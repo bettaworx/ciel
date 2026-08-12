@@ -131,4 +131,5 @@ components:
       - reply
       - boost
       - follow
+      - follow_request
       description: Kind of notification. New kinds are appended here.

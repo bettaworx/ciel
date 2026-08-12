@@ -96,6 +96,7 @@ export const queryKeys = {
   ogp: (url: string) => ["ogp", url] as const,
   notifications: (tab: NotificationTab) => ["notifications", tab] as const,
   notificationsUnread: ["notificationsUnread"] as const,
+  followRequests: ["followRequests"] as const,
   searchPosts: (query: string) => ["search", "posts", query] as const,
   // Prefix shared by every user search, so one follow can patch all of them.
   searchUsersAll: ["search", "users"] as const,
@@ -697,6 +698,90 @@ export function useUpdateProfile() {
       queryClient.invalidateQueries({ queryKey: queryKeys.me });
     },
   });
+}
+
+// Turns the account's private mode on or off.
+//
+// The invalidation list is deliberately wide. Every cached feed, profile and
+// post the client is holding was fetched under the old visibility, and the
+// default staleTime is a minute with no refetch on window focus — so without
+// this a tab left open would keep rendering the old state for up to a minute
+// after the switch. Server responses are already correct; this is what makes the
+// screen agree with them straight away.
+export function useUpdatePrivacy() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const setAuth = useSetAtom(authAtom);
+
+  return useMutation({
+    mutationFn: async (isPrivate: boolean) => {
+      const result = await api.updatePrivacy({ isPrivate });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (updatedUser) => {
+      setAuth((prev) => ({ ...prev, user: updatedUser }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      queryClient.invalidateQueries({ queryKey: queryKeys.followRequests });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+// Follow requests waiting on the current user. Only a private account has any.
+export function useFollowRequests(options?: { enabled?: boolean }) {
+  const api = useApi();
+  const { enabled = true } = options ?? {};
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.followRequests,
+    queryFn: async ({ pageParam }: { pageParam?: string | null }) => {
+      const result = await api.followRequests({ limit: 30, cursor: pageParam });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? null,
+    enabled,
+  });
+}
+
+// Approving or declining both refresh the same set: the request list shrinks,
+// and the requester's follow state on any profile the client is holding changes.
+function useFollowRequestDecision(decide: "accept" | "reject") {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const result =
+        decide === "accept"
+          ? await api.acceptFollowRequest(username)
+          : await api.rejectFollowRequest(username);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (user) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.followRequests });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      queryClient.invalidateQueries({ queryKey: queryKeys.user(user.username) });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notificationsUnread });
+    },
+  });
+}
+
+export function useAcceptFollowRequest() {
+  return useFollowRequestDecision("accept");
+}
+
+export function useRejectFollowRequest() {
+  return useFollowRequestDecision("reject");
 }
 
 // Agreement versions (public endpoint)

@@ -217,7 +217,14 @@
       "en": "English"
     },
     "account": {
-      "title": "Account"
+      "title": "Account",
+      "privateAccount": {
+        "title": "Private account",
+        "description": "Only your followers can see your posts and activity. New follows become requests you approve.",
+        "enabled": "Your account is now private",
+        "disabled": "Your account is now public",
+        "error": "Could not change your privacy setting"
+      }
     },
     "security": {
       "title": "Security"
@@ -301,7 +308,13 @@
     "copyIdSuccess": "User ID copied",
     "copyIdError": "Failed to copy user ID",
     "unknown": "Unknown User",
-    "unknownUsername": "unknown"
+    "unknownUsername": "unknown",
+    "privateAccount": "Private account",
+    "privatePostsHidden": "This account is private",
+    "privatePostsHiddenDescription": "Only approved followers can see these posts.",
+    "requestFollow": "Request to follow",
+    "followRequested": "Requested",
+    "cancelFollowRequest": "Cancel request"
   },
   "login": {
     "title": "Login",
@@ -658,7 +671,8 @@
       "undoBoostError": "Failed to undo boost",
       "bookmark": "Bookmark",
       "bookmarkError": "Could not save the bookmark",
-      "bookmarkLoginRequired": "Log in to bookmark posts"
+      "bookmarkLoginRequired": "Log in to bookmark posts",
+      "boostDisabledPrivate": "Private accounts cannot be boosted or quoted"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
@@ -679,6 +693,10 @@
       "username": "User",
       "initials": "U",
       "label": "Deleted"
+    },
+    "privatePost": {
+      "username": "Private User",
+      "label": "(Private)"
     }
   },
   "adminSetup": {
@@ -845,7 +863,8 @@
         "displayName": "Display Name",
         "roles": "Roles",
         "createdAt": "Created",
-        "actions": "Actions"
+        "actions": "Actions",
+        "private": "Private"
       },
       "roles": {
         "user": "User",
@@ -853,7 +872,12 @@
       },
       "loadingRoles": "Loading...",
       "noResults": "No users found",
-      "viewDetails": "View Details"
+      "viewDetails": "View Details",
+      "privacy": {
+        "enabled": "Account set to private",
+        "disabled": "Account set to public",
+        "error": "Could not change the account's privacy"
+      }
     },
     "posts": {
       "title": "Post Management",
@@ -1336,7 +1360,8 @@
       "mention": "{name} mentioned you",
       "boost": "{name} boosted your post",
       "quote": "{name} quoted your post",
-      "follow": "{name} followed you"
+      "follow": "{name} followed you",
+      "follow_request": "{name} requested to follow you"
     },
     "grouped": {
       "reaction": "{count} users reacted to your post",
@@ -1344,7 +1369,8 @@
       "mention": "{name} and {count} others mentioned you",
       "boost": "{name} and {count} others boosted your post",
       "quote": "{name} and {count} others quoted your post",
-      "follow": "{count} users followed you"
+      "follow": "{count} users followed you",
+      "follow_request": "{count} users requested to follow you"
     }
   },
   "bookmarks": {
@@ -1370,5 +1396,14 @@
     "createError": "Could not create the list",
     "updateError": "Could not update the list",
     "deleteError": "Could not delete the list"
+  },
+  "followRequests": {
+    "title": "Follow requests",
+    "empty": "No follow requests",
+    "accept": "Accept",
+    "reject": "Decline",
+    "accepted": "Follow request accepted",
+    "rejected": "Follow request declined",
+    "error": "Could not respond to the follow request"
   }
 }

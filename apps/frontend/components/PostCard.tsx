@@ -18,7 +18,7 @@ import { CreateReplyDialog } from "@/components/CreateReplyDialog";
 import { CreateQuoteDialog } from "@/components/CreateQuoteDialog";
 import { formatFullTimestamp, formatTimeAgo } from "@/lib/utils/format-time";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DisplayName } from "@/components/users/DisplayName";
 import { useReactions } from "@/lib/hooks/use-reactions";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ import {
   Link2,
   MessageCircle,
   Quote,
+  Ban,
   Rocket,
   MoreHorizontal,
   RotateCcw,
@@ -113,7 +114,7 @@ export type PostCardThreadLine = "none" | "above" | "below" | "both";
 // article. Positions assume the surrounding article has p-3 padding and the
 // avatar wrapper is h-10 / sm:h-12. A 4px (Tailwind unit 1) gap separates
 // the line ends from the avatar.
-function ThreadConnectorLine({
+export function ThreadConnectorLine({
   anchor = "avatar",
   position,
   variant = "solid",
@@ -274,6 +275,10 @@ export function PostCard({
   const articleRef = useRef<HTMLElement>(null);
   const isOwner = auth.user?.id === post.author?.id;
   const canUndoBoost = indicator?.actorUserId != null && indicator.actorUserId === auth.user?.id;
+  // Boosting and quoting a private account's post is refused by the server for
+  // everyone, including its accepted followers. The button is blocked rather
+  // than hidden so the reason is visible instead of the control just vanishing.
+  const boostBlocked = Boolean(post.author?.isPrivate);
   const hasReactions = reactions.length > 0;
   const displayConfig = getPostCardDisplayConfig(variant);
   const {
@@ -638,10 +643,13 @@ export function PostCard({
           verticalIdentity && "leading-tight",
         )}
       >
-        <MfmRenderer
-          text={displayName}
-          allowList={DISPLAY_NAME_ALLOW_LIST}
-          className="block max-w-full min-w-0 truncate overflow-hidden whitespace-nowrap [&_*]:max-w-full"
+        {/* flex, not block: cn merges these over DisplayName's own inline-flex,
+            and a display override there would stack the name and the lock. The
+            truncation lives on the name span inside DisplayName. */}
+        <DisplayName
+          name={displayName}
+          isPrivate={post.author?.isPrivate}
+          className="flex max-w-full min-w-0 [&_*]:max-w-full"
         />
       </button>
       {hasDisplayName && (
@@ -1092,7 +1100,26 @@ export function PostCard({
           </Button>
 
           {/* Boost */}
-          {isDesktop ? (
+          {boostBlocked ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled
+              title={t("actions.boostDisabledPrivate")}
+              aria-label={t("actions.boostDisabledPrivate")}
+              // pointer-events stay on so the cursor and tooltip still land on a
+              // disabled button, which is the whole point of showing it.
+              className={cn(
+                "h-8 text-muted-foreground disabled:pointer-events-auto disabled:cursor-not-allowed",
+                post.boostCount > 0 ? "px-2 gap-1" : "w-8 p-0",
+              )}
+            >
+              <Ban className="h-5 w-5" />
+              {post.boostCount > 0 && (
+                <span className="text-xs tabular-nums">{post.boostCount}</span>
+              )}
+            </Button>
+          ) : isDesktop ? (
             <DropdownMenu open={boostMenuOpen} onOpenChange={setBoostMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <Button

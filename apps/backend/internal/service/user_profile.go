@@ -22,8 +22,11 @@ const (
 var profileTagPattern = regexp.MustCompile(`<[^>]*>`)
 var profileURLPattern = regexp.MustCompile(`(?i)\b(?:https?://|www\.)\S+`)
 
-func mapUserWithProfile(id uuid.UUID, username string, createdAt time.Time, displayName sql.NullString, bio sql.NullString, avatarMediaID uuid.NullUUID, avatarExt sql.NullString, bannerMediaID uuid.NullUUID, bannerExt sql.NullString, bannerBlurhash sql.NullString, termsVersion int32, privacyVersion int32, termsAcceptedAt sql.NullTime, privacyAcceptedAt sql.NullTime) api.User {
-	user := api.User{Id: id, Username: username, CreatedAt: createdAt}
+func mapUserWithProfile(id uuid.UUID, username string, createdAt time.Time, displayName sql.NullString, bio sql.NullString, avatarMediaID uuid.NullUUID, avatarExt sql.NullString, bannerMediaID uuid.NullUUID, bannerExt sql.NullString, bannerBlurhash sql.NullString, termsVersion int32, privacyVersion int32, termsAcceptedAt sql.NullTime, privacyAcceptedAt sql.NullTime, isPrivate bool) api.User {
+	// isPrivate is a required parameter rather than something callers may set
+	// afterwards: the compiler then names every place a user is built, which is
+	// the only way to be sure none of them silently omits the lock.
+	user := api.User{Id: id, Username: username, CreatedAt: createdAt, IsPrivate: &isPrivate}
 	if displayName.Valid {
 		if v := strings.TrimSpace(displayName.String); v != "" {
 			user.DisplayName = &v

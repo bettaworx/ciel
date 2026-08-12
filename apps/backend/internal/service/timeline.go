@@ -83,10 +83,11 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	if s.cache != nil {
 		postIDs, next, okRedis := s.listFromRedis(ctx, timelineKeyGlobal(), limit, cursor)
 		if okRedis {
-			posts, err := s.fetchPosts(ctx, timelineKeyGlobal(), postIDs)
+			posts, err := s.fetchPosts(ctx, timelineKeyGlobal(), postIDs, userID)
 			if err != nil {
 				return api.TimelinePage{}, err
 			}
+			posts = dropRepliesToHiddenParents(posts)
 			if err := s.hydratePosts(ctx, posts, userID); err != nil {
 				return api.TimelinePage{}, err
 			}
@@ -110,7 +111,12 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 			cID = uuid.NullUUID{UUID: uid, Valid: true}
 		}
 	}
-	rows, err := s.store.Q.ListTimelinePosts(ctx, sqlc.ListTimelinePostsParams{CursorTime: cTime, CursorID: cID, Limit: int32(limit)})
+	rows, err := s.store.Q.ListTimelinePosts(ctx, sqlc.ListTimelinePostsParams{
+		ViewerID:   nullUUIDFromPtr(userID),
+		CursorTime: cTime,
+		CursorID:   cID,
+		Limit:      int32(limit),
+	})
 	if err != nil {
 		return api.TimelinePage{}, err
 	}
@@ -119,6 +125,7 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	for _, row := range rows {
 		items = append(items, mapTimelineRow(row))
 	}
+	items = dropRepliesToHiddenParents(items)
 	if err := s.hydratePosts(ctx, items, userID); err != nil {
 		return api.TimelinePage{}, err
 	}
@@ -184,13 +191,14 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 		// condition under which the cache is trustworthy here.
 		postIDs, next, okRedis := s.listFromRedis(ctx, key, limit, cursor)
 		if okRedis && next != nil {
-			posts, err := s.fetchPosts(ctx, key, postIDs)
+			posts, err := s.fetchPosts(ctx, key, postIDs, &userID)
 			if err != nil {
 				return api.TimelinePage{}, err
 			}
 			// A post dropped by fetchPosts (deleted since being cached) would
 			// leave a short page, so only serve it when nothing was lost.
 			if len(posts) == limit {
+				posts = dropRepliesToHiddenParents(posts)
 				if err := s.hydratePosts(ctx, posts, &userID); err != nil {
 					return api.TimelinePage{}, err
 				}
@@ -222,6 +230,7 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 	for _, row := range rows {
 		items = append(items, mapHomeTimelineRow(row))
 	}
+	items = dropRepliesToHiddenParents(items)
 	if err := s.hydratePosts(ctx, items, &userID); err != nil {
 		return api.TimelinePage{}, err
 	}
@@ -274,9 +283,10 @@ func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
 		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		ParentPrivate: &row.ParentPrivate,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
@@ -375,11 +385,50 @@ func (s *TimelineService) listFromRedis(ctx context.Context, key string, limit i
 	return ids, nil, true
 }
 
-func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid.UUID) ([]api.Post, error) {
+// dropRepliesToHiddenParents removes replies whose parent the viewer cannot see
+// because its author is private.
+//
+// Both feeds use this: the public timeline and the home timeline. A reply with
+// no readable parent is a fragment of a conversation the viewer cannot follow,
+// and it advertises that the private account posted something — following the
+// public half of a conversation is enough to watch the private half happen.
+//
+// A viewer who does follow that account gets ParentPrivate false and keeps the
+// reply as normal. The redacted parent card is for the places reached on
+// purpose — a profile's replies tab, a post's own page — where the subject is
+// that author's activity rather than a feed of everything.
+//
+// Applied after the page cursor is derived, so nothing is skipped on the next
+// page; the page simply comes back shorter, as it already can when a cached
+// post turns out to be deleted.
+// DropRepliesToHiddenParents exposes the feed filter for tests living outside
+// this package.
+func DropRepliesToHiddenParents(posts []api.Post) []api.Post {
+	return dropRepliesToHiddenParents(posts)
+}
+
+func dropRepliesToHiddenParents(posts []api.Post) []api.Post {
+	kept := make([]api.Post, 0, len(posts))
+	for _, post := range posts {
+		if post.ParentPrivate != nil && *post.ParentPrivate {
+			continue
+		}
+		kept = append(kept, post)
+	}
+	return kept
+}
+
+func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid.UUID, userID *api.UserId) ([]api.Post, error) {
 	if len(ids) == 0 {
 		return []api.Post{}, nil
 	}
-	rows, err := s.store.Q.GetPostsByIDs(ctx, ids)
+	// The ZSETs hold ids only, so this re-read is what applies the privacy gate
+	// to a cache hit. A post whose author just went private drops out here on the
+	// very next request, without anything having to expire.
+	rows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
+		Ids:      ids,
+		ViewerID: nullUUIDFromPtr(userID),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +442,15 @@ func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid
 
 	// Remove missing (likely deleted) from cache. Deleted posts are never
 	// removed from the per-user ZSETs on write, so this is how they get cleaned.
-	if s.cache != nil && len(found) != len(ids) {
+	//
+	// Never do this to the global ZSET. A row can now also be missing because
+	// this particular viewer may not see its author, and evicting on that would
+	// let one stranger's request strip a private user's posts out of a shared
+	// timeline for everybody, permanently. Per-user home ZSETs are already
+	// treated as lossy — capped, expiring, dropped on follow changes, and only
+	// trusted when they fill a whole page — so an over-eager eviction there
+	// costs nothing but a database fallback.
+	if s.cache != nil && key != timelineKeyGlobal() && len(found) != len(ids) {
 		missing := make([]interface{}, 0)
 		for _, id := range ids {
 			if _, ok := found[id]; !ok {
@@ -522,9 +579,10 @@ func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		ParentPrivate: &row.ParentPrivate,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
@@ -538,8 +596,9 @@ func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		ParentPrivate: &row.ParentPrivate,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }

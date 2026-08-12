@@ -2,8 +2,7 @@
 
 import { useUser } from "@/lib/hooks/use-queries";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DisplayName } from "@/components/users/DisplayName";
 
 interface UserProfileDisplayProps {
   username: string;
@@ -68,7 +67,7 @@ export function UserProfileDisplay({ username }: UserProfileDisplayProps) {
         {user.displayName ? (
           <>
             <span className="font-semibold text-foreground truncate">
-              <MfmRenderer text={user.displayName} allowList={DISPLAY_NAME_ALLOW_LIST} />
+              <DisplayName name={user.displayName} isPrivate={user.isPrivate} />
             </span>
             <span className="text-sm text-muted-foreground truncate">
               @{user.username}

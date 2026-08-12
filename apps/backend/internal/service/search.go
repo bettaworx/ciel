@@ -126,7 +126,7 @@ func (s *SearchService) SearchUsers(ctx context.Context, raw string, limit, offs
 	byID := make(map[uuid.UUID]api.User, len(rows))
 	for _, row := range rows {
 		byID[row.ID] = mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, viewer)
+			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, row.IsPrivate, viewer)
 	}
 	items := make([]api.User, 0, len(result.IDs))
 	for _, id := range result.IDs {

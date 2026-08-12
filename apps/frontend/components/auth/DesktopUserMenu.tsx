@@ -9,8 +9,7 @@ import {
 import { SidebarActionButton } from "@/components/SidebarActionButton";
 import { UserMenuContent } from "./UserMenuContent";
 import { LogoutConfirmDialog } from "./LogoutConfirmDialog";
-import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DisplayName } from "@/components/users/DisplayName";
 import type { components } from "@/lib/api/api";
 import type { Theme } from "@/atoms/theme";
 import type { Locale } from "@/i18n/constants";
@@ -108,9 +107,9 @@ export function DesktopUserMenu({
             }
             label={
               user.displayName ? (
-                <MfmRenderer
-                  text={user.displayName}
-                  allowList={DISPLAY_NAME_ALLOW_LIST}
+                <DisplayName
+                  name={user.displayName}
+                  isPrivate={user.isPrivate}
                 />
               ) : (
                 `@${user.username}`

@@ -8,7 +8,9 @@ import (
 
 	"backend/internal/api"
 	"backend/internal/auth"
+	"backend/internal/cache"
 	"backend/internal/db/sqlc"
+	"backend/internal/realtime"
 	"backend/internal/repository"
 
 	"github.com/google/uuid"
@@ -16,8 +18,10 @@ import (
 )
 
 type UsersService struct {
-	store  *repository.Store
-	search *SearchService
+	store     *repository.Store
+	search    *SearchService
+	cache     cache.Cache
+	publisher realtime.Publisher
 }
 
 func NewUsersService(store *repository.Store) *UsersService {
@@ -26,6 +30,18 @@ func NewUsersService(store *repository.Store) *UsersService {
 
 func (s *UsersService) SetSearchService(search *SearchService) {
 	s.search = search
+}
+
+// SetCache injects the cache. Only used to drop the home timelines of followers
+// promoted when privacy is turned off; everything else here reads the database.
+func (s *UsersService) SetCache(c cache.Cache) {
+	s.cache = c
+}
+
+// SetPublisher injects the realtime publisher, used to announce a privacy change
+// so open tabs stop showing what they already fetched.
+func (s *UsersService) SetPublisher(p realtime.Publisher) {
+	s.publisher = p
 }
 
 // GetByUsername loads a profile. viewer is the caller, used to resolve the
@@ -45,7 +61,7 @@ func (s *UsersService) GetByUsername(ctx context.Context, username api.Username,
 		}
 		return api.User{}, err
 	}
-	out := mapUserWithProfile(user.ID, user.Username, user.CreatedAt, user.DisplayName, user.Bio, user.AvatarMediaID, user.AvatarExt, user.BannerMediaID, user.BannerExt, user.BannerBlurhash, user.TermsVersion, user.PrivacyVersion, user.TermsAcceptedAt, user.PrivacyAcceptedAt)
+	out := mapUserWithProfile(user.ID, user.Username, user.CreatedAt, user.DisplayName, user.Bio, user.AvatarMediaID, user.AvatarExt, user.BannerMediaID, user.BannerExt, user.BannerBlurhash, user.TermsVersion, user.PrivacyVersion, user.TermsAcceptedAt, user.PrivacyAcceptedAt, user.IsPrivate)
 	s.attachFollowStats(ctx, &out, viewer)
 	return out, nil
 }
@@ -62,7 +78,7 @@ func (s *UsersService) GetByID(ctx context.Context, userID uuid.UUID, viewer *uu
 		}
 		return api.User{}, err
 	}
-	out := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt)
+	out := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, row.IsPrivate)
 	s.attachFollowStats(ctx, &out, viewer)
 	return out, nil
 }
@@ -78,17 +94,92 @@ func (s *UsersService) attachFollowStats(ctx context.Context, user *api.User, vi
 	if err != nil {
 		return
 	}
-	followers := int(stats.FollowersCount)
-	following := int(stats.FollowingCount)
-	user.FollowersCount = &followers
-	user.FollowingCount = &following
+	// A private account's follower and following counts are withheld along with
+	// the lists themselves. How many people an account talks to, and how that
+	// number moves, is exactly the sort of activity the switch is meant to cover;
+	// leaving the totals visible while hiding the names gives most of it away.
+	//
+	// The fields are omitted rather than zeroed, so a client shows nothing at all
+	// instead of confidently rendering "0 followers".
+	hidden := user.IsPrivate != nil && *user.IsPrivate &&
+		!(viewer != nil && (*viewer == user.Id || stats.IsFollowing))
+	if !hidden {
+		followers := int(stats.FollowersCount)
+		following := int(stats.FollowingCount)
+		user.FollowersCount = &followers
+		user.FollowingCount = &following
+	}
 	if viewer == nil {
 		return
 	}
 	isFollowing := stats.IsFollowing
 	isFollowedBy := stats.IsFollowedBy
+	followRequestSent := stats.FollowRequestSent
 	user.IsFollowing = &isFollowing
 	user.IsFollowedBy = &isFollowedBy
+	// Lets the client show "requested" rather than offering Follow again.
+	user.FollowRequestSent = &followRequestSent
+}
+
+// SetPrivate turns the account's private mode on or off.
+//
+// Nothing is deleted or rewritten: privacy is applied when activity is read, so
+// switching back to public restores the entire history. Turning it off also
+// accepts any requests still pending, since holding them back has no meaning
+// once anyone can follow freely.
+func (s *UsersService) SetPrivate(ctx context.Context, userID uuid.UUID, isPrivate bool) (api.User, error) {
+	if s.store == nil {
+		return api.User{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+
+	var accepted []uuid.UUID
+	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		if err := q.SetUserPrivate(ctx, sqlc.SetUserPrivateParams{ID: userID, IsPrivate: isPrivate}); err != nil {
+			return err
+		}
+		if isPrivate {
+			return nil
+		}
+		var err error
+		accepted, err = q.AcceptAllFollowRequests(ctx, userID)
+		return err
+	}); err != nil {
+		return api.User{}, err
+	}
+
+	// Everyone newly promoted to follower can now see this account's posts, so
+	// their cached home timelines are stale.
+	if s.cache != nil {
+		for _, followerID := range accepted {
+			_ = s.cache.Delete(ctx, timelineKeyHome(followerID))
+		}
+	}
+
+	updated, err := s.GetByID(ctx, userID, &userID)
+	if err != nil {
+		return api.User{}, err
+	}
+
+	// Tell every connected client to drop what it is holding about this account.
+	//
+	// The server already refuses the data from this moment on, but other people's
+	// browsers are still showing what they fetched a moment ago, and the client
+	// cache is a minute long with no refetch on window focus. Without this, going
+	// private would appear to take up to a minute to bite on a tab someone left
+	// open — the delayed effect this feature is specifically meant not to have.
+	//
+	// The event carries only the username. Whether an account is private is shown
+	// on its profile anyway, so this reveals nothing the page does not, and every
+	// client still has to re-ask the server for anything it wants to display.
+	if s.publisher != nil {
+		username := string(updated.Username)
+		_ = s.publisher.Publish(ctx, realtime.Event{
+			Type:     realtime.EventUserPrivacyChanged,
+			Username: &username,
+		})
+	}
+
+	return updated, nil
 }
 
 // nullUUIDFromPtr converts an optional viewer id into a SQL nullable uuid.
@@ -131,7 +222,7 @@ func (s *UsersService) UpdateProfile(ctx context.Context, userID uuid.UUID, disp
 		return api.User{}, err
 	}
 	s.search.ReindexUser(ctx, userID)
-	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, sql.NullString{}, row.BannerMediaID, sql.NullString{}, sql.NullString{}, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt), nil
+	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, sql.NullString{}, row.BannerMediaID, sql.NullString{}, sql.NullString{}, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, row.IsPrivate), nil
 }
 
 func (s *UsersService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarMediaID uuid.UUID) (api.User, *uuid.UUID, error) {
@@ -154,7 +245,7 @@ func (s *UsersService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avata
 		id := row.PreviousAvatarMediaID.UUID
 		previous = &id
 	}
-	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt)
+	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, row.IsPrivate)
 	return user, previous, nil
 }
 
@@ -178,7 +269,7 @@ func (s *UsersService) UpdateBanner(ctx context.Context, userID uuid.UUID, banne
 		id := row.PreviousBannerMediaID.UUID
 		previous = &id
 	}
-	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt)
+	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, row.IsPrivate)
 	return user, previous, nil
 }
 

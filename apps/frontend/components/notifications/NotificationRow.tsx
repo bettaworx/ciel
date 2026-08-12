@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { AtSign, Quote, Reply, Rocket, Smile, UserPlus } from "lucide-react";
+import { AtSign, Lock, Quote, Reply, Rocket, Smile, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmojiInline } from "@/components/EmojiInline";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
@@ -21,6 +21,7 @@ import {
   usesActorRowLayout,
   type NotificationDisplayType,
 } from "@/lib/notifications";
+import { FollowRequestActions } from "@/components/notifications/FollowRequestActions";
 import { formatTimeAgo } from "@/lib/utils/format-time";
 import { cn } from "@/lib/utils";
 import type { components } from "@/lib/api/api";
@@ -43,6 +44,8 @@ export const NOTIFICATION_ICONS: Record<
   boost: Rocket,
   quote: Quote,
   follow: UserPlus,
+  // A request is not yet a follow, so it gets the lock rather than UserPlus.
+  follow_request: Lock,
 };
 
 /**
@@ -251,6 +254,14 @@ export function NotificationRow({
             />
           </p>
         )}
+
+        {/* Not in a toast: a decision this consequential should not sit on
+            something that disappears on its own. */}
+        {!singleActor &&
+          notification.type === "follow_request" &&
+          primaryActor && (
+            <FollowRequestActions username={primaryActor.user.username} />
+          )}
 
         {actorRowLayout && actors.length > 0 && (
           <div className="mt-1.5 flex items-center gap-1">

@@ -66,11 +66,11 @@ func TestSearchUsersPreservesRelevanceOrder(t *testing.T) {
 	mock.ExpectQuery(`SELECT`).WillReturnRows(
 		sqlmock.NewRows([]string{
 			"id", "username", "display_name", "bio", "avatar_media_id",
-			"user_created_at", "avatar_ext", "is_following", "is_followed_by",
+			"user_created_at", "is_private", "avatar_ext", "is_following", "is_followed_by",
 		}).
-			AddRow(third, "carol", nil, nil, nil, created, nil, false, false).
-			AddRow(first, "alice", nil, nil, nil, created, nil, false, false).
-			AddRow(second, "bob", nil, nil, nil, created, nil, false, false),
+			AddRow(third, "carol", nil, nil, nil, created, false, nil, false, false).
+			AddRow(first, "alice", nil, nil, nil, created, false, nil, false, false).
+			AddRow(second, "bob", nil, nil, nil, created, false, nil, false, false),
 	)
 
 	page, err := svc.SearchUsers(context.Background(), "someone", nil, nil, nil)
@@ -150,7 +150,7 @@ func TestSearchPassesParsedFiltersToProvider(t *testing.T) {
 
 	mock.ExpectQuery(`SELECT`).WillReturnRows(sqlmock.NewRows([]string{
 		"id", "username", "display_name", "bio", "avatar_media_id",
-		"user_created_at", "avatar_ext", "is_following", "is_followed_by",
+		"user_created_at", "is_private", "avatar_ext", "is_following", "is_followed_by",
 	}))
 
 	if _, err := svc.SearchUsers(context.Background(), `since:2026-01-01 "a phrase" cat OR dog`, nil, nil, nil); err != nil {

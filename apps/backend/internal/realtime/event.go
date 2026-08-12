@@ -15,6 +15,7 @@ const (
 	EventReactionUpdated     EventType = "reaction_updated"
 	EventUserRegistered      EventType = "user_registered"
 	EventUserDeleted         EventType = "user_deleted"
+	EventUserPrivacyChanged  EventType = "user_privacy_changed"
 	EventServerInfoUpdated   EventType = "server_info_updated"
 	EventServerConfigUpdated EventType = "server_config_updated"
 	EventNotificationCreated EventType = "notification_created"
@@ -29,6 +30,8 @@ type Event struct {
 	ServerInfo     *api.ServerInfo     `json:"serverInfo,omitempty"`
 	ServerConfig   *api.ServerConfig   `json:"serverConfig,omitempty"`
 	Notification   *api.Notification   `json:"notification,omitempty"`
+	// Username identifies the subject of a user-level event.
+	Username *string `json:"username,omitempty"`
 	// TargetUserId restricts delivery to that user's connections. Empty means
 	// the event is public and goes to every client.
 	TargetUserId *api.UserId `json:"targetUserId,omitempty"`
@@ -59,6 +62,10 @@ func (e Event) Validate() error {
 		}
 	case EventUserRegistered, EventUserDeleted:
 		// No required payload fields
+	case EventUserPrivacyChanged:
+		if e.Username == nil {
+			return errors.New("username required")
+		}
 	case EventServerInfoUpdated:
 		if e.ServerInfo == nil {
 			return errors.New("serverInfo required")
