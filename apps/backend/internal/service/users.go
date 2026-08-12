@@ -94,10 +94,21 @@ func (s *UsersService) attachFollowStats(ctx context.Context, user *api.User, vi
 	if err != nil {
 		return
 	}
-	followers := int(stats.FollowersCount)
-	following := int(stats.FollowingCount)
-	user.FollowersCount = &followers
-	user.FollowingCount = &following
+	// A private account's follower and following counts are withheld along with
+	// the lists themselves. How many people an account talks to, and how that
+	// number moves, is exactly the sort of activity the switch is meant to cover;
+	// leaving the totals visible while hiding the names gives most of it away.
+	//
+	// The fields are omitted rather than zeroed, so a client shows nothing at all
+	// instead of confidently rendering "0 followers".
+	hidden := user.IsPrivate != nil && *user.IsPrivate &&
+		!(viewer != nil && (*viewer == user.Id || stats.IsFollowing))
+	if !hidden {
+		followers := int(stats.FollowersCount)
+		following := int(stats.FollowingCount)
+		user.FollowersCount = &followers
+		user.FollowingCount = &following
+	}
 	if viewer == nil {
 		return
 	}

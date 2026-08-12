@@ -26,7 +26,7 @@ func TestAPI_GetPostsPostId_PgSchemaError_Returns503(t *testing.T) {
 	postID := uuid.New()
 	pgErr := &pgconn.PgError{Code: "42703"}
 	// Second arg is the privacy gate's viewer id, nil for this unauthenticated request.
-	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(postID, nil).WillReturnError(pgErr)
+	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(nil, postID).WillReturnError(pgErr)
 
 	apiHandler := handlers.API{
 		Posts: service.NewPostsService(repository.NewStore(db), nil, nil),

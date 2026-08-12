@@ -52,6 +52,7 @@ import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DisplayName } from "@/components/users/DisplayName";
 import { BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
+import { PrivateParentPostCard } from "@/components/PrivateParentPostCard";
 import { DeletedPostCard } from "@/components/DeletedPostCard";
 import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -97,15 +98,22 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
   const pureBoost = isPureBoost(post);
   const boostReferenceId = pureBoost ? post.referenceId! : undefined;
   const parentId = pureBoost ? undefined : (post.parentId ?? undefined);
+  // The parent belongs to a private account this viewer does not follow. Asking
+  // for it would only ever 404, so it is not fetched at all and a redacted card
+  // stands in for it. A follower gets parentPrivate false and the real parent.
+  const parentHidden = !pureBoost && Boolean(post.parentPrivate);
   const { data: boostedPost } = usePost(boostReferenceId);
   const {
     data: parentPost,
     isLoading: isParentLoading,
     isFetching: isParentFetching,
-  } = usePost(parentId);
+  } = usePost(parentHidden ? undefined : parentId);
   const showParentSkeleton =
-    Boolean(parentId) && !parentPost && (isParentLoading || isParentFetching);
-  const hasVisibleParent = Boolean(parentPost || showParentSkeleton);
+    Boolean(parentId) &&
+    !parentHidden &&
+    !parentPost &&
+    (isParentLoading || isParentFetching);
+  const hasVisibleParent = Boolean(parentPost || showParentSkeleton || parentHidden);
 
   if (pureBoost) {
     const displayPost = boostedPost ?? post.reference;
@@ -144,7 +152,9 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
 
   return (
     <>
-      {parentPost ? (
+      {parentHidden ? (
+        <PrivateParentPostCard threadLine="below" />
+      ) : parentPost ? (
         <PostCard
           post={parentPost}
           onUserClick={onUserClick}
@@ -192,6 +202,10 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   // are missing instead of showing three empty ones.
   const isActivityHidden =
     Boolean(user?.isPrivate) && !isOwnProfile && !isFollowing;
+  // Undefined rather than zero is how the API says "withheld", so the presence
+  // of the field is the signal, not its value.
+  const hasFollowCounts =
+    user?.followersCount !== undefined && user?.followingCount !== undefined;
 
   // "Followers you know" is only meaningful about someone else, while logged in.
   const { data: knownFollowers } = useFollowersYouFollowPreview(
@@ -771,26 +785,32 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
 
               {!isEditing && (
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-4 text-sm">
-                    <Link
-                      href={`/users/${encodeURIComponent(username)}/following`}
-                      className="text-muted-foreground hover:underline"
-                    >
-                      <span className="font-bold text-foreground">
-                        {user.followingCount ?? 0}
-                      </span>{" "}
-                      {t("user.followingCount")}
-                    </Link>
-                    <Link
-                      href={`/users/${encodeURIComponent(username)}/followers`}
-                      className="text-muted-foreground hover:underline"
-                    >
-                      <span className="font-bold text-foreground">
-                        {user.followersCount ?? 0}
-                      </span>{" "}
-                      {t("user.followersCount")}
-                    </Link>
-                  </div>
+                  {/* The server omits both counts for a private account the
+                      viewer may not see. Nothing is rendered then — falling back
+                      to 0 would state a number the API deliberately withheld,
+                      and the links lead to lists that are refused anyway. */}
+                  {hasFollowCounts && (
+                    <div className="flex items-center gap-4 text-sm">
+                      <Link
+                        href={`/users/${encodeURIComponent(username)}/following`}
+                        className="text-muted-foreground hover:underline"
+                      >
+                        <span className="font-bold text-foreground">
+                          {user.followingCount}
+                        </span>{" "}
+                        {t("user.followingCount")}
+                      </Link>
+                      <Link
+                        href={`/users/${encodeURIComponent(username)}/followers`}
+                        className="text-muted-foreground hover:underline"
+                      >
+                        <span className="font-bold text-foreground">
+                          {user.followersCount}
+                        </span>{" "}
+                        {t("user.followersCount")}
+                      </Link>
+                    </div>
+                  )}
 
                   {knownFollowerCount > 0 && knownFollowers && (
                     <Link

@@ -693,6 +693,10 @@
       "username": "ユーザー",
       "initials": "ユ",
       "label": "削除済み"
+    },
+    "privatePost": {
+      "username": "非公開ユーザー",
+      "label": "（非公開）"
     }
   },
   "adminSetup": {

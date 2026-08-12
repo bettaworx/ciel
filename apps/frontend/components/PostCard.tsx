@@ -114,7 +114,7 @@ export type PostCardThreadLine = "none" | "above" | "below" | "both";
 // article. Positions assume the surrounding article has p-3 padding and the
 // avatar wrapper is h-10 / sm:h-12. A 4px (Tailwind unit 1) gap separates
 // the line ends from the avatar.
-function ThreadConnectorLine({
+export function ThreadConnectorLine({
   anchor = "avatar",
   position,
   variant = "solid",

@@ -124,6 +124,7 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	for _, row := range rows {
 		items = append(items, mapTimelineRow(row))
 	}
+	items = dropRepliesToHiddenParents(items)
 	if err := s.hydratePosts(ctx, items, userID); err != nil {
 		return api.TimelinePage{}, err
 	}
@@ -279,6 +280,7 @@ func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
 		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		ParentPrivate: &row.ParentPrivate,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
 		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
@@ -378,6 +380,30 @@ func (s *TimelineService) listFromRedis(ctx context.Context, key string, limit i
 		return ids, n, true
 	}
 	return ids, nil, true
+}
+
+// dropRepliesToHiddenParents removes replies whose parent the viewer cannot see
+// because its author is private.
+//
+// Only the public timeline uses this. A reply with no readable parent is just a
+// fragment of a conversation nobody outside can follow, and letting it sit in
+// the firehose advertises that the private account posted something. A viewer
+// who does follow that account gets ParentPrivate false and keeps the reply,
+// and so does the profile replies tab, where the point is the author's own
+// activity and the parent is drawn redacted instead.
+//
+// Applied after the page cursor is derived, so nothing is skipped on the next
+// page; the page simply comes back shorter, as it already can when a cached
+// post turns out to be deleted.
+func dropRepliesToHiddenParents(posts []api.Post) []api.Post {
+	kept := make([]api.Post, 0, len(posts))
+	for _, post := range posts {
+		if post.ParentPrivate != nil && *post.ParentPrivate {
+			continue
+		}
+		kept = append(kept, post)
+	}
+	return kept
 }
 
 func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid.UUID, userID *api.UserId) ([]api.Post, error) {
@@ -541,6 +567,7 @@ func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		ParentPrivate: &row.ParentPrivate,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
 		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
@@ -557,6 +584,7 @@ func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		ParentPrivate: &row.ParentPrivate,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
 		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),

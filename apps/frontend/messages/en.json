@@ -693,6 +693,10 @@
       "username": "User",
       "initials": "U",
       "label": "Deleted"
+    },
+    "privatePost": {
+      "username": "Private User",
+      "label": "(Private)"
     }
   },
   "adminSetup": {

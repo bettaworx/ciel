@@ -253,10 +253,16 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
-	m.ext AS avatar_ext
+	m.ext AS avatar_ext,
+	-- True when this post is a reply whose parent the viewer may not see
+	-- because its author is private. Lets the client show a redacted parent
+	-- card instead of silently dropping it. False for an accepted follower,
+	-- who gets the real parent.
+	COALESCE(pp.id IS NOT NULL AND NOT can_view_user(sqlc.narg('viewer_id')::uuid, pp.user_id), false)::boolean AS parent_private
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN posts pp ON pp.id = p.parent_id
 WHERE p.id = sqlc.arg('id')::uuid
 	AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id);
 
@@ -539,10 +545,16 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
-	m.ext AS avatar_ext
+	m.ext AS avatar_ext,
+	-- True when this post is a reply whose parent the viewer may not see
+	-- because its author is private. Lets the client show a redacted parent
+	-- card instead of silently dropping it. False for an accepted follower,
+	-- who gets the real parent.
+	COALESCE(pp.id IS NOT NULL AND NOT can_view_user(sqlc.narg('viewer_id')::uuid, pp.user_id), false)::boolean AS parent_private
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN posts pp ON pp.id = p.parent_id
 WHERE p.deleted_at IS NULL
 	AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
 	AND (
@@ -569,7 +581,12 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
-	m.ext AS avatar_ext
+	m.ext AS avatar_ext,
+	-- True when this post is a reply whose parent the viewer may not see
+	-- because its author is private. Lets the client show a redacted parent
+	-- card instead of silently dropping it. False for an accepted follower,
+	-- who gets the real parent.
+	COALESCE(pp.id IS NOT NULL AND NOT can_view_user(sqlc.narg('viewer_id')::uuid, pp.user_id), false)::boolean AS parent_private
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
@@ -648,10 +665,16 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
-	m.ext AS avatar_ext
+	m.ext AS avatar_ext,
+	-- True when this post is a reply whose parent the viewer may not see
+	-- because its author is private. Lets the client show a redacted parent
+	-- card instead of silently dropping it. False for an accepted follower,
+	-- who gets the real parent.
+	COALESCE(pp.id IS NOT NULL AND NOT can_view_user(sqlc.narg('viewer_id')::uuid, pp.user_id), false)::boolean AS parent_private
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN posts pp ON pp.id = p.parent_id
 WHERE p.deleted_at IS NULL
 	AND p.id = ANY(sqlc.arg('ids')::uuid[])
 	AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
@@ -2139,10 +2162,16 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
-	m.ext AS avatar_ext
+	m.ext AS avatar_ext,
+	-- True when this post is a reply whose parent the viewer may not see
+	-- because its author is private. Lets the client show a redacted parent
+	-- card instead of silently dropping it. False for an accepted follower,
+	-- who gets the real parent.
+	COALESCE(pp.id IS NOT NULL AND NOT can_view_user(sqlc.arg('viewer_id')::uuid, pp.user_id), false)::boolean AS parent_private
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN media m ON m.id = u.avatar_media_id
+LEFT JOIN posts pp ON pp.id = p.parent_id
 WHERE p.deleted_at IS NULL
 	AND (
 		p.user_id = sqlc.arg('viewer_id')::uuid
