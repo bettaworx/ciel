@@ -225,7 +225,7 @@ func (s *FollowsService) ListFollowRequests(ctx context.Context, userID uuid.UUI
 	items := make([]api.User, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, false, false, &userID))
+			row.AvatarMediaID, row.AvatarExt, false, false, row.IsPrivate, &userID))
 	}
 	var next *string
 	if len(rows) == lim {
@@ -321,7 +321,7 @@ func (s *FollowsService) ListFollowers(ctx context.Context, username api.Usernam
 	items := make([]api.User, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, viewer))
+			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, row.IsPrivate, viewer))
 	}
 	var next *string
 	if len(rows) == lim {
@@ -351,7 +351,7 @@ func (s *FollowsService) ListFollowing(ctx context.Context, username api.Usernam
 	items := make([]api.User, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, viewer))
+			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, row.IsPrivate, viewer))
 	}
 	var next *string
 	if len(rows) == lim {
@@ -383,7 +383,7 @@ func (s *FollowsService) ListFollowersYouFollow(ctx context.Context, username ap
 	items := make([]api.User, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, &viewer))
+			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, row.IsPrivate, &viewer))
 	}
 	var next *string
 	if len(rows) == lim {
@@ -474,10 +474,11 @@ func mapFollowListUser(
 	avatarExt sql.NullString,
 	isFollowing bool,
 	isFollowedBy bool,
+	isPrivate bool,
 	viewer *uuid.UUID,
 ) api.User {
 	user := mapUserWithProfile(id, username, createdAt, displayName, bio, avatarMediaID, avatarExt,
-		uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{})
+		uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, isPrivate)
 	if viewer != nil {
 		f := isFollowing
 		fb := isFollowedBy

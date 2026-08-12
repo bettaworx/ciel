@@ -77,7 +77,8 @@ RETURNING
 	terms_version,
 	privacy_version,
 	terms_accepted_at,
-	privacy_accepted_at;
+	privacy_accepted_at,
+	is_private;
 
 -- name: UpdateUserProfile :one
 UPDATE users
@@ -95,7 +96,8 @@ RETURNING
 	terms_version,
 	privacy_version,
 	terms_accepted_at,
-	privacy_accepted_at;
+	privacy_accepted_at,
+	is_private;
 
 -- name: UpdateUserAvatar :one
 WITH prev AS (
@@ -105,7 +107,7 @@ updated AS (
 	UPDATE users AS u
 	SET avatar_media_id = $2
 	WHERE u.id = $1
-	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at
+	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private
 )
 SELECT
 	updated.id,
@@ -119,6 +121,7 @@ SELECT
 	updated.privacy_version,
 	updated.terms_accepted_at,
 	updated.privacy_accepted_at,
+	updated.is_private,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash,
@@ -135,7 +138,7 @@ updated AS (
 	UPDATE users AS u
 	SET banner_media_id = $2
 	WHERE u.id = $1
-	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at
+	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private
 )
 SELECT
 	updated.id,
@@ -149,6 +152,7 @@ SELECT
 	updated.privacy_version,
 	updated.terms_accepted_at,
 	updated.privacy_accepted_at,
+	updated.is_private,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash,
@@ -248,6 +252,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext
 FROM posts p
 JOIN users u ON u.id = p.user_id
@@ -294,6 +299,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext
 FROM posts p
 JOIN users u ON u.id = p.user_id
@@ -340,6 +346,7 @@ SELECT
 	child.bio,
 	child.avatar_media_id,
 	child.user_created_at,
+	child.is_private,
 	child.avatar_ext,
 	requested.parent_id::uuid AS thread_parent_id
 FROM unnest(sqlc.arg('parent_ids')::uuid[]) WITH ORDINALITY AS requested(parent_id, parent_order)
@@ -358,6 +365,7 @@ JOIN LATERAL (
 		u.bio,
 		u.avatar_media_id,
 		u.created_at AS user_created_at,
+		u.is_private,
 		m.ext AS avatar_ext
 	FROM posts p
 	JOIN users u ON u.id = p.user_id
@@ -530,6 +538,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext
 FROM posts p
 JOIN users u ON u.id = p.user_id
@@ -559,6 +568,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext
 FROM posts p
 JOIN users u ON u.id = p.user_id
@@ -637,6 +647,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext
 FROM posts p
 JOIN users u ON u.id = p.user_id
@@ -718,6 +729,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	pre.created_at AS reacted_at
 FROM post_reaction_events pre
@@ -1922,6 +1934,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	f.created_at AS requested_at
 FROM follows f
@@ -1990,6 +2003,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	EXISTS (
@@ -2025,6 +2039,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	EXISTS (
@@ -2061,6 +2076,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	TRUE AS is_following,
@@ -2122,6 +2138,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext
 FROM posts p
 JOIN users u ON u.id = p.user_id
@@ -2169,6 +2186,7 @@ SELECT
 	u.bio,
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
+	u.is_private,
 	m.ext AS avatar_ext,
 	EXISTS (
 		SELECT 1 FROM follows vf

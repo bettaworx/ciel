@@ -208,6 +208,7 @@ func (s *ReactionsService) ListUsers(ctx context.Context, postID api.PostId, emo
 			0,
 			sql.NullTime{},
 			sql.NullTime{},
+			row.IsPrivate,
 		))
 	}
 

@@ -671,7 +671,8 @@
       "undoBoostError": "Failed to undo boost",
       "bookmark": "Bookmark",
       "bookmarkError": "Could not save the bookmark",
-      "bookmarkLoginRequired": "Log in to bookmark posts"
+      "bookmarkLoginRequired": "Log in to bookmark posts",
+      "boostDisabledPrivate": "Private accounts cannot be boosted or quoted"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",

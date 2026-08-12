@@ -1,10 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Lock } from "lucide-react";
 import { toast } from "sonner";
 import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
-import { ToggleRow } from "@/components/settings/NestedToggle";
+import { SettingItem } from "@/components/settings/SettingItem";
+import { Switch } from "@/components/ui/switch";
 import { useMe, useUpdatePrivacy } from "@/lib/hooks/use-queries";
 
 export function AccountSettingsContent() {
@@ -33,14 +33,22 @@ export function AccountSettingsContent() {
     <div className="space-y-3">
       <SettingsPageHeader currentPageKey="settings.account.title" />
 
-      <ToggleRow
-        icon={Lock}
+      <SettingItem
         title={t("settings.account.privateAccount.title")}
         description={t("settings.account.privateAccount.description")}
-        checked={isPrivate}
-        onCheckedChange={handleChange}
-        disabled={!me || updatePrivacy.isPending}
-      />
+        align="center"
+      >
+        {/* SettingItem gives its control a fixed-width column, which a select
+            fills but a switch does not. Push it to the far edge so the row reads
+            across the whole card instead of stranding the switch mid-way. */}
+        <div className="flex justify-end">
+          <Switch
+            checked={isPrivate}
+            onCheckedChange={handleChange}
+            disabled={!me || updatePrivacy.isPending}
+          />
+        </div>
+      </SettingItem>
     </div>
   );
 }

@@ -671,7 +671,8 @@
       "undoBoostError": "ブーストの取り消しに失敗しました",
       "bookmark": "ブックマーク",
       "bookmarkError": "ブックマークを保存できませんでした",
-      "bookmarkLoginRequired": "ブックマークするにはログインが必要です"
+      "bookmarkLoginRequired": "ブックマークするにはログインが必要です",
+      "boostDisabledPrivate": "非公開アカウントの投稿はブースト・引用できません"
     },
     "deleteConfirmTitle": "投稿を削除しますか？",
     "deleteConfirmDescription": "この操作は取り消せません。投稿はタイムラインから削除されます。",

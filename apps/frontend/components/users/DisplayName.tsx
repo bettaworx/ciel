@@ -32,12 +32,18 @@ export function DisplayName({ name, isPrivate, className }: DisplayNameProps) {
 
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-1", className)}>
-      <span className="truncate">
+      {/* min-w-0 as well as truncate: a flex item will not shrink below its
+          content without it, so a long name would push the lock out instead of
+          being cut short. */}
+      <span className="min-w-0 truncate">
         <MfmRenderer text={name} allowList={DISPLAY_NAME_ALLOW_LIST} />
       </span>
       {isPrivate && (
+        // Sized in em, not a fixed class: this renders beside everything from a
+        // text-sm list row to the text-xl heading on a profile, and a fixed size
+        // would loom over the small ones and get lost beside the large ones.
         <Lock
-          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+          className="h-[0.8em] w-[0.8em] shrink-0 text-muted-foreground"
           aria-label={t("user.privateAccount")}
         />
       )}

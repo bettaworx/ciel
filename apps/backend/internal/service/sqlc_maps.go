@@ -35,7 +35,7 @@ func mapPostRow(row sqlc.GetPostWithAuthorByIDRow) api.Post {
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   deletedAt,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
@@ -51,7 +51,7 @@ func mapPostsByUsernameRow(row sqlc.ListPostsByUsernameRow) api.Post {
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
@@ -67,7 +67,7 @@ func mapRepliesRow(row sqlc.ListRepliesByParentIDRow) api.Post {
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
@@ -83,7 +83,7 @@ func mapThreadChildrenRow(row sqlc.ListThreadChildrenPageRow) api.Post {
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
