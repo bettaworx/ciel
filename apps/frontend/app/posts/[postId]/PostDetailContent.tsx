@@ -16,6 +16,7 @@ import {
   PostTreeActionButton,
   type PostCardThreadLine,
 } from "@/components/PostCard";
+import { PrivateParentPostCard } from "@/components/PrivateParentPostCard";
 import { ComposeCard } from "@/components/ComposeCard";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -84,6 +85,10 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
     loadAncestorsEpochRef.current++;
   }, [initialThreadPage, postId]);
 
+  // The parent belongs to a private account this viewer does not follow, so the
+  // server never sent it. A redacted card takes its place, and there is nothing
+  // further up the thread to offer either.
+  const parentHidden = Boolean(post?.parentPrivate);
   const topAncestor = ancestors.length > 0 ? ancestors[0] : parentPost;
   const hasMoreAncestors = !!topAncestor?.parentId;
 
@@ -247,21 +252,27 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
                 onUserClick={(username) => router.push(`/users/${username}`)}
               />
             ))}
-            {parentPost && (
-              <PostCard
-                post={parentPost}
-                isLast={false}
-                variant="timeline"
+            {parentHidden ? (
+              <PrivateParentPostCard
                 threadLine={ancestors.length > 0 || hasMoreAncestors ? "both" : "below"}
-                onUserClick={(username) => router.push(`/users/${username}`)}
               />
+            ) : (
+              parentPost && (
+                <PostCard
+                  post={parentPost}
+                  isLast={false}
+                  variant="timeline"
+                  threadLine={ancestors.length > 0 || hasMoreAncestors ? "both" : "below"}
+                  onUserClick={(username) => router.push(`/users/${username}`)}
+                />
+              )
             )}
             <div ref={detailPostRef}>
               <PostCard
                 post={post}
                 isLast
                 variant="detail"
-                threadLine={parentPost || ancestors.length > 0 || hasMoreAncestors ? "above" : "none"}
+                threadLine={parentPost || parentHidden || ancestors.length > 0 || hasMoreAncestors ? "above" : "none"}
                 onUserClick={(username) => router.push(`/users/${username}`)}
                 onDeleteSuccess={() => router.back()}
               />

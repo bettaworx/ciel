@@ -816,6 +816,11 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		adminDeleteUserBio: (userId: components['schemas']['UserId']) =>
 			request<void>('DELETE', `/admin/users/${userId}/bio`),
 
+		adminUpdateUserPrivacy: (
+			userId: components['schemas']['UserId'],
+			body: components['schemas']['UpdatePrivacyRequest'],
+		) => request<components['schemas']['User']>('PATCH', `/admin/users/${userId}/privacy`, { body }),
+
 		// Admin - Agreement Documents
 		adminListAgreementDocuments: (params?: {
 			limit?: number;

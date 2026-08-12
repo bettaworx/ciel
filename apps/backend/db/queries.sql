@@ -1270,7 +1270,8 @@ WHERE expires_at IS NOT NULL AND expires_at <= NOW();
 
 -- name: SearchUsers :many
 SELECT id, username, display_name, bio, avatar_media_id, created_at,
-       terms_version, privacy_version, terms_accepted_at, privacy_accepted_at
+       terms_version, privacy_version, terms_accepted_at, privacy_accepted_at,
+       is_private
 FROM users
 WHERE (sqlc.narg('search')::text IS NULL 
        OR username ILIKE '%' || sqlc.narg('search') || '%'

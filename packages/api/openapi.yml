@@ -71,6 +71,8 @@ paths:
     $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1display-name
   /admin/users/{userId}/bio:
     $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1bio
+  /admin/users/{userId}/privacy:
+    $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1privacy
   /admin/agreements/documents:
     $ref: ./paths/admin/agreements.yml#/~1admin~1agreements~1documents
   /admin/agreements/documents/{documentId}:

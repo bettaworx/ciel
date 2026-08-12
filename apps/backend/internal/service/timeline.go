@@ -87,6 +87,7 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 			if err != nil {
 				return api.TimelinePage{}, err
 			}
+			posts = dropRepliesToHiddenParents(posts)
 			if err := s.hydratePosts(ctx, posts, userID); err != nil {
 				return api.TimelinePage{}, err
 			}
@@ -197,6 +198,7 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 			// A post dropped by fetchPosts (deleted since being cached) would
 			// leave a short page, so only serve it when nothing was lost.
 			if len(posts) == limit {
+				posts = dropRepliesToHiddenParents(posts)
 				if err := s.hydratePosts(ctx, posts, &userID); err != nil {
 					return api.TimelinePage{}, err
 				}
@@ -228,6 +230,7 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 	for _, row := range rows {
 		items = append(items, mapHomeTimelineRow(row))
 	}
+	items = dropRepliesToHiddenParents(items)
 	if err := s.hydratePosts(ctx, items, &userID); err != nil {
 		return api.TimelinePage{}, err
 	}
@@ -385,16 +388,25 @@ func (s *TimelineService) listFromRedis(ctx context.Context, key string, limit i
 // dropRepliesToHiddenParents removes replies whose parent the viewer cannot see
 // because its author is private.
 //
-// Only the public timeline uses this. A reply with no readable parent is just a
-// fragment of a conversation nobody outside can follow, and letting it sit in
-// the firehose advertises that the private account posted something. A viewer
-// who does follow that account gets ParentPrivate false and keeps the reply,
-// and so does the profile replies tab, where the point is the author's own
-// activity and the parent is drawn redacted instead.
+// Both feeds use this: the public timeline and the home timeline. A reply with
+// no readable parent is a fragment of a conversation the viewer cannot follow,
+// and it advertises that the private account posted something — following the
+// public half of a conversation is enough to watch the private half happen.
+//
+// A viewer who does follow that account gets ParentPrivate false and keeps the
+// reply as normal. The redacted parent card is for the places reached on
+// purpose — a profile's replies tab, a post's own page — where the subject is
+// that author's activity rather than a feed of everything.
 //
 // Applied after the page cursor is derived, so nothing is skipped on the next
 // page; the page simply comes back shorter, as it already can when a cached
 // post turns out to be deleted.
+// DropRepliesToHiddenParents exposes the feed filter for tests living outside
+// this package.
+func DropRepliesToHiddenParents(posts []api.Post) []api.Post {
+	return dropRepliesToHiddenParents(posts)
+}
+
 func dropRepliesToHiddenParents(posts []api.Post) []api.Post {
 	kept := make([]api.Post, 0, len(posts))
 	for _, post := range posts {

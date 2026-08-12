@@ -171,3 +171,34 @@ func TestPostsService_Create_PrivateAuthorPublishesOnlyToFollowers(t *testing.T)
 		t.Fatalf("unmet expectations: %v", err)
 	}
 }
+
+// A public user replying to a private account produces a reply that is itself
+// public. It must still not appear in a feed: a viewer who follows only the
+// public half of the conversation would otherwise watch the private half happen,
+// one visible reply at a time.
+//
+// This is the shape reported in practice: A private, B public and following A,
+// C following neither A nor caring — C saw B's replies scroll past.
+func TestTimeline_DropsRepliesWhoseParentIsHidden(t *testing.T) {
+	visible := api.Post{Id: api.PostId(uuid.New())}
+	hiddenParent := true
+	notHidden := false
+	replyToPrivate := api.Post{Id: api.PostId(uuid.New()), ParentPrivate: &hiddenParent}
+	replyToPublic := api.Post{Id: api.PostId(uuid.New()), ParentPrivate: &notHidden}
+
+	got := service.DropRepliesToHiddenParents([]api.Post{visible, replyToPrivate, replyToPublic})
+
+	if len(got) != 2 {
+		t.Fatalf("expected the reply to a hidden parent to be dropped, got %d posts", len(got))
+	}
+	for _, post := range got {
+		if post.Id == replyToPrivate.Id {
+			t.Fatal("a reply whose parent is hidden reached the feed")
+		}
+	}
+	// A reply to a parent the viewer can see is untouched, which is what keeps
+	// this from hiding ordinary conversations.
+	if got[1].Id != replyToPublic.Id {
+		t.Fatalf("expected the reply to a visible parent to survive, got %+v", got[1])
+	}
+}

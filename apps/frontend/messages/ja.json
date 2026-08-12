@@ -863,7 +863,8 @@
         "displayName": "表示名",
         "roles": "ロール",
         "createdAt": "作成日",
-        "actions": "操作"
+        "actions": "操作",
+        "private": "非公開"
       },
       "roles": {
         "user": "ユーザー",
@@ -871,7 +872,12 @@
       },
       "loadingRoles": "読み込み中...",
       "noResults": "ユーザーが見つかりません",
-      "viewDetails": "詳細を見る"
+      "viewDetails": "詳細を見る",
+      "privacy": {
+        "enabled": "アカウントを非公開にしました",
+        "disabled": "アカウントを公開にしました",
+        "error": "アカウントの公開設定を変更できませんでした"
+      }
     },
     "posts": {
       "title": "投稿管理",

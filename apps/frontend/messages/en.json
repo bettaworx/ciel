@@ -863,7 +863,8 @@
         "displayName": "Display Name",
         "roles": "Roles",
         "createdAt": "Created",
-        "actions": "Actions"
+        "actions": "Actions",
+        "private": "Private"
       },
       "roles": {
         "user": "User",
@@ -871,7 +872,12 @@
       },
       "loadingRoles": "Loading...",
       "noResults": "No users found",
-      "viewDetails": "View Details"
+      "viewDetails": "View Details",
+      "privacy": {
+        "enabled": "Account set to private",
+        "disabled": "Account set to public",
+        "error": "Could not change the account's privacy"
+      }
     },
     "posts": {
       "title": "Post Management",

@@ -11,7 +11,6 @@ import { usePost, useTimeline, useHomeTimeline } from "@/lib/hooks/use-queries";
 import { useOwnerThreadTimelineItems } from "@/lib/hooks/use-owner-thread-timeline-items";
 import { PageContainer } from "@/components/PageContainer";
 import { PostCard } from "@/components/PostCard";
-import { PrivateParentPostCard } from "@/components/PrivateParentPostCard";
 import { DeletedPostCard } from "@/components/DeletedPostCard";
 import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
 import { WelcomeCard } from "@/components/WelcomeCard";
@@ -62,22 +61,15 @@ function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) 
   const pureBoost = isPureBoost(post);
   const boostReferenceId = pureBoost ? post.referenceId! : undefined;
   const parentId = pureBoost ? undefined : (post.parentId ?? undefined);
-  // The parent belongs to a private account this viewer does not follow. Asking
-  // for it would only ever 404, so it is not fetched at all and a redacted card
-  // stands in for it. A follower gets parentPrivate false and the real parent.
-  const parentHidden = !pureBoost && Boolean(post.parentPrivate);
   const { data: boostedPost } = usePost(boostReferenceId);
   const {
     data: parentPost,
     isLoading: isParentLoading,
     isFetching: isParentFetching,
-  } = usePost(parentHidden ? undefined : parentId);
+  } = usePost(parentId);
   const showParentSkeleton =
-    Boolean(parentId) &&
-    !parentHidden &&
-    !parentPost &&
-    (isParentLoading || isParentFetching);
-  const hasVisibleParent = Boolean(parentPost || showParentSkeleton || parentHidden);
+    Boolean(parentId) && !parentPost && (isParentLoading || isParentFetching);
+  const hasVisibleParent = Boolean(parentPost || showParentSkeleton);
 
   if (pureBoost) {
     const displayPost = boostedPost ?? post.reference;
@@ -122,9 +114,7 @@ function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) 
 
   return (
     <>
-      {parentHidden ? (
-        <PrivateParentPostCard threadLine="below" />
-      ) : parentPost ? (
+      {parentPost ? (
         <PostCard
           post={parentPost}
           onUserClick={onUserClick}
