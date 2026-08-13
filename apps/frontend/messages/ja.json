@@ -21,7 +21,13 @@
       "appearance": "外観",
       "security": "セキュリティ",
       "mutes": "ミュートとブロック",
-      "privacy": "プライバシー"
+      "privacy": "プライバシー",
+      "about": "情報"
+    },
+    "about": {
+      "title": "情報",
+      "server": "サーバーについて",
+      "app": "アプリについて"
     },
     "general": {
       "title": "一般",
@@ -478,7 +484,11 @@
       "search": "検索",
       "bookmarks": "ブックマーク",
       "settingsMutes": "ミュートとブロック",
-      "settingsPrivacy": "プライバシー"
+      "settingsPrivacy": "プライバシー",
+      "settingsAbout": "情報",
+      "settingsAboutServer": "サーバーについて",
+      "settingsAboutApp": "アプリについて",
+      "settingsAboutLicenses": "ライセンス"
     }
   },
   "timeline": {

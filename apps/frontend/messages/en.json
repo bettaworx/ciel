@@ -21,7 +21,13 @@
       "appearance": "Appearance",
       "security": "Security",
       "mutes": "Mutes and blocks",
-      "privacy": "Privacy"
+      "privacy": "Privacy",
+      "about": "About"
+    },
+    "about": {
+      "title": "About",
+      "server": "About this server",
+      "app": "About this app"
     },
     "general": {
       "title": "General",
@@ -478,7 +484,11 @@
       "search": "Search",
       "bookmarks": "Bookmarks",
       "settingsMutes": "Mutes and blocks",
-      "settingsPrivacy": "Privacy"
+      "settingsPrivacy": "Privacy",
+      "settingsAbout": "About",
+      "settingsAboutServer": "About this server",
+      "settingsAboutApp": "About this app",
+      "settingsAboutLicenses": "Licenses"
     }
   },
   "timeline": {
