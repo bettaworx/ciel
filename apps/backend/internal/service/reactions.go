@@ -432,6 +432,46 @@ func (s *ReactionsService) Remove(ctx context.Context, user auth.User, postID ap
 	return counts, nil
 }
 
+// PurgeUserReactions removes every reaction this user made and settles the
+// denormalised counters, returning the posts whose totals changed. It has to run
+// before the user row goes away: the cascade would take the events with nothing
+// left to subtract from post_reaction_counts, leaving a reaction nobody made.
+func (s *ReactionsService) PurgeUserReactions(ctx context.Context, q *sqlc.Queries, userID uuid.UUID) ([]uuid.UUID, error) {
+	postIDs, err := q.DeleteUserReactionEvents(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(postIDs) == 0 {
+		return nil, nil
+	}
+	unique := make([]uuid.UUID, 0, len(postIDs))
+	seen := make(map[uuid.UUID]struct{}, len(postIDs))
+	for _, postID := range postIDs {
+		if _, ok := seen[postID]; ok {
+			continue
+		}
+		seen[postID] = struct{}{}
+		unique = append(unique, postID)
+	}
+	if err := q.DeleteZeroReactionCounts(ctx, unique); err != nil {
+		return nil, err
+	}
+	return unique, nil
+}
+
+// InvalidatePostCounts drops the cached count blobs so the next read rebuilds
+// them from the database. Call it after the transaction commits.
+func (s *ReactionsService) InvalidatePostCounts(ctx context.Context, postIDs []uuid.UUID) {
+	if s.cache == nil || len(postIDs) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(postIDs))
+	for _, postID := range postIDs {
+		keys = append(keys, reactionCacheKey(api.PostId(postID)))
+	}
+	_ = s.cache.Delete(ctx, keys...)
+}
+
 // publish announces the new counts. postAuthorID scopes delivery: the event
 // carries a post id, so broadcasting it for a private author's post would tell
 // every connected client that the post exists and how it is being reacted to.

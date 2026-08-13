@@ -49,6 +49,7 @@ type testApp struct {
 	SQLDB        *sql.DB
 	RDB          *redis.Client
 	Hub          *realtime.Hub
+	Auth         *service.AuthService
 }
 
 func newTestApp(t *testing.T) *testApp {
@@ -146,8 +147,11 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 	bookmarksSvc := service.NewBookmarksService(store, postsSvc)
 	postsSvc.SetBookmarksService(bookmarksSvc)
 
+	authSvc := service.NewAuthServiceWithOptions(store, tokenManager, authOpts)
+	authSvc.SetReactionsService(reactionsSvc)
+
 	apiServer := handlers.API{
-		Auth:          service.NewAuthServiceWithOptions(store, tokenManager, authOpts),
+		Auth:          authSvc,
 		Admin:         service.NewAdminService(store, cacheImpl, nil, hub),
 		Authz:         authzSvc,
 		Users:         usersSvc,
@@ -169,6 +173,7 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 		SQLDB:        sqlDB,
 		RDB:          rdb,
 		Hub:          hub,
+		Auth:         authSvc,
 	}
 }
 
@@ -816,6 +821,59 @@ func TestIntegration_Reactions_Add_Duplicate_Remove(t *testing.T) {
 	if rem2.StatusCode != http.StatusNotFound {
 		body := decodeJSON[map[string]any](t, rem2)
 		t.Fatalf("remove missing: expected 404, got %d (%v)", rem2.StatusCode, body)
+	}
+}
+
+// Deleting an account used to leave the reaction behind: the events cascaded
+// away with the user but post_reaction_counts, which has no key back to them,
+// kept the total. The post then showed a reaction nobody had made.
+func TestIntegration_DeleteAccount_RemovesReactions(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	author := registerUser(t, client, base, "user_dr1", "Password123")
+	reactor := registerUser(t, client, base, "user_dr2", "Password123")
+	authorAuth := issueBearer(t, app.TokenManager, author)
+	reactorAuth := issueBearer(t, app.TokenManager, reactor)
+
+	cpResp := postJSON(t, client, base+"/api/v1/posts", map[string]any{"content": "hello"}, authorAuth)
+	if cpResp.StatusCode != http.StatusCreated {
+		body := decodeJSON[map[string]any](t, cpResp)
+		t.Fatalf("create post: %d (%v)", cpResp.StatusCode, body)
+	}
+	post := decodeJSON[api.Post](t, cpResp)
+
+	add := postJSON(t, client, base+"/api/v1/posts/"+post.Id.String()+"/reactions", map[string]any{"emoji": "👍"}, reactorAuth)
+	if add.StatusCode != http.StatusOK {
+		body := decodeJSON[map[string]any](t, add)
+		t.Fatalf("add reaction: %d (%v)", add.StatusCode, body)
+	}
+
+	// The list read populates the anonymous cache blob, so deletion has to clear
+	// it too or the stale number survives for the cache TTL.
+	before := decodeJSON[api.ReactionCounts](t, get(t, client, base+"/api/v1/posts/"+post.Id.String()+"/reactions", nil))
+	if len(before.Reactions) != 1 || before.Reactions[0].Count != 1 {
+		t.Fatalf("expected one reaction before deletion, got %+v", before)
+	}
+
+	if err := app.Auth.DeleteAccount(context.Background(), auth.User{ID: reactor.Id, Username: string(reactor.Username)}); err != nil {
+		t.Fatalf("delete account: %v", err)
+	}
+
+	after := decodeJSON[api.ReactionCounts](t, get(t, client, base+"/api/v1/posts/"+post.Id.String()+"/reactions", nil))
+	if len(after.Reactions) != 0 {
+		t.Fatalf("expected no reactions after deletion, got %+v", after)
+	}
+
+	var rows int
+	if err := app.SQLDB.QueryRowContext(context.Background(), `SELECT count(*) FROM post_reaction_counts WHERE post_id = $1`, post.Id).Scan(&rows); err != nil {
+		t.Fatalf("count reaction counts: %v", err)
+	}
+	if rows != 0 {
+		t.Fatalf("expected post_reaction_counts to be empty, got %d rows", rows)
 	}
 }
 

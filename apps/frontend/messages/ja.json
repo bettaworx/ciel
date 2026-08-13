@@ -204,7 +204,7 @@
         "wizardTitle": "アカウントを削除",
         "confirmTitle": "本当に削除しますか？",
         "confirmDescription": "アカウントを削除すると、投稿・アップロードしたメディア・フォロー関係を含むすべてのデータが完全に削除されます。",
-        "typeUsernamePrompt": "確認のため @{username} と入力してください",
+        "typeUsernamePrompt": "確認のため {username} と入力してください",
         "submit": "完全に削除",
         "goodbyeTitle": "ありがとうございました",
         "goodbyeDescription": "アカウントを削除しました。ご利用いただきありがとうございました。",
