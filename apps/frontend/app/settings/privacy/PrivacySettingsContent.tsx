@@ -1,13 +1,24 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { ChevronRight } from "lucide-react";
 import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
 import { SettingItem } from "@/components/settings/SettingItem";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useMe, useUpdatePrivacy } from "@/lib/hooks/use-queries";
 
-export function AccountSettingsContent() {
+/**
+ * Privacy settings: who can see this account, and which users it hides.
+ *
+ * The muted and blocked lists live on their own page rather than inline: they
+ * are paginated and can run long, which a settings card is the wrong shape for.
+ * That row uses the same list_row button as the version page's licenses link,
+ * since it navigates rather than changes a value.
+ */
+export function PrivacySettingsContent() {
   const t = useTranslations();
   const { data: me } = useMe();
   const updatePrivacy = useUpdatePrivacy();
@@ -22,20 +33,20 @@ export function AccountSettingsContent() {
       onSuccess: () =>
         toast.success(
           next
-            ? t("settings.account.privateAccount.enabled")
-            : t("settings.account.privateAccount.disabled"),
+            ? t("settings.privacy.privateAccount.enabled")
+            : t("settings.privacy.privateAccount.disabled"),
         ),
-      onError: () => toast.error(t("settings.account.privateAccount.error")),
+      onError: () => toast.error(t("settings.privacy.privateAccount.error")),
     });
   };
 
   return (
     <div className="space-y-3">
-      <SettingsPageHeader currentPageKey="settings.account.title" />
+      <SettingsPageHeader currentPageKey="settings.privacy.title" />
 
       <SettingItem
-        title={t("settings.account.privateAccount.title")}
-        description={t("settings.account.privateAccount.description")}
+        title={t("settings.privacy.privateAccount.title")}
+        description={t("settings.privacy.privateAccount.description")}
         align="center"
       >
         {/* SettingItem gives its control a fixed-width column, which a select
@@ -49,6 +60,15 @@ export function AccountSettingsContent() {
           />
         </div>
       </SettingItem>
+
+      <div className="flex flex-col overflow-hidden rounded-2xl bg-card">
+        <Button variant="list_row" size="list" asChild>
+          <Link href="/settings/mutes">
+            <span>{t("settings.privacy.hiddenAccounts.title")}</span>
+            <ChevronRight />
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }

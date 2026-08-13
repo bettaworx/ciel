@@ -85,6 +85,7 @@ func TestPostsService_Create_BoostOnlyWithReferenceID(t *testing.T) {
 
 	mock.ExpectBegin()
 	expectPostThreadInfo(mock, referenceID, referenceAuthorID, false)
+	expectNotBlocked(mock)
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at"}).
@@ -126,6 +127,7 @@ func TestPostsService_Create_DuplicateBoostReturnsConflict(t *testing.T) {
 
 	mock.ExpectBegin()
 	expectPostThreadInfo(mock, referenceID, uuid.New(), false)
+	expectNotBlocked(mock)
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}).
 		WillReturnError(&pgconn.PgError{Code: "23505"})
@@ -188,6 +190,7 @@ func TestReactionsService_Add_PublishesEvent(t *testing.T) {
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
 	expectGetPostWithAuthor(mock, postID, userID, created, userCreated)
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO post_reaction_events`).WithArgs(userID, postID, "👍").
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(userID))
@@ -266,8 +269,8 @@ func TestReactionsService_Remove_PublishesEvent(t *testing.T) {
 // authenticated and anonymous call sites.
 func expectGetPostWithAuthor(mock sqlmock.Sqlmock, postID api.PostId, userID uuid.UUID, created time.Time, userCreated time.Time) {
 	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(sqlmock.AnyArg(), postID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "is_private", "avatar_ext", "parent_private"}).
-			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, false, sql.NullString{}, false))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "is_private", "avatar_ext", "parent_private", "parent_hidden"}).
+			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, false, sql.NullString{}, false, false))
 }
 
 // expectIsUserPrivate expects the privacy lookup the realtime publish path makes
@@ -281,6 +284,13 @@ func expectIsUserPrivate(mock sqlmock.Sqlmock, userID uuid.UUID, private bool) {
 // expectPostThreadInfo expects the target-post lookup that Create runs for a
 // reply, boost or quote. can_view is true and author_is_private is the caller's
 // choice, which is what the boost/quote block keys off.
+// expectNotBlocked answers the interaction guard that runs before a reply,
+// boost, quote or reaction is written.
+func expectNotBlocked(mock sqlmock.Sqlmock) {
+	mock.ExpectQuery(`FROM account_blocks`).
+		WillReturnRows(sqlmock.NewRows([]string{"blocked"}).AddRow(false))
+}
+
 func expectPostThreadInfo(mock sqlmock.Sqlmock, postID uuid.UUID, authorID uuid.UUID, authorPrivate bool) {
 	mock.ExpectQuery(`SELECT\s+p.id,\s+p.user_id,\s+p.parent_id`).
 		WithArgs(sqlmock.AnyArg(), postID).

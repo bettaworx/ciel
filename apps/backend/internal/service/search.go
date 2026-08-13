@@ -94,6 +94,16 @@ func (s *SearchService) SearchPosts(ctx context.Context, raw string, limit, offs
 			items = append(items, post)
 		}
 	}
+	// Muted and blocked authors drop out here rather than in the query, for the
+	// same reason as the timeline: GetPostsByIDs keeps only the hard visibility
+	// gate so a quoted or replied-to post stays fetchable behind the reveal
+	// cushion. Search results are a list the viewer asked to be given, not one
+	// they navigated into, so they get the feed's answer.
+	//
+	// EstimatedTotal is left as the engine reported it. It is already an estimate
+	// over an index that does not know about this viewer, and correcting it for
+	// one page would make it wrong in a different way.
+	items = dropHiddenFromFeed(items)
 	return api.PostSearchPage{
 		Items:          items,
 		EstimatedTotal: int(result.EstimatedTotal),
@@ -125,8 +135,15 @@ func (s *SearchService) SearchUsers(ctx context.Context, raw string, limit, offs
 	}
 	byID := make(map[uuid.UUID]api.User, len(rows))
 	for _, row := range rows {
-		byID[row.ID] = mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
+		user := mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
 			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, row.IsPrivate, viewer)
+		// Only set for an identified viewer, matching the other relationship
+		// flags: an anonymous caller has no relationship to report.
+		if viewer != nil {
+			isBlockedBy := row.IsBlockedBy
+			user.IsBlockedBy = &isBlockedBy
+		}
+		byID[row.ID] = user
 	}
 	items := make([]api.User, 0, len(result.IDs))
 	for _, id := range result.IDs {

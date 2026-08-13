@@ -1,4 +1,4 @@
-import { Settings, Palette, User, Shield } from 'lucide-react';
+import { Settings, Palette, Shield, EyeOff } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export interface SettingsCategory {
@@ -16,10 +16,10 @@ export const settingsCategories: SettingsCategory[] = [
 		href: '/settings/general',
 	},
 	{
-		id: 'account',
-		labelKey: 'settings.categories.account',
-		icon: User,
-		href: '/settings/account',
+		id: 'privacy',
+		labelKey: 'settings.categories.privacy',
+		icon: EyeOff,
+		href: '/settings/privacy',
 	},
 	{
 		id: 'appearance',

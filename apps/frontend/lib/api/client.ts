@@ -316,6 +316,28 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		unfollowUser: (username: string) =>
 			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/follow`),
 
+		muteUser: (username: string) =>
+			request<components['schemas']['User']>('POST', `/users/${encodeURIComponent(username)}/mute`),
+
+		unmuteUser: (username: string) =>
+			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/mute`),
+
+		blockUser: (username: string) =>
+			request<components['schemas']['User']>('POST', `/users/${encodeURIComponent(username)}/block`),
+
+		unblockUser: (username: string) =>
+			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/block`),
+
+		// The settings lists. A blocked account is gone from search and every
+		// other list, so /me/blocks is the only way back to it.
+		hiddenList: (kind: 'mutes' | 'blocks', params?: { limit?: number; cursor?: string | null }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['UsersPage']>('GET', `/me/${kind}${suffix}`);
+		},
+
 		// Following a private account creates one of these instead of a follow.
 		followRequests: (params?: { limit?: number; cursor?: string | null }) => {
 			const qs = new URLSearchParams();

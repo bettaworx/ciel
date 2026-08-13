@@ -173,6 +173,7 @@ func TestReactionsService_Add_UpdatesCache(t *testing.T) {
 	}
 
 	expectGetPostWithAuthor(mock, postID, userID, created, userCreated)
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO post_reaction_events`).WithArgs(userID, postID, "👍").
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(userID))

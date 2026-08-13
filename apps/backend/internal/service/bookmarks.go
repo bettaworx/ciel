@@ -244,13 +244,20 @@ func (s *BookmarksService) ListPosts(ctx context.Context, userID uuid.UUID, list
 		return api.UserPostsPage{}, err
 	}
 	// Walk the bookmark ordering, not the map's. A missing id is a post deleted
-	// between the two queries.
+	// between the two queries — or one the viewer may no longer read, because its
+	// author went private or blocked them: GetPostsByIDs applies can_view_user and
+	// drops those, which is the whole of the hard case here.
 	items := make([]api.Post, 0, len(ids))
 	for _, id := range ids {
 		if post, ok := byID[id]; ok {
 			items = append(items, post)
 		}
 	}
+	// Muted and blocked authors need the soft filter on top, as everywhere else:
+	// the row still loads so a quote or reply parent can be revealed, and it is
+	// this list that has to decide it does not want it. The bookmark rows are left
+	// alone, so unmuting brings the saved posts straight back.
+	items = dropHiddenFromFeed(items)
 
 	var next *string
 	if len(rows) == lim {

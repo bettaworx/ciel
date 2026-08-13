@@ -18,8 +18,9 @@
       "profile": "プロフィール",
       "general": "一般",
       "appearance": "外観",
-      "account": "アカウント",
-      "security": "セキュリティ"
+      "security": "セキュリティ",
+      "mutes": "ミュートとブロック",
+      "privacy": "プライバシー"
     },
     "general": {
       "title": "一般",
@@ -216,16 +217,6 @@
       "ja": "日本語",
       "en": "English"
     },
-    "account": {
-      "title": "アカウント",
-      "privateAccount": {
-        "title": "非公開アカウント",
-        "description": "フォロワーだけが投稿とアクティビティを見られるようになります。新しいフォローは承認制になります。",
-        "enabled": "アカウントを非公開にしました",
-        "disabled": "アカウントを公開しました",
-        "error": "設定を変更できませんでした"
-      }
-    },
     "security": {
       "title": "セキュリティ"
     },
@@ -268,6 +259,28 @@
       "updateSuccess": "プロフィールを更新しました",
       "updateError": "プロフィールの更新に失敗しました",
       "unsavedChanges": "未保存の変更があります"
+    },
+    "mutes": {
+      "title": "ミュートとブロック",
+      "muted": "ミュート中",
+      "blocked": "ブロック中",
+      "noMuted": "ミュートしているユーザーはいません",
+      "noBlocked": "ブロックしているユーザーはいません"
+    },
+    "privacy": {
+      "title": "プライバシー",
+      "hiddenAccounts": {
+        "title": "ミュートとブロック",
+        "description": "ミュートまたはブロックしているユーザーを確認し、解除できます。",
+        "open": "一覧を開く"
+      },
+      "privateAccount": {
+        "title": "非公開アカウント",
+        "description": "フォロワーだけが投稿とアクティビティを見られるようになります。新しいフォローは承認制になります。",
+        "enabled": "非公開にしました",
+        "disabled": "公開しました",
+        "error": "設定を変更できませんでした"
+      }
     }
   },
   "loading": "読み込み中...",
@@ -314,7 +327,28 @@
     "privatePostsHiddenDescription": "承認されたフォロワーだけが投稿を見られます。",
     "requestFollow": "フォローリクエスト",
     "followRequested": "リクエスト済み",
-    "cancelFollowRequest": "リクエストを取り消す"
+    "cancelFollowRequest": "リクエストを取り消す",
+    "mutedAccount": "ミュート中のユーザー",
+    "blockedAccount": "ブロック中のユーザー",
+    "muteUser": "ミュートする",
+    "unmuteUser": "ミュートを解除",
+    "blockUser": "ブロックする",
+    "unblockUser": "ブロックを解除",
+    "muteError": "ミュートの変更に失敗しました",
+    "blockError": "ブロックの変更に失敗しました",
+    "blockConfirmTitle": "このユーザーをブロックしますか？",
+    "blockConfirmDescription": "@{username} をブロックすると、お互いのフォローが解除され、相手はあなたの投稿を見たり、返信・ブースト・リアクションをすることができなくなります。ブロックを解除してもフォローは元に戻りません。",
+    "mutedPostsHidden": "ミュートしているユーザーです",
+    "blockedPostsHidden": "ブロックしているユーザーです",
+    "blockedByUser": "あなたはブロックされています",
+    "blockedByUserDescription": "このユーザーの投稿を見ることはできません。",
+    "muteConfirmTitle": "このユーザーをミュートしますか？",
+    "muteConfirmDescription": "@{username} をミュートすると、タイムラインやユーザー検索、リアクション一覧に表示されなくなり、通知も届かなくなります。相手に通知されることはなく、いつでも解除できます。",
+    "hideConfirmCancel": "キャンセル",
+    "unmuteConfirmTitle": "ミュートを解除しますか？",
+    "unmuteConfirmDescription": "@{username} のミュートを解除すると、投稿がタイムラインや検索結果に再び表示され、通知も届くようになります。",
+    "unblockConfirmTitle": "ブロックを解除しますか？",
+    "unblockConfirmDescription": "@{username} のブロックを解除すると、相手はあなたの投稿を見たり、返信やリアクションをしたりできるようになります。ブロックで解除されたフォローは元に戻りません。"
   },
   "login": {
     "title": "ログイン",
@@ -432,13 +466,14 @@
       "settingsGeneral": "一般",
       "settingsProfile": "プロフィール",
       "settingsAppearance": "外観",
-      "settingsAccount": "アカウント",
       "settingsSecurity": "セキュリティ",
       "setup": "プロフィール設定",
       "adminSetup": "サーバー初期設定",
       "postDetail": "投稿",
       "search": "検索",
-      "bookmarks": "ブックマーク"
+      "bookmarks": "ブックマーク",
+      "settingsMutes": "ミュートとブロック",
+      "settingsPrivacy": "プライバシー"
     }
   },
   "timeline": {
@@ -697,6 +732,15 @@
     "privatePost": {
       "username": "非公開ユーザー",
       "label": "（非公開）"
+    },
+    "hiddenPost": {
+      "muted": "ミュートしているユーザーです",
+      "blocked": "ブロックしているユーザーです",
+      "reveal": "表示する"
+    },
+    "restrictedPost": {
+      "username": "非公開の投稿",
+      "label": "閲覧できるユーザーが制限されています"
     }
   },
   "adminSetup": {

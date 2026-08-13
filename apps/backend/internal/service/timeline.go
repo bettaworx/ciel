@@ -88,7 +88,8 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 				return api.TimelinePage{}, err
 			}
 			posts = dropRepliesToHiddenParents(posts)
-			if err := s.hydratePosts(ctx, posts, userID); err != nil {
+			posts, err = s.hydratePosts(ctx, posts, userID)
+			if err != nil {
 				return api.TimelinePage{}, err
 			}
 			page := api.TimelinePage{Items: posts}
@@ -126,7 +127,8 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 		items = append(items, mapTimelineRow(row))
 	}
 	items = dropRepliesToHiddenParents(items)
-	if err := s.hydratePosts(ctx, items, userID); err != nil {
+	items, err = s.hydratePosts(ctx, items, userID)
+	if err != nil {
 		return api.TimelinePage{}, err
 	}
 
@@ -139,25 +141,33 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
 }
 
-// hydratePosts fills in everything a timeline row needs beyond the post itself.
-// Every feed goes through here so the shapes stay identical.
-func (s *TimelineService) hydratePosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+// hydratePosts fills in everything a timeline row needs beyond the post itself,
+// then drops the rows this viewer has hidden. Every feed goes through here so
+// the shapes stay identical.
+//
+// It returns the kept posts rather than filtering in place: the drop has to
+// happen after the references are attached, and a caller that forgot to apply it
+// would silently serve a muted account's posts.
+func (s *TimelineService) hydratePosts(ctx context.Context, posts []api.Post, userID *api.UserId) ([]api.Post, error) {
 	if err := s.attachMediaToPosts(ctx, posts); err != nil {
-		return err
+		return nil, err
 	}
 	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
-		return err
+		return nil, err
 	}
 	if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
-		return err
+		return nil, err
 	}
 	if s.posts == nil {
-		return nil
+		return dropHiddenFromFeed(posts), nil
 	}
 	if err := s.posts.attachBoostCountsToPosts(ctx, posts); err != nil {
-		return err
+		return nil, err
 	}
-	return s.posts.attachReferencesToPosts(ctx, posts, userID)
+	if err := s.posts.attachReferencesToPosts(ctx, posts, userID); err != nil {
+		return nil, err
+	}
+	return dropHiddenFromFeed(posts), nil
 }
 
 // GetHome returns the timeline of posts by the viewer and everyone they follow.
@@ -199,7 +209,8 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 			// leave a short page, so only serve it when nothing was lost.
 			if len(posts) == limit {
 				posts = dropRepliesToHiddenParents(posts)
-				if err := s.hydratePosts(ctx, posts, &userID); err != nil {
+				posts, err = s.hydratePosts(ctx, posts, &userID)
+				if err != nil {
 					return api.TimelinePage{}, err
 				}
 				nc := encodeCursor(*next)
@@ -231,7 +242,8 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 		items = append(items, mapHomeTimelineRow(row))
 	}
 	items = dropRepliesToHiddenParents(items)
-	if err := s.hydratePosts(ctx, items, &userID); err != nil {
+	items, err = s.hydratePosts(ctx, items, &userID)
+	if err != nil {
 		return api.TimelinePage{}, err
 	}
 
@@ -284,6 +296,7 @@ func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
+		ParentHidden:  &row.ParentHidden,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
 		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
@@ -294,9 +307,21 @@ func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
 // same set wherever posts are read. The bookmarks service is reached through
 // PostsService rather than injected again, since a timeline without one has no
 // post hydration either.
+// The hidden-author flags have to be stamped here even though the feed queries
+// already filter by is_hidden_by, because a Redis cache hit never runs those
+// queries: it rebuilds its rows from GetPostsByIDs, which carries only the hard
+// can_view_user gate. Without this a muted author's posts stay in the timeline
+// for as long as the ZSET holds their ids.
+//
+// dropHiddenFromFeed reads what this stamps.
 func (s *TimelineService) attachViewerStateToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
 	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
 		return err
+	}
+	if s.posts != nil {
+		if err := s.posts.attachHiddenAuthorFlags(ctx, posts, userID); err != nil {
+			return err
+		}
 	}
 	var bookmarks *BookmarksService
 	if s.posts != nil {
@@ -385,18 +410,21 @@ func (s *TimelineService) listFromRedis(ctx context.Context, key string, limit i
 	return ids, nil, true
 }
 
-// dropRepliesToHiddenParents removes replies whose parent the viewer cannot see
-// because its author is private.
+// dropRepliesToHiddenParents removes replies whose parent the viewer cannot see,
+// either because its author is private or because the viewer muted or blocked
+// them.
 //
 // Both feeds use this: the public timeline and the home timeline. A reply with
 // no readable parent is a fragment of a conversation the viewer cannot follow,
 // and it advertises that the private account posted something — following the
-// public half of a conversation is enough to watch the private half happen.
+// public half of a conversation is enough to watch the private half happen. The
+// mute case is the same shape with a blunter motive: a viewer who hid an account
+// should not meet them again in every reply their followers write to them.
 //
 // A viewer who does follow that account gets ParentPrivate false and keeps the
-// reply as normal. The redacted parent card is for the places reached on
-// purpose — a profile's replies tab, a post's own page — where the subject is
-// that author's activity rather than a feed of everything.
+// reply as normal. The redacted and cushioned parent cards are for the places
+// reached on purpose — a profile's replies tab, a post's own page — where the
+// subject is that author's activity rather than a feed of everything.
 //
 // Applied after the page cursor is derived, so nothing is skipped on the next
 // page; the page simply comes back shorter, as it already can when a cached
@@ -411,6 +439,62 @@ func dropRepliesToHiddenParents(posts []api.Post) []api.Post {
 	kept := make([]api.Post, 0, len(posts))
 	for _, post := range posts {
 		if post.ParentPrivate != nil && *post.ParentPrivate {
+			continue
+		}
+		// A reply to someone the viewer muted or blocked goes too, and for a
+		// blunter reason than the privacy case above: it is half of a
+		// conversation with an account the viewer asked not to see, and keeping
+		// it would let that account back into the feed through the reply of
+		// everyone who talks to them. The cushion is for the profile and the
+		// post's own page, which are reached on purpose.
+		if post.ParentHidden != nil && *post.ParentHidden {
+			continue
+		}
+		kept = append(kept, post)
+	}
+	return kept
+}
+
+// DropHiddenFromFeed exposes the feed filter for tests living outside this
+// package.
+func DropHiddenFromFeed(posts []api.Post) []api.Post {
+	return dropHiddenFromFeed(posts)
+}
+
+// dropHiddenFromFeed removes posts by an account the viewer muted or blocked,
+// and pure boosts that carry such an account's post under someone else's name.
+//
+// The feed queries already exclude both in SQL. This runs anyway because the
+// Redis path never executes them: a cache hit rebuilds its rows from
+// GetPostsByIDs, which deliberately keeps only the hard visibility gate so that
+// a muted post stays fetchable for the reveal cushion. Filtering only in SQL
+// therefore worked on a cache miss and failed on a hit, which is the worst of
+// both — so the feed decides here, from flags, and the SQL predicate stays as
+// the thing that keeps a page's worth of rows honest.
+//
+// Runs after hydration, unlike dropRepliesToHiddenParents: a pure boost has no
+// content of its own, so the author being hidden is a fact about its reference,
+// which only exists once attachReferencesToPosts has run.
+//
+// Quotes are deliberately kept. They carry the quoter's own words, so the post
+// is the quoter's; the muted part is the embedded card, and the client cushions
+// that.
+func dropHiddenFromFeed(posts []api.Post) []api.Post {
+	kept := make([]api.Post, 0, len(posts))
+	for _, post := range posts {
+		if postAuthorHidden(post) {
+			continue
+		}
+		isPureBoost := post.Content == "" && post.ReferenceId != nil
+		if isPureBoost && post.Reference != nil && postAuthorHidden(*post.Reference) {
+			continue
+		}
+		// A boost of a post the viewer may no longer read — its author went
+		// private, or blocked them, after the boost was made. There is nothing
+		// left to show: a pure boost has no words of its own, so the row would be
+		// a placeholder announcing that someone shared something unreadable. A
+		// quote keeps its own text and stays, with the placeholder embedded.
+		if isPureBoost && post.ReferenceRestricted != nil && *post.ReferenceRestricted {
 			continue
 		}
 		kept = append(kept, post)
@@ -580,6 +664,7 @@ func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
+		ParentHidden:  &row.ParentHidden,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
 		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
@@ -597,6 +682,7 @@ func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
+		ParentHidden:  &row.ParentHidden,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
 		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
