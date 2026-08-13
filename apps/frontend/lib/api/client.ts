@@ -435,8 +435,10 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			return request<components['schemas']['TimelinePage']>('GET', `/timeline/home${suffix}`);
 		},
 
-		// Search is offset-paged rather than cursor-paged: results come back in
-		// relevance order, which no cursor can express.
+		// Search is offset-paged rather than cursor-paged: user results come back
+		// in relevance order, which no cursor can express, and post search keeps
+		// the same shape. An offset window shifts as posts are indexed, so
+		// callers have to dedupe what they accumulate.
 		searchPosts: (params: { q: string; limit?: number; offset?: number }) => {
 			const qs = new URLSearchParams();
 			qs.set('q', params.q);

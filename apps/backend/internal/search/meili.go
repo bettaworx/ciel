@@ -43,6 +43,16 @@ func (m *Meilisearch) EnsureIndexes(ctx context.Context) error {
 		SearchableAttributes: []string{"content"},
 		FilterableAttributes: []string{"userId", "createdAt"},
 		SortableAttributes:   []string{"createdAt"},
+		// Meilisearch's default rules with sort moved to the front. Left in its
+		// default fifth position sort only breaks ties, so the createdAt:desc
+		// that SearchPosts asks for would leave older posts on top. Search is
+		// expected to read chronologically, the same as a timeline.
+		//
+		// The rest of the list must stay in default order, and matches what
+		// the untouched users index reports. Do not substitute the legacy
+		// "attribute" rule: this version splits it into attributeRank and
+		// wordPosition, and it silently accepts the old name.
+		RankingRules: []string{"sort", "words", "typo", "proximity", "attributeRank", "wordPosition", "exactness"},
 	}); err != nil {
 		return err
 	}
@@ -118,8 +128,11 @@ func (m *Meilisearch) deleteDocuments(ctx context.Context, index string, ids []u
 	return err
 }
 
+// Post search is chronological: newest first, always. Relevance decides what
+// matches, not what order it comes back in. User search is deliberately left
+// on relevance, since newest-account-first is useless for finding people.
 func (m *Meilisearch) SearchPosts(ctx context.Context, q Query) (Result, error) {
-	return m.search(ctx, postsIndex, q)
+	return m.search(ctx, postsIndex, q, "createdAt:desc")
 }
 
 func (m *Meilisearch) SearchUsers(ctx context.Context, q Query) (Result, error) {
@@ -128,7 +141,7 @@ func (m *Meilisearch) SearchUsers(ctx context.Context, q Query) (Result, error) 
 	return m.search(ctx, usersIndex, q)
 }
 
-func (m *Meilisearch) search(ctx context.Context, index string, q Query) (Result, error) {
+func (m *Meilisearch) search(ctx context.Context, index string, q Query, sort ...string) (Result, error) {
 	strategy := meilisearch.Last
 	if q.MatchAll {
 		strategy = meilisearch.All
@@ -138,6 +151,7 @@ func (m *Meilisearch) search(ctx context.Context, index string, q Query) (Result
 		Offset:               int64(q.Offset),
 		MatchingStrategy:     strategy,
 		AttributesToRetrieve: []string{"id"},
+		Sort:                 sort, // nil for user search, so the field is omitted
 	}
 	if filter := buildFilter(q); filter != "" {
 		req.Filter = filter

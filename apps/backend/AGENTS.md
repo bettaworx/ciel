@@ -556,6 +556,12 @@ users. Responses are always hydrated from the database via
 never leak deleted or hidden content. Posts are indexed by **author id**, not
 username, so renaming a user does not invalidate their posts.
 
+**Result ordering**: post search is chronological — `SearchPosts` asks for
+`createdAt:desc` and the posts index puts `sort` first in its `RankingRules`, so
+relevance decides only *what* matches, never the order. User search is
+deliberately left on relevance: newest-account-first is useless for finding
+people. Both are offset-paged, so a client accumulating pages must dedupe by id.
+
 **Query syntax**: `internal/search/query.go` parses `from:`, `since:`, `until:`,
 quoted phrases and a bare uppercase `OR`/`AND` out of the query string. `OR`
 maps to the engine's matching strategy for the whole query; it is not a per-term

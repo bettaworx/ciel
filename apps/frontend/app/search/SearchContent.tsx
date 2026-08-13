@@ -46,6 +46,20 @@ function parseApiError(error: Error | null): { code?: string; message?: string }
 }
 
 /**
+ * Results are offset-paged, so anything indexed between two page fetches shifts
+ * the window down and the last item of one page comes back as the first of the
+ * next. Keep the first occurrence, or React sees two children with one key.
+ */
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
+/**
  * A boost carries no text of its own, so it can only turn up through a filter
  * like `from:`. Show what was boosted rather than an empty card.
  */
@@ -66,11 +80,11 @@ export function SearchContent({ query, tab }: SearchContentProps) {
   const active = tab === "posts" ? postResults : userResults;
 
   const posts = useMemo(
-    () => postResults.data?.pages.flatMap((page) => page.items) ?? [],
+    () => dedupeById(postResults.data?.pages.flatMap((page) => page.items) ?? []),
     [postResults.data],
   );
   const users = useMemo(
-    () => userResults.data?.pages.flatMap((page) => page.items) ?? [],
+    () => dedupeById(userResults.data?.pages.flatMap((page) => page.items) ?? []),
     [userResults.data],
   );
   const resultCount = tab === "posts" ? posts.length : users.length;
