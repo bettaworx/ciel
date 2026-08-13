@@ -21,11 +21,14 @@ function NavButton({
   icon,
   label,
   isActive = false,
+  isPrimary = false,
   onClick,
 }: {
   icon: ReactNode;
   label: string;
   isActive?: boolean;
+  /** サイドバーの sidebar_primary と同じ、常時テーマカラーで塗る扱い */
+  isPrimary?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -39,9 +42,11 @@ function NavButton({
       <span
         className={cn(
           "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
-          isActive
-            ? "bg-c-1/15 text-c-1 group-hover:bg-c-1/25"
-            : "group-hover:bg-sidebar-hover",
+          isPrimary && "bg-c-1 text-c-foreground group-hover:bg-c-2",
+          !isPrimary &&
+            (isActive
+              ? "bg-c-1/15 text-c-1 group-hover:bg-c-1/25"
+              : "group-hover:bg-sidebar-hover"),
         )}
       >
         {icon}
@@ -128,6 +133,7 @@ export function BottomNav() {
           <NavButton
             icon={<SquarePen className="w-6 h-6" />}
             label={tCreatePost("title")}
+            isPrimary
             onClick={() => setIsPostDialogOpen(true)}
           />
         )}
