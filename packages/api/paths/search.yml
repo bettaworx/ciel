@@ -3,7 +3,7 @@
     tags:
     - Search
     summary: Search posts
-    description: 'Full-text search over public posts, most relevant first.
+    description: 'Full-text search over public posts, newest first.
 
 
       The `q` parameter accepts an inline mini-syntax:

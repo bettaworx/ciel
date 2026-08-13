@@ -2,7 +2,7 @@ components:
   schemas:
     PostSearchPage:
       type: object
-      description: A page of post search results, most relevant first.
+      description: A page of post search results, newest first.
       required:
       - items
       - estimatedTotal

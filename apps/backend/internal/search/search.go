@@ -57,7 +57,8 @@ type Query struct {
 	Offset   int
 }
 
-// Result holds matching document IDs in relevance order.
+// Result holds matching document IDs in the order the engine ranked them:
+// newest first for posts, relevance order for users.
 type Result struct {
 	IDs            []uuid.UUID
 	EstimatedTotal int64

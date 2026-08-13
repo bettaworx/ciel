@@ -1587,7 +1587,7 @@ function nextSearchOffset(page: { offset: number; limit: number; estimatedTotal:
   return next;
 }
 
-/** Post search results in relevance order. Pass enabled: false for the hidden tab. */
+/** Post search results, newest first. Pass enabled: false for the hidden tab. */
 export function useSearchPosts(query: string, enabled = true) {
   const api = useApi();
 

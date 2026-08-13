@@ -93,8 +93,8 @@ func (s *SearchService) SearchPosts(ctx context.Context, raw string, limit, offs
 		return api.PostSearchPage{}, err
 	}
 	// Walk the engine's ordering, not the map's: map iteration would throw
-	// away relevance ranking. Missing ids are posts deleted or hidden since
-	// they were indexed.
+	// away the newest-first ordering. Missing ids are posts deleted or hidden
+	// since they were indexed.
 	items := make([]api.Post, 0, len(result.IDs))
 	for _, id := range result.IDs {
 		if post, ok := byID[id]; ok {
