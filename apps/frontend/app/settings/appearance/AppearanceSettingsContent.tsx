@@ -2,62 +2,39 @@
 
 import { useTranslations } from "next-intl";
 import { useAtom } from "jotai";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { SettingItem } from "@/components/settings/SettingItem";
-import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
+import { Palette } from "lucide-react";
+import {
+  SettingsRowGroup,
+  SettingsSelectRow,
+} from "@/components/settings/SettingsRow";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { MfmSettingsSection } from "@/components/settings/MfmSettingsSection";
-import { themeAtom, type Theme } from "@/atoms/theme";
+import { themeAtom } from "@/atoms/theme";
 
 export function AppearanceSettingsContent() {
   const t = useTranslations();
   const [theme, setTheme] = useAtom(themeAtom);
 
-  const handleThemeChange = (value: Theme) => {
-    setTheme(value);
-  };
-
   return (
-    <div className="space-y-3">
-      <SettingsPageHeader currentPageKey="settings.appearance.title" />
+    <>
+      <PageHeader>{t("settings.appearance.title")}</PageHeader>
+      <div className="space-y-3">
+        <SettingsRowGroup>
+          <SettingsSelectRow
+            icon={Palette}
+            label={t("settings.appearance.theme.title")}
+            value={theme}
+            options={[
+              { value: "light", label: t("settings.appearance.theme.light") },
+              { value: "dark", label: t("settings.appearance.theme.dark") },
+              { value: "system", label: t("settings.appearance.theme.system") },
+            ]}
+            onValueChange={setTheme}
+          />
+        </SettingsRowGroup>
 
-      <SettingItem
-        title={t("settings.appearance.theme.title")}
-        description={t("settings.appearance.theme.description")}
-        align="start"
-        helperText={
-          theme === "system"
-            ? t("settings.appearance.theme.systemDescription")
-            : undefined
-        }
-      >
-        <RadioGroup
-          value={theme}
-          onValueChange={handleThemeChange}
-          className="flex flex-col gap-3"
-        >
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="light" id="light" />
-            <Label htmlFor="light" className="cursor-pointer">
-              {t("settings.appearance.theme.light")}
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="dark" id="dark" />
-            <Label htmlFor="dark" className="cursor-pointer">
-              {t("settings.appearance.theme.dark")}
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="system" id="system" />
-            <Label htmlFor="system" className="cursor-pointer">
-              {t("settings.appearance.theme.system")}
-            </Label>
-          </div>
-        </RadioGroup>
-      </SettingItem>
-
-      <MfmSettingsSection />
-    </div>
+        <MfmSettingsSection />
+      </div>
+    </>
   );
 }
