@@ -10,7 +10,9 @@ export function SecuritySettingsContent() {
 
   return (
     <>
-      <PageHeader>{t("settings.security.title")}</PageHeader>
+      <PageHeader backHref="/settings" showBackButton="mobile">
+        {t("settings.security.title")}
+      </PageHeader>
       <div className="space-y-3">
         <SettingsRowGroup>
           <SettingsRow

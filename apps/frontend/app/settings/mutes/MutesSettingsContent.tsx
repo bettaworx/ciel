@@ -27,7 +27,10 @@ export function MutesSettingsContent() {
 
   return (
     <>
-      <PageHeader>{t("settings.mutes.title")}</PageHeader>
+      {/* Reached from privacy, not the sidebar — so the arrow stays on desktop. */}
+      <PageHeader backHref="/settings/privacy">
+        {t("settings.mutes.title")}
+      </PageHeader>
       <div className="space-y-3">
         <Tabs defaultValue="mutes">
           <TabsList className="mb-3 w-full">
