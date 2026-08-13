@@ -37,7 +37,7 @@ func TestTimelineService_Get_UsesRedis(t *testing.T) {
 		t.Fatalf("ZAdd: %v", err)
 	}
 
-	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+	mock.ExpectQuery(`SELECT\s+p.id,`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "is_private", "avatar_ext", "parent_private", "parent_hidden"}).
 			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, false, sql.NullString{}, false, false))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(sqlmock.AnyArg()).
@@ -69,7 +69,7 @@ func TestTimelineService_Get_FallsBackToDB(t *testing.T) {
 	created := time.Unix(1_700_000_000, 0).UTC()
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
-	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+	mock.ExpectQuery(`SELECT\s+p.id,`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "is_private", "avatar_ext", "parent_private", "parent_hidden"}).
 			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, false, sql.NullString{}, false, false))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(sqlmock.AnyArg()).

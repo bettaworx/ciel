@@ -556,9 +556,15 @@ func (s *PostsService) getVisiblePostsByIDs(ctx context.Context, ids []uuid.UUID
 	if len(ids) == 0 {
 		return result, nil
 	}
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
-		Ids:      ids,
-		ViewerID: nullUUIDFromPtr(userID),
+		Ids:          ids,
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
 	})
 	if err != nil {
 		return nil, err
@@ -582,8 +588,10 @@ func (s *PostsService) GetHydratedPostsByIDs(ctx context.Context, ids []uuid.UUI
 		return nil, err
 	}
 	rows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
-		Ids:      ids,
-		ViewerID: nullUUIDFromPtr(userID),
+		Ids:          ids,
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
 	})
 	if err != nil {
 		return nil, err
@@ -677,9 +685,15 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 		excludeForeignReplies = sql.NullBool{Bool: true, Valid: true}
 	}
 
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return api.UserPostsPage{}, err
+	}
 	rows, err := s.store.Q.ListPostsByUsername(ctx, sqlc.ListPostsByUsernameParams{
 		Username:              uname,
 		ViewerID:              nullUUIDFromPtr(userID),
+		HiddenIds:             scope.HiddenIDs(),
+		BlockedByIds:          scope.BlockedByIDs(),
 		MediaType:             mediaType,
 		OnlyReplies:           onlyReplies,
 		ExcludeForeignReplies: excludeForeignReplies,
@@ -1036,9 +1050,14 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 		}
 	}
 
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
 	rows, err := s.store.Q.ListRepliesByParentID(ctx, sqlc.ListRepliesByParentIDParams{
-		ParentID:   uuid.NullUUID{UUID: parentID, Valid: true},
-		ViewerID:   nullUUIDFromPtr(userID),
+		ParentID:     uuid.NullUUID{UUID: parentID, Valid: true},
+		ViewerID:     nullUUIDFromPtr(userID),
+		BlockedByIds: scope.BlockedByIDs(),
 		CursorTime: cTime,
 		CursorID:   cID,
 		Limit:      int32(limit),
@@ -1250,9 +1269,15 @@ func (s *PostsService) attachReferencesToPosts(ctx context.Context, posts []api.
 	// Quoted and boosted posts go through the same gate as anything else, so a
 	// boost made while the author was public collapses to a bare boost once they
 	// go private, rather than carrying their post to a stranger's timeline.
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return err
+	}
 	refRows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
-		Ids:      refIDs,
-		ViewerID: nullUUIDFromPtr(userID),
+		Ids:          refIDs,
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
 	})
 	if err != nil {
 		return err

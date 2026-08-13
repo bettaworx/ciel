@@ -275,6 +275,19 @@ func (s ViewerScope) Filter(posts []api.Post, surface Surface) []api.Post {
 	return kept
 }
 
+// BlockedByIDs returns the accounts that blocked the viewer, for passing to a
+// query as a uuid[].
+//
+// Never empty-checked away: an empty array is what makes the predicate a no-op
+// for a viewer nobody has blocked, and for an anonymous one.
+func (s ViewerScope) BlockedByIDs() []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(s.blockedBy))
+	for id := range s.blockedBy {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 // HiddenIDs returns the accounts the viewer has hidden, for passing to a query
 // as a uuid[] so the feed predicates can be an array membership test instead of
 // a subquery per row.

@@ -111,8 +111,14 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 			cID = uuid.NullUUID{UUID: uid, Valid: true}
 		}
 	}
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
 	rows, err := s.store.Q.ListTimelinePosts(ctx, sqlc.ListTimelinePostsParams{
-		ViewerID:   nullUUIDFromPtr(userID),
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
 		CursorTime: cTime,
 		CursorID:   cID,
 		Limit:      int32(limit),
@@ -229,8 +235,13 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 			cID = uuid.NullUUID{UUID: uid, Valid: true}
 		}
 	}
+	homeScope, err := LoadViewerScope(ctx, s.store, &userID)
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
 	rows, err := s.store.Q.ListHomeTimelinePosts(ctx, sqlc.ListHomeTimelinePostsParams{
 		ViewerID:   userID,
+		HiddenIds:  homeScope.HiddenIDs(),
 		CursorTime: cTime,
 		CursorID:   cID,
 		Limit:      int32(limit),
@@ -268,9 +279,14 @@ func (s *TimelineService) warmHomeTimeline(ctx context.Context, userID uuid.UUID
 	if s.cache == nil {
 		return
 	}
+	scope, err := LoadViewerScope(ctx, s.store, &userID)
+	if err != nil {
+		return
+	}
 	rows, err := s.store.Q.ListHomeTimelinePostIDs(ctx, sqlc.ListHomeTimelinePostIDsParams{
-		ViewerID: userID,
-		Limit:    homeTimelineMaxEntries,
+		ViewerID:  userID,
+		HiddenIds: scope.HiddenIDs(),
+		Limit:     homeTimelineMaxEntries,
 	})
 	if err != nil || len(rows) == 0 {
 		return
@@ -416,9 +432,15 @@ func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid
 	// The ZSETs hold ids only, so this re-read is what applies the privacy gate
 	// to a cache hit. A post whose author just went private drops out here on the
 	// very next request, without anything having to expire.
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
-		Ids:      ids,
-		ViewerID: nullUUIDFromPtr(userID),
+		Ids:          ids,
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
 	})
 	if err != nil {
 		return nil, err
