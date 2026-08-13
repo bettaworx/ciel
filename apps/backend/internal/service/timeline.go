@@ -82,7 +82,14 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	// Prefer Redis if configured.
 	if s.cache != nil {
 		postIDs, next, okRedis := s.listFromRedis(ctx, timelineKeyGlobal(), limit, cursor)
-		if okRedis {
+		// next is only non-nil when the ZSET filled a whole page, and that is the
+		// only state in which it can be trusted. The global key is written by post
+		// creation alone, so a Redis restart leaves it holding some arbitrary tail
+		// of the feed — reading "the cache ran out" as "the feed ended" is what
+		// stopped infinite scroll at a fixed point, and left the timeline blank
+		// outright on a cold cache. Anything short falls through to the database,
+		// which returns the real cursor.
+		if okRedis && next != nil {
 			posts, err := s.fetchPosts(ctx, timelineKeyGlobal(), postIDs, userID)
 			if err != nil {
 				return api.TimelinePage{}, err
@@ -91,12 +98,8 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 			if err != nil {
 				return api.TimelinePage{}, err
 			}
-			page := api.TimelinePage{Items: posts}
-			if next != nil {
-				nc := encodeCursor(*next)
-				page.NextCursor = &nc
-			}
-			return page, nil
+			nc := encodeCursor(*next)
+			return api.TimelinePage{Items: posts, NextCursor: &nc}, nil
 		}
 	}
 
@@ -134,6 +137,11 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	items, err = s.hydratePosts(ctx, items, userID)
 	if err != nil {
 		return api.TimelinePage{}, err
+	}
+
+	// Rebuild the cache on a first-page miss, so the next read can use it.
+	if cursor == nil {
+		s.warmGlobalTimeline(ctx)
 	}
 
 	var nextCursor *string
@@ -300,6 +308,34 @@ func (s *TimelineService) warmHomeTimeline(ctx context.Context, userID uuid.UUID
 		return
 	}
 	_ = s.cache.Expire(ctx, key, homeTimelineTTL)
+}
+
+// warmGlobalTimeline repopulates the shared global ZSET from the database, so a
+// Redis restart costs one cold page rather than leaving every later page to fall
+// through. Errors are ignored for the same reason as warmHomeTimeline.
+//
+// No TTL: the rank trim already bounds the key, and expiring it would only buy
+// more database fallbacks.
+//
+// ponytail: every concurrent request on a cold cache runs its own warm, same as
+// warmHomeTimeline. Take a SetNX lock if that ever shows up in load.
+func (s *TimelineService) warmGlobalTimeline(ctx context.Context) {
+	if s.cache == nil || s.store == nil {
+		return
+	}
+	rows, err := s.store.Q.ListGlobalTimelinePostIDs(ctx, globalTimelineMaxEntries)
+	if err != nil || len(rows) == 0 {
+		return
+	}
+	members := make([]cache.Z, 0, len(rows))
+	for _, row := range rows {
+		members = append(members, cache.Z{Score: float64(row.CreatedAt.UnixMilli()), Member: row.ID.String()})
+	}
+	key := timelineKeyGlobal()
+	if err := s.cache.ZAdd(ctx, key, members...); err != nil {
+		return
+	}
+	_ = s.cache.ZRemRangeByRank(ctx, key, 0, -(globalTimelineMaxEntries + 1))
 }
 
 func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {

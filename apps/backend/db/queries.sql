@@ -2430,6 +2430,20 @@ WHERE p.deleted_at IS NULL
 ORDER BY p.created_at DESC, p.id DESC
 LIMIT sqlc.arg('limit');
 
+-- name: ListGlobalTimelinePostIDs :many
+-- Used to warm the cold global timeline ZSET, which is otherwise only ever
+-- written by post creation and so holds nothing after a Redis restart.
+--
+-- Unlike ListHomeTimelinePostIDs this is deliberately not filtered by viewer:
+-- the global key is shared by everyone, and the privacy gate is applied on read
+-- by fetchPosts. Baking one reader's mutes and blocks into it would strip those
+-- authors out of the timeline for every other user.
+SELECT p.id, p.created_at
+FROM posts p
+WHERE p.deleted_at IS NULL
+ORDER BY p.created_at DESC, p.id DESC
+LIMIT sqlc.arg('limit');
+
 -- name: GetUsersByIDs :many
 -- Profiles for a set of ids, with the viewer's follow relationship resolved in
 -- the same query. Used by search to hydrate results without a query per hit.

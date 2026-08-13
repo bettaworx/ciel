@@ -260,34 +260,6 @@ export function useHomeTimeline(params?: { limit?: number; enabled?: boolean }) 
   });
 }
 
-// Replies to a post with infinite scroll
-export function useReplies(
-  postId: string | undefined,
-  params?: { limit?: number },
-) {
-  const api = useApi();
-
-  return useInfiniteQuery({
-    queryKey: postId
-      ? [...queryKeys.replies(postId), params]
-      : ["replies", "null"],
-    queryFn: async ({ pageParam }) => {
-      if (!postId) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
-      const result = await api.listReplies(postId, {
-        limit: params?.limit ?? 30,
-        cursor: pageParam ?? null,
-      });
-      if (!result.ok) throw new Error(result.errorText);
-      return result.data;
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    maxPages: 5,
-    enabled: !!postId,
-    staleTime: 1000 * 60, // 1分
-  });
-}
-
 // Single post
 export function usePost(postId: string | undefined) {
   const api = useApi();
@@ -854,24 +826,6 @@ export function useUpdatePrivacy() {
       queryClient.invalidateQueries({ queryKey: ["post"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
-  });
-}
-
-// Follow requests waiting on the current user. Only a private account has any.
-export function useFollowRequests(options?: { enabled?: boolean }) {
-  const api = useApi();
-  const { enabled = true } = options ?? {};
-
-  return useInfiniteQuery({
-    queryKey: queryKeys.followRequests,
-    queryFn: async ({ pageParam }: { pageParam?: string | null }) => {
-      const result = await api.followRequests({ limit: 30, cursor: pageParam });
-      if (!result.ok) throw new Error(result.errorText);
-      return result.data;
-    },
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? null,
-    enabled,
   });
 }
 

@@ -277,6 +277,7 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		key := timelineKeyGlobal()
 		score := float64(post.CreatedAt.UnixMilli())
 		_ = s.cache.ZAdd(ctx, key, cache.Z{Score: score, Member: post.Id.String()})
+		_ = s.cache.ZRemRangeByRank(ctx, key, 0, -(globalTimelineMaxEntries + 1))
 		s.fanOutToHomeTimelines(ctx, user.ID, post.Id, score)
 	}
 
@@ -1116,6 +1117,11 @@ func TimelineKeyHome(userID uuid.UUID) string { return timelineKeyHome(userID) }
 // homeTimelineMaxEntries caps each per-user ZSET. Deep pagination falls back to
 // the database, so this only bounds how much of the feed stays hot.
 const homeTimelineMaxEntries = 800
+
+// globalTimelineMaxEntries caps the shared global ZSET, which until now grew
+// without bound. Capping is only safe because TimelineService.Get falls back to
+// the database as soon as the cache cannot fill a whole page.
+const globalTimelineMaxEntries = 800
 
 // homeTimelineTTL lets the timelines of dormant users expire instead of
 // accumulating in Redis forever.
