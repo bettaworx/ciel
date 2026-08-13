@@ -17,198 +17,159 @@
     "categories": {
       "profile": "プロフィール",
       "general": "一般",
-      "appearance": "外観",
       "account": "アカウント",
-      "security": "セキュリティ"
+      "appearance": "外観",
+      "security": "セキュリティ",
+      "mutes": "ミュートとブロック",
+      "privacy": "プライバシー",
+      "about": "情報"
+    },
+    "about": {
+      "title": "情報",
+      "server": "サーバーについて",
+      "app": "アプリについて"
     },
     "general": {
       "title": "一般",
       "language": {
-        "title": "言語",
-        "description": "表示言語を選ぶ",
-        "placeholder": "言語を選択"
+        "title": "言語"
       }
     },
     "appearance": {
       "title": "外観",
       "theme": {
         "title": "テーマ",
-        "description": "アプリのテーマを選ぶ",
         "light": "ライト",
         "dark": "ダーク",
-        "system": "システム",
-        "systemDescription": "OSの設定に従うようになります"
+        "system": "システム"
       },
       "mfm": {
         "title": "MFM (テキスト装飾)",
-        "description": "投稿やプロフィールのテキスト装飾・アニメーション表示を制御する",
         "enabled": {
-          "title": "MFMを有効",
-          "description": "有効にするとMFMを使用した装飾が表示されます"
+          "title": "MFMを有効"
         },
         "mention": {
-          "title": "メンション",
-          "description": "@ユーザー形式のメンション表示"
+          "title": "メンション"
         },
         "hashtag": {
-          "title": "ハッシュタグ",
-          "description": "#タグ形式のハッシュタグ表示"
+          "title": "ハッシュタグ"
         },
         "url": {
-          "title": "URL",
-          "description": "URLの自動リンク表示"
+          "title": "URL"
         },
         "link": {
-          "title": "リンク",
-          "description": "テキストリンクの表示"
+          "title": "リンク"
         },
         "emojiCode": {
-          "title": "カスタム絵文字",
-          "description": ":name: 形式のカスタム絵文字表示"
+          "title": "カスタム絵文字"
         },
         "bold": {
-          "title": "太字",
-          "description": "太字テキストの表示"
+          "title": "太字"
         },
         "italic": {
-          "title": "斜体",
-          "description": "斜体テキストの表示"
+          "title": "斜体"
         },
         "strike": {
-          "title": "取り消し線",
-          "description": "取り消し線テキストの表示"
+          "title": "取り消し線"
         },
         "small": {
-          "title": "小さい文字",
-          "description": "縮小テキストの表示"
+          "title": "小さい文字"
         },
         "quote": {
-          "title": "引用",
-          "description": "引用ブロックの表示"
+          "title": "引用"
         },
         "center": {
-          "title": "中央揃え",
-          "description": "テキストの中央揃え表示"
+          "title": "中央揃え"
         },
         "ruby": {
-          "title": "ルビ（読み仮名）",
-          "description": "テキスト上の読み仮名表示"
+          "title": "ルビ（読み仮名）"
         },
         "code": {
           "title": "コード",
-          "description": "コードの表示",
           "inline": {
-            "title": "インライン",
-            "description": "インラインコードの表示"
+            "title": "インライン"
           },
           "block": {
-            "title": "ブロック",
-            "description": "コードブロックの表示"
+            "title": "ブロック"
           }
         },
         "flip": {
-          "title": "反転",
-          "description": "テキストの水平・垂直反転"
+          "title": "反転"
         },
         "font": {
           "title": "フォント",
-          "description": "フォントファミリーの変更",
           "serif": {
-            "title": "セリフ体",
-            "description": "セリフ体フォントの表示"
+            "title": "セリフ体"
           },
           "monospace": {
-            "title": "等幅",
-            "description": "等幅フォントの表示"
+            "title": "等幅"
           },
           "cursive": {
-            "title": "筆記体",
-            "description": "筆記体フォントの表示"
+            "title": "筆記体"
           },
           "fantasy": {
-            "title": "ファンタジー",
-            "description": "ファンタジーフォントの表示"
+            "title": "ファンタジー"
           }
         },
         "blur": {
-          "title": "ぼかし",
-          "description": "テキストのぼかし効果"
+          "title": "ぼかし"
         },
         "search": {
-          "title": "検索ボックス",
-          "description": "検索ブロックの表示"
+          "title": "検索ボックス"
         },
         "bg": {
-          "title": "背景色",
-          "description": "テキスト背景色の表示"
+          "title": "背景色"
         },
         "fg": {
-          "title": "文字色",
-          "description": "テキスト色の変更表示"
+          "title": "文字色"
         },
         "border": {
-          "title": "枠線",
-          "description": "テキスト周囲の枠線表示"
+          "title": "枠線"
         },
         "rotate": {
-          "title": "回転",
-          "description": "テキストの回転表示"
+          "title": "回転"
         },
         "position": {
-          "title": "位置変更",
-          "description": "テキストの位置移動"
+          "title": "位置変更"
         },
         "scale": {
-          "title": "拡大縮小",
-          "description": "テキストの拡大・縮小表示"
+          "title": "拡大縮小"
         },
         "expand": {
           "title": "サイズ拡大",
-          "description": "テキストサイズの拡大表示",
           "allowLargerThanX2": {
-            "title": "3倍/4倍を許可",
-            "description": "無効時は2倍に制限されます"
+            "title": "3倍/4倍を許可"
           }
         },
         "animation": {
           "title": "アニメーション",
-          "description": "テキストアニメーション効果",
           "jelly": {
-            "title": "ゼリー",
-            "description": "ゼリーアニメーション"
+            "title": "ゼリー"
           },
           "tada": {
-            "title": "じゃじゃーん",
-            "description": "じゃじゃーんアニメーション"
+            "title": "じゃじゃーん"
           },
           "jump": {
-            "title": "ジャンプ",
-            "description": "ジャンプアニメーション"
+            "title": "ジャンプ"
           },
           "bounce": {
-            "title": "バウンス",
-            "description": "跳ね返るアニメーション"
+            "title": "バウンス"
           },
           "spin": {
-            "title": "回転",
-            "description": "スピンアニメーション"
+            "title": "回転"
           },
           "shake": {
-            "title": "振動",
-            "description": "振動させるアニメーション"
+            "title": "振動"
           },
           "twitch": {
-            "title": "痙攣",
-            "description": "痙攣させるアニメーション"
+            "title": "痙攣"
           }
         },
         "rainbow": {
-          "title": "レインボー",
-          "description": "虹色に変化するアニメーション"
+          "title": "レインボー"
         },
         "sparkle": {
-          "title": "キラキラ",
-          "description": "キラキラ輝くアニメーション"
+          "title": "キラキラ"
         }
       }
     },
@@ -216,11 +177,52 @@
       "ja": "日本語",
       "en": "English"
     },
-    "account": {
-      "title": "アカウント"
-    },
     "security": {
-      "title": "セキュリティ"
+      "title": "セキュリティ",
+      "password": {
+        "title": "パスワードを変更",
+        "wizardTitle": "パスワードを変更",
+        "newPassword": "新しいパスワード",
+        "confirmPassword": "新しいパスワード（確認）",
+        "mismatch": "パスワードが一致しません",
+        "submit": "パスワードを変更",
+        "doneTitle": "パスワードを変更しました",
+        "doneDescription": "他のすべてのデバイスからログアウトされました。このデバイスはログインしたままです。",
+        "updateError": "パスワードを変更できませんでした"
+      }
+    },
+    "account": {
+      "title": "アカウント",
+      "username": {
+        "title": "ユーザー名を変更",
+        "wizardTitle": "ユーザー名を変更",
+        "newLabel": "新しいユーザー名",
+        "placeholder": "新しいユーザー名",
+        "submit": "ユーザー名を変更",
+        "taken": "このユーザー名はすでに使われています",
+        "doneTitle": "ユーザー名を変更しました",
+        "doneDescription": "新しいユーザー名は @{username} です。",
+        "updateError": "ユーザー名を変更できませんでした"
+      },
+      "delete": {
+        "title": "アカウントを削除",
+        "warning": "この操作は取り消せません。投稿・メディア・フォロー関係はすべて削除されます。",
+        "wizardTitle": "アカウントを削除",
+        "confirmTitle": "本当に削除しますか？",
+        "confirmDescription": "アカウントを削除すると、投稿・アップロードしたメディア・フォロー関係を含むすべてのデータが完全に削除されます。",
+        "typeUsernamePrompt": "確認のため {username} と入力してください",
+        "submit": "完全に削除",
+        "goodbyeTitle": "ありがとうございました",
+        "goodbyeDescription": "アカウントを削除しました。ご利用いただきありがとうございました。",
+        "goHome": "トップへ",
+        "error": "アカウントを削除できませんでした"
+      }
+    },
+    "reauth": {
+      "heading": "パスワードを入力してください",
+      "description": "続けるにはパスワードで本人確認を行います",
+      "failed": "パスワードを確認できませんでした",
+      "expired": "確認の有効期限が切れました。パスワードを入力し直してください。"
     },
     "profile": {
       "title": "プロフィール",
@@ -261,6 +263,31 @@
       "updateSuccess": "プロフィールを更新しました",
       "updateError": "プロフィールの更新に失敗しました",
       "unsavedChanges": "未保存の変更があります"
+    },
+    "mutes": {
+      "title": "ミュートとブロック",
+      "muted": "ミュート中",
+      "blocked": "ブロック中",
+      "noMuted": "ミュートしているユーザーはいません",
+      "noBlocked": "ブロックしているユーザーはいません"
+    },
+    "privacy": {
+      "title": "プライバシー",
+      "sections": {
+        "visibility": "プライバシー",
+        "moderation": "モデレーション"
+      },
+      "hiddenAccounts": {
+        "title": "ミュートとブロック",
+        "description": "ミュートまたはブロックしているユーザーを確認し、解除できます。",
+        "open": "一覧を開く"
+      },
+      "privateAccount": {
+        "title": "非公開アカウントにする",
+        "enabled": "非公開にしました",
+        "disabled": "公開しました",
+        "error": "設定を変更できませんでした"
+      }
     }
   },
   "loading": "読み込み中...",
@@ -301,7 +328,34 @@
     "copyIdSuccess": "ユーザーIDをコピーしました",
     "copyIdError": "ユーザーIDのコピーに失敗しました",
     "unknown": "不明なユーザー",
-    "unknownUsername": "不明"
+    "unknownUsername": "不明",
+    "privateAccount": "非公開アカウント",
+    "privatePostsHidden": "このアカウントは非公開です",
+    "privatePostsHiddenDescription": "承認されたフォロワーだけが投稿を見られます。",
+    "requestFollow": "フォローリクエスト",
+    "followRequested": "リクエスト済み",
+    "cancelFollowRequest": "リクエストを取り消す",
+    "mutedAccount": "ミュート中のユーザー",
+    "blockedAccount": "ブロック中のユーザー",
+    "muteUser": "ミュートする",
+    "unmuteUser": "ミュートを解除",
+    "blockUser": "ブロックする",
+    "unblockUser": "ブロックを解除",
+    "muteError": "ミュートの変更に失敗しました",
+    "blockError": "ブロックの変更に失敗しました",
+    "blockConfirmTitle": "このユーザーをブロックしますか？",
+    "blockConfirmDescription": "@{username} をブロックすると、お互いのフォローが解除され、相手はあなたの投稿を見たり、返信・ブースト・リアクションをすることができなくなります。ブロックを解除してもフォローは元に戻りません。",
+    "mutedPostsHidden": "ミュートしているユーザーです",
+    "blockedPostsHidden": "ブロックしているユーザーです",
+    "blockedByUser": "あなたはブロックされています",
+    "blockedByUserDescription": "このユーザーの投稿を見ることはできません。",
+    "muteConfirmTitle": "このユーザーをミュートしますか？",
+    "muteConfirmDescription": "@{username} をミュートすると、タイムラインやユーザー検索、リアクション一覧に表示されなくなり、通知も届かなくなります。相手に通知されることはなく、いつでも解除できます。",
+    "hideConfirmCancel": "キャンセル",
+    "unmuteConfirmTitle": "ミュートを解除しますか？",
+    "unmuteConfirmDescription": "@{username} のミュートを解除すると、投稿がタイムラインや検索結果に再び表示され、通知も届くようになります。",
+    "unblockConfirmTitle": "ブロックを解除しますか？",
+    "unblockConfirmDescription": "@{username} のブロックを解除すると、相手はあなたの投稿を見たり、返信やリアクションをしたりできるようになります。ブロックで解除されたフォローは元に戻りません。"
   },
   "login": {
     "title": "ログイン",
@@ -419,12 +473,22 @@
       "settingsGeneral": "一般",
       "settingsProfile": "プロフィール",
       "settingsAppearance": "外観",
-      "settingsAccount": "アカウント",
       "settingsSecurity": "セキュリティ",
+      "settingsSecurityPassword": "パスワードを変更",
+      "settingsAccount": "アカウント",
+      "settingsAccountUsername": "ユーザー名を変更",
+      "settingsAccountDelete": "アカウントを削除",
       "setup": "プロフィール設定",
       "adminSetup": "サーバー初期設定",
       "postDetail": "投稿",
-      "search": "検索"
+      "search": "検索",
+      "bookmarks": "ブックマーク",
+      "settingsMutes": "ミュートとブロック",
+      "settingsPrivacy": "プライバシー",
+      "settingsAbout": "情報",
+      "settingsAboutServer": "サーバーについて",
+      "settingsAboutApp": "アプリについて",
+      "settingsAboutLicenses": "ライセンス"
     }
   },
   "timeline": {
@@ -544,7 +608,8 @@
     "serverInfo": "サーバーについて",
     "versionInfo": "アプリ情報",
     "notifications": "通知",
-    "search": "検索"
+    "search": "検索",
+    "bookmarks": "ブックマーク"
   },
   "videoPlayer": {
     "play": "再生",
@@ -653,7 +718,11 @@
       "boostError": "ブーストに失敗しました",
       "undoBoost": "ブーストを取り消す",
       "undoBoostSuccess": "ブーストを取り消しました",
-      "undoBoostError": "ブーストの取り消しに失敗しました"
+      "undoBoostError": "ブーストの取り消しに失敗しました",
+      "bookmark": "ブックマーク",
+      "bookmarkError": "ブックマークを保存できませんでした",
+      "bookmarkLoginRequired": "ブックマークするにはログインが必要です",
+      "boostDisabledPrivate": "非公開アカウントの投稿はブースト・引用できません"
     },
     "deleteConfirmTitle": "投稿を削除しますか？",
     "deleteConfirmDescription": "この操作は取り消せません。投稿はタイムラインから削除されます。",
@@ -674,6 +743,19 @@
       "username": "ユーザー",
       "initials": "ユ",
       "label": "削除済み"
+    },
+    "privatePost": {
+      "username": "非公開ユーザー",
+      "label": "（非公開）"
+    },
+    "hiddenPost": {
+      "muted": "ミュートしているユーザーです",
+      "blocked": "ブロックしているユーザーです",
+      "reveal": "表示する"
+    },
+    "restrictedPost": {
+      "username": "非公開の投稿",
+      "label": "閲覧できるユーザーが制限されています"
     }
   },
   "adminSetup": {
@@ -840,7 +922,8 @@
         "displayName": "表示名",
         "roles": "ロール",
         "createdAt": "作成日",
-        "actions": "操作"
+        "actions": "操作",
+        "private": "非公開"
       },
       "roles": {
         "user": "ユーザー",
@@ -848,7 +931,12 @@
       },
       "loadingRoles": "読み込み中...",
       "noResults": "ユーザーが見つかりません",
-      "viewDetails": "詳細を見る"
+      "viewDetails": "詳細を見る",
+      "privacy": {
+        "enabled": "アカウントを非公開にしました",
+        "disabled": "アカウントを公開にしました",
+        "error": "アカウントの公開設定を変更できませんでした"
+      }
     },
     "posts": {
       "title": "投稿管理",
@@ -1331,7 +1419,8 @@
       "mention": "{name}がメンションしました",
       "boost": "{name}がブーストしました",
       "quote": "{name}が引用しました",
-      "follow": "{name}にフォローされました"
+      "follow": "{name}にフォローされました",
+      "follow_request": "{name}がフォローリクエストを送りました"
     },
     "grouped": {
       "reaction": "{count}人がリアクションしました",
@@ -1339,7 +1428,41 @@
       "mention": "{name}さん他{count}人がメンションしました",
       "boost": "{name}さん他{count}人がブーストしました",
       "quote": "{name}さん他{count}人が引用しました",
-      "follow": "{count}人にフォローされました"
+      "follow": "{count}人にフォローされました",
+      "follow_request": "{count}人がフォローリクエストを送りました"
     }
+  },
+  "bookmarks": {
+    "title": "ブックマーク",
+    "defaultListName": "ブックマーク",
+    "createList": "リストを作成",
+    "editList": "リストを編集",
+    "deleteList": "リストを削除",
+    "deleteConfirm": "「{name}」を削除します。保存された{count}件の投稿もこのリストから外れます。投稿自体は削除されません。",
+    "listActions": "リストの操作",
+    "listName": "リスト名",
+    "listNamePlaceholder": "リスト名を入力",
+    "listIcon": "アイコン",
+    "create": "作成",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "empty": "リストがありません",
+    "emptyDescription": "リストを作ると、気になった投稿をまとめておけます。",
+    "emptyList": "このリストにはまだ投稿がありません",
+    "noLists": "リストがありません",
+    "postCount": "{count}件",
+    "createError": "リストを作成できませんでした",
+    "updateError": "リストを更新できませんでした",
+    "deleteError": "リストを削除できませんでした"
+  },
+  "followRequests": {
+    "title": "フォローリクエスト",
+    "empty": "フォローリクエストはありません",
+    "accept": "承認",
+    "reject": "拒否",
+    "accepted": "フォローリクエストを承認しました",
+    "rejected": "フォローリクエストを拒否しました",
+    "error": "フォローリクエストを処理できませんでした"
   }
 }

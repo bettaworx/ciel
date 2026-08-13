@@ -43,10 +43,38 @@ func (s *FollowsService) SetUsersService(users *UsersService) {
 //
 // Following an already-followed user succeeds without doing anything: the
 // endpoint is a toggle target, and clients should not have to distinguish.
+//
+// Following a private user does not create a follow. It records a pending
+// request (accepted_at NULL) and notifies them to approve it; until they do, the
+// requester sees nothing they could not see before.
 func (s *FollowsService) Follow(ctx context.Context, follower auth.User, username api.Username) (api.User, error) {
 	target, err := s.resolveTarget(ctx, follower, username)
 	if err != nil {
 		return api.User{}, err
+	}
+
+	// Either direction refuses. Blocking someone should stop them following you,
+	// and it would be strange to let the blocker follow an account they just cut
+	// off — the follow would be severed again by the next block anyway.
+	//
+	// The same 403 for both directions on purpose: a distinct error for "you are
+	// blocked" would let anyone test for it, and the profile already says so
+	// through isBlockedBy when the block is that way round.
+	scope, err := LoadViewerScope(ctx, s.store, &follower.ID)
+	if err != nil {
+		return api.User{}, err
+	}
+	if !scope.CanInteractWith(target.ID) {
+		return api.User{}, NewError(http.StatusForbidden, "blocked", "cannot follow this account")
+	}
+
+	private, err := s.store.Q.IsUserPrivate(ctx, target.ID)
+	if err != nil {
+		return api.User{}, err
+	}
+	notifyType := api.Follow
+	if private {
+		notifyType = api.FollowRequest
 	}
 
 	var created []CreatedNotification
@@ -55,17 +83,19 @@ func (s *FollowsService) Follow(ctx context.Context, follower auth.User, usernam
 		n, err := q.FollowUser(ctx, sqlc.FollowUserParams{
 			FollowerID: follower.ID,
 			FolloweeID: target.ID,
+			Accepted:   !private,
 		})
 		if err != nil {
 			return err
 		}
 		if n == 0 {
-			// Already following. Nothing changed, so do not notify again.
+			// Already following, or a request is already pending. Nothing
+			// changed, so do not notify again.
 			return nil
 		}
 		id, err := Notify(ctx, q, NotifyParams{
 			UserID:  target.ID,
-			Type:    api.Follow,
+			Type:    notifyType,
 			ActorID: follower.ID,
 		})
 		if err != nil {
@@ -79,9 +109,146 @@ func (s *FollowsService) Follow(ctx context.Context, follower auth.User, usernam
 		return api.User{}, err
 	}
 
-	s.invalidateHomeTimeline(ctx, follower.ID)
+	// A pending request grants no visibility, so there is nothing new for the
+	// requester's home timeline to pick up yet.
+	if !private {
+		s.invalidateHomeTimeline(ctx, follower.ID)
+	}
 	s.notifications.Publish(ctx, s.publisher, created)
 	return s.users.GetByUsername(ctx, username, &follower.ID)
+}
+
+// AcceptFollowRequest approves a pending request, turning it into a real follow.
+func (s *FollowsService) AcceptFollowRequest(ctx context.Context, approver auth.User, username api.Username) (api.User, error) {
+	requester, err := s.resolveTarget(ctx, approver, username)
+	if err != nil {
+		return api.User{}, err
+	}
+
+	var created []CreatedNotification
+	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		created = nil
+		n, err := q.AcceptFollowRequest(ctx, sqlc.AcceptFollowRequestParams{
+			FollowerID: requester.ID,
+			FolloweeID: approver.ID,
+		})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return NewError(http.StatusNotFound, "not_found", "no pending follow request")
+		}
+		// Swap the request notification for a plain follow, so the approver's
+		// list stops offering buttons for a decision they already made.
+		if err := Unnotify(ctx, q, NotifyParams{
+			UserID:  approver.ID,
+			Type:    api.FollowRequest,
+			ActorID: requester.ID,
+		}); err != nil {
+			return err
+		}
+		id, err := Notify(ctx, q, NotifyParams{
+			UserID:  approver.ID,
+			Type:    api.Follow,
+			ActorID: requester.ID,
+		})
+		if err != nil {
+			return err
+		}
+		if id != uuid.Nil {
+			created = append(created, CreatedNotification{ID: id, UserID: approver.ID})
+		}
+		return nil
+	}); err != nil {
+		return api.User{}, err
+	}
+
+	// The requester can now see the approver's posts, so their cached home
+	// timeline is out of date.
+	s.invalidateHomeTimeline(ctx, requester.ID)
+	s.notifications.Publish(ctx, s.publisher, created)
+	return s.users.GetByUsername(ctx, username, &approver.ID)
+}
+
+// RejectFollowRequest removes a pending request. The requester is not told; they
+// simply see the button return to its unfollowed state, and may ask again.
+func (s *FollowsService) RejectFollowRequest(ctx context.Context, approver auth.User, username api.Username) (api.User, error) {
+	requester, err := s.resolveTarget(ctx, approver, username)
+	if err != nil {
+		return api.User{}, err
+	}
+
+	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		n, err := q.RejectFollowRequest(ctx, sqlc.RejectFollowRequestParams{
+			FollowerID: requester.ID,
+			FolloweeID: approver.ID,
+		})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return NewError(http.StatusNotFound, "not_found", "no pending follow request")
+		}
+		// Retract the notification, otherwise the dedupe index would suppress
+		// the next request this user sends.
+		return Unnotify(ctx, q, NotifyParams{
+			UserID:  approver.ID,
+			Type:    api.FollowRequest,
+			ActorID: requester.ID,
+		})
+	}); err != nil {
+		return api.User{}, err
+	}
+
+	return s.users.GetByUsername(ctx, username, &approver.ID)
+}
+
+// ListFollowRequests returns the requests waiting on this user's approval.
+func (s *FollowsService) ListFollowRequests(ctx context.Context, userID uuid.UUID, limit *int, cursor *string) (api.FollowRequestsPage, error) {
+	if s.store == nil {
+		return api.FollowRequestsPage{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	lim := 30
+	if limit != nil {
+		lim = *limit
+	}
+	if lim < 1 || lim > 100 {
+		return api.FollowRequestsPage{}, NewError(http.StatusBadRequest, "invalid_request", "limit must be 1..100")
+	}
+	c, err := decodeCursor(cursor)
+	if err != nil {
+		return api.FollowRequestsPage{}, NewError(http.StatusBadRequest, "invalid_request", "invalid cursor")
+	}
+	var cTime sql.NullTime
+	var cID uuid.NullUUID
+	if c != nil {
+		cTime = sql.NullTime{Time: time.UnixMilli(c.Score).UTC(), Valid: true}
+		if id, err := uuid.Parse(c.ID); err == nil {
+			cID = uuid.NullUUID{UUID: id, Valid: true}
+		}
+	}
+
+	rows, err := s.store.Q.ListFollowRequests(ctx, sqlc.ListFollowRequestsParams{
+		UserID:     userID,
+		CursorTime: cTime,
+		CursorID:   cID,
+		Limit:      int32(lim),
+	})
+	if err != nil {
+		return api.FollowRequestsPage{}, err
+	}
+	items := make([]api.User, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
+			row.AvatarMediaID, row.AvatarExt, false, false, row.IsPrivate, &userID))
+	}
+	var next *string
+	if len(rows) == lim {
+		last := rows[len(rows)-1]
+		n := encodeCursor(timelineCursor{Score: last.RequestedAt.UnixMilli(), ID: last.ID.String()})
+		next = &n
+	}
+	return api.FollowRequestsPage{Items: items, NextCursor: next}, nil
 }
 
 // Unfollow drops the follow. Unfollowing someone not followed succeeds.
@@ -152,7 +319,7 @@ func (s *FollowsService) invalidateHomeTimeline(ctx context.Context, userID uuid
 
 // ListFollowers returns the users following the named user, newest follow first.
 func (s *FollowsService) ListFollowers(ctx context.Context, username api.Username, limit *int, cursor *string, viewer *uuid.UUID) (api.UsersPage, error) {
-	userID, lim, cTime, cID, err := s.listArgs(ctx, username, limit, cursor)
+	userID, lim, cTime, cID, err := s.listArgs(ctx, username, limit, cursor, viewer)
 	if err != nil {
 		return api.UsersPage{}, err
 	}
@@ -169,7 +336,7 @@ func (s *FollowsService) ListFollowers(ctx context.Context, username api.Usernam
 	items := make([]api.User, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, viewer))
+			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, row.IsPrivate, viewer))
 	}
 	var next *string
 	if len(rows) == lim {
@@ -182,7 +349,7 @@ func (s *FollowsService) ListFollowers(ctx context.Context, username api.Usernam
 
 // ListFollowing returns the users the named user follows, newest follow first.
 func (s *FollowsService) ListFollowing(ctx context.Context, username api.Username, limit *int, cursor *string, viewer *uuid.UUID) (api.UsersPage, error) {
-	userID, lim, cTime, cID, err := s.listArgs(ctx, username, limit, cursor)
+	userID, lim, cTime, cID, err := s.listArgs(ctx, username, limit, cursor, viewer)
 	if err != nil {
 		return api.UsersPage{}, err
 	}
@@ -199,7 +366,7 @@ func (s *FollowsService) ListFollowing(ctx context.Context, username api.Usernam
 	items := make([]api.User, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, viewer))
+			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, row.IsPrivate, viewer))
 	}
 	var next *string
 	if len(rows) == lim {
@@ -214,7 +381,7 @@ func (s *FollowsService) ListFollowing(ctx context.Context, username api.Usernam
 // follows, newest follow first. TotalCount is filled on the first page only: it
 // is what the profile facepile needs, and later pages have nothing to show it on.
 func (s *FollowsService) ListFollowersYouFollow(ctx context.Context, username api.Username, limit *int, cursor *string, viewer uuid.UUID) (api.UsersPage, error) {
-	userID, lim, cTime, cID, err := s.listArgs(ctx, username, limit, cursor)
+	userID, lim, cTime, cID, err := s.listArgs(ctx, username, limit, cursor, &viewer)
 	if err != nil {
 		return api.UsersPage{}, err
 	}
@@ -231,7 +398,7 @@ func (s *FollowsService) ListFollowersYouFollow(ctx context.Context, username ap
 	items := make([]api.User, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, &viewer))
+			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, row.IsPrivate, &viewer))
 	}
 	var next *string
 	if len(rows) == lim {
@@ -255,7 +422,11 @@ func (s *FollowsService) ListFollowersYouFollow(ctx context.Context, username ap
 }
 
 // listArgs validates the shared paging inputs and resolves the subject user.
-func (s *FollowsService) listArgs(ctx context.Context, username api.Username, limit *int, cursor *string) (uuid.UUID, int, sql.NullTime, uuid.NullUUID, error) {
+//
+// It also decides whether the caller may see this user's follow graph at all.
+// Filtering the rows is not enough here: who a private account follows, and how
+// many people follow them back, is itself the activity being hidden.
+func (s *FollowsService) listArgs(ctx context.Context, username api.Username, limit *int, cursor *string, viewer *uuid.UUID) (uuid.UUID, int, sql.NullTime, uuid.NullUUID, error) {
 	if s.store == nil {
 		return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
@@ -283,6 +454,31 @@ func (s *FollowsService) listArgs(ctx context.Context, username api.Username, li
 		return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, err
 	}
 
+	canView, err := s.store.Q.CanViewUser(ctx, sqlc.CanViewUserParams{
+		ViewerID: nullUUIDFromPtr(viewer),
+		UserID:   user.ID,
+	})
+	if err != nil {
+		return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, err
+	}
+	if !canView {
+		// can_view_user answers "no" for a private account and for a block with
+		// one code, but they are different things to be told. Ask which it was.
+		// Only an identified viewer can be blocked, so anonymous skips straight
+		// to the private-account answer.
+		if viewer != nil {
+			scope, err := LoadViewerScope(ctx, s.store, viewer)
+			if err != nil {
+				return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, err
+			}
+			if scope.BlockedBy(user.ID) {
+				return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, NewError(http.StatusForbidden, "blocked", "you have been blocked by this account")
+			}
+		}
+		// The profile itself stays reachable; only the follow graph is withheld.
+		return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, NewError(http.StatusForbidden, "private_account", "this account is private")
+	}
+
 	var cTime sql.NullTime
 	var cID uuid.NullUUID
 	if c != nil {
@@ -306,10 +502,11 @@ func mapFollowListUser(
 	avatarExt sql.NullString,
 	isFollowing bool,
 	isFollowedBy bool,
+	isPrivate bool,
 	viewer *uuid.UUID,
 ) api.User {
 	user := mapUserWithProfile(id, username, createdAt, displayName, bio, avatarMediaID, avatarExt,
-		uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{})
+		uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, isPrivate)
 	if viewer != nil {
 		f := isFollowing
 		fb := isFollowedBy

@@ -9,8 +9,7 @@ import {
 import { SidebarActionButton } from "@/components/SidebarActionButton";
 import { UserMenuContent } from "./UserMenuContent";
 import { LogoutConfirmDialog } from "./LogoutConfirmDialog";
-import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DisplayName } from "@/components/users/DisplayName";
 import type { components } from "@/lib/api/api";
 import type { Theme } from "@/atoms/theme";
 import type { Locale } from "@/i18n/constants";
@@ -38,6 +37,7 @@ interface DesktopUserMenuProps {
   onLogoutClick: () => void;
   onLogoutConfirm: () => Promise<void>;
   onProfileClick: () => void;
+  onBookmarksClick: () => void;
   onSettingsClick: () => void;
   onUserInfoClick: () => void;
   /** サイドバー展開時にユーザー名を表示するか */
@@ -62,6 +62,7 @@ export function DesktopUserMenu({
   onLogoutClick,
   onLogoutConfirm,
   onProfileClick,
+  onBookmarksClick,
   onSettingsClick,
   onUserInfoClick,
   isExpanded = false,
@@ -106,9 +107,9 @@ export function DesktopUserMenu({
             }
             label={
               user.displayName ? (
-                <MfmRenderer
-                  text={user.displayName}
-                  allowList={DISPLAY_NAME_ALLOW_LIST}
+                <DisplayName
+                  name={user.displayName}
+                  isPrivate={user.isPrivate}
                 />
               ) : (
                 `@${user.username}`
@@ -135,6 +136,7 @@ export function DesktopUserMenu({
             locale={locale}
             onLanguageChange={onLanguageChange}
             onProfileClick={onProfileClick}
+            onBookmarksClick={onBookmarksClick}
             onSettingsClick={onSettingsClick}
             onLogoutClick={onLogoutClick}
             onUserInfoClick={onUserInfoClick}

@@ -79,6 +79,11 @@ export function useUserMenu() {
     router.push(`/users/${username}`);
   };
 
+  const handleBookmarksClick = () => {
+    setIsMenuOpen(false);
+    router.push("/bookmarks");
+  };
+
   const handleSettingsClick = () => {
     setIsMenuOpen(false);
     router.push("/settings");
@@ -103,6 +108,7 @@ export function useUserMenu() {
     handleLanguageChange,
     handleUserInfoClick,
     handleProfileClick,
+    handleBookmarksClick,
     handleSettingsClick,
   };
 }

@@ -302,6 +302,15 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		me: () => request<components['schemas']['User']>('GET', '/me'),
 
+		updateUsername: (
+			body: components['schemas']['UpdateUsernameRequest'],
+			stepupToken?: string | null
+		) =>
+			request<components['schemas']['LoginFinishResponse']>('PATCH', '/me/username', {
+				body,
+				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
+			}),
+
 		deleteMe: (stepupToken?: string | null) =>
 			request<void>('DELETE', '/me', {
 				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
@@ -315,6 +324,43 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		unfollowUser: (username: string) =>
 			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/follow`),
+
+		muteUser: (username: string) =>
+			request<components['schemas']['User']>('POST', `/users/${encodeURIComponent(username)}/mute`),
+
+		unmuteUser: (username: string) =>
+			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/mute`),
+
+		blockUser: (username: string) =>
+			request<components['schemas']['User']>('POST', `/users/${encodeURIComponent(username)}/block`),
+
+		unblockUser: (username: string) =>
+			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/block`),
+
+		// The settings lists. A blocked account is gone from search and every
+		// other list, so /me/blocks is the only way back to it.
+		hiddenList: (kind: 'mutes' | 'blocks', params?: { limit?: number; cursor?: string | null }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['UsersPage']>('GET', `/me/${kind}${suffix}`);
+		},
+
+		// Following a private account creates one of these instead of a follow.
+		followRequests: (params?: { limit?: number; cursor?: string | null }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['FollowRequestsPage']>('GET', `/me/follow-requests${suffix}`);
+		},
+
+		acceptFollowRequest: (username: string) =>
+			request<components['schemas']['User']>('POST', `/me/follow-requests/${encodeURIComponent(username)}/accept`),
+
+		rejectFollowRequest: (username: string) =>
+			request<components['schemas']['User']>('POST', `/me/follow-requests/${encodeURIComponent(username)}/reject`),
 
 		followList: (
 			username: string,
@@ -479,6 +525,39 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			);
 		},
 
+		bookmarkLists: () =>
+			request<components['schemas']['BookmarkListsResponse']>('GET', '/bookmarks/lists'),
+
+		createBookmarkList: (body: components['schemas']['CreateBookmarkListRequest']) =>
+			request<components['schemas']['BookmarkList']>('POST', '/bookmarks/lists', { body }),
+
+		updateBookmarkList: (
+			listId: components['schemas']['BookmarkListId'],
+			body: components['schemas']['UpdateBookmarkListRequest']
+		) => request<components['schemas']['BookmarkList']>('PATCH', `/bookmarks/lists/${listId}`, { body }),
+
+		deleteBookmarkList: (listId: components['schemas']['BookmarkListId']) =>
+			request<void>('DELETE', `/bookmarks/lists/${listId}`),
+
+		bookmarkListPosts: (
+			listId: components['schemas']['BookmarkListId'],
+			params?: { limit?: number; cursor?: string | null }
+		) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['UserPostsPage']>(
+				'GET',
+				`/bookmarks/lists/${listId}/posts${suffix}`
+			);
+		},
+
+		setPostBookmarks: (
+			postId: components['schemas']['PostId'],
+			body: components['schemas']['SetPostBookmarksRequest']
+		) => request<components['schemas']['PostBookmarks']>('PUT', `/posts/${postId}/bookmarks`, { body }),
+
 		adminRoles: () => request<components['schemas']['RoleList']>('GET', '/admin/roles'),
 
 		adminPermissions: () =>
@@ -524,6 +603,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		updateProfile: (body: components['schemas']['UpdateProfileRequest']) =>
 			request<components['schemas']['User']>('PATCH', '/me/profile', { body }),
+
+		updatePrivacy: (body: components['schemas']['UpdatePrivacyRequest']) =>
+			request<components['schemas']['User']>('PATCH', '/me/privacy', { body }),
 
 		updateAvatar: (file: File) => {
 			const form = new FormData();
@@ -764,6 +846,11 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		adminDeleteUserBio: (userId: components['schemas']['UserId']) =>
 			request<void>('DELETE', `/admin/users/${userId}/bio`),
+
+		adminUpdateUserPrivacy: (
+			userId: components['schemas']['UserId'],
+			body: components['schemas']['UpdatePrivacyRequest'],
+		) => request<components['schemas']['User']>('PATCH', `/admin/users/${userId}/privacy`, { body }),
 
 		// Admin - Agreement Documents
 		adminListAgreementDocuments: (params?: {

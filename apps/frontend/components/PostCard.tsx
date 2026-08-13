@@ -18,7 +18,10 @@ import { CreateReplyDialog } from "@/components/CreateReplyDialog";
 import { CreateQuoteDialog } from "@/components/CreateQuoteDialog";
 import { formatFullTimestamp, formatTimeAgo } from "@/lib/utils/format-time";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DisplayName } from "@/components/users/DisplayName";
+import { HiddenPostCard } from "@/components/HiddenPostCard";
+import { postCushion } from "@/lib/moderation/visibility";
+import { useHideUserActions } from "@/lib/hooks/use-hide-user-actions";
 import { useReactions } from "@/lib/hooks/use-reactions";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -32,6 +35,7 @@ import {
   Link2,
   MessageCircle,
   Quote,
+  Ban,
   Rocket,
   MoreHorizontal,
   RotateCcw,
@@ -43,6 +47,7 @@ import { useDeletePost, queryKeys } from "@/lib/hooks/use-queries";
 import { useApi } from "@/lib/api/use-api";
 import { useQueryClient } from "@tanstack/react-query";
 import { OgpCard } from "@/components/OgpCard";
+import { BookmarkButton } from "@/components/BookmarkButton";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { authAtom } from "@/atoms/auth";
@@ -112,7 +117,7 @@ export type PostCardThreadLine = "none" | "above" | "below" | "both";
 // article. Positions assume the surrounding article has p-3 padding and the
 // avatar wrapper is h-10 / sm:h-12. A 4px (Tailwind unit 1) gap separates
 // the line ends from the avatar.
-function ThreadConnectorLine({
+export function ThreadConnectorLine({
   anchor = "avatar",
   position,
   variant = "solid",
@@ -156,6 +161,13 @@ export interface PostCardProps {
    * notification without spending a whole row on an indicator.
    */
   avatarBadge?: ReactNode;
+  /**
+   * Skips the muted/blocked cushion for this card. Set by surfaces that already
+   * asked once — the profile of a muted account gates its whole post list behind
+   * a single banner, and cushioning every row underneath it would mean answering
+   * the same question twice.
+   */
+  skipHiddenCushion?: boolean;
 }
 
 export interface PostTreeActionButtonProps {
@@ -236,6 +248,7 @@ export function PostCard({
   threadLine = "none",
   indicator,
   avatarBadge,
+  skipHiddenCushion = false,
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -266,6 +279,11 @@ export function PostCard({
   const [indicatorMenuOpen, setIndicatorMenuOpen] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
+  const [revealHidden, setRevealHidden] = useState(false);
+  const { actions: hideActions, dialog: hideDialog } = useHideUserActions(
+    post.author?.username,
+    { isMuted: post.author?.isMuted, isBlocking: post.author?.isBlocking },
+  );
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [isContentOverflowing, setIsContentOverflowing] = useState(false);
   const [isCompactOverflowing, setIsCompactOverflowing] = useState(false);
@@ -273,6 +291,14 @@ export function PostCard({
   const articleRef = useRef<HTMLElement>(null);
   const isOwner = auth.user?.id === post.author?.id;
   const canUndoBoost = indicator?.actorUserId != null && indicator.actorUserId === auth.user?.id;
+  // Boosting and quoting a private account's post is refused by the server for
+  // everyone, including its accepted followers. The button is blocked rather
+  // than hidden so the reason is visible instead of the control just vanishing.
+  const boostBlocked = Boolean(post.author?.isPrivate);
+  const hiddenKind = postCushion(post, {
+    skip: skipHiddenCushion,
+    revealed: revealHidden,
+  });
   const hasReactions = reactions.length > 0;
   const displayConfig = getPostCardDisplayConfig(variant);
   const {
@@ -637,10 +663,15 @@ export function PostCard({
           verticalIdentity && "leading-tight",
         )}
       >
-        <MfmRenderer
-          text={displayName}
-          allowList={DISPLAY_NAME_ALLOW_LIST}
-          className="block max-w-full min-w-0 truncate overflow-hidden whitespace-nowrap [&_*]:max-w-full"
+        {/* flex, not block: cn merges these over DisplayName's own inline-flex,
+            and a display override there would stack the name and the lock. The
+            truncation lives on the name span inside DisplayName. */}
+        <DisplayName
+          name={displayName}
+          isPrivate={post.author?.isPrivate}
+          isMuted={post.author?.isMuted}
+          isBlocked={post.author?.isBlocking}
+          className="flex max-w-full min-w-0 [&_*]:max-w-full"
         />
       </button>
       {hasDisplayName && (
@@ -732,6 +763,16 @@ export function PostCard({
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
+        {hideActions.map((action) => (
+          <DropdownMenuItem
+            key={action.key}
+            onSelect={action.run}
+            className={action.destructive ? "text-destructive focus:text-destructive" : undefined}
+          >
+            {action.icon}
+            {action.label}
+          </DropdownMenuItem>
+        ))}
         {isOwner && (
           <DropdownMenuItem
             onSelect={handleOpenDelete}
@@ -814,6 +855,25 @@ export function PostCard({
               </div>
             </DrawerContent>
           </Drawer>
+          {hideActions.map((action) => (
+            <Button
+              key={action.key}
+              variant="ghost"
+              className={cn(
+                "w-full justify-start gap-2",
+                action.destructive && "text-destructive",
+              )}
+              onClick={() => {
+                // The drawer has to close first: blocking opens a confirmation
+                // of its own, and two stacked drawers trap the dismiss.
+                setMenuOpen(false);
+                action.run();
+              }}
+            >
+              {action.icon}
+              {action.label}
+            </Button>
+          ))}
           {isOwner && (
             <Button
               variant="ghost"
@@ -1010,7 +1070,12 @@ export function PostCard({
         verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
       )}
     >
-      <DeletedPostCard referenceId={post.referenceId} variant="embedded" isLast />
+      <DeletedPostCard
+        referenceId={post.referenceId}
+        variant="embedded"
+        isLast
+        restricted={post.referenceRestricted}
+      />
     </div>
   ) : null);
 
@@ -1091,7 +1156,26 @@ export function PostCard({
           </Button>
 
           {/* Boost */}
-          {isDesktop ? (
+          {boostBlocked ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled
+              title={t("actions.boostDisabledPrivate")}
+              aria-label={t("actions.boostDisabledPrivate")}
+              // pointer-events stay on so the cursor and tooltip still land on a
+              // disabled button, which is the whole point of showing it.
+              className={cn(
+                "h-8 text-muted-foreground disabled:pointer-events-auto disabled:cursor-not-allowed",
+                post.boostCount > 0 ? "px-2 gap-1" : "w-8 p-0",
+              )}
+            >
+              <Ban className="h-5 w-5" />
+              {post.boostCount > 0 && (
+                <span className="text-xs tabular-nums">{post.boostCount}</span>
+              )}
+            </Button>
+          ) : isDesktop ? (
             <DropdownMenu open={boostMenuOpen} onOpenChange={setBoostMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -1167,15 +1251,18 @@ export function PostCard({
             disabled={isPending}
           />
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
-          aria-label={!canNativeShare || shiftHeld ? t("actions.copyLink") : t("actions.share")}
-          onClick={handleShare}
-        >
-          {!canNativeShare || shiftHeld ? <Link2 className="h-5 w-5" /> : <Share className="h-5 w-5" />}
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <BookmarkButton postId={post.id} initialListIds={post.bookmarkListIds} />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
+            aria-label={!canNativeShare || shiftHeld ? t("actions.copyLink") : t("actions.share")}
+            onClick={handleShare}
+          >
+            {!canNativeShare || shiftHeld ? <Link2 className="h-5 w-5" /> : <Share className="h-5 w-5" />}
+          </Button>
+        </div>
       </div>
 
       <CreateReplyDialog
@@ -1192,6 +1279,26 @@ export function PostCard({
       />
     </>
   );
+
+  // Placed last, after every hook: an early return above them would change the
+  // hook order the moment a card is revealed.
+  //
+  // Feeds never reach this — the server drops hidden authors from both
+  // timelines. What lands here is a quoted post, a reply's parent, a search hit,
+  // a bookmark: places the viewer navigated to on purpose, where the answer is a
+  // cushion rather than a hole in the thread.
+  if (hiddenKind) {
+    return (
+      <HiddenPostCard
+        kind={hiddenKind}
+        onReveal={() => setRevealHidden(true)}
+        isLast={isLast}
+        threadLine={threadLine}
+        embedded={isEmbedded}
+        className={className}
+      />
+    );
+  }
 
   return (
     <article
@@ -1314,6 +1421,11 @@ export function PostCard({
           </DrawerContent>
         </Drawer>
       )}
+
+      {/* At article level rather than beside the menu: the menu is rendered from
+          several layout branches, and the compact variant skips the row the
+          other dialogs live in. Inert until blocking is chosen. */}
+      {hideDialog}
     </article>
   );
 }

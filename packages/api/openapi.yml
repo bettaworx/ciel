@@ -24,10 +24,12 @@ tags:
 - name: Admin
 - name: Users
 - name: Follows
+- name: Blocks
 - name: Posts
 - name: Timeline
 - name: Search
 - name: Reactions
+- name: Bookmarks
 - name: Media
 - name: Reports
 - name: Emojis
@@ -70,6 +72,8 @@ paths:
     $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1display-name
   /admin/users/{userId}/bio:
     $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1bio
+  /admin/users/{userId}/privacy:
+    $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1privacy
   /admin/agreements/documents:
     $ref: ./paths/admin/agreements.yml#/~1admin~1agreements~1documents
   /admin/agreements/documents/{documentId}:
@@ -188,6 +192,18 @@ paths:
     $ref: ./paths/users.yml#/~1me~1banner
   /me/agreements:
     $ref: ./paths/users.yml#/~1me~1agreements
+  /me/privacy:
+    $ref: ./paths/users.yml#/~1me~1privacy
+  /me/mutes:
+    $ref: ./paths/blocks.yml#/~1me~1mutes
+  /me/blocks:
+    $ref: ./paths/blocks.yml#/~1me~1blocks
+  /me/follow-requests:
+    $ref: ./paths/follows.yml#/~1me~1follow-requests
+  /me/follow-requests/{username}/accept:
+    $ref: ./paths/follows.yml#/~1me~1follow-requests~1{username}~1accept
+  /me/follow-requests/{username}/reject:
+    $ref: ./paths/follows.yml#/~1me~1follow-requests~1{username}~1reject
   /users/{username}:
     $ref: ./paths/users.yml#/~1users~1{username}
   /users/{username}/posts:
@@ -200,6 +216,10 @@ paths:
     $ref: ./paths/follows.yml#/~1users~1{username}~1following
   /users/{username}/followers_you_follow:
     $ref: ./paths/follows.yml#/~1users~1{username}~1followers_you_follow
+  /users/{username}/mute:
+    $ref: ./paths/blocks.yml#/~1users~1{username}~1mute
+  /users/{username}/block:
+    $ref: ./paths/blocks.yml#/~1users~1{username}~1block
   /posts:
     $ref: ./paths/posts.yml#/~1posts
   /media:
@@ -224,6 +244,14 @@ paths:
     $ref: ./paths/reactions.yml#/~1posts~1{postId}~1reactions
   /posts/{postId}/reactions/users:
     $ref: ./paths/reactions.yml#/~1posts~1{postId}~1reactions~1users
+  /bookmarks/lists:
+    $ref: ./paths/bookmarks.yml#/~1bookmarks~1lists
+  /bookmarks/lists/{listId}:
+    $ref: ./paths/bookmarks.yml#/~1bookmarks~1lists~1{listId}
+  /bookmarks/lists/{listId}/posts:
+    $ref: ./paths/bookmarks.yml#/~1bookmarks~1lists~1{listId}~1posts
+  /posts/{postId}/bookmarks:
+    $ref: ./paths/bookmarks.yml#/~1posts~1{postId}~1bookmarks
   /emojis:
     $ref: ./paths/emojis.yml#/~1emojis
   /emojis/{shortcode}:

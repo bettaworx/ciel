@@ -48,6 +48,7 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
     handleLanguageChange,
     handleUserInfoClick,
     handleProfileClick,
+    handleBookmarksClick,
     handleSettingsClick,
   } = useUserMenu();
 
@@ -79,6 +80,7 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
         onLogoutClick={handleLogoutClick}
         onLogoutConfirm={handleLogoutConfirm}
         onProfileClick={() => handleProfileClick(user.username)}
+        onBookmarksClick={handleBookmarksClick}
         onSettingsClick={handleSettingsClick}
         onUserInfoClick={() => handleUserInfoClick(user.username)}
         isExpanded={isExpanded}
@@ -103,6 +105,7 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
         onLanguageChange={handleLanguageChange}
         onLogoutClick={handleLogoutClick}
         onProfileClick={() => handleProfileClick(user.username)}
+        onBookmarksClick={handleBookmarksClick}
         onSettingsClick={handleSettingsClick}
         onUserInfoClick={() => handleUserInfoClick(user.username)}
       />

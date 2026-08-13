@@ -38,6 +38,7 @@ type AuthService struct {
 	inviteSvc      InviteServiceInterface
 	publisher      realtime.Publisher
 	search         *SearchService
+	reactions      *ReactionsService
 }
 
 func NewAuthService(store *repository.Store, tokens *auth.TokenManager) *AuthService {
@@ -109,6 +110,12 @@ func (s *AuthService) SetPublisher(publisher realtime.Publisher) {
 // in, and disappear from, user search.
 func (s *AuthService) SetSearchService(search *SearchService) {
 	s.search = search
+}
+
+// SetReactionsService wires reaction cleanup into account deletion: the reaction
+// counters are denormalised and no cascade reaches them.
+func (s *AuthService) SetReactionsService(reactions *ReactionsService) {
+	s.reactions = reactions
 }
 
 // validateRegistrationInput validates username and password from registration request
@@ -280,6 +287,12 @@ func (s *AuthService) createUserTransaction(
 			return err
 		}
 
+		// Everyone starts with one bookmark list. Its name is left NULL so the
+		// client can label it in the reader's own language.
+		if err := q.CreateDefaultBookmarkList(ctx, u.ID); err != nil {
+			return err
+		}
+
 		// Record invite code usage within the same transaction
 		if inviteCodeID != uuid.Nil {
 			_, err = q.RecordInviteCodeUse(ctx, sqlc.RecordInviteCodeUseParams{
@@ -347,7 +360,7 @@ func (s *AuthService) Register(ctx context.Context, req api.RegisterRequest) (ap
 	}
 	s.search.ReindexUser(ctx, created.ID)
 
-	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt), nil
+	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt, created.IsPrivate), nil
 }
 
 func (s *AuthService) LoginStart(ctx context.Context, req api.LoginStartRequest) (api.LoginStartResponse, error) {
@@ -488,7 +501,7 @@ func (s *AuthService) LoginFinish(ctx context.Context, req api.LoginFinishReques
 		AccessToken:      token,
 		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
 		ExpiresInSeconds: expiresIn,
-		User:             mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt),
+		User:             mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, false),
 	}, rawRefreshToken, nil
 }
 
@@ -716,8 +729,25 @@ func (s *AuthService) DeleteAccount(ctx context.Context, user auth.User) error {
 		slog.Warn("failed to revoke refresh tokens before account deletion", "error", err, "user_id", user.ID.String())
 	}
 
-	if err := s.store.Q.DeleteUserByID(ctx, user.ID); err != nil {
+	// The reactions have to go first and in the same transaction: post_reaction_counts
+	// is a denormalised counter with no key back to the user, so once the cascade
+	// removes the events there is nothing left to subtract and the post keeps
+	// showing a reaction nobody made.
+	var reactedPosts []uuid.UUID
+	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		if s.reactions != nil {
+			var err error
+			reactedPosts, err = s.reactions.PurgeUserReactions(ctx, q, user.ID)
+			if err != nil {
+				return err
+			}
+		}
+		return q.DeleteUserByID(ctx, user.ID)
+	}); err != nil {
 		return err
+	}
+	if s.reactions != nil {
+		s.reactions.InvalidatePostCounts(ctx, reactedPosts)
 	}
 	s.search.RemoveUser(ctx, user.ID)
 	return nil

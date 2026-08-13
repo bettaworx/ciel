@@ -1,14 +1,27 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
+import { KeyRound } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SettingsRow, SettingsRowGroup } from "@/components/settings/SettingsRow";
 
 export function SecuritySettingsContent() {
   const t = useTranslations();
 
   return (
-    <div className="space-y-3">
-      <SettingsPageHeader currentPageKey="settings.security.title" />
-    </div>
+    <>
+      <PageHeader backHref="/settings" showBackButton="mobile">
+        {t("settings.security.title")}
+      </PageHeader>
+      <div className="space-y-3">
+        <SettingsRowGroup>
+          <SettingsRow
+            icon={KeyRound}
+            label={t("settings.security.password.title")}
+            href="/settings/security/password"
+          />
+        </SettingsRowGroup>
+      </div>
+    </>
   );
 }

@@ -70,6 +70,8 @@ export const queryKeys = {
   followersYouFollowPreview: (username: string) =>
     ["followersYouFollowPreview", username] as const,
   reactions: (postId: string) => ["reactions", postId] as const,
+  bookmarkLists: ["bookmarkLists"] as const,
+  bookmarkListPosts: (listId: string) => ["bookmarkListPosts", listId] as const,
   agreementVersions: ["agreementVersions"] as const,
   latestAgreement: (type: "terms" | "privacy", language: string) =>
     ["latestAgreement", type, language] as const,
@@ -94,6 +96,11 @@ export const queryKeys = {
   ogp: (url: string) => ["ogp", url] as const,
   notifications: (tab: NotificationTab) => ["notifications", tab] as const,
   notificationsUnread: ["notificationsUnread"] as const,
+  followRequests: ["followRequests"] as const,
+  // Prefix shared by both settings lists, so muting or blocking anyone marks
+  // them stale without naming which one changed.
+  hidden: ["hidden"] as const,
+  hiddenList: (kind: "mutes" | "blocks") => ["hidden", kind] as const,
   searchPosts: (query: string) => ["search", "posts", query] as const,
   // Prefix shared by every user search, so one follow can patch all of them.
   searchUsersAll: ["search", "users"] as const,
@@ -250,34 +257,6 @@ export function useHomeTimeline(params?: { limit?: number; enabled?: boolean }) 
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 1000 * 60, // 1分
     enabled,
-  });
-}
-
-// Replies to a post with infinite scroll
-export function useReplies(
-  postId: string | undefined,
-  params?: { limit?: number },
-) {
-  const api = useApi();
-
-  return useInfiniteQuery({
-    queryKey: postId
-      ? [...queryKeys.replies(postId), params]
-      : ["replies", "null"],
-    queryFn: async ({ pageParam }) => {
-      if (!postId) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
-      const result = await api.listReplies(postId, {
-        limit: params?.limit ?? 30,
-        cursor: pageParam ?? null,
-      });
-      if (!result.ok) throw new Error(result.errorText);
-      return result.data;
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    maxPages: 5,
-    enabled: !!postId,
-    staleTime: 1000 * 60, // 1分
   });
 }
 
@@ -465,6 +444,91 @@ export function useFollowUser() {
 
 export function useUnfollowUser() {
   return useFollowMutation(false);
+}
+
+// Mute / unmute / block / unblock.
+//
+// Every feed and list changes membership here, and no patch can fake that: a
+// muted author's posts leave both timelines, their name leaves the follow and
+// reaction lists and user search, and their notifications stop appearing. So
+// this invalidates broadly rather than editing caches in place. The profile
+// itself is written straight from the response, as follow does.
+//
+// Blocking additionally severs both follows, which is why it invalidates the
+// follow lists and the facepile that muting leaves alone.
+function useHideMutation(kind: "mute" | "block", on: boolean) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const call =
+        kind === "mute"
+          ? on
+            ? api.muteUser
+            : api.unmuteUser
+          : on
+            ? api.blockUser
+            : api.unblockUser;
+      const result = await call(username);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (user, username) => {
+      queryClient.setQueryData(queryKeys.user(username), user);
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: queryKeys.userPosts(username) });
+      // Individually cached posts carry the author flags that draw the indicator
+      // and the reveal cushion. Timeline reply parents and boosted posts are
+      // fetched this way, so without this they keep rendering uncushioned until
+      // the entry expires.
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+      queryClient.invalidateQueries({ queryKey: ["replies"] });
+      queryClient.invalidateQueries({ queryKey: ["postThread"] });
+      queryClient.invalidateQueries({ queryKey: ["postContext"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.searchUsersAll });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notificationsUnread });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hidden });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({
+        queryKey: ["followersYouFollowPreview"],
+      });
+    },
+  });
+}
+
+export function useMuteUser() {
+  return useHideMutation("mute", true);
+}
+
+export function useUnmuteUser() {
+  return useHideMutation("mute", false);
+}
+
+export function useBlockUser() {
+  return useHideMutation("block", true);
+}
+
+export function useUnblockUser() {
+  return useHideMutation("block", false);
+}
+
+// The settings lists of muted and blocked accounts, with infinite scroll.
+export function useHiddenList(kind: "mutes" | "blocks") {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.hiddenList(kind),
+    queryFn: async ({ pageParam }: { pageParam?: string | null }) => {
+      const result = await api.hiddenList(kind, { limit: 30, cursor: pageParam });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (last: UsersPage) => last.nextCursor ?? undefined,
+  });
 }
 
 // One of the three follow lists, with infinite scroll.
@@ -695,6 +759,107 @@ export function useUpdateProfile() {
       queryClient.invalidateQueries({ queryKey: queryKeys.me });
     },
   });
+}
+
+// Change the account's username. Requires a step-up token.
+//
+// The username is a JWT claim, so the server re-issues the auth cookie and
+// returns the fresh session — hence the LoginFinishResponse shape rather than a
+// bare User. Throws ApiHttpError so the caller can tell 409 (taken) from 401
+// (step-up expired) apart.
+export function useUpdateUsername() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const setAuth = useSetAtom(authAtom);
+
+  return useMutation({
+    mutationFn: async ({
+      username,
+      stepupToken,
+    }: {
+      username: string;
+      stepupToken: string;
+    }) => {
+      const result = await api.updateUsername({ username }, stepupToken);
+      if (!result.ok) {
+        throw new ApiHttpError(result.errorText, result.status, result.headers);
+      }
+      return result.data;
+    },
+    onSuccess: (session) => {
+      setAuth((prev) => ({
+        ...prev,
+        user: session.user,
+      }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+    },
+  });
+}
+
+// Turns the account's private mode on or off.
+//
+// The invalidation list is deliberately wide. Every cached feed, profile and
+// post the client is holding was fetched under the old visibility, and the
+// default staleTime is a minute with no refetch on window focus — so without
+// this a tab left open would keep rendering the old state for up to a minute
+// after the switch. Server responses are already correct; this is what makes the
+// screen agree with them straight away.
+export function useUpdatePrivacy() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const setAuth = useSetAtom(authAtom);
+
+  return useMutation({
+    mutationFn: async (isPrivate: boolean) => {
+      const result = await api.updatePrivacy({ isPrivate });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (updatedUser) => {
+      setAuth((prev) => ({ ...prev, user: updatedUser }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      queryClient.invalidateQueries({ queryKey: queryKeys.followRequests });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+// Approving or declining both refresh the same set: the request list shrinks,
+// and the requester's follow state on any profile the client is holding changes.
+function useFollowRequestDecision(decide: "accept" | "reject") {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const result =
+        decide === "accept"
+          ? await api.acceptFollowRequest(username)
+          : await api.rejectFollowRequest(username);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (user) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.followRequests });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      queryClient.invalidateQueries({ queryKey: queryKeys.user(user.username) });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notificationsUnread });
+    },
+  });
+}
+
+export function useAcceptFollowRequest() {
+  return useFollowRequestDecision("accept");
+}
+
+export function useRejectFollowRequest() {
+  return useFollowRequestDecision("reject");
 }
 
 // Agreement versions (public endpoint)

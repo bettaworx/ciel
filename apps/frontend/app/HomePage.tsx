@@ -89,6 +89,7 @@ function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) 
           variant="timeline"
           isLast={isLast}
           indicator={boostIndicator}
+          restricted={post.referenceRestricted}
         />
       );
     }

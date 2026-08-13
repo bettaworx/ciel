@@ -28,7 +28,7 @@ func TestReactionsService_ListUsers(t *testing.T) {
 	expectGetPostWithAuthor(mock, postID, userID, created, userCreated)
 	mock.ExpectQuery(`SELECT
 	pre.user_id,`).
-		WithArgs(postID, "👍", sql.NullTime{}, uuid.NullUUID{}, int32(2)).
+		WithArgs(postID, "👍", uuid.NullUUID{}, sql.NullTime{}, uuid.NullUUID{}, int32(2)).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"user_id",
 			"username",
@@ -36,11 +36,12 @@ func TestReactionsService_ListUsers(t *testing.T) {
 			"bio",
 			"avatar_media_id",
 			"user_created_at",
+			"is_private",
 			"avatar_ext",
 			"reacted_at",
-		}).AddRow(userID, "alice", "Alice", "", nil, userCreated, "", reactedAt))
+		}).AddRow(userID, "alice", "Alice", "", nil, userCreated, false, "", reactedAt))
 
-	page, err := svc.ListUsers(context.Background(), postID, api.Emoji("👍"), 2, nil)
+	page, err := svc.ListUsers(context.Background(), postID, api.Emoji("👍"), 2, nil, nil)
 	if err != nil {
 		t.Fatalf("ListUsers: %v", err)
 	}

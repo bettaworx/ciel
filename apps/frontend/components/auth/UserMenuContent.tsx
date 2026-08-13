@@ -7,6 +7,7 @@ import {
   Palette,
   Languages,
   Settings as SettingsIcon,
+  Bookmark,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -24,8 +25,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useSlideAnimation } from "@/lib/hooks/use-slide-animation";
-import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DisplayName } from "@/components/users/DisplayName";
 import { cn } from "@/lib/utils";
 
 type MenuView = "main" | "theme" | "language";
@@ -40,6 +40,7 @@ interface UserMenuContentProps {
   locale: Locale;
   onLanguageChange: (locale: Locale) => void;
   onProfileClick: () => void;
+  onBookmarksClick: () => void;
   onSettingsClick: () => void;
   onLogoutClick: () => void;
   onUserInfoClick?: () => void;
@@ -57,6 +58,7 @@ export function UserMenuContent({
   locale,
   onLanguageChange,
   onProfileClick,
+  onBookmarksClick,
   onSettingsClick,
   onLogoutClick,
   onUserInfoClick,
@@ -118,9 +120,9 @@ export function UserMenuContent({
             {user.displayName ? (
               <>
                 <div className="text-sm font-semibold">
-                  <MfmRenderer
-                    text={user.displayName}
-                    allowList={DISPLAY_NAME_ALLOW_LIST}
+                  <DisplayName
+                    name={user.displayName}
+                    isPrivate={user.isPrivate}
                   />
                 </div>
                 <div className="text-sm text-muted-foreground">
@@ -155,16 +157,32 @@ export function UserMenuContent({
         <Separator />
 
         {/* メニュー項目 */}
+        {/* プロフィールと設定はデスクトップではサイドバーに常設されているので、
+            メニューにはモバイルでのみ出す */}
         <div className="p-2 space-y-1">
-          <Button
-            variant="ghost"
-            rounded="md"
-            className="w-full justify-start"
-            onClick={onProfileClick}
-          >
-            <User className="h-4 w-4" />
-            {t("userMenu.viewProfile")}
-          </Button>
+          {isMobile && (
+            <Button
+              variant="ghost"
+              rounded="md"
+              className="w-full justify-start"
+              onClick={onProfileClick}
+            >
+              <User className="h-4 w-4" />
+              {t("userMenu.viewProfile")}
+            </Button>
+          )}
+
+          {isMobile && (
+            <Button
+              variant="ghost"
+              rounded="md"
+              className="w-full justify-start"
+              onClick={onBookmarksClick}
+            >
+              <Bookmark className="h-4 w-4" />
+              {t("nav.bookmarks")}
+            </Button>
+          )}
 
           <Button
             variant="ghost"
@@ -192,15 +210,17 @@ export function UserMenuContent({
             <ChevronRight className="h-4 w-4" />
           </Button>
 
-          <Button
-            variant="ghost"
-            rounded="md"
-            className="w-full justify-start"
-            onClick={onSettingsClick}
-          >
-            <SettingsIcon className="h-4 w-4" />
-            {t("settings.title")}
-          </Button>
+          {isMobile && (
+            <Button
+              variant="ghost"
+              rounded="md"
+              className="w-full justify-start"
+              onClick={onSettingsClick}
+            >
+              <SettingsIcon className="h-4 w-4" />
+              {t("settings.title")}
+            </Button>
+          )}
         </div>
         <Separator />
 

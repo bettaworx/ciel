@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { settingsCategories } from "@/lib/settings-categories";
+import { isConcentratedMode } from "@/lib/utils/concentrated-mode";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { AccountCard } from "@/components/settings/AccountCard";
 import { PageContainer } from "@/components/PageContainer";
@@ -23,9 +24,17 @@ export default function SettingsLayout({
     label: t(cat.labelKey),
   }));
 
+  // Step-up wizards own the whole screen: they bring their own full-screen
+  // shell, so the sidebar and page container would only box them in.
+  if (isConcentratedMode(pathname)) {
+    return <RequireAuth redirectOnClose="/">{children}</RequireAuth>;
+  }
+
   return (
     <RequireAuth redirectOnClose="/">
-      <PageContainer padding="compact" as="div">
+      {/* pt-0: every settings page leads with a PageHeader, which brings its
+          own top inset — the same deal PageContainer's `header` prop makes. */}
+      <PageContainer padding="compact" as="div" className="pt-0">
         <div className="flex flex-col md:flex-row gap-3">
           {/* Desktop Sidebar */}
           <aside className="hidden md:block w-64 shrink-0">

@@ -31,6 +31,7 @@ interface MobileUserMenuProps {
   onLanguageChange: (locale: Locale) => void;
   onLogoutClick: () => void;
   onProfileClick: () => void;
+  onBookmarksClick: () => void;
   onSettingsClick: () => void;
   onUserInfoClick: () => void;
 }
@@ -48,6 +49,7 @@ export function MobileUserMenu({
   onLanguageChange,
   onLogoutClick,
   onProfileClick,
+  onBookmarksClick,
   onSettingsClick,
   onUserInfoClick,
 }: MobileUserMenuProps) {
@@ -61,7 +63,7 @@ export function MobileUserMenu({
           className="w-12 h-12 rounded-full p-0 hover:bg-transparent"
           aria-label={t("nav.openUserMenu")}
         >
-          <Avatar className="w-10 h-10">
+          <Avatar className="w-10 h-10 rounded-xl">
             <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName || user.username} />
             <AvatarFallback className="bg-primary text-primary-foreground text-base font-semibold">
               {initials}
@@ -81,6 +83,7 @@ export function MobileUserMenu({
           locale={locale}
           onLanguageChange={onLanguageChange}
           onProfileClick={onProfileClick}
+          onBookmarksClick={onBookmarksClick}
           onSettingsClick={onSettingsClick}
           onLogoutClick={onLogoutClick}
           onUserInfoClick={onUserInfoClick}

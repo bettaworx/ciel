@@ -364,14 +364,19 @@ func main() {
 	reactionsSvc := service.NewReactionsService(store, cacheImpl, realtimeHub)
 	notificationsSvc := service.NewNotificationsService(store)
 	followsSvc := service.NewFollowsService(store, cacheImpl, realtimeHub)
+	blocksSvc := service.NewBlocksService(store, cacheImpl, realtimeHub)
+	bookmarksSvc := service.NewBookmarksService(store, postsSvc)
+	postsSvc.SetBookmarksService(bookmarksSvc)
 	postsSvc.SetReactionsService(reactionsSvc)
 	postsSvc.SetNotificationsService(notificationsSvc)
 	reactionsSvc.SetNotificationsService(notificationsSvc)
+	authSvc.SetReactionsService(reactionsSvc)
 	notificationsSvc.SetPostsService(postsSvc)
 	timelineSvc.SetReactionsService(reactionsSvc)
 	timelineSvc.SetPostsService(postsSvc)
 	followsSvc.SetNotificationsService(notificationsSvc)
 	followsSvc.SetUsersService(usersSvc)
+	blocksSvc.SetUsersService(usersSvc)
 
 	// Search. An unset SEARCH_PROVIDER yields a no-op provider: indexing calls
 	// become no-ops and the /search routes answer 503, like the other optional
@@ -385,6 +390,8 @@ func main() {
 	searchSvc.SetPostsService(postsSvc)
 	postsSvc.SetSearchService(searchSvc)
 	usersSvc.SetSearchService(searchSvc)
+	usersSvc.SetCache(cacheImpl)
+	usersSvc.SetPublisher(realtimeHub)
 	authSvc.SetSearchService(searchSvc)
 	modPostsSvc.SetSearchService(searchSvc)
 	adminProfileSvc.SetSearchService(searchSvc)
@@ -439,10 +446,12 @@ func main() {
 		Authz:         authzSvc,
 		Users:         usersSvc,
 		Follows:       followsSvc,
+		Blocks:        blocksSvc,
 		Posts:         postsSvc,
 		Timeline:      timelineSvc,
 		Search:        searchSvc,
 		Reactions:     reactionsSvc,
+		Bookmarks:     bookmarksSvc,
 		Notifications: notificationsSvc,
 		Media:         mediaSvc,
 		Emojis:        emojiSvc,

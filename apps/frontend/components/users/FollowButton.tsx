@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
 import { toast } from "sonner";
-import { Check, HeartHandshake, Minus, Plus } from "lucide-react";
+import { Check, Clock, HeartHandshake, Minus, Plus } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,17 +33,37 @@ type FollowButtonProps = {
   username: string;
   isFollowing: boolean;
   isFollowedBy: boolean;
+  /** Private accounts are followed by request rather than directly. */
+  isPrivate?: boolean | null;
+  /** A request already sent and still awaiting approval. */
+  followRequestSent?: boolean | null;
+  /** This account has blocked the caller. */
+  isBlockedBy?: boolean | null;
+  /** The caller has blocked this account. */
+  isBlocking?: boolean | null;
   className?: string;
 };
 
 /**
- * Follow / following / follow-back button. Renders nothing when logged out or
- * pointed at yourself, so callers do not have to guard it.
+ * Follow / requested / following / follow-back button. Renders nothing when
+ * logged out or pointed at yourself, so callers do not have to guard it.
+ *
+ * Three states rather than two: following a private account creates a pending
+ * request, which grants no visibility until they approve it. Showing "Following"
+ * there would claim access the account does not have.
+ *
+ * Renders nothing across a block in either direction. The server refuses those
+ * follows with a 403, so the button could only ever fail; hiding it is the same
+ * reasoning as the self check above.
  */
 export function FollowButton({
   username,
   isFollowing,
   isFollowedBy,
+  isPrivate,
+  followRequestSent,
+  isBlockedBy,
+  isBlocking,
   className,
 }: FollowButtonProps) {
   const t = useTranslations();
@@ -54,9 +74,12 @@ export function FollowButton({
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
   if (!authUser || authUser.username === username) return null;
+  if (isBlockedBy || isBlocking) return null;
 
   const isPending = followUser.isPending || unfollowUser.isPending;
   const isMutualFollow = isFollowing && isFollowedBy;
+  // Only meaningful while not yet following; approval clears it server-side.
+  const isRequested = !isFollowing && Boolean(followRequestSent);
 
   const handleToggle = (e: React.MouseEvent) => {
     // The button often sits inside a link to the profile.
@@ -65,6 +88,14 @@ export function FollowButton({
     // Unfollowing is not undoable in one tap, so it asks first.
     if (isFollowing) {
       setConfirmOpen(true);
+      return;
+    }
+    // Withdrawing a request is cheap and re-sendable, so it needs no dialog.
+    // The same DELETE removes a pending row as removes a follow.
+    if (isRequested) {
+      unfollowUser.mutate(username, {
+        onError: () => toast.error(t("user.followError")),
+      });
       return;
     }
     followUser.mutate(username, {
@@ -92,10 +123,10 @@ export function FollowButton({
         // Following reads as the neutral "done" state, so it wears the same
         // colour as the edit button; hovering it reveals the destructive action
         // it actually performs.
-        variant={isFollowing ? "default" : "primary"}
+        variant={isFollowing || isRequested ? "default" : "primary"}
         size="sm"
         className={cn(
-          isFollowing &&
+          (isFollowing || isRequested) &&
             "group hover:bg-destructive hover:text-destructive-foreground",
           className,
         )}
@@ -117,10 +148,25 @@ export function FollowButton({
               {t("user.unfollow")}
             </span>
           </>
+        ) : isRequested ? (
+          <>
+            <span className="inline-flex items-center gap-1 group-hover:hidden">
+              <Clock className="w-4 h-4" />
+              {t("user.followRequested")}
+            </span>
+            <span className="hidden items-center gap-1 group-hover:inline-flex">
+              <Minus className="w-4 h-4" />
+              {t("user.cancelFollowRequest")}
+            </span>
+          </>
         ) : (
           <span className="inline-flex items-center gap-1">
             <Plus className="w-4 h-4" />
-            {isFollowedBy ? t("user.followBack") : t("user.follow")}
+            {isPrivate
+              ? t("user.requestFollow")
+              : isFollowedBy
+                ? t("user.followBack")
+                : t("user.follow")}
           </span>
         )}
       </Button>

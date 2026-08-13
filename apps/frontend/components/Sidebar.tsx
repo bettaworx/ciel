@@ -4,7 +4,18 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAtomValue, useAtom } from "jotai";
-import { Home, Search, SquarePen, Pin, PinOff, Info, Bell } from "lucide-react";
+import {
+  Home,
+  Search,
+  SquarePen,
+  Pin,
+  PinOff,
+  Info,
+  Bell,
+  Bookmark,
+  User,
+  Settings,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,7 +27,7 @@ import { SidebarAvatar } from "@/components/SidebarAvatar";
 import { SidebarActionButton } from "@/components/SidebarActionButton";
 import { NotificationBadge } from "@/components/notifications/NotificationBadge";
 import { CreatePostDialog } from "@/components/CreatePostDialog";
-import { isAuthenticatedAtom } from "@/atoms/auth";
+import { isAuthenticatedAtom, userAtom } from "@/atoms/auth";
 import {
   sidebarPinnedAtom,
   sidebarExpandedAtom,
@@ -36,6 +47,7 @@ export function Sidebar() {
   const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
   const isAuthenticated = useAtomValue(isAuthenticatedAtom);
+  const user = useAtomValue(userAtom);
   const router = useRouter();
   const [isPinned, setIsPinned] = useAtom(sidebarPinnedAtom);
   const [, setIsExpanded] = useAtom(sidebarExpandedAtom);
@@ -51,6 +63,7 @@ export function Sidebar() {
   // keep the SSR markup and the hydrated markup identical.
   const [host, setHost] = useState("");
   useEffect(() => setHost(window.location.host), []);
+  const t = useTranslations();
   const tNav = useTranslations("nav");
   const tCreatePost = useTranslations("createPost");
 
@@ -219,7 +232,7 @@ export function Sidebar() {
           </motion.div>
         </div>
 
-        <div className="flex flex-col gap-1.5 grow">
+        <div className="flex flex-col gap-1.5 grow justify-center">
           <SidebarActionButton
             onClick={handleHomeClick}
             icon={<Home className="w-5 h-5 shrink-0" />}
@@ -267,9 +280,39 @@ export function Sidebar() {
               hoverBg={hoverBg}
             />
           )}
-        </div>
-
-        <div className="flex flex-col gap-3">
+          {isAuthenticated && (
+            <SidebarActionButton
+              href="/bookmarks"
+              icon={<Bookmark className="w-5 h-5 shrink-0" />}
+              label={tNav("bookmarks")}
+              isActive={pathname.startsWith("/bookmarks")}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
+          {isAuthenticated && user && (
+            <SidebarActionButton
+              href={`/users/${user.username}`}
+              icon={<User className="w-5 h-5 shrink-0" />}
+              label={t("profile")}
+              isActive={pathname === `/users/${user.username}`}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
+          {isAuthenticated && (
+            <SidebarActionButton
+              href="/settings"
+              icon={<Settings className="w-5 h-5 shrink-0" />}
+              label={t("settings.title")}
+              isActive={pathname.startsWith("/settings")}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
           {isAuthenticated && (
             <SidebarActionButton
               icon={<SquarePen className="w-5 h-5 shrink-0" />}
@@ -280,12 +323,13 @@ export function Sidebar() {
               onClick={() => setIsPostDialogOpen(true)}
             />
           )}
-          <SidebarAvatar
-            isExpanded={isExpanded}
-            isPinned={isPinned}
-            canAnimate={canExpand}
-          />
         </div>
+
+        <SidebarAvatar
+          isExpanded={isExpanded}
+          isPinned={isPinned}
+          canAnimate={canExpand}
+        />
       </motion.aside>
 
       {isAuthenticated && (

@@ -18,12 +18,14 @@ type Publisher interface {
 	Publish(ctx context.Context, event Event) error
 }
 
-// outbound is a wire payload plus its optional delivery target. target is the
-// string form of Event.TargetUserId, extracted once at enqueue time so the
-// fan-out loop does not re-parse the payload per client.
+// outbound is a client-facing payload plus its optional delivery set. targets
+// is built once at enqueue time so the fan-out loop does not re-parse the
+// payload per client, and is nil for a public event.
+//
+// payload is already stripped of the recipient list: see Event.forClient.
 type outbound struct {
 	payload []byte
-	target  string
+	targets map[string]struct{}
 }
 
 // Hub manages realtime clients and fan-out.
@@ -77,10 +79,12 @@ func (h *Hub) Run(ctx context.Context) {
 			}
 		case msg := <-h.broadcast:
 			for client := range h.clients {
-				// Targeted events reach only that user's connections; anonymous
+				// Targeted events reach only those users' connections; anonymous
 				// clients (empty userID) never match one.
-				if msg.target != "" && msg.target != client.userID {
-					continue
+				if msg.targets != nil {
+					if _, ok := msg.targets[client.userID]; !ok {
+						continue
+					}
 				}
 				select {
 				case client.send <- msg.payload:
@@ -93,39 +97,52 @@ func (h *Hub) Run(ctx context.Context) {
 	}
 }
 
-// Publish sends an event to all subscribers.
+// Publish sends an event to all subscribers, or to the connections of
+// Event.TargetUserIds when that is set.
+//
+// Two payloads are built, not one. The inter-instance payload keeps the
+// recipient list so every instance can pick out its own connections; the
+// client payload drops it, because the list is the follower set of whoever the
+// event is about.
 func (h *Hub) Publish(ctx context.Context, event Event) error {
 	if err := event.Validate(); err != nil {
 		return err
 	}
-	payload, err := json.Marshal(event)
+	clientPayload, err := json.Marshal(event.forClient())
 	if err != nil {
 		return err
 	}
-	wirePayload := payload
+	if h.rdb == nil {
+		h.enqueue(clientPayload, event.targets())
+		return nil
+	}
+
+	internalPayload, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	wirePayload := internalPayload
 	if h.signer != nil {
 		wirePayload, err = json.Marshal(signedMessage{
-			Payload: payload,
-			Sig:     h.signer.Sign(payload),
+			Payload: internalPayload,
+			Sig:     h.signer.Sign(internalPayload),
 		})
 		if err != nil {
 			return err
 		}
 	}
-	if h.rdb != nil {
-		if err := h.rdb.Publish(ctx, eventsChannel, wirePayload).Err(); err != nil {
-			h.enqueue(payload, event.target())
-			return err
-		}
-		return nil
+	if err := h.rdb.Publish(ctx, eventsChannel, wirePayload).Err(); err != nil {
+		// Redis is the path to the other instances. With it down, at least
+		// serve the connections attached to this one.
+		h.enqueue(clientPayload, event.targets())
+		return err
 	}
-	h.enqueue(payload, event.target())
 	return nil
 }
 
-func (h *Hub) enqueue(payload []byte, target string) {
+func (h *Hub) enqueue(payload []byte, targets map[string]struct{}) {
 	select {
-	case h.broadcast <- outbound{payload: payload, target: target}:
+	case h.broadcast <- outbound{payload: payload, targets: targets}:
 	default:
 	}
 }
@@ -212,7 +229,20 @@ func (h *Hub) handlePayload(payload []byte) {
 	if err := event.Validate(); err != nil {
 		return
 	}
-	h.enqueue(payload, event.target())
+	targets := event.targets()
+	if targets == nil {
+		// Public event: nothing to strip, so the payload as received is already
+		// what a client should get.
+		h.enqueue(payload, nil)
+		return
+	}
+	// Re-marshal without the recipient list. Once per instance per event, not
+	// once per recipient, which is the whole point of batching them.
+	clientPayload, err := json.Marshal(event.forClient())
+	if err != nil {
+		return
+	}
+	h.enqueue(clientPayload, targets)
 }
 
 // Client represents a websocket connection.

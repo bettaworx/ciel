@@ -12,6 +12,7 @@ import { WebSocketDisconnectAlert } from '@/components/realtime/WebSocketDisconn
 import { NotificationRow } from '@/components/notifications/NotificationRow';
 import { notificationTargetPostId } from '@/lib/notifications';
 import { resolveWebSocketUrl } from '@/lib/api/base-url';
+import { cacheHoldsAuthor } from '@/lib/moderation/cache-holds-author';
 import {
 	mergeReactionCountsForCurrentUser,
 	reactionSelfQueryKey,
@@ -34,6 +35,7 @@ type RealtimeEvent =
 	| { type: 'reaction_updated'; reactionCounts: ReactionCounts }
 	| { type: 'user_registered' }
 	| { type: 'user_deleted' }
+	| { type: 'user_privacy_changed'; username: string }
 	| { type: 'server_info_updated'; serverInfo: ServerInfo }
 	| { type: 'server_config_updated'; serverConfig: ServerConfig }
 	| { type: 'notification_created'; notification: Notification; targetUserId: UserId };
@@ -308,6 +310,40 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 		});
 	}, [queryClient]);
 
+	// An account switched between public and private. Everything this client is
+	// holding about them was fetched under the old setting, so it is dropped
+	// rather than trusted for the rest of the cache lifetime. The server is
+	// already refusing it; this only stops an open tab from carrying on showing
+	// what it fetched a moment ago.
+	const handleUserPrivacyChanged = useCallback((username: string) => {
+		queryClient.invalidateQueries({ queryKey: queryKeys.user(username) });
+		queryClient.invalidateQueries({ queryKey: queryKeys.userPosts(username) });
+		// Timelines and posts are dropped only where this account actually
+		// appears. This event is broadcast to everyone connected, and a blanket
+		// invalidation meant one person toggling their privacy setting made every
+		// open tab on the server refetch its whole timeline at once. Almost none
+		// of those timelines contained the account in question.
+		queryClient.invalidateQueries({
+			queryKey: queryKeys.timeline,
+			predicate: (query) => cacheHoldsAuthor(query.state.data, username),
+		});
+		queryClient.invalidateQueries({
+			queryKey: ['post'],
+			predicate: (query) => cacheHoldsAuthor(query.state.data, username),
+		});
+		// Follow lists are keyed by whose list it is, so this one needs no data:
+		// only their own lists can gain or lose the pending requests that turning
+		// privacy off accepts.
+		queryClient.invalidateQueries({
+			queryKey: queryKeys.follows,
+			predicate: (query) => query.queryKey[1] === username,
+		});
+		// Left whole. It is one list per client rather than a page of infinite
+		// scroll, and whether a notification survives depends on the actor, which
+		// the cached shape does not always name.
+		queryClient.invalidateQueries({ queryKey: ['notifications'] });
+	}, [queryClient]);
+
 	const handleServerInfoUpdated = useCallback((info: ServerInfo) => {
 		// Merge pushed info but keep locally-tracked stats so we don't clobber incremental counts
 		queryClient.setQueryData(queryKeys.serverInfo, (old: ServerInfo | undefined) => ({
@@ -413,6 +449,10 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 						handleUserDeleted();
 						break;
 
+					case 'user_privacy_changed':
+						handleUserPrivacyChanged(data.username);
+						break;
+
 					case 'server_info_updated':
 						handleServerInfoUpdated(data.serverInfo);
 						break;
@@ -429,7 +469,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 				console.error('Failed to parse WebSocket message:', err);
 			}
 		},
-		[handlePostCreated, handlePostDeleted, handleReactionUpdated, handleUserRegistered, handleUserDeleted, handleServerInfoUpdated, handleServerConfigUpdated, handleNotificationCreated]
+		[handlePostCreated, handlePostDeleted, handleReactionUpdated, handleUserRegistered, handleUserDeleted, handleUserPrivacyChanged, handleServerInfoUpdated, handleServerConfigUpdated, handleNotificationCreated]
 	);
 
 	const connect = useCallback(() => {

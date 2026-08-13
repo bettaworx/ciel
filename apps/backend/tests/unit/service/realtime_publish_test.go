@@ -38,6 +38,7 @@ func TestPostsService_Create_PublishesEvent(t *testing.T) {
 	created := time.Unix(1_700_000_000, 0).UTC()
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}).
@@ -50,6 +51,7 @@ func TestPostsService_Create_PublishesEvent(t *testing.T) {
 	expectListMentions(mock)
 	expectCountReplies(mock)
 	expectCountBoosts(mock)
+	expectIsUserPrivate(mock, userID, false)
 
 	user := auth.User{ID: userID, Username: "alice"}
 	content := "hello"
@@ -82,11 +84,9 @@ func TestPostsService_Create_BoostOnlyWithReferenceID(t *testing.T) {
 	created := time.Unix(1_700_000_000, 0).UTC()
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
-	mock.ExpectQuery(`SELECT id, user_id, parent_id, root_id, reference_id, deleted_at`).
-		WithArgs(referenceID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "parent_id", "root_id", "reference_id", "deleted_at"}).
-			AddRow(referenceID, referenceAuthorID, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, sql.NullTime{Valid: false}))
+	expectPostThreadInfo(mock, referenceID, referenceAuthorID, false)
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at"}).
@@ -102,6 +102,7 @@ func TestPostsService_Create_BoostOnlyWithReferenceID(t *testing.T) {
 	expectListMentions(mock)
 	expectCountReplies(mock)
 	expectCountBoosts(mock)
+	expectIsUserPrivate(mock, userID, false)
 
 	user := auth.User{ID: userID, Username: "alice"}
 	referencePostID := api.PostId(referenceID)
@@ -125,11 +126,9 @@ func TestPostsService_Create_DuplicateBoostReturnsConflict(t *testing.T) {
 	userID := uuid.New()
 	referenceID := uuid.New()
 
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
-	mock.ExpectQuery(`SELECT id, user_id, parent_id, root_id, reference_id, deleted_at`).
-		WithArgs(referenceID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "parent_id", "root_id", "reference_id", "deleted_at"}).
-			AddRow(referenceID, uuid.New(), uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, sql.NullTime{Valid: false}))
+	expectPostThreadInfo(mock, referenceID, uuid.New(), false)
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}).
 		WillReturnError(&pgconn.PgError{Code: "23505"})
@@ -192,6 +191,7 @@ func TestReactionsService_Add_PublishesEvent(t *testing.T) {
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
 	expectGetPostWithAuthor(mock, postID, userID, created, userCreated)
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO post_reaction_events`).WithArgs(userID, postID, "👍").
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(userID))
@@ -200,6 +200,7 @@ func TestReactionsService_Add_PublishesEvent(t *testing.T) {
 	mock.ExpectCommit()
 	expectGetPostWithAuthor(mock, postID, userID, created, userCreated)
 	expectListReactionCountsWithUserStatus(mock, postID, userID, "👍", 1, true)
+	expectIsUserPrivate(mock, userID, false)
 
 	user := auth.User{ID: userID, Username: "alice"}
 	if _, err := svc.Add(context.Background(), user, postID, api.ReactRequest{Emoji: api.Emoji("👍")}); err != nil {
@@ -247,6 +248,7 @@ func TestReactionsService_Remove_PublishesEvent(t *testing.T) {
 	mock.ExpectCommit()
 	expectGetPostWithAuthor(mock, postID, postAuthorID, created, userCreated)
 	expectListReactionCountsWithUserStatus(mock, postID, userID, "👍", 1, false)
+	expectIsUserPrivate(mock, postAuthorID, false)
 
 	user := auth.User{ID: userID, Username: "alice"}
 	if _, err := svc.Remove(context.Background(), user, postID, api.Emoji("👍")); err != nil {
@@ -263,10 +265,39 @@ func TestReactionsService_Remove_PublishesEvent(t *testing.T) {
 	}
 }
 
+// expectGetPostWithAuthor expects the post lookup. The second argument is the
+// privacy gate's viewer id; sqlmock.AnyArg keeps the helper usable from both the
+// authenticated and anonymous call sites.
 func expectGetPostWithAuthor(mock sqlmock.Sqlmock, postID api.PostId, userID uuid.UUID, created time.Time, userCreated time.Time) {
-	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(postID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "avatar_ext"}).
-			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, sql.NullString{}))
+	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(sqlmock.AnyArg(), postID).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "is_private", "avatar_ext", "parent_private", "parent_hidden"}).
+			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, false, sql.NullString{}, false, false))
+}
+
+// expectIsUserPrivate expects the privacy lookup the realtime publish path makes
+// before choosing between a public broadcast and per-follower delivery. A public
+// author keeps the single broadcast these tests assert on.
+func expectIsUserPrivate(mock sqlmock.Sqlmock, userID uuid.UUID, private bool) {
+	mock.ExpectQuery(`SELECT is_private FROM users`).WithArgs(userID).
+		WillReturnRows(sqlmock.NewRows([]string{"is_private"}).AddRow(private))
+}
+
+// expectPostThreadInfo expects the target-post lookup that Create runs for a
+// reply, boost or quote. can_view is true and author_is_private is the caller's
+// choice, which is what the boost/quote block keys off.
+// expectNotBlocked answers the one scope read that replaced the per-call block
+// checks in front of a reply, boost, quote or reaction. An empty result means
+// the viewer has hidden nobody and nobody has blocked them.
+func expectNotBlocked(mock sqlmock.Sqlmock) {
+	mock.ExpectQuery(`FROM account_mutes`).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "kind"}))
+}
+
+func expectPostThreadInfo(mock sqlmock.Sqlmock, postID uuid.UUID, authorID uuid.UUID, authorPrivate bool) {
+	mock.ExpectQuery(`SELECT\s+p.id,\s+p.user_id,\s+p.parent_id`).
+		WithArgs(sqlmock.AnyArg(), postID).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "parent_id", "root_id", "reference_id", "deleted_at", "author_is_private", "can_view"}).
+			AddRow(postID, authorID, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, sql.NullTime{Valid: false}, authorPrivate, true))
 }
 
 // expectListMentions sets up an expectation for ListMentionsForPosts returning no rows.
