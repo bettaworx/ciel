@@ -26,191 +26,144 @@
     "general": {
       "title": "一般",
       "language": {
-        "title": "言語",
-        "description": "表示言語を選ぶ",
-        "placeholder": "言語を選択"
+        "title": "言語"
       }
     },
     "appearance": {
       "title": "外観",
       "theme": {
         "title": "テーマ",
-        "description": "アプリのテーマを選ぶ",
         "light": "ライト",
         "dark": "ダーク",
-        "system": "システム",
-        "systemDescription": "OSの設定に従うようになります"
+        "system": "システム"
       },
       "mfm": {
         "title": "MFM (テキスト装飾)",
-        "description": "投稿やプロフィールのテキスト装飾・アニメーション表示を制御する",
         "enabled": {
-          "title": "MFMを有効",
-          "description": "有効にするとMFMを使用した装飾が表示されます"
+          "title": "MFMを有効"
         },
         "mention": {
-          "title": "メンション",
-          "description": "@ユーザー形式のメンション表示"
+          "title": "メンション"
         },
         "hashtag": {
-          "title": "ハッシュタグ",
-          "description": "#タグ形式のハッシュタグ表示"
+          "title": "ハッシュタグ"
         },
         "url": {
-          "title": "URL",
-          "description": "URLの自動リンク表示"
+          "title": "URL"
         },
         "link": {
-          "title": "リンク",
-          "description": "テキストリンクの表示"
+          "title": "リンク"
         },
         "emojiCode": {
-          "title": "カスタム絵文字",
-          "description": ":name: 形式のカスタム絵文字表示"
+          "title": "カスタム絵文字"
         },
         "bold": {
-          "title": "太字",
-          "description": "太字テキストの表示"
+          "title": "太字"
         },
         "italic": {
-          "title": "斜体",
-          "description": "斜体テキストの表示"
+          "title": "斜体"
         },
         "strike": {
-          "title": "取り消し線",
-          "description": "取り消し線テキストの表示"
+          "title": "取り消し線"
         },
         "small": {
-          "title": "小さい文字",
-          "description": "縮小テキストの表示"
+          "title": "小さい文字"
         },
         "quote": {
-          "title": "引用",
-          "description": "引用ブロックの表示"
+          "title": "引用"
         },
         "center": {
-          "title": "中央揃え",
-          "description": "テキストの中央揃え表示"
+          "title": "中央揃え"
         },
         "ruby": {
-          "title": "ルビ（読み仮名）",
-          "description": "テキスト上の読み仮名表示"
+          "title": "ルビ（読み仮名）"
         },
         "code": {
           "title": "コード",
-          "description": "コードの表示",
           "inline": {
-            "title": "インライン",
-            "description": "インラインコードの表示"
+            "title": "インライン"
           },
           "block": {
-            "title": "ブロック",
-            "description": "コードブロックの表示"
+            "title": "ブロック"
           }
         },
         "flip": {
-          "title": "反転",
-          "description": "テキストの水平・垂直反転"
+          "title": "反転"
         },
         "font": {
           "title": "フォント",
-          "description": "フォントファミリーの変更",
           "serif": {
-            "title": "セリフ体",
-            "description": "セリフ体フォントの表示"
+            "title": "セリフ体"
           },
           "monospace": {
-            "title": "等幅",
-            "description": "等幅フォントの表示"
+            "title": "等幅"
           },
           "cursive": {
-            "title": "筆記体",
-            "description": "筆記体フォントの表示"
+            "title": "筆記体"
           },
           "fantasy": {
-            "title": "ファンタジー",
-            "description": "ファンタジーフォントの表示"
+            "title": "ファンタジー"
           }
         },
         "blur": {
-          "title": "ぼかし",
-          "description": "テキストのぼかし効果"
+          "title": "ぼかし"
         },
         "search": {
-          "title": "検索ボックス",
-          "description": "検索ブロックの表示"
+          "title": "検索ボックス"
         },
         "bg": {
-          "title": "背景色",
-          "description": "テキスト背景色の表示"
+          "title": "背景色"
         },
         "fg": {
-          "title": "文字色",
-          "description": "テキスト色の変更表示"
+          "title": "文字色"
         },
         "border": {
-          "title": "枠線",
-          "description": "テキスト周囲の枠線表示"
+          "title": "枠線"
         },
         "rotate": {
-          "title": "回転",
-          "description": "テキストの回転表示"
+          "title": "回転"
         },
         "position": {
-          "title": "位置変更",
-          "description": "テキストの位置移動"
+          "title": "位置変更"
         },
         "scale": {
-          "title": "拡大縮小",
-          "description": "テキストの拡大・縮小表示"
+          "title": "拡大縮小"
         },
         "expand": {
           "title": "サイズ拡大",
-          "description": "テキストサイズの拡大表示",
           "allowLargerThanX2": {
-            "title": "3倍/4倍を許可",
-            "description": "無効時は2倍に制限されます"
+            "title": "3倍/4倍を許可"
           }
         },
         "animation": {
           "title": "アニメーション",
-          "description": "テキストアニメーション効果",
           "jelly": {
-            "title": "ゼリー",
-            "description": "ゼリーアニメーション"
+            "title": "ゼリー"
           },
           "tada": {
-            "title": "じゃじゃーん",
-            "description": "じゃじゃーんアニメーション"
+            "title": "じゃじゃーん"
           },
           "jump": {
-            "title": "ジャンプ",
-            "description": "ジャンプアニメーション"
+            "title": "ジャンプ"
           },
           "bounce": {
-            "title": "バウンス",
-            "description": "跳ね返るアニメーション"
+            "title": "バウンス"
           },
           "spin": {
-            "title": "回転",
-            "description": "スピンアニメーション"
+            "title": "回転"
           },
           "shake": {
-            "title": "振動",
-            "description": "振動させるアニメーション"
+            "title": "振動"
           },
           "twitch": {
-            "title": "痙攣",
-            "description": "痙攣させるアニメーション"
+            "title": "痙攣"
           }
         },
         "rainbow": {
-          "title": "レインボー",
-          "description": "虹色に変化するアニメーション"
+          "title": "レインボー"
         },
         "sparkle": {
-          "title": "キラキラ",
-          "description": "キラキラ輝くアニメーション"
+          "title": "キラキラ"
         }
       }
     },
@@ -314,14 +267,17 @@
     },
     "privacy": {
       "title": "プライバシー",
+      "sections": {
+        "visibility": "プライバシー",
+        "moderation": "モデレーション"
+      },
       "hiddenAccounts": {
         "title": "ミュートとブロック",
         "description": "ミュートまたはブロックしているユーザーを確認し、解除できます。",
         "open": "一覧を開く"
       },
       "privateAccount": {
-        "title": "非公開アカウント",
-        "description": "フォロワーだけが投稿とアクティビティを見られるようになります。新しいフォローは承認制になります。",
+        "title": "非公開アカウントにする",
         "enabled": "非公開にしました",
         "disabled": "公開しました",
         "error": "設定を変更できませんでした"

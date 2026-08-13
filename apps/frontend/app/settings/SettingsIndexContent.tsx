@@ -2,11 +2,11 @@
 
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { settingsCategories } from "@/lib/settings-categories";
-import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { AccountCard } from "@/components/settings/AccountCard";
+import { SettingsRow, SettingsRowGroup } from "@/components/settings/SettingsRow";
 
 export function SettingsIndexContent() {
   const t = useTranslations();
@@ -24,38 +24,27 @@ export function SettingsIndexContent() {
     }
   }, [router]);
 
-  // 翻訳を適用
-  const categories = settingsCategories.map((cat) => ({
-    ...cat,
-    label: t(cat.labelKey),
-  }));
-
   // モバイル: カテゴリ一覧を表示
   // デスクトップ: useEffectでリダイレクトされるが、一瞬表示される可能性があるのでmd:hiddenで隠す
   return (
     <div className="md:hidden">
-      <h1 className="text-2xl font-bold ml-3 mt-3 mb-6">
-        {t("settings.title")}
-      </h1>
-      <div className="bg-card rounded-xl">
-        {categories.map((category, index) => {
-          const Icon = category.icon;
-          return (
-            <div key={category.id}>
-              <Link href={category.href}>
-                <div className="flex items-center justify-between p-4 transition-colors cursor-pointer hover:bg-card-hover">
-                  <div className="flex items-center gap-3">
-                    <Icon className="h-5 w-5" />
-                    <span className="font-medium">{category.label}</span>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </div>
-              </Link>
-              {index < categories.length - 1 && <Separator />}
-            </div>
-          );
-        })}
-      </div>
+      {/* Reached from the nav, so there is nothing to go back to. */}
+      <PageHeader showBackButton={false}>{t("settings.title")}</PageHeader>
+
+      {/* The desktop sidebar carries this on every settings page; on mobile
+          only the index has room for it. */}
+      <AccountCard />
+
+      <SettingsRowGroup>
+        {settingsCategories.map((category) => (
+          <SettingsRow
+            key={category.id}
+            icon={category.icon}
+            label={t(category.labelKey)}
+            href={category.href}
+          />
+        ))}
+      </SettingsRowGroup>
     </div>
   );
 }

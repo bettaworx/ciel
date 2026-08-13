@@ -1,51 +1,37 @@
 "use client";
 
-import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ChevronRight, Trash2, UserPen } from "lucide-react";
-import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
+import { Trash2, UserPen } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SettingsRow, SettingsRowGroup } from "@/components/settings/SettingsRow";
 
 /**
  * Account settings: the identity of the account itself.
  *
  * Both rows navigate to a step-up wizard rather than editing in place — nothing
- * here can be touched before re-authenticating — so they use the same list_row
- * treatment as the mutes link and the licenses page.
+ * here can be touched before re-authenticating.
  */
 export function AccountSettingsContent() {
   const t = useTranslations();
 
   return (
-    <div className="space-y-3">
-      <SettingsPageHeader currentPageKey="settings.account.title" />
-
-      <div className="flex flex-col overflow-hidden rounded-2xl bg-card">
-        <Button variant="list_row" size="list" asChild>
-          <Link href="/settings/account/username">
-            <span className="flex items-center gap-3">
-              <UserPen />
-              <span>{t("settings.account.username.title")}</span>
-            </span>
-            <ChevronRight />
-          </Link>
-        </Button>
-
-        <Separator />
-
-        {/* The colour has to ride on the Button so tailwind-merge drops
-            list_row's text-foreground; on the Link both would survive. */}
-        <Button variant="list_row" size="list" asChild className="text-destructive">
-          <Link href="/settings/account/delete">
-            <span className="flex items-center gap-3">
-              <Trash2 />
-              <span>{t("settings.account.delete.title")}</span>
-            </span>
-            <ChevronRight />
-          </Link>
-        </Button>
+    <>
+      <PageHeader>{t("settings.account.title")}</PageHeader>
+      <div className="space-y-3">
+        <SettingsRowGroup>
+          <SettingsRow
+            icon={UserPen}
+            label={t("settings.account.username.title")}
+            href="/settings/account/username"
+          />
+          <SettingsRow
+            icon={Trash2}
+            label={t("settings.account.delete.title")}
+            href="/settings/account/delete"
+            className="text-destructive"
+          />
+        </SettingsRowGroup>
       </div>
-    </div>
+    </>
   );
 }
