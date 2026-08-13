@@ -79,6 +79,29 @@ components:
           description: >-
             Whether the caller has a follow request awaiting this user's approval.
             Omitted when unauthenticated.
+        isMuted:
+          type: boolean
+          description: >-
+            Whether the caller has muted this user. Muted accounts are dropped
+            from both timelines, from user search and from follow and reaction
+            lists, but their posts still arrive wherever the caller navigated on
+            purpose — a profile, a quoted post, a reply's parent — and the client
+            hides those behind a reveal button. Clients also draw a muted-speaker
+            icon beside the display name, in the same places as the private lock.
+            Omitted when unauthenticated.
+        isBlocking:
+          type: boolean
+          description: >-
+            Whether the caller has blocked this user. Everything isMuted does
+            applies, drawn with a prohibition icon instead. Omitted when
+            unauthenticated.
+        isBlockedBy:
+          type: boolean
+          description: >-
+            Whether this user has blocked the caller. The caller sees none of
+            their posts, follow graph, reactions or media, and cannot follow,
+            reply to, boost, quote or react to them; the profile itself stays
+            reachable so the client can say so. Omitted when unauthenticated.
     UsersPage:
       type: object
       description: Paginated list of users, newest relationship first.

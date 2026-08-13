@@ -87,8 +87,8 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 			if err != nil {
 				return api.TimelinePage{}, err
 			}
-			posts = dropRepliesToHiddenParents(posts)
-			if err := s.hydratePosts(ctx, posts, userID); err != nil {
+			posts, err = s.hydratePosts(ctx, posts, userID)
+			if err != nil {
 				return api.TimelinePage{}, err
 			}
 			page := api.TimelinePage{Items: posts}
@@ -111,8 +111,14 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 			cID = uuid.NullUUID{UUID: uid, Valid: true}
 		}
 	}
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
 	rows, err := s.store.Q.ListTimelinePosts(ctx, sqlc.ListTimelinePostsParams{
-		ViewerID:   nullUUIDFromPtr(userID),
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
 		CursorTime: cTime,
 		CursorID:   cID,
 		Limit:      int32(limit),
@@ -125,8 +131,8 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	for _, row := range rows {
 		items = append(items, mapTimelineRow(row))
 	}
-	items = dropRepliesToHiddenParents(items)
-	if err := s.hydratePosts(ctx, items, userID); err != nil {
+	items, err = s.hydratePosts(ctx, items, userID)
+	if err != nil {
 		return api.TimelinePage{}, err
 	}
 
@@ -139,25 +145,38 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
 }
 
-// hydratePosts fills in everything a timeline row needs beyond the post itself.
-// Every feed goes through here so the shapes stay identical.
-func (s *TimelineService) hydratePosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+// hydratePosts fills in everything a timeline row needs beyond the post itself,
+// then drops the rows this viewer should not be handed. Every feed goes through
+// here so the shapes stay identical.
+//
+// It returns the kept posts rather than filtering in place: the drop has to
+// happen after the references are attached — a pure boost is only recognisable
+// as a hidden author's post once its reference is loaded — and a caller that
+// forgot to apply it would silently serve a muted account's posts.
+func (s *TimelineService) hydratePosts(ctx context.Context, posts []api.Post, userID *api.UserId) ([]api.Post, error) {
+	ctx, scope, err := EnsureViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return nil, err
+	}
 	if err := s.attachMediaToPosts(ctx, posts); err != nil {
-		return err
+		return nil, err
 	}
 	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
-		return err
+		return nil, err
 	}
 	if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
-		return err
+		return nil, err
 	}
 	if s.posts == nil {
-		return nil
+		return scope.Filter(posts, SurfaceFeed), nil
 	}
 	if err := s.posts.attachBoostCountsToPosts(ctx, posts); err != nil {
-		return err
+		return nil, err
 	}
-	return s.posts.attachReferencesToPosts(ctx, posts, userID)
+	if err := s.posts.attachReferencesToPosts(ctx, posts, userID); err != nil {
+		return nil, err
+	}
+	return scope.Filter(posts, SurfaceFeed), nil
 }
 
 // GetHome returns the timeline of posts by the viewer and everyone they follow.
@@ -198,8 +217,8 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 			// A post dropped by fetchPosts (deleted since being cached) would
 			// leave a short page, so only serve it when nothing was lost.
 			if len(posts) == limit {
-				posts = dropRepliesToHiddenParents(posts)
-				if err := s.hydratePosts(ctx, posts, &userID); err != nil {
+				posts, err = s.hydratePosts(ctx, posts, &userID)
+				if err != nil {
 					return api.TimelinePage{}, err
 				}
 				nc := encodeCursor(*next)
@@ -216,8 +235,13 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 			cID = uuid.NullUUID{UUID: uid, Valid: true}
 		}
 	}
+	homeScope, err := LoadViewerScope(ctx, s.store, &userID)
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
 	rows, err := s.store.Q.ListHomeTimelinePosts(ctx, sqlc.ListHomeTimelinePostsParams{
 		ViewerID:   userID,
+		HiddenIds:  homeScope.HiddenIDs(),
 		CursorTime: cTime,
 		CursorID:   cID,
 		Limit:      int32(limit),
@@ -230,8 +254,8 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 	for _, row := range rows {
 		items = append(items, mapHomeTimelineRow(row))
 	}
-	items = dropRepliesToHiddenParents(items)
-	if err := s.hydratePosts(ctx, items, &userID); err != nil {
+	items, err = s.hydratePosts(ctx, items, &userID)
+	if err != nil {
 		return api.TimelinePage{}, err
 	}
 
@@ -255,9 +279,14 @@ func (s *TimelineService) warmHomeTimeline(ctx context.Context, userID uuid.UUID
 	if s.cache == nil {
 		return
 	}
+	scope, err := LoadViewerScope(ctx, s.store, &userID)
+	if err != nil {
+		return
+	}
 	rows, err := s.store.Q.ListHomeTimelinePostIDs(ctx, sqlc.ListHomeTimelinePostIDsParams{
-		ViewerID: userID,
-		Limit:    homeTimelineMaxEntries,
+		ViewerID:  userID,
+		HiddenIds: scope.HiddenIDs(),
+		Limit:     homeTimelineMaxEntries,
 	})
 	if err != nil || len(rows) == 0 {
 		return
@@ -284,6 +313,7 @@ func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
+		ParentHidden:  &row.ParentHidden,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
 		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
@@ -294,10 +324,20 @@ func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
 // same set wherever posts are read. The bookmarks service is reached through
 // PostsService rather than injected again, since a timeline without one has no
 // post hydration either.
+// The hidden-author flags have to be stamped here even though the feed queries
+// already filter, because a Redis cache hit never runs those queries: it
+// rebuilds its rows from GetPostsByIDs, which carries only the hard
+// can_view_user gate. Without this a muted author's posts stay in the timeline
+// for as long as the ZSET holds their ids.
 func (s *TimelineService) attachViewerStateToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
 	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
 		return err
 	}
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return err
+	}
+	scope.StampAuthorFlags(posts)
 	var bookmarks *BookmarksService
 	if s.posts != nil {
 		bookmarks = s.posts.bookmarks
@@ -385,39 +425,6 @@ func (s *TimelineService) listFromRedis(ctx context.Context, key string, limit i
 	return ids, nil, true
 }
 
-// dropRepliesToHiddenParents removes replies whose parent the viewer cannot see
-// because its author is private.
-//
-// Both feeds use this: the public timeline and the home timeline. A reply with
-// no readable parent is a fragment of a conversation the viewer cannot follow,
-// and it advertises that the private account posted something — following the
-// public half of a conversation is enough to watch the private half happen.
-//
-// A viewer who does follow that account gets ParentPrivate false and keeps the
-// reply as normal. The redacted parent card is for the places reached on
-// purpose — a profile's replies tab, a post's own page — where the subject is
-// that author's activity rather than a feed of everything.
-//
-// Applied after the page cursor is derived, so nothing is skipped on the next
-// page; the page simply comes back shorter, as it already can when a cached
-// post turns out to be deleted.
-// DropRepliesToHiddenParents exposes the feed filter for tests living outside
-// this package.
-func DropRepliesToHiddenParents(posts []api.Post) []api.Post {
-	return dropRepliesToHiddenParents(posts)
-}
-
-func dropRepliesToHiddenParents(posts []api.Post) []api.Post {
-	kept := make([]api.Post, 0, len(posts))
-	for _, post := range posts {
-		if post.ParentPrivate != nil && *post.ParentPrivate {
-			continue
-		}
-		kept = append(kept, post)
-	}
-	return kept
-}
-
 func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid.UUID, userID *api.UserId) ([]api.Post, error) {
 	if len(ids) == 0 {
 		return []api.Post{}, nil
@@ -425,9 +432,15 @@ func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid
 	// The ZSETs hold ids only, so this re-read is what applies the privacy gate
 	// to a cache hit. A post whose author just went private drops out here on the
 	// very next request, without anything having to expire.
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
-		Ids:      ids,
-		ViewerID: nullUUIDFromPtr(userID),
+		Ids:          ids,
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
 	})
 	if err != nil {
 		return nil, err
@@ -580,6 +593,7 @@ func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
+		ParentHidden:  &row.ParentHidden,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
 		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
@@ -597,6 +611,7 @@ func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
+		ParentHidden:  &row.ParentHidden,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
 		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),

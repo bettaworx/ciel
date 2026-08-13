@@ -24,6 +24,7 @@ tags:
 - name: Admin
 - name: Users
 - name: Follows
+- name: Blocks
 - name: Posts
 - name: Timeline
 - name: Search
@@ -193,6 +194,10 @@ paths:
     $ref: ./paths/users.yml#/~1me~1agreements
   /me/privacy:
     $ref: ./paths/users.yml#/~1me~1privacy
+  /me/mutes:
+    $ref: ./paths/blocks.yml#/~1me~1mutes
+  /me/blocks:
+    $ref: ./paths/blocks.yml#/~1me~1blocks
   /me/follow-requests:
     $ref: ./paths/follows.yml#/~1me~1follow-requests
   /me/follow-requests/{username}/accept:
@@ -211,6 +216,10 @@ paths:
     $ref: ./paths/follows.yml#/~1users~1{username}~1following
   /users/{username}/followers_you_follow:
     $ref: ./paths/follows.yml#/~1users~1{username}~1followers_you_follow
+  /users/{username}/mute:
+    $ref: ./paths/blocks.yml#/~1users~1{username}~1mute
+  /users/{username}/block:
+    $ref: ./paths/blocks.yml#/~1users~1{username}~1block
   /posts:
     $ref: ./paths/posts.yml#/~1posts
   /media:

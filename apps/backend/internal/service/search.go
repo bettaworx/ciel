@@ -81,7 +81,14 @@ func (s *SearchService) SearchPosts(ctx context.Context, raw string, limit, offs
 		return api.PostSearchPage{}, mapSearchError(err)
 	}
 
-	byID, err := s.posts.GetHydratedPostsByIDs(ctx, result.IDs, viewer)
+	// Loaded before hydration so the hydration below shares this one read
+	// rather than repeating it per attach step.
+	ctx, _, err = EnsureViewerScope(ctx, s.store, viewer)
+	if err != nil {
+		return api.PostSearchPage{}, err
+	}
+
+	byID, err := s.posts.GetHydratedPostsByIDs(ctx, result.IDs, viewer, SurfaceFeed)
 	if err != nil {
 		return api.PostSearchPage{}, err
 	}
@@ -94,6 +101,9 @@ func (s *SearchService) SearchPosts(ctx context.Context, raw string, limit, offs
 			items = append(items, post)
 		}
 	}
+	// EstimatedTotal is left as the engine reported it. It is already an estimate
+	// over an index that does not know about this viewer, and correcting it for
+	// one page would make it wrong in a different way.
 	return api.PostSearchPage{
 		Items:          items,
 		EstimatedTotal: int(result.EstimatedTotal),
@@ -125,8 +135,15 @@ func (s *SearchService) SearchUsers(ctx context.Context, raw string, limit, offs
 	}
 	byID := make(map[uuid.UUID]api.User, len(rows))
 	for _, row := range rows {
-		byID[row.ID] = mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
+		user := mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
 			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, row.IsPrivate, viewer)
+		// Only set for an identified viewer, matching the other relationship
+		// flags: an anonymous caller has no relationship to report.
+		if viewer != nil {
+			isBlockedBy := row.IsBlockedBy
+			user.IsBlockedBy = &isBlockedBy
+		}
+		byID[row.ID] = user
 	}
 	items := make([]api.User, 0, len(result.IDs))
 	for _, id := range result.IDs {

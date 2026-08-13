@@ -258,7 +258,10 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 	// Batch-hydrate the referenced posts so the list costs one extra round of
 	// queries regardless of page size.
 	if len(postIDs) > 0 && s.posts != nil {
-		byID, err := s.posts.GetHydratedPostsByIDs(ctx, postIDs, &userID)
+		// SurfaceFeed: a notification list is handed to the recipient whole. The
+		// rows themselves are already filtered by actor, so this catches the
+		// embedded post rather than the notification.
+		byID, err := s.posts.GetHydratedPostsByIDs(ctx, postIDs, &userID, SurfaceFeed)
 		if err != nil {
 			return api.NotificationsPage{}, err
 		}
@@ -336,11 +339,10 @@ func (s *NotificationsService) Publish(ctx context.Context, publisher realtime.P
 		if n == nil {
 			continue
 		}
-		target := api.UserId(c.UserID)
 		_ = publisher.Publish(ctx, realtime.Event{
-			Type:         realtime.EventNotificationCreated,
-			Notification: n,
-			TargetUserId: &target,
+			Type:          realtime.EventNotificationCreated,
+			Notification:  n,
+			TargetUserIds: []api.UserId{api.UserId(c.UserID)},
 		})
 	}
 }
@@ -358,7 +360,7 @@ func (s *NotificationsService) build(ctx context.Context, c CreatedNotification)
 	n := mapNotificationRow(row)
 	if row.PostID.Valid && s.posts != nil {
 		userID := api.UserId(c.UserID)
-		if byID, err := s.posts.GetHydratedPostsByIDs(ctx, []uuid.UUID{row.PostID.UUID}, &userID); err == nil {
+		if byID, err := s.posts.GetHydratedPostsByIDs(ctx, []uuid.UUID{row.PostID.UUID}, &userID, SurfaceFeed); err == nil {
 			if post, ok := byID[row.PostID.UUID]; ok {
 				n.Post = &post
 			}

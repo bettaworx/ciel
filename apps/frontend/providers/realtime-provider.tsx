@@ -12,6 +12,7 @@ import { WebSocketDisconnectAlert } from '@/components/realtime/WebSocketDisconn
 import { NotificationRow } from '@/components/notifications/NotificationRow';
 import { notificationTargetPostId } from '@/lib/notifications';
 import { resolveWebSocketUrl } from '@/lib/api/base-url';
+import { cacheHoldsAuthor } from '@/lib/moderation/cache-holds-author';
 import {
 	mergeReactionCountsForCurrentUser,
 	reactionSelfQueryKey,
@@ -317,10 +318,29 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 	const handleUserPrivacyChanged = useCallback((username: string) => {
 		queryClient.invalidateQueries({ queryKey: queryKeys.user(username) });
 		queryClient.invalidateQueries({ queryKey: queryKeys.userPosts(username) });
-		queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
-		queryClient.invalidateQueries({ queryKey: queryKeys.follows });
-		// Posts are keyed by id, so there is no way to pick out just theirs.
-		queryClient.invalidateQueries({ queryKey: ['post'] });
+		// Timelines and posts are dropped only where this account actually
+		// appears. This event is broadcast to everyone connected, and a blanket
+		// invalidation meant one person toggling their privacy setting made every
+		// open tab on the server refetch its whole timeline at once. Almost none
+		// of those timelines contained the account in question.
+		queryClient.invalidateQueries({
+			queryKey: queryKeys.timeline,
+			predicate: (query) => cacheHoldsAuthor(query.state.data, username),
+		});
+		queryClient.invalidateQueries({
+			queryKey: ['post'],
+			predicate: (query) => cacheHoldsAuthor(query.state.data, username),
+		});
+		// Follow lists are keyed by whose list it is, so this one needs no data:
+		// only their own lists can gain or lose the pending requests that turning
+		// privacy off accepts.
+		queryClient.invalidateQueries({
+			queryKey: queryKeys.follows,
+			predicate: (query) => query.queryKey[1] === username,
+		});
+		// Left whole. It is one list per client rather than a page of infinite
+		// scroll, and whether a notification survives depends on the actor, which
+		// the cached shape does not always name.
 		queryClient.invalidateQueries({ queryKey: ['notifications'] });
 	}, [queryClient]);
 

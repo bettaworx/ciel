@@ -18,8 +18,9 @@
       "profile": "Profile",
       "general": "General",
       "appearance": "Appearance",
-      "account": "Account",
-      "security": "Security"
+      "security": "Security",
+      "mutes": "Mutes and blocks",
+      "privacy": "Privacy"
     },
     "general": {
       "title": "General",
@@ -216,16 +217,6 @@
       "ja": "日本語",
       "en": "English"
     },
-    "account": {
-      "title": "Account",
-      "privateAccount": {
-        "title": "Private account",
-        "description": "Only your followers can see your posts and activity. New follows become requests you approve.",
-        "enabled": "Your account is now private",
-        "disabled": "Your account is now public",
-        "error": "Could not change your privacy setting"
-      }
-    },
     "security": {
       "title": "Security"
     },
@@ -268,6 +259,28 @@
       "updateSuccess": "Profile updated successfully",
       "updateError": "Failed to update profile",
       "unsavedChanges": "You have unsaved changes"
+    },
+    "mutes": {
+      "title": "Mutes and blocks",
+      "muted": "Muted",
+      "blocked": "Blocked",
+      "noMuted": "You haven't muted anyone",
+      "noBlocked": "You haven't blocked anyone"
+    },
+    "privacy": {
+      "title": "Privacy",
+      "hiddenAccounts": {
+        "title": "Mutes and blocks",
+        "description": "Review the users you have muted or blocked, and undo them.",
+        "open": "Open list"
+      },
+      "privateAccount": {
+        "title": "Private account",
+        "description": "Only your followers can see your posts and activity. New follows become requests you approve.",
+        "enabled": "Your account is now private",
+        "disabled": "Your account is now public",
+        "error": "Could not change your privacy setting"
+      }
     }
   },
   "loading": "Loading...",
@@ -314,7 +327,28 @@
     "privatePostsHiddenDescription": "Only approved followers can see these posts.",
     "requestFollow": "Request to follow",
     "followRequested": "Requested",
-    "cancelFollowRequest": "Cancel request"
+    "cancelFollowRequest": "Cancel request",
+    "mutedAccount": "Muted user",
+    "blockedAccount": "Blocked user",
+    "muteUser": "Mute",
+    "unmuteUser": "Unmute",
+    "blockUser": "Block",
+    "unblockUser": "Unblock",
+    "muteError": "Failed to update mute",
+    "blockError": "Failed to update block",
+    "blockConfirmTitle": "Block this user?",
+    "blockConfirmDescription": "Blocking @{username} removes any follow between you in both directions, and they will no longer be able to see your posts or reply, boost or react to them. Unblocking does not restore the follows.",
+    "mutedPostsHidden": "You've muted this user",
+    "blockedPostsHidden": "You've blocked this user",
+    "blockedByUser": "You have been blocked",
+    "blockedByUserDescription": "You cannot view this user's posts.",
+    "muteConfirmTitle": "Mute this user?",
+    "muteConfirmDescription": "Muting @{username} removes them from your timelines, user search and reaction lists, and stops their notifications. They are not told, and you can undo it at any time.",
+    "hideConfirmCancel": "Cancel",
+    "unmuteConfirmTitle": "Unmute this user?",
+    "unmuteConfirmDescription": "Unmuting @{username} brings their posts back to your timelines and search results, and lets their notifications through again.",
+    "unblockConfirmTitle": "Unblock this user?",
+    "unblockConfirmDescription": "Unblocking @{username} lets them see your posts and reply or react to them again. The follows the block removed are not restored."
   },
   "login": {
     "title": "Login",
@@ -432,13 +466,14 @@
       "settingsGeneral": "General",
       "settingsProfile": "Profile",
       "settingsAppearance": "Appearance",
-      "settingsAccount": "Account",
       "settingsSecurity": "Security",
       "setup": "Setup Profile",
       "adminSetup": "Server Setup",
       "postDetail": "Post",
       "search": "Search",
-      "bookmarks": "Bookmarks"
+      "bookmarks": "Bookmarks",
+      "settingsMutes": "Mutes and blocks",
+      "settingsPrivacy": "Privacy"
     }
   },
   "timeline": {
@@ -697,6 +732,15 @@
     "privatePost": {
       "username": "Private User",
       "label": "(Private)"
+    },
+    "hiddenPost": {
+      "muted": "You've muted this user",
+      "blocked": "You've blocked this user",
+      "reveal": "Show"
+    },
+    "restrictedPost": {
+      "username": "Restricted post",
+      "label": "This post has a restricted audience"
     }
   },
   "adminSetup": {

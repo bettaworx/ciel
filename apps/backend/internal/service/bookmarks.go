@@ -239,12 +239,19 @@ func (s *BookmarksService) ListPosts(ctx context.Context, userID uuid.UUID, list
 		ids = append(ids, row.PostID)
 	}
 	viewer := api.UserId(userID)
-	byID, err := s.posts.GetHydratedPostsByIDs(ctx, ids, &viewer)
+	// Loaded before hydration so the hydration below shares this one read.
+	ctx, _, err = EnsureViewerScope(ctx, s.store, &viewer)
+	if err != nil {
+		return api.UserPostsPage{}, err
+	}
+	byID, err := s.posts.GetHydratedPostsByIDs(ctx, ids, &viewer, SurfaceFeed)
 	if err != nil {
 		return api.UserPostsPage{}, err
 	}
 	// Walk the bookmark ordering, not the map's. A missing id is a post deleted
-	// between the two queries.
+	// between the two queries — or one the viewer may no longer read, because its
+	// author went private or blocked them: GetPostsByIDs applies can_view_user and
+	// drops those, which is the whole of the hard case here.
 	items := make([]api.Post, 0, len(ids))
 	for _, id := range ids {
 		if post, ok := byID[id]; ok {

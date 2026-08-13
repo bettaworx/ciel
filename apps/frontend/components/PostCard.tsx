@@ -19,6 +19,9 @@ import { CreateQuoteDialog } from "@/components/CreateQuoteDialog";
 import { formatFullTimestamp, formatTimeAgo } from "@/lib/utils/format-time";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DisplayName } from "@/components/users/DisplayName";
+import { HiddenPostCard } from "@/components/HiddenPostCard";
+import { postCushion } from "@/lib/moderation/visibility";
+import { useHideUserActions } from "@/lib/hooks/use-hide-user-actions";
 import { useReactions } from "@/lib/hooks/use-reactions";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -158,6 +161,13 @@ export interface PostCardProps {
    * notification without spending a whole row on an indicator.
    */
   avatarBadge?: ReactNode;
+  /**
+   * Skips the muted/blocked cushion for this card. Set by surfaces that already
+   * asked once — the profile of a muted account gates its whole post list behind
+   * a single banner, and cushioning every row underneath it would mean answering
+   * the same question twice.
+   */
+  skipHiddenCushion?: boolean;
 }
 
 export interface PostTreeActionButtonProps {
@@ -238,6 +248,7 @@ export function PostCard({
   threadLine = "none",
   indicator,
   avatarBadge,
+  skipHiddenCushion = false,
 }: PostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -268,6 +279,11 @@ export function PostCard({
   const [indicatorMenuOpen, setIndicatorMenuOpen] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
+  const [revealHidden, setRevealHidden] = useState(false);
+  const { actions: hideActions, dialog: hideDialog } = useHideUserActions(
+    post.author?.username,
+    { isMuted: post.author?.isMuted, isBlocking: post.author?.isBlocking },
+  );
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [isContentOverflowing, setIsContentOverflowing] = useState(false);
   const [isCompactOverflowing, setIsCompactOverflowing] = useState(false);
@@ -279,6 +295,10 @@ export function PostCard({
   // everyone, including its accepted followers. The button is blocked rather
   // than hidden so the reason is visible instead of the control just vanishing.
   const boostBlocked = Boolean(post.author?.isPrivate);
+  const hiddenKind = postCushion(post, {
+    skip: skipHiddenCushion,
+    revealed: revealHidden,
+  });
   const hasReactions = reactions.length > 0;
   const displayConfig = getPostCardDisplayConfig(variant);
   const {
@@ -649,6 +669,8 @@ export function PostCard({
         <DisplayName
           name={displayName}
           isPrivate={post.author?.isPrivate}
+          isMuted={post.author?.isMuted}
+          isBlocked={post.author?.isBlocking}
           className="flex max-w-full min-w-0 [&_*]:max-w-full"
         />
       </button>
@@ -741,6 +763,16 @@ export function PostCard({
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
+        {hideActions.map((action) => (
+          <DropdownMenuItem
+            key={action.key}
+            onSelect={action.run}
+            className={action.destructive ? "text-destructive focus:text-destructive" : undefined}
+          >
+            {action.icon}
+            {action.label}
+          </DropdownMenuItem>
+        ))}
         {isOwner && (
           <DropdownMenuItem
             onSelect={handleOpenDelete}
@@ -823,6 +855,25 @@ export function PostCard({
               </div>
             </DrawerContent>
           </Drawer>
+          {hideActions.map((action) => (
+            <Button
+              key={action.key}
+              variant="ghost"
+              className={cn(
+                "w-full justify-start gap-2",
+                action.destructive && "text-destructive",
+              )}
+              onClick={() => {
+                // The drawer has to close first: blocking opens a confirmation
+                // of its own, and two stacked drawers trap the dismiss.
+                setMenuOpen(false);
+                action.run();
+              }}
+            >
+              {action.icon}
+              {action.label}
+            </Button>
+          ))}
           {isOwner && (
             <Button
               variant="ghost"
@@ -1019,7 +1070,12 @@ export function PostCard({
         verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
       )}
     >
-      <DeletedPostCard referenceId={post.referenceId} variant="embedded" isLast />
+      <DeletedPostCard
+        referenceId={post.referenceId}
+        variant="embedded"
+        isLast
+        restricted={post.referenceRestricted}
+      />
     </div>
   ) : null);
 
@@ -1224,6 +1280,26 @@ export function PostCard({
     </>
   );
 
+  // Placed last, after every hook: an early return above them would change the
+  // hook order the moment a card is revealed.
+  //
+  // Feeds never reach this — the server drops hidden authors from both
+  // timelines. What lands here is a quoted post, a reply's parent, a search hit,
+  // a bookmark: places the viewer navigated to on purpose, where the answer is a
+  // cushion rather than a hole in the thread.
+  if (hiddenKind) {
+    return (
+      <HiddenPostCard
+        kind={hiddenKind}
+        onReveal={() => setRevealHidden(true)}
+        isLast={isLast}
+        threadLine={threadLine}
+        embedded={isEmbedded}
+        className={className}
+      />
+    );
+  }
+
   return (
     <article
       ref={articleRef}
@@ -1345,6 +1421,11 @@ export function PostCard({
           </DrawerContent>
         </Drawer>
       )}
+
+      {/* At article level rather than beside the menu: the menu is rendered from
+          several layout branches, and the compact variant skips the row the
+          other dialogs live in. Inert until blocking is chosen. */}
+      {hideDialog}
     </article>
   );
 }

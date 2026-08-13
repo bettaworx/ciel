@@ -97,6 +97,10 @@ export const queryKeys = {
   notifications: (tab: NotificationTab) => ["notifications", tab] as const,
   notificationsUnread: ["notificationsUnread"] as const,
   followRequests: ["followRequests"] as const,
+  // Prefix shared by both settings lists, so muting or blocking anyone marks
+  // them stale without naming which one changed.
+  hidden: ["hidden"] as const,
+  hiddenList: (kind: "mutes" | "blocks") => ["hidden", kind] as const,
   searchPosts: (query: string) => ["search", "posts", query] as const,
   // Prefix shared by every user search, so one follow can patch all of them.
   searchUsersAll: ["search", "users"] as const,
@@ -468,6 +472,91 @@ export function useFollowUser() {
 
 export function useUnfollowUser() {
   return useFollowMutation(false);
+}
+
+// Mute / unmute / block / unblock.
+//
+// Every feed and list changes membership here, and no patch can fake that: a
+// muted author's posts leave both timelines, their name leaves the follow and
+// reaction lists and user search, and their notifications stop appearing. So
+// this invalidates broadly rather than editing caches in place. The profile
+// itself is written straight from the response, as follow does.
+//
+// Blocking additionally severs both follows, which is why it invalidates the
+// follow lists and the facepile that muting leaves alone.
+function useHideMutation(kind: "mute" | "block", on: boolean) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const call =
+        kind === "mute"
+          ? on
+            ? api.muteUser
+            : api.unmuteUser
+          : on
+            ? api.blockUser
+            : api.unblockUser;
+      const result = await call(username);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (user, username) => {
+      queryClient.setQueryData(queryKeys.user(username), user);
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: queryKeys.userPosts(username) });
+      // Individually cached posts carry the author flags that draw the indicator
+      // and the reveal cushion. Timeline reply parents and boosted posts are
+      // fetched this way, so without this they keep rendering uncushioned until
+      // the entry expires.
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+      queryClient.invalidateQueries({ queryKey: ["replies"] });
+      queryClient.invalidateQueries({ queryKey: ["postThread"] });
+      queryClient.invalidateQueries({ queryKey: ["postContext"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.searchUsersAll });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notificationsUnread });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hidden });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({
+        queryKey: ["followersYouFollowPreview"],
+      });
+    },
+  });
+}
+
+export function useMuteUser() {
+  return useHideMutation("mute", true);
+}
+
+export function useUnmuteUser() {
+  return useHideMutation("mute", false);
+}
+
+export function useBlockUser() {
+  return useHideMutation("block", true);
+}
+
+export function useUnblockUser() {
+  return useHideMutation("block", false);
+}
+
+// The settings lists of muted and blocked accounts, with infinite scroll.
+export function useHiddenList(kind: "mutes" | "blocks") {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.hiddenList(kind),
+    queryFn: async ({ pageParam }: { pageParam?: string | null }) => {
+      const result = await api.hiddenList(kind, { limit: 30, cursor: pageParam });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (last: UsersPage) => last.nextCursor ?? undefined,
+  });
 }
 
 // One of the three follow lists, with infinite scroll.

@@ -32,6 +32,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Clipboard,
   Lock,
+  Ban,
+  VolumeX,
   MoreHorizontal,
   Pencil,
   Rocket,
@@ -61,6 +63,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { toast } from "sonner";
+import { useHideUserActions } from "@/lib/hooks/use-hide-user-actions";
+import { profileVisibility } from "@/lib/moderation/visibility";
 
 function ProfileParentPostSkeleton() {
   return (
@@ -91,9 +95,16 @@ type ProfilePostItemProps = {
   post: Post;
   isLast: boolean;
   onUserClick: (username: string) => void;
+  /**
+   * True once the viewer has opened the muted/blocked gate above the tabs. Only
+   * the profile owner's own cards inherit it; a reply parent by some *other*
+   * hidden account still gets its own cushion, since the gate was never about
+   * them.
+   */
+  revealHidden?: boolean;
 };
 
-function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
+function ProfilePostItem({ post, isLast, onUserClick, revealHidden }: ProfilePostItemProps) {
   const t = useTranslations();
   const pureBoost = isPureBoost(post);
   const boostReferenceId = pureBoost ? post.referenceId! : undefined;
@@ -133,6 +144,7 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
           variant="timeline"
           isLast={isLast}
           indicator={boostIndicator}
+          restricted={post.referenceRestricted}
         />
       );
     }
@@ -142,12 +154,20 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
         onUserClick={onUserClick}
         isLast={isLast}
         indicator={boostIndicator}
+        skipHiddenCushion={revealHidden}
       />
     );
   }
 
   if (!parentId || !hasVisibleParent) {
-    return <PostCard post={post} onUserClick={onUserClick} isLast={isLast} />;
+    return (
+      <PostCard
+        post={post}
+        onUserClick={onUserClick}
+        isLast={isLast}
+        skipHiddenCushion={revealHidden}
+      />
+    );
   }
 
   return (
@@ -170,6 +190,7 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
         onUserClick={onUserClick}
         isLast={isLast}
         threadLine="above"
+        skipHiddenCushion={revealHidden}
       />
     </>
   );
@@ -202,6 +223,19 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   // are missing instead of showing three empty ones.
   const isActivityHidden =
     Boolean(user?.isPrivate) && !isOwnProfile && !isFollowing;
+  // The viewer muted or blocked this account. Unlike isActivityHidden the server
+  // does return the posts — a profile is somewhere you arrive on purpose — so
+  // this gates them behind one reveal rather than explaining an emptiness.
+  const visibility = profileVisibility(user, isOwnProfile);
+  const hiddenByViewer = visibility.gate !== null;
+  const [profileRevealed, setProfileRevealed] = useState(false);
+  const showHiddenGate = hiddenByViewer && !profileRevealed;
+  const isBlockedByUser = visibility.blockedByOwner;
+  const bioWithheld = visibility.withholdBio;
+  const { actions: hideActions, dialog: hideDialog } = useHideUserActions(
+    username,
+    { isMuted: user?.isMuted, isBlocking: user?.isBlocking },
+  );
   // Undefined rather than zero is how the API says "withheld", so the presence
   // of the field is the signal, not its value.
   const hasFollowCounts =
@@ -485,6 +519,8 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           <DisplayName
             name={user.displayName || `@${user.username}`}
             isPrivate={user.isPrivate}
+            isMuted={user.isMuted}
+            isBlocked={user.isBlocking}
           />
         </PageHeader>
       }
@@ -563,6 +599,16 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                       <Clipboard className="w-4 h-4" />
                       {t("user.copyUserId")}
                     </DropdownMenuItem>
+                    {hideActions.map((action) => (
+                      <DropdownMenuItem
+                        key={action.key}
+                        onSelect={action.run}
+                        className={action.destructive ? "text-destructive focus:text-destructive" : undefined}
+                      >
+                        {action.icon}
+                        {action.label}
+                      </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
@@ -595,6 +641,26 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         <Clipboard className="w-4 h-4" />
                         {t("user.copyUserId")}
                       </Button>
+                      {hideActions.map((action) => (
+                        <Button
+                          key={action.key}
+                          variant="ghost"
+                          className={
+                            action.destructive
+                              ? "w-full justify-start gap-2 text-destructive"
+                              : "w-full justify-start gap-2"
+                          }
+                          onClick={() => {
+                            // Blocking opens its own confirmation; two stacked
+                            // drawers trap the dismiss.
+                            setMenuOpen(false);
+                            action.run();
+                          }}
+                        >
+                          {action.icon}
+                          {action.label}
+                        </Button>
+                      ))}
                     </div>
                   </DrawerContent>
                 </Drawer>
@@ -685,6 +751,8 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                     isFollowedBy={isFollowedBy}
                     isPrivate={user.isPrivate}
                     followRequestSent={user.followRequestSent}
+                    isBlockedBy={user.isBlockedBy}
+                    isBlocking={user.isBlocking}
                   />
                   {isOwnProfile && !isEditing && (
                     <Button
@@ -743,6 +811,8 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                     <DisplayName
                       name={user.displayName || `@${user.username}`}
                       isPrivate={user.isPrivate}
+                      isMuted={user.isMuted}
+                      isBlocked={user.isBlocking}
                     />
                   </h1>
                 )}
@@ -766,7 +836,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                   />
                 ) : (
                   <>
-                    {user.bio && (
+                    {/* Withheld across a block in either direction, and the
+                        empty-bio placeholder goes with it: the server blanks the
+                        text, so "No bio yet" would be the page inventing a fact
+                        about an account it is not showing. */}
+                    {!bioWithheld && user.bio && (
                       <div className="text-sm text-foreground leading-relaxed">
                         <MfmRenderer
                           text={user.bio}
@@ -774,7 +848,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         />
                       </div>
                     )}
-                    {!user.bio && (
+                    {!bioWithheld && !user.bio && (
                       <p className="text-muted-foreground italic">
                         {t("user.noBio")}
                       </p>
@@ -860,7 +934,17 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
         {/* A private account still shows its profile above; only the activity
             below is withheld. The server already returns nothing here, so this
             is purely to explain the emptiness rather than to enforce it. */}
-        {isActivityHidden ? (
+        {isBlockedByUser ? (
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            <Ban className="h-8 w-8 text-destructive" />
+            <p className="font-medium text-foreground">
+              {t("user.blockedByUser")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("user.blockedByUserDescription")}
+            </p>
+          </div>
+        ) : isActivityHidden ? (
           <div className="flex flex-col items-center gap-2 py-12 text-center">
             <Lock className="h-8 w-8 text-muted-foreground" />
             <p className="font-medium text-foreground">
@@ -869,6 +953,30 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             <p className="text-sm text-muted-foreground">
               {t("user.privatePostsHiddenDescription")}
             </p>
+          </div>
+        ) : showHiddenGate ? (
+          /* One gate for the whole tab strip. Opening it shows the posts as
+             normal — cushioning every row underneath would ask the same
+             question again for every scroll. */
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            {visibility.gate === "blocked" ? (
+              <Ban className="h-8 w-8 text-destructive" />
+            ) : (
+              <VolumeX className="h-8 w-8 text-destructive" />
+            )}
+            <p className="font-medium text-foreground">
+              {visibility.gate === "blocked"
+                ? t("user.blockedPostsHidden")
+                : t("user.mutedPostsHidden")}
+            </p>
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-muted-foreground"
+              onClick={() => setProfileRevealed(true)}
+            >
+              {t("postCard.hiddenPost.reveal")}
+            </Button>
           </div>
         ) : (
         <Tabs defaultValue="posts">
@@ -910,6 +1018,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         router.push(`/users/${username}`)
                       }
                       isLast={index === postItems.length - 1}
+                      revealHidden={hiddenByViewer}
                     />
                   ) : (
                     <OwnerThreadTimelineItem
@@ -924,6 +1033,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         router.push(`/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`)
                       }
                       isLast={index === postItems.length - 1}
+                      skipHiddenCushion={hiddenByViewer}
                     />
                   ),
                 )}
@@ -969,6 +1079,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         router.push(`/users/${username}`)
                       }
                       isLast={index === replyItems.length - 1}
+                      revealHidden={hiddenByViewer}
                     />
                   ) : (
                     <OwnerThreadTimelineItem
@@ -983,6 +1094,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         router.push(`/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`)
                       }
                       isLast={index === replyItems.length - 1}
+                      skipHiddenCushion={hiddenByViewer}
                     />
                   ),
                 )}
@@ -1025,6 +1137,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                     post={post}
                     onUserClick={(username) => router.push(`/users/${username}`)}
                     isLast={index === media.length - 1}
+                    skipHiddenCushion={hiddenByViewer}
                   />
                 ))}
               </div>
@@ -1051,6 +1164,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           onCropComplete={handleCropComplete}
         />
       )}
+      {hideDialog}
     </PageContainer>
   );
 }

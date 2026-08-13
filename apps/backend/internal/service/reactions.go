@@ -306,6 +306,18 @@ func (s *ReactionsService) Add(ctx context.Context, user auth.User, postID api.P
 	if row.DeletedAt.Valid {
 		return api.ReactionCounts{}, NewError(http.StatusNotFound, "not_found", "post not found")
 	}
+	// The blocked direction is already covered: GetPostWithAuthorByID applies
+	// can_view_user, so an author who blocked the caller returns no row at all.
+	// This is the other direction, which can_view_user deliberately leaves open
+	// so the blocker can still read behind the reveal cushion. Reading is not
+	// reacting: a reaction is addressed to the author, who cannot see it.
+	scope, err := LoadViewerScope(ctx, s.store, &user.ID)
+	if err != nil {
+		return api.ReactionCounts{}, err
+	}
+	if !scope.CanInteractWith(row.UserID) {
+		return api.ReactionCounts{}, NewError(http.StatusForbidden, "blocked", "cannot react to this post")
+	}
 
 	var createdNotifications []CreatedNotification
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {

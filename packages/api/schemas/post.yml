@@ -54,6 +54,24 @@ components:
             its author is private. Clients render a redacted parent card rather
             than dropping the parent silently. False for an accepted follower,
             who receives the real parent, and false once the account goes public.
+        parentHidden:
+          type: boolean
+          description: >-
+            True when this post replies to an account the caller has muted or
+            blocked. Timelines omit these posts entirely — a reply to a hidden
+            account is half of a conversation with them, and showing it would put
+            them back in the feed through everyone who talks to them. The profile
+            tabs and a post's own page keep the reply and cushion the parent
+            instead, since those are reached on purpose.
+        referenceRestricted:
+          type: boolean
+          description: >-
+            True when referenceId points at a post that still exists but the
+            caller may not read — its author is private, or has blocked the
+            caller. Distinguishes that from a reference the caller cannot load
+            because it was deleted, which is the other reason `reference` comes
+            back null. Clients say the audience is restricted rather than showing
+            a deleted-post card, which would state something untrue.
         rootId:
           allOf:
           - $ref: ./common.yml#/components/schemas/PostId

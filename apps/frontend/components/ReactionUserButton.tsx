@@ -44,7 +44,12 @@ export function ReactionUserButton({
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>
         <span className="text-sm font-medium truncate">
-          <DisplayName name={displayName} isPrivate={user.isPrivate} />
+          <DisplayName
+            name={displayName}
+            isPrivate={user.isPrivate}
+            isMuted={user.isMuted}
+            isBlocked={user.isBlocking}
+          />
         </span>
       </Link>
     </Button>

@@ -37,6 +37,10 @@ type FollowButtonProps = {
   isPrivate?: boolean | null;
   /** A request already sent and still awaiting approval. */
   followRequestSent?: boolean | null;
+  /** This account has blocked the caller. */
+  isBlockedBy?: boolean | null;
+  /** The caller has blocked this account. */
+  isBlocking?: boolean | null;
   className?: string;
 };
 
@@ -47,6 +51,10 @@ type FollowButtonProps = {
  * Three states rather than two: following a private account creates a pending
  * request, which grants no visibility until they approve it. Showing "Following"
  * there would claim access the account does not have.
+ *
+ * Renders nothing across a block in either direction. The server refuses those
+ * follows with a 403, so the button could only ever fail; hiding it is the same
+ * reasoning as the self check above.
  */
 export function FollowButton({
   username,
@@ -54,6 +62,8 @@ export function FollowButton({
   isFollowedBy,
   isPrivate,
   followRequestSent,
+  isBlockedBy,
+  isBlocking,
   className,
 }: FollowButtonProps) {
   const t = useTranslations();
@@ -64,6 +74,7 @@ export function FollowButton({
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
   if (!authUser || authUser.username === username) return null;
+  if (isBlockedBy || isBlocking) return null;
 
   const isPending = followUser.isPending || unfollowUser.isPending;
   const isMutualFollow = isFollowing && isFollowedBy;

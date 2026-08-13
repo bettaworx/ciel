@@ -30,6 +30,7 @@ type API struct {
 	Authz         *service.AuthzService
 	Users         *service.UsersService
 	Follows       *service.FollowsService
+	Blocks        *service.BlocksService
 	Posts         *service.PostsService
 	Timeline      *service.TimelineService
 	Search        *service.SearchService
@@ -76,6 +77,10 @@ type publicUserResponse struct {
 
 	IsPrivate         *bool `json:"isPrivate,omitempty"`
 	FollowRequestSent *bool `json:"followRequestSent,omitempty"`
+
+	IsMuted     *bool `json:"isMuted,omitempty"`
+	IsBlocking  *bool `json:"isBlocking,omitempty"`
+	IsBlockedBy *bool `json:"isBlockedBy,omitempty"`
 }
 
 func toPublicUserResponse(user api.User) publicUserResponse {
@@ -99,6 +104,14 @@ func toPublicUserResponse(user api.User) publicUserResponse {
 		// followRequestSent to show a request already sent.
 		IsPrivate:         user.IsPrivate,
 		FollowRequestSent: user.FollowRequestSent,
+
+		// This struct is an allow-list: a field missing here is silently dropped
+		// from GET /users/{username}, however well the service filled it in.
+		// isBlockedBy in particular is the only thing that lets the profile say
+		// "you have been blocked" rather than rendering an empty account.
+		IsMuted:     user.IsMuted,
+		IsBlocking:  user.IsBlocking,
+		IsBlockedBy: user.IsBlockedBy,
 	}
 }
 

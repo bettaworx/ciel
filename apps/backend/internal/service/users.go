@@ -101,13 +101,37 @@ func (s *UsersService) attachFollowStats(ctx context.Context, user *api.User, vi
 	//
 	// The fields are omitted rather than zeroed, so a client shows nothing at all
 	// instead of confidently rendering "0 followers".
-	hidden := user.IsPrivate != nil && *user.IsPrivate &&
-		!(viewer != nil && (*viewer == user.Id || stats.IsFollowing))
+	//
+	// A block withholds them across either direction. Being blocked, the follow
+	// graph is already closed by can_view_user and the totals would still let the
+	// viewer watch the account grow. Having blocked, the point is not to be shown
+	// the account any more.
+	blockEitherWay := stats.IsBlockedBy || stats.IsBlocking
+	hidden := blockEitherWay ||
+		(user.IsPrivate != nil && *user.IsPrivate &&
+			!(viewer != nil && (*viewer == user.Id || stats.IsFollowing)))
 	if !hidden {
 		followers := int(stats.FollowersCount)
 		following := int(stats.FollowingCount)
 		user.FollowersCount = &followers
 		user.FollowingCount = &following
+	}
+	// The bio goes with them: it is free text the account chose to publish, and a
+	// block in either direction says these two are not an audience for each
+	// other. Blanked rather than omitted, because an empty bio is a shape every
+	// client already renders.
+	if blockEitherWay {
+		empty := ""
+		user.Bio = &empty
+	}
+	// Having blocked someone, the viewer is shown nothing of them but the name
+	// they need in order to recognise the account and unblock it. Being blocked
+	// leaves the pictures alone: that profile still has to look like an account
+	// rather than a void, since the page's job there is to explain the block.
+	if stats.IsBlocking {
+		user.AvatarUrl = nil
+		user.BannerUrl = nil
+		user.BannerBlurhash = nil
 	}
 	if viewer == nil {
 		return
@@ -119,6 +143,17 @@ func (s *UsersService) attachFollowStats(ctx context.Context, user *api.User, vi
 	user.IsFollowedBy = &isFollowedBy
 	// Lets the client show "requested" rather than offering Follow again.
 	user.FollowRequestSent = &followRequestSent
+
+	// The mute and block flags ride in the same query. isMuted and isBlocking
+	// draw the indicator beside the name and gate the profile behind a reveal;
+	// isBlockedBy replaces the profile's tabs with the reason they are empty, and
+	// is what blanked the counts and bio above.
+	isMuted := stats.IsMuted
+	isBlocking := stats.IsBlocking
+	isBlockedBy := stats.IsBlockedBy
+	user.IsMuted = &isMuted
+	user.IsBlocking = &isBlocking
+	user.IsBlockedBy = &isBlockedBy
 }
 
 // SetPrivate turns the account's private mode on or off.

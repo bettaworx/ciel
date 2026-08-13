@@ -53,6 +53,21 @@ func (s *FollowsService) Follow(ctx context.Context, follower auth.User, usernam
 		return api.User{}, err
 	}
 
+	// Either direction refuses. Blocking someone should stop them following you,
+	// and it would be strange to let the blocker follow an account they just cut
+	// off — the follow would be severed again by the next block anyway.
+	//
+	// The same 403 for both directions on purpose: a distinct error for "you are
+	// blocked" would let anyone test for it, and the profile already says so
+	// through isBlockedBy when the block is that way round.
+	scope, err := LoadViewerScope(ctx, s.store, &follower.ID)
+	if err != nil {
+		return api.User{}, err
+	}
+	if !scope.CanInteractWith(target.ID) {
+		return api.User{}, NewError(http.StatusForbidden, "blocked", "cannot follow this account")
+	}
+
 	private, err := s.store.Q.IsUserPrivate(ctx, target.ID)
 	if err != nil {
 		return api.User{}, err
@@ -447,6 +462,19 @@ func (s *FollowsService) listArgs(ctx context.Context, username api.Username, li
 		return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, err
 	}
 	if !canView {
+		// can_view_user answers "no" for a private account and for a block with
+		// one code, but they are different things to be told. Ask which it was.
+		// Only an identified viewer can be blocked, so anonymous skips straight
+		// to the private-account answer.
+		if viewer != nil {
+			scope, err := LoadViewerScope(ctx, s.store, viewer)
+			if err != nil {
+				return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, err
+			}
+			if scope.BlockedBy(user.ID) {
+				return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, NewError(http.StatusForbidden, "blocked", "you have been blocked by this account")
+			}
+		}
 		// The profile itself stays reachable; only the follow graph is withheld.
 		return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, NewError(http.StatusForbidden, "private_account", "this account is private")
 	}
