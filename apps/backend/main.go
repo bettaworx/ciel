@@ -370,6 +370,7 @@ func main() {
 	postsSvc.SetReactionsService(reactionsSvc)
 	postsSvc.SetNotificationsService(notificationsSvc)
 	reactionsSvc.SetNotificationsService(notificationsSvc)
+	authSvc.SetReactionsService(reactionsSvc)
 	notificationsSvc.SetPostsService(postsSvc)
 	timelineSvc.SetReactionsService(reactionsSvc)
 	timelineSvc.SetPostsService(postsSvc)

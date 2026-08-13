@@ -26,191 +26,144 @@
     "general": {
       "title": "General",
       "language": {
-        "title": "Language",
-        "description": "Choose your display language",
-        "placeholder": "Select language"
+        "title": "Language"
       }
     },
     "appearance": {
       "title": "Appearance",
       "theme": {
         "title": "Theme",
-        "description": "Choose your app theme",
         "light": "Light",
         "dark": "Dark",
-        "system": "System",
-        "systemDescription": "Follow system settings"
+        "system": "System"
       },
       "mfm": {
         "title": "MFM (Text Decoration)",
-        "description": "Control text decoration and animation display in posts and profiles",
         "enabled": {
-          "title": "Enable MFM",
-          "description": "When disabled, only emoji will be displayed"
+          "title": "Enable MFM"
         },
         "mention": {
-          "title": "Mentions",
-          "description": "Display @user mentions"
+          "title": "Mentions"
         },
         "hashtag": {
-          "title": "Hashtags",
-          "description": "Display #tag hashtags"
+          "title": "Hashtags"
         },
         "url": {
-          "title": "URLs",
-          "description": "Auto-link URL display"
+          "title": "URLs"
         },
         "link": {
-          "title": "Links",
-          "description": "Display text links"
+          "title": "Links"
         },
         "emojiCode": {
-          "title": "Custom Emoji",
-          "description": "Display :name: custom emoji"
+          "title": "Custom Emoji"
         },
         "bold": {
-          "title": "Bold",
-          "description": "Display bold text"
+          "title": "Bold"
         },
         "italic": {
-          "title": "Italic",
-          "description": "Display italic text"
+          "title": "Italic"
         },
         "strike": {
-          "title": "Strikethrough",
-          "description": "Display strikethrough text"
+          "title": "Strikethrough"
         },
         "small": {
-          "title": "Small Text",
-          "description": "Display shrunk text"
+          "title": "Small Text"
         },
         "quote": {
-          "title": "Quote",
-          "description": "Display quote blocks"
+          "title": "Quote"
         },
         "center": {
-          "title": "Center Align",
-          "description": "Display centered text"
+          "title": "Center Align"
         },
         "ruby": {
-          "title": "Ruby (Reading Aid)",
-          "description": "Display reading annotations above text"
+          "title": "Ruby (Reading Aid)"
         },
         "code": {
           "title": "Code",
-          "description": "Display code elements",
           "inline": {
-            "title": "Inline",
-            "description": "Display inline code"
+            "title": "Inline"
           },
           "block": {
-            "title": "Block",
-            "description": "Display code blocks"
+            "title": "Block"
           }
         },
         "flip": {
-          "title": "Flip",
-          "description": "Horizontal/vertical text flipping"
+          "title": "Flip"
         },
         "font": {
           "title": "Font",
-          "description": "Font family changes",
           "serif": {
-            "title": "Serif",
-            "description": "Display serif font"
+            "title": "Serif"
           },
           "monospace": {
-            "title": "Monospace",
-            "description": "Display monospace font"
+            "title": "Monospace"
           },
           "cursive": {
-            "title": "Cursive",
-            "description": "Display cursive font"
+            "title": "Cursive"
           },
           "fantasy": {
-            "title": "Fantasy",
-            "description": "Display fantasy font"
+            "title": "Fantasy"
           }
         },
         "blur": {
-          "title": "Blur",
-          "description": "Text blur effect"
+          "title": "Blur"
         },
         "search": {
-          "title": "Search Box",
-          "description": "Display search blocks"
+          "title": "Search Box"
         },
         "bg": {
-          "title": "Background Color",
-          "description": "Display text background color"
+          "title": "Background Color"
         },
         "fg": {
-          "title": "Text Color",
-          "description": "Display text color changes"
+          "title": "Text Color"
         },
         "border": {
-          "title": "Border",
-          "description": "Display borders around text"
+          "title": "Border"
         },
         "rotate": {
-          "title": "Rotate",
-          "description": "Display rotated text"
+          "title": "Rotate"
         },
         "position": {
-          "title": "Position Shift",
-          "description": "Display shifted text position"
+          "title": "Position Shift"
         },
         "scale": {
-          "title": "Scale",
-          "description": "Display scaled text"
+          "title": "Scale"
         },
         "expand": {
           "title": "Size Expansion",
-          "description": "Display enlarged text sizes",
           "allowLargerThanX2": {
-            "title": "Allow x3/x4",
-            "description": "When disabled, capped at x2"
+            "title": "Allow x3/x4"
           }
         },
         "animation": {
           "title": "Animations",
-          "description": "Text animation effects",
           "jelly": {
-            "title": "Jelly",
-            "description": "Bouncy jelly animation"
+            "title": "Jelly"
           },
           "tada": {
-            "title": "TaDa",
-            "description": "Attention-grabbing TaDa animation"
+            "title": "TaDa"
           },
           "jump": {
-            "title": "Jump",
-            "description": "Jumping animation"
+            "title": "Jump"
           },
           "bounce": {
-            "title": "Bounce",
-            "description": "Drop and bounce animation"
+            "title": "Bounce"
           },
           "spin": {
-            "title": "Spin",
-            "description": "Spinning animation"
+            "title": "Spin"
           },
           "shake": {
-            "title": "Shake",
-            "description": "Shaking animation"
+            "title": "Shake"
           },
           "twitch": {
-            "title": "Twitch",
-            "description": "Twitching animation"
+            "title": "Twitch"
           }
         },
         "rainbow": {
-          "title": "Rainbow",
-          "description": "Rainbow color animation"
+          "title": "Rainbow"
         },
         "sparkle": {
-          "title": "Sparkle",
-          "description": "Sparkling animation"
+          "title": "Sparkle"
         }
       }
     },
@@ -251,7 +204,7 @@
         "wizardTitle": "Delete account",
         "confirmTitle": "Delete your account?",
         "confirmDescription": "Deleting your account permanently removes all of your data, including your posts, uploaded media and follow relationships.",
-        "typeUsernamePrompt": "Type @{username} to confirm",
+        "typeUsernamePrompt": "Type {username} to confirm",
         "submit": "Delete permanently",
         "goodbyeTitle": "Thank you",
         "goodbyeDescription": "Your account has been deleted. Thank you for being here.",
@@ -314,14 +267,17 @@
     },
     "privacy": {
       "title": "Privacy",
+      "sections": {
+        "visibility": "Privacy",
+        "moderation": "Moderation"
+      },
       "hiddenAccounts": {
         "title": "Mutes and blocks",
         "description": "Review the users you have muted or blocked, and undo them.",
         "open": "Open list"
       },
       "privateAccount": {
-        "title": "Private account",
-        "description": "Only your followers can see your posts and activity. New follows become requests you approve.",
+        "title": "Make account private",
         "enabled": "Your account is now private",
         "disabled": "Your account is now public",
         "error": "Could not change your privacy setting"

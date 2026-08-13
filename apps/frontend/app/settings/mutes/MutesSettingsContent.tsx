@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,23 +26,27 @@ export function MutesSettingsContent() {
   const t = useTranslations();
 
   return (
-    <div className="space-y-3">
-      <SettingsPageHeader currentPageKey="settings.mutes.title" />
+    <>
+      {/* Reached from privacy, not the sidebar — so the arrow stays on desktop. */}
+      <PageHeader backHref="/settings/privacy">
+        {t("settings.mutes.title")}
+      </PageHeader>
+      <div className="space-y-3">
+        <Tabs defaultValue="mutes">
+          <TabsList className="mb-3 w-full">
+            <TabsTrigger value="mutes">{t("settings.mutes.muted")}</TabsTrigger>
+            <TabsTrigger value="blocks">{t("settings.mutes.blocked")}</TabsTrigger>
+          </TabsList>
 
-      <Tabs defaultValue="mutes">
-        <TabsList className="mb-3 w-full">
-          <TabsTrigger value="mutes">{t("settings.mutes.muted")}</TabsTrigger>
-          <TabsTrigger value="blocks">{t("settings.mutes.blocked")}</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="mutes">
-          <HiddenUserList kind="mutes" />
-        </TabsContent>
-        <TabsContent value="blocks">
-          <HiddenUserList kind="blocks" />
-        </TabsContent>
-      </Tabs>
-    </div>
+          <TabsContent value="mutes">
+            <HiddenUserList kind="mutes" />
+          </TabsContent>
+          <TabsContent value="blocks">
+            <HiddenUserList kind="blocks" />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
   );
 }
 

@@ -868,6 +868,30 @@ RETURNING count;
 DELETE FROM post_reaction_counts
 WHERE post_id = $1 AND emoji = $2 AND count <= 0;
 
+-- name: DeleteUserReactionEvents :many
+-- Deleting a user takes their post_reaction_events rows with it via the cascade,
+-- but post_reaction_counts holds no key to the user and would keep the totals:
+-- the post ends up showing a reaction nobody made. Remove the events and settle
+-- the counters in the same statement, returning every post that moved.
+-- (user_id, post_id, emoji) is the primary key, so each removed row is worth
+-- exactly one.
+WITH removed AS (
+	DELETE FROM post_reaction_events
+	WHERE user_id = $1
+	RETURNING post_id, emoji
+)
+UPDATE post_reaction_counts c
+SET count = c.count - 1
+FROM removed r
+WHERE c.post_id = r.post_id AND c.emoji = r.emoji
+RETURNING c.post_id;
+
+-- name: DeleteZeroReactionCounts :exec
+-- Companion to DeleteUserReactionEvents. Separate statement on purpose: a row
+-- updated and deleted by the same statement is undefined in Postgres.
+DELETE FROM post_reaction_counts
+WHERE post_id = ANY(sqlc.arg(post_ids)::uuid[]) AND count <= 0;
+
 -- name: ListReactionUsers :many
 -- Private users are dropped from the list while their reaction still counts
 -- toward the total: identities are hidden, aggregate numbers are not.

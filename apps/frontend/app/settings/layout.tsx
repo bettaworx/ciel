@@ -32,7 +32,9 @@ export default function SettingsLayout({
 
   return (
     <RequireAuth redirectOnClose="/">
-      <PageContainer padding="compact" as="div">
+      {/* pt-0: every settings page leads with a PageHeader, which brings its
+          own top inset — the same deal PageContainer's `header` prop makes. */}
+      <PageContainer padding="compact" as="div" className="pt-0">
         <div className="flex flex-col md:flex-row gap-3">
           {/* Desktop Sidebar */}
           <aside className="hidden md:block w-64 shrink-0">

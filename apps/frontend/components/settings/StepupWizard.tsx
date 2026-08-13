@@ -148,7 +148,9 @@ export function StepupWizard({
           <Button
             type="button"
             variant="secondary"
-            onClick={() => router.push(cancelHref)}
+            // replace, not push: leaving the wizard is a step back up, so it
+            // must not stay in the history for the parent's own back arrow.
+            onClick={() => router.replace(cancelHref)}
             disabled={loading}
           >
             <ChevronLeft />

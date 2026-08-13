@@ -8,16 +8,24 @@ import { cn } from "@/lib/utils";
 type PageHeaderProps = {
   children: React.ReactNode;
   /**
-   * Hide the back arrow on pages reached from the nav rather than drilled into,
-   * where there is nothing meaningful to go back to.
+   * Path of the parent page. The arrow means "up one level", not "undo the last
+   * navigation" — without this it falls back to history, which strands anyone
+   * who arrived by deep link and ping-pongs against screens that pushed here.
    */
-  showBackButton?: boolean;
+  backHref?: string;
+  /**
+   * `false` hides the back arrow on pages reached from the nav rather than
+   * drilled into, where there is nothing meaningful to go back to. `"mobile"`
+   * hides it from md up, where a sidebar already carries the parent.
+   */
+  showBackButton?: boolean | "mobile";
   /** Right-aligned slot for a page-level action, e.g. "create". */
   action?: React.ReactNode;
 };
 
 export function PageHeader({
   children,
+  backHref,
   showBackButton = true,
   action,
 }: PageHeaderProps) {
@@ -39,16 +47,23 @@ export function PageHeader({
           // so pr-2 lands that glyph on the same 16px inset as the title.
           "pr-2",
           // Without the button, the title needs the inset it used to provide.
-          showBackButton ? "pl-1" : "pl-4",
+          showBackButton === false
+            ? "pl-4"
+            : showBackButton === "mobile"
+              ? "pl-1 md:pl-4"
+              : "pl-1",
         )}
       >
-        {showBackButton && (
+        {showBackButton !== false && (
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.back()}
+            onClick={() => (backHref ? router.push(backHref) : router.back())}
             aria-label="Go back"
-            className="shrink-0"
+            className={cn(
+              "shrink-0",
+              showBackButton === "mobile" && "md:hidden",
+            )}
           >
             <ChevronLeft className="w-5 h-5" />
           </Button>
