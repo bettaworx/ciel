@@ -64,6 +64,7 @@ import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { toast } from "sonner";
 import { useHideUserActions } from "@/lib/hooks/use-hide-user-actions";
+import { profileVisibility } from "@/lib/moderation/visibility";
 
 function ProfileParentPostSkeleton() {
   return (
@@ -225,16 +226,12 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   // The viewer muted or blocked this account. Unlike isActivityHidden the server
   // does return the posts — a profile is somewhere you arrive on purpose — so
   // this gates them behind one reveal rather than explaining an emptiness.
-  const hiddenByViewer =
-    !isOwnProfile && (Boolean(user?.isBlocking) || Boolean(user?.isMuted));
+  const visibility = profileVisibility(user, isOwnProfile);
+  const hiddenByViewer = visibility.gate !== null;
   const [profileRevealed, setProfileRevealed] = useState(false);
   const showHiddenGate = hiddenByViewer && !profileRevealed;
-  // The other direction. The server withholds everything here, so this is the
-  // page saying why rather than a filter.
-  const isBlockedByUser = Boolean(user?.isBlockedBy);
-  // The server blanks the bio across a block in either direction. Muting does
-  // not: it hides a feed, it does not cut the two accounts off from each other.
-  const bioWithheld = isBlockedByUser || Boolean(user?.isBlocking);
+  const isBlockedByUser = visibility.blockedByOwner;
+  const bioWithheld = visibility.withholdBio;
   const { actions: hideActions, dialog: hideDialog } = useHideUserActions(
     username,
     { isMuted: user?.isMuted, isBlocking: user?.isBlocking },
@@ -962,13 +959,13 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
              normal — cushioning every row underneath would ask the same
              question again for every scroll. */
           <div className="flex flex-col items-center gap-2 py-12 text-center">
-            {user?.isBlocking ? (
+            {visibility.gate === "blocked" ? (
               <Ban className="h-8 w-8 text-destructive" />
             ) : (
               <VolumeX className="h-8 w-8 text-destructive" />
             )}
             <p className="font-medium text-foreground">
-              {user?.isBlocking
+              {visibility.gate === "blocked"
                 ? t("user.blockedPostsHidden")
                 : t("user.mutedPostsHidden")}
             </p>

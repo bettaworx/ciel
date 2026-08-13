@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { PostPlaceholderCard } from "@/components/PostPlaceholderCard";
 import type { PostCardThreadLine } from "@/components/PostCard";
 
-export type HiddenPostKind = "muted" | "blocked";
+import type { HiddenKind } from "@/lib/moderation/visibility";
+
+export type HiddenPostKind = HiddenKind;
 
 /**
  * Stands in for a post whose author the viewer has muted or blocked, in the

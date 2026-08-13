@@ -19,7 +19,8 @@ import { CreateQuoteDialog } from "@/components/CreateQuoteDialog";
 import { formatFullTimestamp, formatTimeAgo } from "@/lib/utils/format-time";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DisplayName } from "@/components/users/DisplayName";
-import { HiddenPostCard, type HiddenPostKind } from "@/components/HiddenPostCard";
+import { HiddenPostCard } from "@/components/HiddenPostCard";
+import { postCushion } from "@/lib/moderation/visibility";
 import { useHideUserActions } from "@/lib/hooks/use-hide-user-actions";
 import { useReactions } from "@/lib/hooks/use-reactions";
 import { useLocale, useTranslations } from "next-intl";
@@ -294,16 +295,10 @@ export function PostCard({
   // everyone, including its accepted followers. The button is blocked rather
   // than hidden so the reason is visible instead of the control just vanishing.
   const boostBlocked = Boolean(post.author?.isPrivate);
-  // Blocking wins over muting when both flags somehow arrive: it is the stronger
-  // statement, and its label is the more useful one.
-  const hiddenKind: HiddenPostKind | null =
-    skipHiddenCushion || revealHidden
-      ? null
-      : post.author?.isBlocking
-        ? "blocked"
-        : post.author?.isMuted
-          ? "muted"
-          : null;
+  const hiddenKind = postCushion(post, {
+    skip: skipHiddenCushion,
+    revealed: revealHidden,
+  });
   const hasReactions = reactions.length > 0;
   const displayConfig = getPostCardDisplayConfig(variant);
   const {
