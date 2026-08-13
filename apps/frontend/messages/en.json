@@ -204,7 +204,7 @@
         "wizardTitle": "Delete account",
         "confirmTitle": "Delete your account?",
         "confirmDescription": "Deleting your account permanently removes all of your data, including your posts, uploaded media and follow relationships.",
-        "typeUsernamePrompt": "Type @{username} to confirm",
+        "typeUsernamePrompt": "Type {username} to confirm",
         "submit": "Delete permanently",
         "goodbyeTitle": "Thank you",
         "goodbyeDescription": "Your account has been deleted. Thank you for being here.",
