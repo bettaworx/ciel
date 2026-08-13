@@ -9,12 +9,18 @@ interface PasswordStepProps {
   username: string;
   onSubmit: (password: string) => void;
   loading?: boolean;
+  /**
+   * 見出し。未指定ならログイン時の「おかえりなさい」。
+   * 再認証（step-up）ではここを操作名に差し替える。
+   */
+  heading?: string;
 }
 
 export function PasswordStep({
   username,
   onSubmit,
   loading = false,
+  heading,
 }: PasswordStepProps) {
   const t = useTranslations();
   const [password, setPassword] = useState("");
@@ -33,7 +39,11 @@ export function PasswordStep({
         onSubmit={handleSubmit}
         className="flex flex-col h-full min-h-0"
       >
-        <Input
+        {/* Password-manager hint only — never seen. A plain input rather than
+            <Input>, whose w-full survives tailwind-merge alongside sr-only and
+            stretches this to the full page width, forcing a horizontal
+            scrollbar. */}
+        <input
           type="text"
           value={username}
           readOnly
@@ -46,7 +56,7 @@ export function PasswordStep({
         <div className="flex-1 flex flex-col justify-center">
           <div className="mb-6">
             <h2 className="text-2xl font-bold">
-              {t("login.wizard.password.welcomeBack")}
+              {heading ?? t("login.wizard.password.welcomeBack")}
             </h2>
           </div>
 

@@ -158,6 +158,43 @@ export function useAuth() {
 		return { ok: true };
 	};
 
+	// Re-authenticates the already-logged-in user and returns a short-lived,
+	// single-use step-up token for one sensitive operation (password change,
+	// username change, account deletion).
+	//
+	// Same SCRAM exchange as login. `username` must be the user's CURRENT
+	// username: the server builds the auth message from the name stored in the
+	// database, so a rename flow has to prove with the old name.
+	const stepup = async (username: string, password: string) => {
+		const clientNonce = randomBase64Url(16);
+		const startRes = await api.stepupStart({ clientNonce });
+
+		if (!startRes.ok) {
+			return { ok: false as const };
+		}
+
+		const proof = await computeClientProof({
+			username,
+			password,
+			clientNonce,
+			serverNonce: startRes.data.serverNonce,
+			saltB64: startRes.data.salt,
+			iterations: startRes.data.iterations,
+		});
+
+		const finishRes = await api.stepupFinish({
+			stepupSessionId: startRes.data.stepupSessionId,
+			clientFinalNonce: proof.clientFinalNonce,
+			clientProof: proof.clientProofB64,
+		});
+
+		if (!finishRes.ok) {
+			return { ok: false as const };
+		}
+
+		return { ok: true as const, stepupToken: finishRes.data.stepupToken };
+	};
+
 	const logout = async () => {
 		setAuth((prev) => ({ ...prev, status: 'loading', error: null }));
 
@@ -175,6 +212,7 @@ export function useAuth() {
 		initAuth,
 		login,
 		register,
+		stepup,
 		logout,
 	};
 }

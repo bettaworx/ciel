@@ -302,6 +302,15 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		me: () => request<components['schemas']['User']>('GET', '/me'),
 
+		updateUsername: (
+			body: components['schemas']['UpdateUsernameRequest'],
+			stepupToken?: string | null
+		) =>
+			request<components['schemas']['LoginFinishResponse']>('PATCH', '/me/username', {
+				body,
+				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
+			}),
+
 		deleteMe: (stepupToken?: string | null) =>
 			request<void>('DELETE', '/me', {
 				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined

@@ -9,6 +9,11 @@ const CONCENTRATED_MODE_PATHS = [
   "/server-setup",
   "/offline",
   "/agreements",
+  // Step-up wizards: each one takes over the screen with its own full-screen
+  // shell, so the settings sidebar is dropped for these too.
+  "/settings/account/username",
+  "/settings/account/delete",
+  "/settings/security/password",
 ] as const;
 
 /**

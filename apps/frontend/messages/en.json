@@ -17,6 +17,7 @@
     "categories": {
       "profile": "Profile",
       "general": "General",
+      "account": "Account",
       "appearance": "Appearance",
       "security": "Security",
       "mutes": "Mutes and blocks",
@@ -218,7 +219,51 @@
       "en": "English"
     },
     "security": {
-      "title": "Security"
+      "title": "Security",
+      "password": {
+        "title": "Change password",
+        "wizardTitle": "Change password",
+        "newPassword": "New password",
+        "confirmPassword": "Confirm new password",
+        "mismatch": "Passwords do not match",
+        "submit": "Change password",
+        "doneTitle": "Password changed",
+        "doneDescription": "Every other device has been signed out. This device stays signed in.",
+        "updateError": "Could not change your password"
+      }
+    },
+    "account": {
+      "title": "Account",
+      "username": {
+        "title": "Change username",
+        "wizardTitle": "Change username",
+        "newLabel": "New username",
+        "placeholder": "New username",
+        "submit": "Change username",
+        "taken": "That username is already taken",
+        "doneTitle": "Username changed",
+        "doneDescription": "Your new username is @{username}.",
+        "updateError": "Could not change your username"
+      },
+      "delete": {
+        "title": "Delete account",
+        "warning": "This cannot be undone. Your posts, media and follow relationships will all be deleted.",
+        "wizardTitle": "Delete account",
+        "confirmTitle": "Delete your account?",
+        "confirmDescription": "Deleting your account permanently removes all of your data, including your posts, uploaded media and follow relationships.",
+        "typeUsernamePrompt": "Type @{username} to confirm",
+        "submit": "Delete permanently",
+        "goodbyeTitle": "Thank you",
+        "goodbyeDescription": "Your account has been deleted. Thank you for being here.",
+        "goHome": "Go to home",
+        "error": "Could not delete your account"
+      }
+    },
+    "reauth": {
+      "heading": "Enter your password",
+      "description": "Confirm it's you before continuing",
+      "failed": "We could not verify that password",
+      "expired": "That confirmation expired. Please enter your password again."
     },
     "profile": {
       "title": "Profile",
@@ -467,6 +512,10 @@
       "settingsProfile": "Profile",
       "settingsAppearance": "Appearance",
       "settingsSecurity": "Security",
+      "settingsSecurityPassword": "Change password",
+      "settingsAccount": "Account",
+      "settingsAccountUsername": "Change username",
+      "settingsAccountDelete": "Delete account",
       "setup": "Setup Profile",
       "adminSetup": "Server Setup",
       "postDetail": "Post",

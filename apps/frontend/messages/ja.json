@@ -17,6 +17,7 @@
     "categories": {
       "profile": "プロフィール",
       "general": "一般",
+      "account": "アカウント",
       "appearance": "外観",
       "security": "セキュリティ",
       "mutes": "ミュートとブロック",
@@ -218,7 +219,51 @@
       "en": "English"
     },
     "security": {
-      "title": "セキュリティ"
+      "title": "セキュリティ",
+      "password": {
+        "title": "パスワードを変更",
+        "wizardTitle": "パスワードを変更",
+        "newPassword": "新しいパスワード",
+        "confirmPassword": "新しいパスワード（確認）",
+        "mismatch": "パスワードが一致しません",
+        "submit": "パスワードを変更",
+        "doneTitle": "パスワードを変更しました",
+        "doneDescription": "他のすべてのデバイスからログアウトされました。このデバイスはログインしたままです。",
+        "updateError": "パスワードを変更できませんでした"
+      }
+    },
+    "account": {
+      "title": "アカウント",
+      "username": {
+        "title": "ユーザー名を変更",
+        "wizardTitle": "ユーザー名を変更",
+        "newLabel": "新しいユーザー名",
+        "placeholder": "新しいユーザー名",
+        "submit": "ユーザー名を変更",
+        "taken": "このユーザー名はすでに使われています",
+        "doneTitle": "ユーザー名を変更しました",
+        "doneDescription": "新しいユーザー名は @{username} です。",
+        "updateError": "ユーザー名を変更できませんでした"
+      },
+      "delete": {
+        "title": "アカウントを削除",
+        "warning": "この操作は取り消せません。投稿・メディア・フォロー関係はすべて削除されます。",
+        "wizardTitle": "アカウントを削除",
+        "confirmTitle": "本当に削除しますか？",
+        "confirmDescription": "アカウントを削除すると、投稿・アップロードしたメディア・フォロー関係を含むすべてのデータが完全に削除されます。",
+        "typeUsernamePrompt": "確認のため @{username} と入力してください",
+        "submit": "完全に削除",
+        "goodbyeTitle": "ありがとうございました",
+        "goodbyeDescription": "アカウントを削除しました。ご利用いただきありがとうございました。",
+        "goHome": "トップへ",
+        "error": "アカウントを削除できませんでした"
+      }
+    },
+    "reauth": {
+      "heading": "パスワードを入力してください",
+      "description": "続けるにはパスワードで本人確認を行います",
+      "failed": "パスワードを確認できませんでした",
+      "expired": "確認の有効期限が切れました。パスワードを入力し直してください。"
     },
     "profile": {
       "title": "プロフィール",
@@ -467,6 +512,10 @@
       "settingsProfile": "プロフィール",
       "settingsAppearance": "外観",
       "settingsSecurity": "セキュリティ",
+      "settingsSecurityPassword": "パスワードを変更",
+      "settingsAccount": "アカウント",
+      "settingsAccountUsername": "ユーザー名を変更",
+      "settingsAccountDelete": "アカウントを削除",
       "setup": "プロフィール設定",
       "adminSetup": "サーバー初期設定",
       "postDetail": "投稿",

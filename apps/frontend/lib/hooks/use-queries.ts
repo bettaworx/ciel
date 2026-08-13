@@ -789,6 +789,41 @@ export function useUpdateProfile() {
   });
 }
 
+// Change the account's username. Requires a step-up token.
+//
+// The username is a JWT claim, so the server re-issues the auth cookie and
+// returns the fresh session — hence the LoginFinishResponse shape rather than a
+// bare User. Throws ApiHttpError so the caller can tell 409 (taken) from 401
+// (step-up expired) apart.
+export function useUpdateUsername() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const setAuth = useSetAtom(authAtom);
+
+  return useMutation({
+    mutationFn: async ({
+      username,
+      stepupToken,
+    }: {
+      username: string;
+      stepupToken: string;
+    }) => {
+      const result = await api.updateUsername({ username }, stepupToken);
+      if (!result.ok) {
+        throw new ApiHttpError(result.errorText, result.status, result.headers);
+      }
+      return result.data;
+    },
+    onSuccess: (session) => {
+      setAuth((prev) => ({
+        ...prev,
+        user: session.user,
+      }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+    },
+  });
+}
+
 // Turns the account's private mode on or off.
 //
 // The invalidation list is deliberately wide. Every cached feed, profile and
