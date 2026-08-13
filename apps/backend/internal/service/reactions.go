@@ -311,14 +311,11 @@ func (s *ReactionsService) Add(ctx context.Context, user auth.User, postID api.P
 	// This is the other direction, which can_view_user deliberately leaves open
 	// so the blocker can still read behind the reveal cushion. Reading is not
 	// reacting: a reaction is addressed to the author, who cannot see it.
-	blocked, err := s.store.Q.IsBlockedEitherWay(ctx, sqlc.IsBlockedEitherWayParams{
-		UserID:  user.ID,
-		OtherID: row.UserID,
-	})
+	scope, err := LoadViewerScope(ctx, s.store, &user.ID)
 	if err != nil {
 		return api.ReactionCounts{}, err
 	}
-	if blocked {
+	if !scope.CanInteractWith(row.UserID) {
 		return api.ReactionCounts{}, NewError(http.StatusForbidden, "blocked", "cannot react to this post")
 	}
 

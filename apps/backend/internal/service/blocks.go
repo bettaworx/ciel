@@ -137,11 +137,10 @@ func (s *BlocksService) announce(ctx context.Context, caller auth.User, targetID
 		return
 	}
 	username := string(caller.Username)
-	target := api.UserId(targetID)
 	_ = s.publisher.Publish(ctx, realtime.Event{
-		Type:         realtime.EventUserPrivacyChanged,
-		Username:     &username,
-		TargetUserId: &target,
+		Type:          realtime.EventUserPrivacyChanged,
+		Username:      &username,
+		TargetUserIds: []api.UserId{api.UserId(targetID)},
 	})
 }
 

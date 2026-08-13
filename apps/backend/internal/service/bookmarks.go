@@ -239,7 +239,12 @@ func (s *BookmarksService) ListPosts(ctx context.Context, userID uuid.UUID, list
 		ids = append(ids, row.PostID)
 	}
 	viewer := api.UserId(userID)
-	byID, err := s.posts.GetHydratedPostsByIDs(ctx, ids, &viewer)
+	// Loaded before hydration so the hydration below shares this one read.
+	ctx, _, err = EnsureViewerScope(ctx, s.store, &viewer)
+	if err != nil {
+		return api.UserPostsPage{}, err
+	}
+	byID, err := s.posts.GetHydratedPostsByIDs(ctx, ids, &viewer, SurfaceFeed)
 	if err != nil {
 		return api.UserPostsPage{}, err
 	}
@@ -253,11 +258,6 @@ func (s *BookmarksService) ListPosts(ctx context.Context, userID uuid.UUID, list
 			items = append(items, post)
 		}
 	}
-	// Muted and blocked authors need the soft filter on top, as everywhere else:
-	// the row still loads so a quote or reply parent can be revealed, and it is
-	// this list that has to decide it does not want it. The bookmark rows are left
-	// alone, so unmuting brings the saved posts straight back.
-	items = dropHiddenFromFeed(items)
 
 	var next *string
 	if len(rows) == lim {

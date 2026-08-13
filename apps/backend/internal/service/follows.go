@@ -60,14 +60,11 @@ func (s *FollowsService) Follow(ctx context.Context, follower auth.User, usernam
 	// The same 403 for both directions on purpose: a distinct error for "you are
 	// blocked" would let anyone test for it, and the profile already says so
 	// through isBlockedBy when the block is that way round.
-	blocked, err := s.store.Q.IsBlockedEitherWay(ctx, sqlc.IsBlockedEitherWayParams{
-		UserID:  follower.ID,
-		OtherID: target.ID,
-	})
+	scope, err := LoadViewerScope(ctx, s.store, &follower.ID)
 	if err != nil {
 		return api.User{}, err
 	}
-	if blocked {
+	if !scope.CanInteractWith(target.ID) {
 		return api.User{}, NewError(http.StatusForbidden, "blocked", "cannot follow this account")
 	}
 
@@ -470,14 +467,11 @@ func (s *FollowsService) listArgs(ctx context.Context, username api.Username, li
 		// Only an identified viewer can be blocked, so anonymous skips straight
 		// to the private-account answer.
 		if viewer != nil {
-			blocked, err := s.store.Q.IsBlockedBy(ctx, sqlc.IsBlockedByParams{
-				UserID:  *viewer,
-				OtherID: user.ID,
-			})
+			scope, err := LoadViewerScope(ctx, s.store, viewer)
 			if err != nil {
 				return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, err
 			}
-			if blocked {
+			if scope.BlockedBy(user.ID) {
 				return uuid.Nil, 0, sql.NullTime{}, uuid.NullUUID{}, NewError(http.StatusForbidden, "blocked", "you have been blocked by this account")
 			}
 		}

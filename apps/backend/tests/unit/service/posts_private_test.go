@@ -28,6 +28,7 @@ func TestPostsService_Create_BoostOfPrivateAuthorIsForbidden(t *testing.T) {
 	userID := uuid.New()
 	referenceID := uuid.New()
 
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	// can_view true: the caller follows them and can read the post. Boosting is
 	// still refused, which is the distinction this test exists to pin down.
@@ -57,6 +58,7 @@ func TestPostsService_Create_QuoteOfPrivateAuthorIsForbidden(t *testing.T) {
 	userID := uuid.New()
 	referenceID := uuid.New()
 
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	expectPostThreadInfo(mock, referenceID, uuid.New(), true)
 	mock.ExpectRollback()
@@ -89,6 +91,7 @@ func TestPostsService_Create_ReplyToInvisibleAuthorIsNotFound(t *testing.T) {
 	userID := uuid.New()
 	parentID := uuid.New()
 
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`SELECT\s+p.id,\s+p.user_id,\s+p.parent_id`).
 		WithArgs(sqlmock.AnyArg(), parentID).
@@ -129,6 +132,7 @@ func TestPostsService_Create_PrivateAuthorPublishesOnlyToFollowers(t *testing.T)
 	created := time.Unix(1_700_000_000, 0).UTC()
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}).
@@ -151,20 +155,24 @@ func TestPostsService_Create_PrivateAuthorPublishesOnlyToFollowers(t *testing.T)
 		t.Fatalf("Create: %v", err)
 	}
 
-	// One for the follower, one for the author. Nothing untargeted.
-	if len(publisher.events) != 2 {
-		t.Fatalf("expected 2 targeted events, got %d: %+v", len(publisher.events), publisher.events)
+	// One event carrying both recipients, not one event each. Publish marshals,
+	// signs and pushes to Redis per call, so a per-follower loop cost a round
+	// trip per follower for every post and every reaction on it.
+	if len(publisher.events) != 1 {
+		t.Fatalf("expected a single batched event, got %d: %+v", len(publisher.events), publisher.events)
 	}
-	for _, event := range publisher.events {
-		if event.TargetUserId == nil {
-			t.Fatalf("a private author's post was broadcast untargeted: %+v", event)
-		}
+	recipients := publisher.events[0].TargetUserIds
+	if len(recipients) == 0 {
+		t.Fatalf("a private author's post was broadcast untargeted: %+v", publisher.events[0])
 	}
-	if *publisher.events[0].TargetUserId != api.UserId(followerID) {
-		t.Fatalf("expected first event addressed to the follower, got %+v", publisher.events[0])
+	if len(recipients) != 2 {
+		t.Fatalf("expected the follower and the author, got %+v", recipients)
 	}
-	if *publisher.events[1].TargetUserId != api.UserId(userID) {
-		t.Fatalf("expected second event addressed to the author, got %+v", publisher.events[1])
+	if recipients[0] != api.UserId(followerID) {
+		t.Fatalf("expected the follower first, got %+v", recipients)
+	}
+	if recipients[1] != api.UserId(userID) {
+		t.Fatalf("expected the author second, got %+v", recipients)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -186,7 +194,10 @@ func TestTimeline_DropsRepliesWhoseParentIsHidden(t *testing.T) {
 	replyToPrivate := api.Post{Id: api.PostId(uuid.New()), ParentPrivate: &hiddenParent}
 	replyToPublic := api.Post{Id: api.PostId(uuid.New()), ParentPrivate: &notHidden}
 
-	got := service.DropRepliesToHiddenParents([]api.Post{visible, replyToPrivate, replyToPublic})
+	// An anonymous scope hides nobody, so only the parent flags decide here —
+	// which is exactly the privacy case this test is about.
+	var scope service.ViewerScope
+	got := scope.Filter([]api.Post{visible, replyToPrivate, replyToPublic}, service.SurfaceFeed)
 
 	if len(got) != 2 {
 		t.Fatalf("expected the reply to a hidden parent to be dropped, got %d posts", len(got))

@@ -104,6 +104,13 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		}
 	}
 
+	// Read once, before the transaction. The guards below used to be a round trip
+	// each, asked one author at a time.
+	scope, err := LoadViewerScope(ctx, s.store, &user.ID)
+	if err != nil {
+		return api.Post{}, err
+	}
+
 	var created sqlc.CreatePostRow
 	var createdNotifications []CreatedNotification
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
@@ -127,19 +134,9 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 			if parent.DeletedAt.Valid || !parent.CanView {
 				return NewError(http.StatusNotFound, "not_found", "parent post not found")
 			}
-			// The caller blocked this author. can_view_user lets the blocker
-			// keep reading — that is what the reveal cushion needs — so the
-			// refusal to interact has to be a separate check. Replying to
-			// someone you blocked would put your post in a thread they cannot
-			// answer, which is not a conversation.
-			blocked, err := q.IsBlockedEitherWay(ctx, sqlc.IsBlockedEitherWayParams{
-				UserID:  user.ID,
-				OtherID: parent.UserID,
-			})
-			if err != nil {
-				return err
-			}
-			if blocked {
+			// can_view_user lets the blocker keep reading — that is what the
+			// reveal cushion needs — so the refusal to interact is separate.
+			if !scope.CanInteractWith(parent.UserID) {
 				return NewError(http.StatusForbidden, "blocked", "cannot reply to this post")
 			}
 			parentID = uuid.NullUUID{UUID: parent.ID, Valid: true}
@@ -176,24 +173,15 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 				if !autoDetectedReference {
 					return NewError(http.StatusForbidden, "private_account", "this post cannot be boosted or quoted")
 				}
+			} else if !scope.CanInteractWith(ref.UserID) {
+				// Same reasoning as the reply guard above. An auto-detected link
+				// is left unlinked rather than failing the post.
+				if !autoDetectedReference {
+					return NewError(http.StatusForbidden, "blocked", "this post cannot be boosted or quoted")
+				}
 			} else {
-				blocked, err := q.IsBlockedEitherWay(ctx, sqlc.IsBlockedEitherWayParams{
-					UserID:  user.ID,
-					OtherID: ref.UserID,
-				})
-				if err != nil {
-					return err
-				}
-				if blocked {
-					// Same reasoning as the reply guard above. An auto-detected
-					// link is left unlinked rather than failing the post.
-					if !autoDetectedReference {
-						return NewError(http.StatusForbidden, "blocked", "this post cannot be boosted or quoted")
-					}
-				} else {
-					referenceID = uuid.NullUUID{UUID: ref.ID, Valid: true}
-					referenceAuthorID = ref.UserID
-				}
+				referenceID = uuid.NullUUID{UUID: ref.ID, Valid: true}
+				referenceAuthorID = ref.UserID
 			}
 		}
 
@@ -584,10 +572,14 @@ func (s *PostsService) getVisiblePostsByIDs(ctx context.Context, ids []uuid.UUID
 // GetHydratedPostsByIDs returns fully hydrated posts (media, reactions, mentions,
 // counts, reference) keyed by post ID. Deleted posts are omitted. Used by
 // NotificationsService to embed posts without an N+1 per notification.
-func (s *PostsService) GetHydratedPostsByIDs(ctx context.Context, ids []uuid.UUID, userID *api.UserId) (map[uuid.UUID]api.Post, error) {
+func (s *PostsService) GetHydratedPostsByIDs(ctx context.Context, ids []uuid.UUID, userID *api.UserId, surface Surface) (map[uuid.UUID]api.Post, error) {
 	result := make(map[uuid.UUID]api.Post, len(ids))
 	if s.store == nil || len(ids) == 0 {
 		return result, nil
+	}
+	ctx, scope, err := EnsureViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return nil, err
 	}
 	rows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
 		Ids:      ids,
@@ -603,7 +595,11 @@ func (s *PostsService) GetHydratedPostsByIDs(ctx context.Context, ids []uuid.UUI
 	if err := s.attachPostDetails(ctx, posts, userID); err != nil {
 		return nil, err
 	}
-	for _, post := range posts {
+	// Filtered here rather than by the caller. Callers walk their own ordering
+	// and skip ids the map does not hold, so dropping an entry is all it takes —
+	// and it means a new caller cannot forget, which is what went wrong three
+	// times before this argument existed.
+	for _, post := range scope.Filter(posts, surface) {
 		result[post.Id] = post
 	}
 	return result, nil
@@ -747,76 +743,12 @@ func (s *PostsService) attachViewerStateToPosts(ctx context.Context, posts []api
 	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
 		return err
 	}
-	if err := s.attachHiddenAuthorFlags(ctx, posts, userID); err != nil {
-		return err
-	}
-	return attachBookmarkListIDs(ctx, s.bookmarks, posts, userID)
-}
-
-// attachHiddenAuthorFlags marks posts written by someone the viewer has muted or
-// blocked, so the client can draw the indicator beside the name and hold the
-// card behind a reveal.
-//
-// The posts that reach here are the ones the feed filters let through on
-// purpose: a quoted post, a reply's parent, a profile, a bookmark, a search hit.
-// Reference posts get the flags too, because attachReferencesToPosts runs its
-// own hydration through this same function.
-//
-// One read of the viewer's whole hidden set rather than a per-row subquery in
-// every post query: the set is small, it is the same answer for every row on the
-// page, and it keeps the flag out of a dozen SELECT lists.
-func (s *PostsService) attachHiddenAuthorFlags(ctx context.Context, posts []api.Post, userID *api.UserId) error {
-	if s.store == nil || userID == nil || len(posts) == 0 {
-		return nil
-	}
-	rows, err := s.store.Q.ListHiddenUserIDs(ctx, *userID)
+	scope, err := LoadViewerScope(ctx, s.store, userID)
 	if err != nil {
 		return err
 	}
-	if len(rows) == 0 {
-		return nil
-	}
-	// A blocked account can also be muted. Blocking is the stronger statement,
-	// so it wins the indicator.
-	type hiddenState struct{ muted, blocked bool }
-	hidden := make(map[uuid.UUID]*hiddenState, len(rows))
-	for _, row := range rows {
-		state := hidden[row.UserID]
-		if state == nil {
-			state = &hiddenState{}
-			hidden[row.UserID] = state
-		}
-		if row.Blocked {
-			state.blocked = true
-		} else {
-			state.muted = true
-		}
-	}
-	for i := range posts {
-		state, ok := hidden[posts[i].Author.Id]
-		if !ok {
-			continue
-		}
-		// Both flags are reported when both apply. They are separate decisions
-		// with separate undo buttons, and collapsing them would make the menu
-		// offer "unblock" on an account that stays muted afterwards.
-		if state.muted {
-			muted := true
-			posts[i].Author.IsMuted = &muted
-		}
-		if state.blocked {
-			blocking := true
-			posts[i].Author.IsBlocking = &blocking
-		}
-	}
-	return nil
-}
-
-// postAuthorHidden reports whether the viewer has muted or blocked this post's
-// author, reading the flags attachHiddenAuthorFlags stamped.
-func postAuthorHidden(post api.Post) bool {
-	return (post.Author.IsMuted != nil && *post.Author.IsMuted) ||
-		(post.Author.IsBlocking != nil && *post.Author.IsBlocking)
+	scope.StampAuthorFlags(posts)
+	return attachBookmarkListIDs(ctx, s.bookmarks, posts, userID)
 }
 
 func (s *PostsService) attachReactionsToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
@@ -1251,15 +1183,17 @@ func publishScoped(ctx context.Context, store *repository.Store, publisher realt
 	if err != nil {
 		return
 	}
-	recipients := make([]uuid.UUID, 0, len(followerIDs)+1)
-	recipients = append(recipients, followerIDs...)
-	recipients = append(recipients, authorID)
-	for _, id := range recipients {
-		target := api.UserId(id)
-		scoped := event
-		scoped.TargetUserId = &target
-		_ = publisher.Publish(ctx, scoped)
+	recipients := make([]api.UserId, 0, len(followerIDs)+1)
+	for _, id := range followerIDs {
+		recipients = append(recipients, api.UserId(id))
 	}
+	recipients = append(recipients, api.UserId(authorID))
+	// One event carrying every recipient, not one event each. Publish marshals,
+	// signs and pushes to Redis per call, so the loop this replaces cost a full
+	// round trip per follower — up to maxFanoutFollowers of them for a single
+	// post, and again for every reaction on it.
+	event.TargetUserIds = recipients
+	_ = publisher.Publish(ctx, event)
 }
 
 func isUniqueViolation(err error) bool {

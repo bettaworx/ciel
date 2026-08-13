@@ -81,7 +81,14 @@ func (s *SearchService) SearchPosts(ctx context.Context, raw string, limit, offs
 		return api.PostSearchPage{}, mapSearchError(err)
 	}
 
-	byID, err := s.posts.GetHydratedPostsByIDs(ctx, result.IDs, viewer)
+	// Loaded before hydration so the hydration below shares this one read
+	// rather than repeating it per attach step.
+	ctx, _, err = EnsureViewerScope(ctx, s.store, viewer)
+	if err != nil {
+		return api.PostSearchPage{}, err
+	}
+
+	byID, err := s.posts.GetHydratedPostsByIDs(ctx, result.IDs, viewer, SurfaceFeed)
 	if err != nil {
 		return api.PostSearchPage{}, err
 	}
@@ -94,16 +101,9 @@ func (s *SearchService) SearchPosts(ctx context.Context, raw string, limit, offs
 			items = append(items, post)
 		}
 	}
-	// Muted and blocked authors drop out here rather than in the query, for the
-	// same reason as the timeline: GetPostsByIDs keeps only the hard visibility
-	// gate so a quoted or replied-to post stays fetchable behind the reveal
-	// cushion. Search results are a list the viewer asked to be given, not one
-	// they navigated into, so they get the feed's answer.
-	//
 	// EstimatedTotal is left as the engine reported it. It is already an estimate
 	// over an index that does not know about this viewer, and correcting it for
 	// one page would make it wrong in a different way.
-	items = dropHiddenFromFeed(items)
 	return api.PostSearchPage{
 		Items:          items,
 		EstimatedTotal: int(result.EstimatedTotal),

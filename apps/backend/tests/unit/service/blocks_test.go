@@ -15,6 +15,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// expectViewerScope answers the single read that replaced the per-call block
+// checks. kinds are rows of (user_id, kind).
+func expectViewerScope(mock sqlmock.Sqlmock, rows ...[2]any) {
+	r := sqlmock.NewRows([]string{"user_id", "kind"})
+	for _, row := range rows {
+		r.AddRow(row[0], row[1])
+	}
+	mock.ExpectQuery(`FROM account_mutes`).WillReturnRows(r)
+}
+
 // expectGetUserByUsername stands in for the target lookup every mute and block
 // call starts with.
 func expectGetUserByUsername(mock sqlmock.Sqlmock, id uuid.UUID, username string) {
@@ -180,8 +190,7 @@ func TestFollowsService_Follow_RefusedWhenBlocked(t *testing.T) {
 	targetID := uuid.New()
 
 	expectGetUserByUsername(mock, targetID, "bob")
-	mock.ExpectQuery(`FROM account_blocks`).WithArgs(callerID, targetID).
-		WillReturnRows(sqlmock.NewRows([]string{"blocked"}).AddRow(true))
+	expectViewerScope(mock, [2]any{targetID, "blocking"})
 
 	_, err := svc.Follow(context.Background(), auth.User{ID: callerID, Username: "alice"}, api.Username("bob"))
 	if err == nil {
@@ -210,8 +219,7 @@ func TestFollowsService_ListFollowers_BlockedGetsBlockedCode(t *testing.T) {
 	expectGetUserByUsername(mock, targetID, "bob")
 	mock.ExpectQuery(`SELECT can_view_user`).
 		WillReturnRows(sqlmock.NewRows([]string{"can_view"}).AddRow(false))
-	mock.ExpectQuery(`FROM account_blocks`).WithArgs(targetID, viewerID).
-		WillReturnRows(sqlmock.NewRows([]string{"blocked"}).AddRow(true))
+	expectViewerScope(mock, [2]any{targetID, "blocked_by"})
 
 	_, err := svc.ListFollowers(context.Background(), api.Username("bob"), nil, nil, &viewerID)
 	if err == nil {
@@ -239,8 +247,7 @@ func TestFollowsService_ListFollowers_PrivateStillReportsPrivate(t *testing.T) {
 	expectGetUserByUsername(mock, targetID, "bob")
 	mock.ExpectQuery(`SELECT can_view_user`).
 		WillReturnRows(sqlmock.NewRows([]string{"can_view"}).AddRow(false))
-	mock.ExpectQuery(`FROM account_blocks`).WithArgs(targetID, viewerID).
-		WillReturnRows(sqlmock.NewRows([]string{"blocked"}).AddRow(false))
+	expectViewerScope(mock)
 
 	_, err := svc.ListFollowers(context.Background(), api.Username("bob"), nil, nil, &viewerID)
 	assertServiceError(t, err, http.StatusForbidden, "private_account")
@@ -263,10 +270,10 @@ func TestPostsService_Create_ReplyToBlockedAuthorIsForbidden(t *testing.T) {
 	userID := uuid.New()
 	parentID := uuid.New()
 
+	blockedAuthor := uuid.New()
+	expectViewerScope(mock, [2]any{blockedAuthor, "blocking"})
 	mock.ExpectBegin()
-	expectPostThreadInfo(mock, parentID, uuid.New(), false)
-	mock.ExpectQuery(`FROM account_blocks`).
-		WillReturnRows(sqlmock.NewRows([]string{"blocked"}).AddRow(true))
+	expectPostThreadInfo(mock, parentID, blockedAuthor, false)
 	mock.ExpectRollback()
 
 	user := auth.User{ID: userID, Username: "alice"}
@@ -296,10 +303,10 @@ func TestPostsService_Create_BoostOfBlockedAuthorIsForbidden(t *testing.T) {
 	userID := uuid.New()
 	referenceID := uuid.New()
 
+	blockedAuthor := uuid.New()
+	expectViewerScope(mock, [2]any{blockedAuthor, "blocking"})
 	mock.ExpectBegin()
-	expectPostThreadInfo(mock, referenceID, uuid.New(), false)
-	mock.ExpectQuery(`FROM account_blocks`).
-		WillReturnRows(sqlmock.NewRows([]string{"blocked"}).AddRow(true))
+	expectPostThreadInfo(mock, referenceID, blockedAuthor, false)
 	mock.ExpectRollback()
 
 	user := auth.User{ID: userID, Username: "alice"}
@@ -338,6 +345,8 @@ func TestBookmarksService_ListPosts_DropsHiddenAuthors(t *testing.T) {
 	mock.ExpectQuery(`FROM bookmarks b`).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "created_at"}).
 			AddRow(hiddenPost, created).AddRow(visiblePost, created))
+	// One read, shared by the hydration below and by the filter after it.
+	expectViewerScope(mock, [2]any{hiddenAuthor, "blocking"})
 	mock.ExpectQuery(`SELECT\s+p.id,`).WillReturnRows(
 		sqlmock.NewRows([]string{
 			"id", "user_id", "content", "parent_id", "root_id", "reference_id",
@@ -352,8 +361,6 @@ func TestBookmarksService_ListPosts_DropsHiddenAuthors(t *testing.T) {
 	)
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
-	mock.ExpectQuery(`SELECT muted_id AS user_id`).
-		WillReturnRows(sqlmock.NewRows([]string{"user_id", "blocked"}).AddRow(hiddenAuthor, true))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,\s+u.id AS user_id`).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "user_id", "username", "display_name", "avatar_media_id", "avatar_ext"}))
 	mock.ExpectQuery(`SELECT parent_id, COUNT\(\*\)`).

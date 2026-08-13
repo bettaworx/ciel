@@ -38,6 +38,7 @@ func TestPostsService_Create_PublishesEvent(t *testing.T) {
 	created := time.Unix(1_700_000_000, 0).UTC()
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}).
@@ -83,9 +84,9 @@ func TestPostsService_Create_BoostOnlyWithReferenceID(t *testing.T) {
 	created := time.Unix(1_700_000_000, 0).UTC()
 	userCreated := time.Unix(1_600_000_000, 0).UTC()
 
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	expectPostThreadInfo(mock, referenceID, referenceAuthorID, false)
-	expectNotBlocked(mock)
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at"}).
@@ -125,9 +126,9 @@ func TestPostsService_Create_DuplicateBoostReturnsConflict(t *testing.T) {
 	userID := uuid.New()
 	referenceID := uuid.New()
 
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	expectPostThreadInfo(mock, referenceID, uuid.New(), false)
-	expectNotBlocked(mock)
 	mock.ExpectQuery(`INSERT INTO posts`).
 		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}).
 		WillReturnError(&pgconn.PgError{Code: "23505"})
@@ -284,11 +285,12 @@ func expectIsUserPrivate(mock sqlmock.Sqlmock, userID uuid.UUID, private bool) {
 // expectPostThreadInfo expects the target-post lookup that Create runs for a
 // reply, boost or quote. can_view is true and author_is_private is the caller's
 // choice, which is what the boost/quote block keys off.
-// expectNotBlocked answers the interaction guard that runs before a reply,
-// boost, quote or reaction is written.
+// expectNotBlocked answers the one scope read that replaced the per-call block
+// checks in front of a reply, boost, quote or reaction. An empty result means
+// the viewer has hidden nobody and nobody has blocked them.
 func expectNotBlocked(mock sqlmock.Sqlmock) {
-	mock.ExpectQuery(`FROM account_blocks`).
-		WillReturnRows(sqlmock.NewRows([]string{"blocked"}).AddRow(false))
+	mock.ExpectQuery(`FROM account_mutes`).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "kind"}))
 }
 
 func expectPostThreadInfo(mock sqlmock.Sqlmock, postID uuid.UUID, authorID uuid.UUID, authorPrivate bool) {

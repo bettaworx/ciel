@@ -195,6 +195,9 @@ func TestSearchPostsDropsHiddenAuthors(t *testing.T) {
 	svc.SetPostsService(posts)
 
 	created := time.Unix(1_700_000_000, 0).UTC()
+	// One read, shared by the hydration below and by the filter after it.
+	mock.ExpectQuery(`FROM account_mutes`).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "kind"}).AddRow(hiddenAuthor, "blocking"))
 	mock.ExpectQuery(`SELECT\s+p.id,`).WillReturnRows(
 		sqlmock.NewRows([]string{
 			"id", "user_id", "content", "parent_id", "root_id", "reference_id",
@@ -211,8 +214,6 @@ func TestSearchPostsDropsHiddenAuthors(t *testing.T) {
 	// remaining hydration steps.
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
-	mock.ExpectQuery(`SELECT muted_id AS user_id`).
-		WillReturnRows(sqlmock.NewRows([]string{"user_id", "blocked"}).AddRow(hiddenAuthor, true))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,\s+u.id AS user_id`).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "user_id", "username", "display_name", "avatar_media_id", "avatar_ext"}))
 	mock.ExpectQuery(`SELECT parent_id, COUNT\(\*\)`).

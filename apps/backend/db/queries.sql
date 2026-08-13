@@ -2563,33 +2563,29 @@ DELETE FROM follows
 WHERE (follower_id = sqlc.arg('user_id')::uuid AND followee_id = sqlc.arg('other_id')::uuid)
 	OR (follower_id = sqlc.arg('other_id')::uuid AND followee_id = sqlc.arg('user_id')::uuid);
 
--- name: IsBlockedEitherWay :one
--- One round trip for the guard on follow, where either direction is a refusal.
-SELECT EXISTS (
-	SELECT 1 FROM account_blocks
-	WHERE (blocker_id = sqlc.arg('user_id')::uuid AND blocked_id = sqlc.arg('other_id')::uuid)
-		OR (blocker_id = sqlc.arg('other_id')::uuid AND blocked_id = sqlc.arg('user_id')::uuid)
-) AS blocked;
-
--- name: IsBlockedBy :one
--- Whether other_id has blocked user_id. Used to tell a 403 for a private
--- account apart from a 403 for a block, which are the same query result but
--- very different things to tell the caller.
-SELECT EXISTS (
-	SELECT 1 FROM account_blocks
-	WHERE blocker_id = sqlc.arg('other_id')::uuid AND blocked_id = sqlc.arg('user_id')::uuid
-) AS blocked;
-
--- name: ListHiddenUserIDs :many
--- Every account the viewer has hidden, in one read. Stamped onto post authors in
--- Go so the client can draw the indicator and the reveal cushion; a per-row
--- subquery on every post query would be the same answer computed far more often.
+-- name: LoadViewerScope :many
+-- Every moderation relationship this viewer has, in one read.
 --
--- ponytail: unpaginated. A list long enough to matter would need a viewer whose
--- feed is almost entirely cushions; cache it per request if that ever shows up.
-SELECT muted_id AS user_id, false AS blocked FROM account_mutes WHERE muter_id = sqlc.arg('viewer_id')::uuid
+-- Replaces a per-row subquery on every post query and a round trip before every
+-- reply, boost, quote and reaction: all of those asked the same three questions
+-- about one id at a time. Read once per request, the answers live in memory and
+-- the rest of the request decides without touching the database again.
+--
+-- Three directions, because they mean different things. muted and blocking are
+-- the viewer's own choices and hide the other account from them; blocked_by is
+-- the other account's choice and closes the viewer out of it.
+--
+-- ponytail: unpaginated. A viewer with enough of these to matter would have a
+-- feed made almost entirely of cushions; cache it in the request context if that
+-- ever shows up.
+SELECT muted_id AS user_id, 'muted'::text AS kind
+	FROM account_mutes WHERE muter_id = sqlc.arg('viewer_id')::uuid
 UNION ALL
-SELECT blocked_id AS user_id, true AS blocked FROM account_blocks WHERE blocker_id = sqlc.arg('viewer_id')::uuid;
+SELECT blocked_id AS user_id, 'blocking'::text
+	FROM account_blocks WHERE blocker_id = sqlc.arg('viewer_id')::uuid
+UNION ALL
+SELECT blocker_id AS user_id, 'blocked_by'::text
+	FROM account_blocks WHERE blocked_id = sqlc.arg('viewer_id')::uuid;
 
 -- name: ListMutedUsers :many
 -- The settings list, newest first. Same shape as ListFollowers so the row
