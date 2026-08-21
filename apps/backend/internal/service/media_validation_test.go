@@ -10,23 +10,23 @@ import (
 
 func strictMediaConfig() config.MediaConfig {
 	return config.MediaConfig{
-		AllowedExtensions: []string{"webp", "gif", "webm", "mp4", "png", "mov"},
+		AllowedExtensions: []string{"webp", "png", "jpg", "jpeg", "gif", "webm", "mp4", "mov"},
 	}
 }
 
 func TestIsExtensionAllowed(t *testing.T) {
 	cfg := strictMediaConfig()
 
-	allowed := []string{".webp", ".gif", ".webm", ".mp4", "WEBP", "gif"}
+	allowed := []string{".webp", ".png", ".jpg", ".jpeg", ".gif", ".webm", ".mp4", "WEBP", "gif"}
 	for _, ext := range allowed {
 		if !cfg.IsExtensionAllowed(ext) {
 			t.Errorf("IsExtensionAllowed(%q) = false, want true", ext)
 		}
 	}
 
-	// png and mov are in allowed_extensions but not in the hardcoded floor, so
-	// config must not be able to widen the set back out.
-	denied := []string{".png", ".jpg", ".jpeg", ".mov", ".avi", ".mkv", ".m4v", ".3gp", ".ogv", ".svg", ""}
+	// mov is in allowed_extensions but not in the hardcoded floor, so config must
+	// not be able to widen the set back out.
+	denied := []string{".mov", ".avi", ".mkv", ".m4v", ".3gp", ".ogv", ".svg", ".bmp", ".tiff", ""}
 	for _, ext := range denied {
 		if cfg.IsExtensionAllowed(ext) {
 			t.Errorf("IsExtensionAllowed(%q) = true, want false", ext)
@@ -65,6 +65,8 @@ func TestValidateMIMEType(t *testing.T) {
 	}{
 		{"webp matches", webp, ".webp", "image/webp", false},
 		{"gif matches", gif, ".gif", "image/gif", false},
+		{"png matches", png, ".png", "image/png", false},
+		{"png content in a jpeg name", png, ".jpg", "image/jpeg", true},
 		{"webm matches", webm, ".webm", "video/webm", false},
 		{"octet-stream declared is ignored", webp, ".webp", "application/octet-stream", false},
 		{"empty declared is ignored", gif, ".gif", "", false},
@@ -75,7 +77,6 @@ func TestValidateMIMEType(t *testing.T) {
 		{"unrecognised bytes in a webm name", make([]byte, 64), ".webm", "video/webm", false},
 		{"unrecognised bytes in an image name", make([]byte, 64), ".webp", "image/webp", true},
 
-		{"png content is rejected outright", png, ".png", "image/png", true},
 		{"png renamed to webp", png, ".webp", "image/webp", true},
 		{"gif content in a webp name", gif, ".webp", "image/webp", true},
 		{"webm content in an mp4 name", webm, ".mp4", "video/mp4", true},

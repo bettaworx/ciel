@@ -30,11 +30,13 @@ import (
 )
 
 // expectedMimeByExt maps file extensions to their expected MIME types.
-// Restricted to the formats the frontend normalizer produces; see
-// config.MediaConfig.IsExtensionAllowed for why.
+// See config.MediaConfig.IsExtensionAllowed for what is on the list and why.
 var expectedMimeByExt = map[string]string{
 	// Images
 	".webp": "image/webp",
+	".png":  "image/png",
+	".jpg":  "image/jpeg",
+	".jpeg": "image/jpeg",
 	".gif":  "image/gif",
 	// Videos
 	".webm": "video/webm",
@@ -45,6 +47,8 @@ var expectedMimeByExt = map[string]string{
 var allowedMIMESniff = map[string]struct{}{
 	// Images
 	"image/webp": {},
+	"image/png":  {},
+	"image/jpeg": {},
 	"image/gif":  {},
 	// Videos
 	"video/webm": {},
@@ -53,9 +57,11 @@ var allowedMIMESniff = map[string]struct{}{
 
 // allowedImageFormats are the decoder-reported formats accepted for image
 // uploads. Defence in depth: a file that survived MIME sniffing but decodes as
-// something else (e.g. a PNG named .webp) is still rejected.
+// something else — a PNG named .webp, say — is still rejected.
 var allowedImageFormats = map[string]struct{}{
 	"webp": {},
+	"png":  {},
+	"jpeg": {},
 	"gif":  {},
 }
 

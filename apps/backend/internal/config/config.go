@@ -229,16 +229,18 @@ func (m *MediaConfig) MaxUploadBytesForType(mediaType string) int64 {
 // IsExtensionAllowed checks if file extension is allowed.
 //
 // SECURITY: knownFormats is a hard floor that allowed_extensions can only narrow,
-// never widen. It is deliberately limited to the formats the frontend normalizer
-// (lib/media/normalize.ts) produces:
+// never widen:
 //
-//	webp       — every still image is re-encoded to WebP in the browser
-//	gif        — passed through; browsers have no animated-WebP encoder
-//	webm, mp4  — every video is re-encoded to WebM, or to MP4 on browsers with
-//	             no VP8/VP9/AV1 encoder (Safari)
+//	webp             — what the browser normalizer re-encodes still images to
+//	png, jpg, jpeg   — accepted as-is; the passthrough path still decodes every
+//	                   pixel and strips metadata before storing
+//	gif              — passed through; browsers have no animated-WebP encoder
+//	webm, mp4        — every video is re-encoded to WebM, or to MP4 on browsers
+//	                   with no VP8/VP9/AV1 encoder (Safari)
 //
-// Source formats such as png, jpeg, mov, avi, mkv, m4v, 3gp and ogv are rejected:
-// a client that reaches this endpoint without normalizing is not a client we serve.
+// Container formats the normalizer never emits — mov, avi, mkv, m4v, 3gp, ogv —
+// stay out: for video the codec allowlist is what keeps unplayable and
+// CVE-prone streams from being stored.
 func (m *MediaConfig) IsExtensionAllowed(ext string) bool {
 	// Remove leading dot if present
 	ext = strings.TrimPrefix(ext, ".")
@@ -247,6 +249,9 @@ func (m *MediaConfig) IsExtensionAllowed(ext string) bool {
 	knownFormats := map[string]bool{
 		// Images
 		"webp": true,
+		"png":  true,
+		"jpg":  true,
+		"jpeg": true,
 		"gif":  true,
 		// Videos
 		"webm": true,
@@ -484,7 +489,7 @@ func DefaultConfig() *Config {
 		},
 		Media: MediaConfig{
 			MaxUploadSize:     15,
-			AllowedExtensions: []string{"webp", "gif", "webm", "mp4"},
+			AllowedExtensions: []string{"webp", "png", "jpg", "jpeg", "gif", "webm", "mp4"},
 			MaxInputWidth:     16384,
 			MaxInputHeight:    16384,
 			MaxInputPixels:    100_000_000,

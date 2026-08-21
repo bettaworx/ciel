@@ -74,20 +74,41 @@ func writeTempGIF(t *testing.T, w, h, frames int) string {
 	return f.Name()
 }
 
-// PNG and JPEG are source formats: the frontend re-encodes them to WebP before
-// upload, so reaching the backend as-is means the client skipped normalization.
-func TestValidateImageFile_RejectsUnnormalizedFormats(t *testing.T) {
-	cases := map[string]string{
-		"png":  writeTempPNG(t, 100, 80),
-		"jpeg": writeTempJPEG(t, 200, 150),
+func TestValidateImageFile_AcceptedFormats(t *testing.T) {
+	cases := map[string]struct {
+		path   string
+		format string
+	}{
+		"png":  {writeTempPNG(t, 100, 80), "png"},
+		"jpeg": {writeTempJPEG(t, 200, 150), "jpeg"},
 	}
 
-	for format, path := range cases {
-		t.Run(format, func(t *testing.T) {
-			if _, err := validateImageFile(path, testMediaConfig()); err == nil {
-				t.Fatalf("expected %s to be rejected, got no error", format)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			info, err := validateImageFile(tc.path, testMediaConfig())
+			if err != nil {
+				t.Fatalf("expected %s to be accepted, got %v", name, err)
+			}
+			if info.Format != tc.format {
+				t.Errorf("expected format=%s, got %q", tc.format, info.Format)
+			}
+			if info.Animated {
+				t.Errorf("expected Animated=false for %s", name)
 			}
 		})
+	}
+}
+
+// A valid file in a format outside the allowlist is still refused, so the
+// accepted set stays exactly the one config declares.
+func TestValidateImageFile_RejectsFormatsOutsideTheAllowlist(t *testing.T) {
+	path := writeTempPNG(t, 8, 8)
+	saved := allowedImageFormats
+	allowedImageFormats = map[string]struct{}{"webp": {}}
+	t.Cleanup(func() { allowedImageFormats = saved })
+
+	if _, err := validateImageFile(path, testMediaConfig()); err == nil {
+		t.Fatal("expected a format outside the allowlist to be rejected")
 	}
 }
 

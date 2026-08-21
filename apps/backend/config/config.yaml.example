@@ -53,6 +53,9 @@ media:
   # it — see MediaConfig.IsExtensionAllowed.
   allowed_extensions:
     - webp
+    - png
+    - jpg
+    - jpeg
     - gif
     - webm
     - mp4

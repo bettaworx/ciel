@@ -68,8 +68,8 @@ func validateImageFile(path string, cfg config.MediaConfig) (*ImageInfo, error) 
 		Format: format,
 	}
 
-	// Reject formats the frontend normalizer never produces, even if the byte-level
-	// MIME sniff let them through (e.g. a PNG named .webp).
+	// Reject anything outside the allowlist, even if the byte-level MIME sniff
+	// let it through.
 	if _, ok := allowedImageFormats[format]; !ok {
 		return nil, NewError(400, "unsupported_media_type", "unsupported image format")
 	}

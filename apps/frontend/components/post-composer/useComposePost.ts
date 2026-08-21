@@ -436,12 +436,12 @@ export function useComposePost(options: UseComposePostOptions = {}) {
           continue;
         }
 
-        // WebP is what the normalizer would produce anyway, so a small one can
-        // go up as it is.
+        // These are the still formats the server accepts, so a small one can go
+        // up as it is.
         const canSkipConversion = canUploadUntouched(
           file,
           mediaLimits.maxUploadSizeBytes,
-          ["image/webp"],
+          ["image/webp", "image/png", "image/jpeg"],
         );
 
         // Create preview via Object URL (blob:)
