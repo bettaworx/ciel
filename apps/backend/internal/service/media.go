@@ -715,15 +715,14 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 			return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "video conversion failed")
 		}
 	} else {
-		// Passthrough: remux with stream-copy (no re-encoding, near-zero CPU).
-		// Try MP4 container first; fall back to the original extension if the
-		// codec is incompatible with MP4 (e.g. VP8/VP9 in webm).
-		storeExt = "mp4"
+		// Passthrough: remux with stream-copy (no re-encoding, near-zero CPU),
+		// keeping the container the client sent. Forcing MP4 here used to produce
+		// files holding VP9 and Opus — ffmpeg muxes them happily, but Safari
+		// cannot play the result and the .mp4 extension hides that.
+		storeExt = strings.TrimPrefix(strings.ToLower(ext), ".")
 		videoPath := filepath.Join(outDir, "video."+storeExt)
-		if err := s.remuxVideo(ctx, inPath, videoPath); err != nil {
-			// MP4 remux failed — save in original container format.
-			storeExt = strings.TrimPrefix(strings.ToLower(ext), ".")
-			videoPath = filepath.Join(outDir, "video."+storeExt)
+		if err := s.remuxVideo(ctx, inPath, videoPath, storeExt); err != nil {
+			// Remux failed — store the already-validated original as-is.
 			if cpErr := copyFile(inPath, videoPath); cpErr != nil {
 				cleanupOut()
 				return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "video processing failed")
@@ -1856,18 +1855,22 @@ func (s *MediaService) convertToMP4(ctx context.Context, inPath, outPath string,
 	return outputWidth, outputHeight, nil
 }
 
-// remuxVideo re-wraps the input video into an MP4 container using stream-copy
-// (no re-encoding). This strips metadata and ensures a browser-friendly
-// container with near-zero CPU cost.
-func (s *MediaService) remuxVideo(ctx context.Context, inPath, outPath string) error {
+// remuxVideo re-wraps the input video into a fresh container of the same kind
+// using stream-copy (no re-encoding). This strips metadata at near-zero CPU
+// cost. The container is kept as-is so codecs never end up in a container that
+// cannot carry them for every browser.
+func (s *MediaService) remuxVideo(ctx context.Context, inPath, outPath, ext string) error {
 	args := []string{
 		"-i", inPath,
 		"-c", "copy", // Stream-copy all tracks (no re-encoding)
-		"-movflags", "+faststart", // Enable progressive playback
 		"-map_metadata", "-1", // Strip metadata
 		"-map_chapters", "-1", // Strip chapters
-		outPath,
 	}
+	if ext == "mp4" {
+		// Muxer-private option: the matroska muxer rejects it outright.
+		args = append(args, "-movflags", "+faststart") // Enable progressive playback
+	}
+	args = append(args, outPath)
 
 	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
 	var stderr bytes.Buffer
@@ -1875,7 +1878,7 @@ func (s *MediaService) remuxVideo(ctx context.Context, inPath, outPath string) e
 
 	if err := cmd.Run(); err != nil {
 		msg := strings.TrimSpace(stderr.String())
-		slog.Warn("ffmpeg remux failed (codec may be incompatible with MP4 container)", "error", err, "stderr", msg)
+		slog.Warn("ffmpeg remux failed", "error", err, "stderr", msg, "container", ext)
 		return fmt.Errorf("remux failed")
 	}
 

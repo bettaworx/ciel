@@ -1,7 +1,7 @@
 package service
 
 import (
-	"errors"
+	"bufio"
 	"fmt"
 	"image"
 	"image/gif"
@@ -77,7 +77,7 @@ func validateImageFile(path string, cfg config.MediaConfig) (*ImageInfo, error) 
 	// Full decode: validates that the compressed pixel data is intact.
 	if format == "gif" {
 		// Bound the animation before decoding it: gif.DecodeAll allocates every frame.
-		if err := checkGifFrameBudget(path, imgCfg.Width, imgCfg.Height); err != nil {
+		if err := checkGifFrameBudget(path); err != nil {
 			return nil, err
 		}
 		g, err := gif.DecodeAll(f)
@@ -125,42 +125,104 @@ func validateImageDimensionsFromInfo(info *ImageInfo, cfg config.MediaConfig) er
 	return nil
 }
 
-// checkGifFrameBudget rejects GIFs whose total decoded area would blow past
-// maxGifFramePixels, by counting Image Descriptor blocks in the raw bytes before
-// any frame is allocated.
-func checkGifFrameBudget(path string, width, height int) error {
-	area := width * height
-	if area <= 0 {
-		return NewError(400, "invalid_request", "invalid image dimensions")
-	}
-	maxFrames := maxGifFramePixels / area
-
+// checkGifFrameBudget rejects GIFs whose frames would decode to more than
+// maxGifFramePixels in total, by walking the block structure without decoding
+// any pixels.
+//
+// The walk has to be real. Counting 0x2C separator bytes in the raw file looks
+// like a cheap upper bound but is useless: 0x2C is an ordinary byte inside LZW
+// data, and a 1280x720 51-frame GIF contains around 40,000 of them.
+func checkGifFrameBudget(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("failed to open image: %w", err)
 	}
 	defer func() { _ = f.Close() }()
 
-	// An Image Descriptor is the only block that introduces a frame, so counting
-	// its separator byte is an upper bound on the frame count. It may over-count
-	// if the byte appears inside compressed data, which is the safe direction.
-	buf := make([]byte, 32*1024)
-	frames := 0
+	r := bufio.NewReader(f)
+
+	// Header (6) + Logical Screen Descriptor (7); the packed byte says whether a
+	// Global Color Table follows and how big it is.
+	var head [13]byte
+	if _, err := io.ReadFull(r, head[:]); err != nil {
+		return NewError(400, "invalid_request", "invalid gif")
+	}
+	if err := skipColorTable(r, head[10]); err != nil {
+		return err
+	}
+
+	totalPixels := 0
 	for {
-		n, err := f.Read(buf)
-		for _, b := range buf[:n] {
-			if b == 0x2C {
-				frames++
-				if frames > maxFrames {
-					return NewError(400, "invalid_request", "gif animation too large")
-				}
-			}
-		}
+		introducer, err := r.ReadByte()
 		if err != nil {
-			if errors.Is(err, io.EOF) {
+			// A truncated file is the decoder's problem to report, not ours.
+			return nil
+		}
+
+		switch introducer {
+		case 0x3B: // Trailer
+			return nil
+
+		case 0x21: // Extension: label, then data sub-blocks
+			if _, err := r.ReadByte(); err != nil {
 				return nil
 			}
-			return fmt.Errorf("failed to scan gif: %w", err)
+			if err := skipSubBlocks(r); err != nil {
+				return nil
+			}
+
+		case 0x2C: // Image Descriptor: x, y, w, h, packed
+			var desc [9]byte
+			if _, err := io.ReadFull(r, desc[:]); err != nil {
+				return nil
+			}
+			w := int(desc[4]) | int(desc[5])<<8
+			h := int(desc[6]) | int(desc[7])<<8
+			totalPixels += w * h
+			if totalPixels > maxGifFramePixels {
+				return NewError(400, "invalid_request", "gif animation too large")
+			}
+			if err := skipColorTable(r, desc[8]); err != nil {
+				return err
+			}
+			if _, err := r.ReadByte(); err != nil { // LZW minimum code size
+				return nil
+			}
+			if err := skipSubBlocks(r); err != nil {
+				return nil
+			}
+
+		default:
+			// Not a structure we recognise; leave the verdict to the decoder.
+			return nil
+		}
+	}
+}
+
+// skipColorTable advances past a color table when the packed field announces one.
+func skipColorTable(r *bufio.Reader, packed byte) error {
+	if packed&0x80 == 0 {
+		return nil
+	}
+	size := 3 * (1 << ((packed & 0x07) + 1))
+	if _, err := io.CopyN(io.Discard, r, int64(size)); err != nil {
+		return NewError(400, "invalid_request", "invalid gif")
+	}
+	return nil
+}
+
+// skipSubBlocks advances past a chain of length-prefixed data sub-blocks.
+func skipSubBlocks(r *bufio.Reader) error {
+	for {
+		n, err := r.ReadByte()
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return nil
+		}
+		if _, err := io.CopyN(io.Discard, r, int64(n)); err != nil {
+			return err
 		}
 	}
 }

@@ -91,23 +91,44 @@ func TestValidateImageFile_RejectsUnnormalizedFormats(t *testing.T) {
 	}
 }
 
-// checkGifFrameBudget is driven by frames x area, so an inflated area shrinks the
-// allowed frame count enough to test the guard without building a huge GIF.
+// The budget is total decoded area, so it must let an ordinary animation past
+// and only stop one whose frames add up to more than the cap. A byte-counting
+// heuristic used to fail the first of these: 0x2C is common inside LZW data, so
+// a 51-frame GIF looked like tens of thousands of frames.
 func TestCheckGifFrameBudget(t *testing.T) {
-	path := writeTempGIF(t, 64, 64, 5)
+	t.Run("ordinary animation passes", func(t *testing.T) {
+		// 1280x720 x 51 frames is ~47 megapixels, well inside the cap, but has
+		// enough compressed data to trip a naive separator-byte count.
+		path := writeTempGIF(t, 1280, 720, 51)
+		if err := checkGifFrameBudget(path); err != nil {
+			t.Fatalf("expected a 51-frame 1280x720 gif to pass, got %v", err)
+		}
+	})
 
-	if err := checkGifFrameBudget(path, 64, 64); err != nil {
-		t.Errorf("a 5-frame 64x64 gif should fit the budget, got %v", err)
-	}
+	t.Run("single frame passes", func(t *testing.T) {
+		if err := checkGifFrameBudget(writeTempGIF(t, 64, 64, 1)); err != nil {
+			t.Fatalf("expected a single-frame gif to pass, got %v", err)
+		}
+	})
 
-	// 20000x20000 leaves room for exactly one frame; the file has five.
-	if err := checkGifFrameBudget(path, 20000, 20000); err == nil {
-		t.Error("expected a 5-frame gif to blow a 1-frame budget")
-	}
+	t.Run("oversized animation is rejected", func(t *testing.T) {
+		// 4000x4000 x 32 frames is ~512 megapixels, past maxGifFramePixels.
+		path := writeTempGIF(t, 4000, 4000, 32)
+		if err := checkGifFrameBudget(path); err == nil {
+			t.Fatal("expected a gif over the pixel budget to be rejected")
+		}
+	})
 
-	if err := checkGifFrameBudget(path, 0, 0); err == nil {
-		t.Error("expected zero dimensions to be rejected")
-	}
+	t.Run("garbage does not hang or panic", func(t *testing.T) {
+		f := filepath.Join(t.TempDir(), "junk.gif")
+		if err := os.WriteFile(f, []byte("GIF89a not really a gif at all"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		// Malformed input is the decoder's to reject; this must simply return.
+		if err := checkGifFrameBudget(f); err != nil {
+			t.Fatalf("expected malformed input to be left to the decoder, got %v", err)
+		}
+	})
 }
 
 func TestValidateImageFile_GIF_Static(t *testing.T) {
