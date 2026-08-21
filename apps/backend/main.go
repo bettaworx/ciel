@@ -438,6 +438,7 @@ func main() {
 
 	// Video and thumbnail routes
 	r.Get("/media/{mediaId}/video.mp4", mediaSvc.ServeVideo)
+	r.Get("/media/{mediaId}/video.webm", mediaSvc.ServeVideo)
 	r.Get("/media/{mediaId}/thumbnail.webp", mediaSvc.ServeThumbnail)
 
 	// Emoji image route (public, no auth required)
