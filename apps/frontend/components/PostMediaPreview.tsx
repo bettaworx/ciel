@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Crop, X } from "lucide-react";
 import { BlurhashImage } from "@/components/BlurhashImage";
+import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
@@ -31,8 +32,17 @@ export interface PostMediaPreviewProps {
   onRemove?: (id: string) => void;
   /** Called when a crop button is clicked. Receives the media item id. */
   onCrop?: (id: string) => void;
-  /** Called when a media item (image) should open the lightbox at the given index. */
-  onLightboxOpen?: (index: number) => void;
+  /**
+   * Called when a media item (image) should open the lightbox at the given
+   * index. `source` is the item's wrapper element — the lightbox morphs out of
+   * it, and reads its rounding from it.
+   */
+  onLightboxOpen?: (index: number, source: HTMLElement | null) => void;
+  /**
+   * Index of the image the lightbox is currently showing. That cell falls back
+   * to its blurhash so the same image is never painted twice on screen at once.
+   */
+  hiddenIndex?: number | null;
   /** Additional class name for the outer wrapper. */
   className?: string;
 }
@@ -119,6 +129,7 @@ export function PostMediaPreview({
   onRemove,
   onCrop,
   onLightboxOpen,
+  hiddenIndex,
   className,
 }: PostMediaPreviewProps) {
   const tLightbox = useTranslations("lightbox");
@@ -161,12 +172,49 @@ export function PostMediaPreview({
     return undefined;
   };
 
+  // Marks the wrapper the lightbox morph animates from, and — while the
+  // lightbox has that image — swaps the cell for its blurhash. Only meaningful
+  // when a lightbox is wired up, so the composer preview stays untouched.
+  const lightboxIndexAttr = (index: number) =>
+    onLightboxOpen ? { "data-lightbox-index": index } : undefined;
+
+  /** True while the lightbox is the one painting this image. */
+  const isHidden = (index: number) =>
+    Boolean(onLightboxOpen) && hiddenIndex === index;
+
+  /** Blurhash stand-in for the cell the lightbox has taken over. */
+  const hiddenStyle = (
+    index: number,
+    item: PreviewMediaItem,
+  ): React.CSSProperties | undefined =>
+    isHidden(index)
+      ? {
+          backgroundImage: `url(${getBlurhashDataUrl(item.blurhash)})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }
+      : undefined;
+
+  /**
+   * The card must not also paint what the lightbox is showing.
+   *
+   * `invisible` rather than `opacity-0`: BlurhashImage appends its own
+   * `transition-opacity` after this class, so an opacity hide would fade over
+   * 240ms — leaving the duplicate on screen for exactly the stretch of the
+   * morph where the backdrop is still too light to cover it.
+   */
+  const hiddenClass = (index: number) =>
+    isHidden(index) ? "invisible" : undefined;
+
   const renderImageActionOverlay = (item: PreviewMediaItem, index: number) => {
-    const action = onLightboxOpen
-      ? () => onLightboxOpen(index)
-      : editable && onCrop && !item.isAnimated
-        ? () => onCrop(item.id)
-        : null;
+    // The button is `absolute inset-0` directly inside the wrapper, so its
+    // parent is the element that carries the rect, the rounding and the index.
+    const action: ((e: React.MouseEvent<HTMLButtonElement>) => void) | null =
+      onLightboxOpen
+        ? (e) => onLightboxOpen(index, e.currentTarget.parentElement)
+        : editable && onCrop && !item.isAnimated
+          ? () => onCrop(item.id)
+          : null;
 
     if (!action) return null;
 
@@ -215,7 +263,8 @@ export function PostMediaPreview({
       <div className={className}>
         <div
           className="relative w-full overflow-hidden rounded-xl group"
-          style={singleImageStyle}
+          style={{ ...singleImageStyle, ...hiddenStyle(0, imageMedia[0]) }}
+          {...lightboxIndexAttr(0)}
         >
           <BlurhashImage
             blurhash={imageMedia[0].blurhash}
@@ -223,7 +272,11 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover", getImageCursorClass(imageMedia[0]))}
+            className={cn(
+              "object-cover",
+              hiddenClass(0),
+              getImageCursorClass(imageMedia[0]),
+            )}
             sizes="(max-width: 600px) 100vw, 600px"
           />
           {renderImageActionOverlay(imageMedia[0], 0)}
@@ -245,7 +298,11 @@ export function PostMediaPreview({
   if (imageMedia.length === 2) {
     return (
       <div className={cn("grid grid-cols-2 gap-1", className)}>
-        <div className="relative aspect-[8/9] overflow-hidden group">
+        <div
+          className="relative aspect-[8/9] overflow-hidden rounded-l-xl group"
+          {...lightboxIndexAttr(0)}
+          style={hiddenStyle(0, imageMedia[0])}
+        >
           <BlurhashImage
             blurhash={imageMedia[0].blurhash}
             src={imageMedia[0].url}
@@ -253,7 +310,8 @@ export function PostMediaPreview({
             fill
             unoptimized
             className={cn(
-              "object-cover rounded-l-xl",
+              "object-cover",
+              hiddenClass(0),
               getImageCursorClass(imageMedia[0]),
             )}
             sizes="(max-width: 600px) 50vw, 300px"
@@ -269,7 +327,11 @@ export function PostMediaPreview({
             />
           )}
         </div>
-        <div className="relative aspect-[8/9] overflow-hidden group">
+        <div
+          className="relative aspect-[8/9] overflow-hidden rounded-r-xl group"
+          {...lightboxIndexAttr(1)}
+          style={hiddenStyle(1, imageMedia[1])}
+        >
           <BlurhashImage
             blurhash={imageMedia[1].blurhash}
             src={imageMedia[1].url}
@@ -277,7 +339,8 @@ export function PostMediaPreview({
             fill
             unoptimized
             className={cn(
-              "object-cover rounded-r-xl",
+              "object-cover",
+              hiddenClass(1),
               getImageCursorClass(imageMedia[1]),
             )}
             sizes="(max-width: 600px) 50vw, 300px"
@@ -301,7 +364,11 @@ export function PostMediaPreview({
   if (imageMedia.length === 3) {
     return (
       <div className={cn("grid grid-cols-2 gap-1", className)}>
-        <div className="relative row-span-2 overflow-hidden group">
+        <div
+          className="relative row-span-2 overflow-hidden rounded-l-xl group"
+          {...lightboxIndexAttr(0)}
+          style={hiddenStyle(0, imageMedia[0])}
+        >
           <BlurhashImage
             blurhash={imageMedia[0].blurhash}
             src={imageMedia[0].url}
@@ -309,7 +376,8 @@ export function PostMediaPreview({
             fill
             unoptimized
             className={cn(
-              "object-cover rounded-l-xl",
+              "object-cover",
+              hiddenClass(0),
               getImageCursorClass(imageMedia[0]),
             )}
             sizes="(max-width: 600px) 50vw, 300px"
@@ -325,7 +393,11 @@ export function PostMediaPreview({
             />
           )}
         </div>
-        <div className="relative aspect-video overflow-hidden group">
+        <div
+          className="relative aspect-video overflow-hidden rounded-tr-xl group"
+          {...lightboxIndexAttr(1)}
+          style={hiddenStyle(1, imageMedia[1])}
+        >
           <BlurhashImage
             blurhash={imageMedia[1].blurhash}
             src={imageMedia[1].url}
@@ -333,7 +405,8 @@ export function PostMediaPreview({
             fill
             unoptimized
             className={cn(
-              "object-cover rounded-tr-xl",
+              "object-cover",
+              hiddenClass(1),
               getImageCursorClass(imageMedia[1]),
             )}
             sizes="(max-width: 600px) 50vw, 300px"
@@ -349,7 +422,11 @@ export function PostMediaPreview({
             />
           )}
         </div>
-        <div className="relative aspect-video overflow-hidden group">
+        <div
+          className="relative aspect-video overflow-hidden rounded-br-xl group"
+          {...lightboxIndexAttr(2)}
+          style={hiddenStyle(2, imageMedia[2])}
+        >
           <BlurhashImage
             blurhash={imageMedia[2].blurhash}
             src={imageMedia[2].url}
@@ -357,7 +434,8 @@ export function PostMediaPreview({
             fill
             unoptimized
             className={cn(
-              "object-cover rounded-br-xl",
+              "object-cover",
+              hiddenClass(2),
               getImageCursorClass(imageMedia[2]),
             )}
             sizes="(max-width: 600px) 50vw, 300px"
@@ -391,7 +469,12 @@ export function PostMediaPreview({
         {fourImages.map((item, i) => (
           <div
             key={item.id}
-            className="relative aspect-video overflow-hidden group"
+            className={cn(
+              "relative aspect-video overflow-hidden group",
+              roundingClasses[i],
+            )}
+            {...lightboxIndexAttr(i)}
+            style={hiddenStyle(i, item)}
           >
             <BlurhashImage
               blurhash={item.blurhash}
@@ -401,7 +484,7 @@ export function PostMediaPreview({
               unoptimized
               className={cn(
                 "object-cover",
-                roundingClasses[i],
+                hiddenClass(i),
                 getImageCursorClass(item),
               )}
               sizes="(max-width: 600px) 50vw, 300px"

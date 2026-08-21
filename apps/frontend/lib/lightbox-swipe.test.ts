@@ -93,8 +93,18 @@ describe("resolveSwipe — vertical", () => {
     expect(swipe({ dx: 5, dy: 200, height: 1400 })).toBe("dismiss");
   });
 
-  it("ignores upward swipes even at high velocity", () => {
-    expect(swipe({ dx: 5, dy: -400, vy: -2 })).toBe("none");
+  it("dismisses upward on the same threshold", () => {
+    expect(swipe({ dx: 5, dy: -200 })).toBe("dismiss");
+    expect(swipe({ dx: 5, dy: -100 })).toBe("none");
+  });
+
+  it("dismisses on an upward flick", () => {
+    expect(swipe({ dx: 5, dy: -40, vy: -0.8 })).toBe("dismiss");
+  });
+
+  it("ignores a flick that disagrees with the travel", () => {
+    expect(swipe({ dx: 5, dy: 40, vy: -0.8 })).toBe("none");
+    expect(swipe({ dx: 5, dy: -40, vy: 0.8 })).toBe("none");
   });
 
   it("does nothing when the pointer never moved", () => {
@@ -103,9 +113,13 @@ describe("resolveSwipe — vertical", () => {
 });
 
 describe("dismissProgress", () => {
-  it("is 0 for upward or zero travel", () => {
-    expect(dismissProgress(-50, 800)).toBe(0);
+  it("is 0 only when the pointer has not moved", () => {
     expect(dismissProgress(0, 800)).toBe(0);
+  });
+
+  it("treats upward travel like downward", () => {
+    expect(dismissProgress(-400, 800)).toBe(0.5);
+    expect(dismissProgress(-1200, 800)).toBe(1);
   });
 
   it("scales linearly and clamps at 1", () => {
