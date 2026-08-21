@@ -36,6 +36,7 @@ function post(
     reactions: [],
     mentions: [],
     replyCount: 0,
+    boostCount: 0,
     createdAt: "2026-05-17T00:00:00.000Z",
     ...overrides,
   };

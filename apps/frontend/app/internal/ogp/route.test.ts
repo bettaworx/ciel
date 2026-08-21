@@ -46,7 +46,7 @@ function makeHtmlResponse(html: string, headers?: Record<string, string>): Respo
 	});
 }
 
-function makeImageResponse(data: Uint8Array, contentType = 'image/png'): Response {
+function makeImageResponse(data: Uint8Array<ArrayBuffer>, contentType = 'image/png'): Response {
 	return new Response(data, {
 		status: 200,
 		headers: {
