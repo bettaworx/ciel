@@ -87,7 +87,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { components } from "@/lib/api/api";
 import { DeletedPostCard } from "@/components/DeletedPostCard";
-import { ImageLightbox } from "@/components/ImageLightbox";
+import { Lightbox } from "@/components/Lightbox";
 import { PostMediaPreview } from "@/components/PostMediaPreview";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
 import {
@@ -599,12 +599,18 @@ export function PostCard({
     .toUpperCase()
     .slice(0, 2);
 
-  // Lightbox images (only non-video media)
-  const lightboxImages = useMemo(
+  // Lightbox items (only non-video media for now)
+  const lightboxItems = useMemo(
     () =>
       media
         .filter((m) => m.type !== "video")
-        .map((item) => ({ src: item.url, alt: "" })),
+        .map((item) => ({
+          type: item.type as "image" | "video",
+          url: item.url,
+          width: item.width,
+          height: item.height,
+          blurhash: item.blurhash,
+        })),
     [media],
   );
 
@@ -1360,8 +1366,8 @@ export function PostCard({
           className="pointer-events-none absolute bottom-0 left-16 right-0 h-16 bg-gradient-to-t from-card to-transparent sm:left-[4.5rem]"
         />
       )}
-      <ImageLightbox
-        images={lightboxImages}
+      <Lightbox
+        items={lightboxItems}
         open={lightboxOpen}
         onOpenChange={setLightboxOpen}
         initialIndex={lightboxIndex}
