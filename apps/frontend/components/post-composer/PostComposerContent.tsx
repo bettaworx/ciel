@@ -169,6 +169,7 @@ export function PostComposerContent({
     handleCropOpen,
     handleCropDialogOpenChange,
     handleCropComplete,
+    handleQualityChange,
     handlePost,
     // Mutations
     createPostMutation,
@@ -476,6 +477,7 @@ export function PostComposerContent({
           editable
           onRemove={handleRemoveMedia}
           onCrop={handleCropOpen}
+          onQualityChange={handleQualityChange}
         />
       </div>
     ) : null;

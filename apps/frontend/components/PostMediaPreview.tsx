@@ -6,10 +6,13 @@ import { useTranslations } from "next-intl";
 import { Crop, X } from "lucide-react";
 import { BlurhashImage } from "@/components/BlurhashImage";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
+import { pixelArtRendering } from "@/lib/media/display";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
+import { MediaQualityControl } from "@/components/post-composer/MediaQualityPicker";
 import { MediaConversionIndicator } from "@/components/post-composer/MediaConversionIndicator";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
+import type { QualityMode } from "@/components/post-composer/MediaQualityPicker";
 
 const VideoPlayer = dynamic(
   () => import("@/components/VideoPlayer").then((mod) => mod.VideoPlayer),
@@ -33,6 +36,8 @@ export interface PostMediaPreviewProps {
   onRemove?: (id: string) => void;
   /** Called when a crop button is clicked. Receives the media item id. */
   onCrop?: (id: string) => void;
+  /** Called when the compression mode of an attachment is changed. */
+  onQualityChange?: (id: string, mode: QualityMode) => void;
   /**
    * Called when a media item (image) should open the lightbox at the given
    * index. `source` is the item's wrapper element — the lightbox morphs out of
@@ -129,6 +134,7 @@ export function PostMediaPreview({
   editable = false,
   onRemove,
   onCrop,
+  onQualityChange,
   onLightboxOpen,
   hiddenIndex,
   className,
@@ -207,6 +213,32 @@ export function PostMediaPreview({
   const hiddenClass = (index: number) =>
     isHidden(index) ? "invisible" : undefined;
 
+  /**
+   * Controls overlaid on an image in editable mode. Animated images skip the
+   * quality and crop controls: they are passed through to the server untouched.
+   */
+  const renderEditOverlay = (item: PreviewMediaItem) => {
+    if (!editable) return null;
+    return (
+      <>
+        {onQualityChange && !item.isAnimated && (
+          <MediaQualityControl
+            kind="image"
+            value={item.quality ?? "balance"}
+            allowNone={item.allowNoConversion}
+            onChange={(mode) => onQualityChange(item.id, mode)}
+          />
+        )}
+        {onCrop && !item.isAnimated && (
+          <CropButton onClick={() => onCrop(item.id)} label={cropLabel} />
+        )}
+        {onRemove && (
+          <RemoveButton onClick={() => onRemove(item.id)} label={removeLabel} />
+        )}
+      </>
+    );
+  };
+
   const renderImageActionOverlay = (item: PreviewMediaItem, index: number) => {
     // The button is `absolute inset-0` directly inside the wrapper, so its
     // parent is the element that carries the rect, the rounding and the index.
@@ -244,8 +276,18 @@ export function PostMediaPreview({
             poster={videoMedia.thumbnailUrl}
             className="w-full h-full"
           />
-          {videoMedia.conversionProgress != null && (
+          {videoMedia.conversionProgress != null ? (
             <MediaConversionIndicator progress={videoMedia.conversionProgress} />
+          ) : (
+            editable &&
+            onQualityChange && (
+              <MediaQualityControl
+                kind="video"
+                value={videoMedia.quality ?? "balance"}
+                allowNone={videoMedia.allowNoConversion}
+                onChange={(mode) => onQualityChange(videoMedia.id, mode)}
+              />
+            )
           )}
           {editable && onRemove && (
             <RemoveButton
@@ -273,6 +315,7 @@ export function PostMediaPreview({
           <BlurhashImage
             blurhash={imageMedia[0].blurhash}
             src={imageMedia[0].url}
+            style={{ imageRendering: pixelArtRendering(imageMedia[0].width) }}
             alt=""
             fill
             unoptimized
@@ -284,15 +327,7 @@ export function PostMediaPreview({
             sizes="(max-width: 600px) 100vw, 600px"
           />
           {renderImageActionOverlay(imageMedia[0], 0)}
-          {editable && onCrop && !imageMedia[0].isAnimated && (
-            <CropButton onClick={() => onCrop(imageMedia[0].id)} label={cropLabel} />
-          )}
-          {editable && onRemove && (
-            <RemoveButton
-              onClick={() => onRemove(imageMedia[0].id)}
-              label={removeLabel}
-            />
-          )}
+          {renderEditOverlay(imageMedia[0])}
         </div>
       </div>
     );
@@ -310,6 +345,7 @@ export function PostMediaPreview({
           <BlurhashImage
             blurhash={imageMedia[0].blurhash}
             src={imageMedia[0].url}
+            style={{ imageRendering: pixelArtRendering(imageMedia[0].width) }}
             alt=""
             fill
             unoptimized
@@ -321,15 +357,7 @@ export function PostMediaPreview({
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[0], 0)}
-          {editable && onCrop && !imageMedia[0].isAnimated && (
-            <CropButton onClick={() => onCrop(imageMedia[0].id)} label={cropLabel} />
-          )}
-          {editable && onRemove && (
-            <RemoveButton
-              onClick={() => onRemove(imageMedia[0].id)}
-              label={removeLabel}
-            />
-          )}
+          {renderEditOverlay(imageMedia[0])}
         </div>
         <div
           className="relative aspect-[8/9] overflow-hidden rounded-r-xl group"
@@ -339,6 +367,7 @@ export function PostMediaPreview({
           <BlurhashImage
             blurhash={imageMedia[1].blurhash}
             src={imageMedia[1].url}
+            style={{ imageRendering: pixelArtRendering(imageMedia[1].width) }}
             alt=""
             fill
             unoptimized
@@ -350,15 +379,7 @@ export function PostMediaPreview({
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[1], 1)}
-          {editable && onCrop && !imageMedia[1].isAnimated && (
-            <CropButton onClick={() => onCrop(imageMedia[1].id)} label={cropLabel} />
-          )}
-          {editable && onRemove && (
-            <RemoveButton
-              onClick={() => onRemove(imageMedia[1].id)}
-              label={removeLabel}
-            />
-          )}
+          {renderEditOverlay(imageMedia[1])}
         </div>
       </div>
     );
@@ -376,6 +397,7 @@ export function PostMediaPreview({
           <BlurhashImage
             blurhash={imageMedia[0].blurhash}
             src={imageMedia[0].url}
+            style={{ imageRendering: pixelArtRendering(imageMedia[0].width) }}
             alt=""
             fill
             unoptimized
@@ -387,15 +409,7 @@ export function PostMediaPreview({
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[0], 0)}
-          {editable && onCrop && !imageMedia[0].isAnimated && (
-            <CropButton onClick={() => onCrop(imageMedia[0].id)} label={cropLabel} />
-          )}
-          {editable && onRemove && (
-            <RemoveButton
-              onClick={() => onRemove(imageMedia[0].id)}
-              label={removeLabel}
-            />
-          )}
+          {renderEditOverlay(imageMedia[0])}
         </div>
         <div
           className="relative aspect-video overflow-hidden rounded-tr-xl group"
@@ -405,6 +419,7 @@ export function PostMediaPreview({
           <BlurhashImage
             blurhash={imageMedia[1].blurhash}
             src={imageMedia[1].url}
+            style={{ imageRendering: pixelArtRendering(imageMedia[1].width) }}
             alt=""
             fill
             unoptimized
@@ -416,15 +431,7 @@ export function PostMediaPreview({
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[1], 1)}
-          {editable && onCrop && !imageMedia[1].isAnimated && (
-            <CropButton onClick={() => onCrop(imageMedia[1].id)} label={cropLabel} />
-          )}
-          {editable && onRemove && (
-            <RemoveButton
-              onClick={() => onRemove(imageMedia[1].id)}
-              label={removeLabel}
-            />
-          )}
+          {renderEditOverlay(imageMedia[1])}
         </div>
         <div
           className="relative aspect-video overflow-hidden rounded-br-xl group"
@@ -434,6 +441,7 @@ export function PostMediaPreview({
           <BlurhashImage
             blurhash={imageMedia[2].blurhash}
             src={imageMedia[2].url}
+            style={{ imageRendering: pixelArtRendering(imageMedia[2].width) }}
             alt=""
             fill
             unoptimized
@@ -445,15 +453,7 @@ export function PostMediaPreview({
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[2], 2)}
-          {editable && onCrop && !imageMedia[2].isAnimated && (
-            <CropButton onClick={() => onCrop(imageMedia[2].id)} label={cropLabel} />
-          )}
-          {editable && onRemove && (
-            <RemoveButton
-              onClick={() => onRemove(imageMedia[2].id)}
-              label={removeLabel}
-            />
-          )}
+          {renderEditOverlay(imageMedia[2])}
         </div>
       </div>
     );
@@ -483,6 +483,7 @@ export function PostMediaPreview({
             <BlurhashImage
               blurhash={item.blurhash}
               src={item.url}
+              style={{ imageRendering: pixelArtRendering(item.width) }}
               alt=""
               fill
               unoptimized
@@ -494,15 +495,7 @@ export function PostMediaPreview({
               sizes="(max-width: 600px) 50vw, 300px"
             />
             {renderImageActionOverlay(item, i)}
-            {editable && onCrop && !item.isAnimated && (
-              <CropButton onClick={() => onCrop(item.id)} label={cropLabel} />
-            )}
-            {editable && onRemove && (
-              <RemoveButton
-                onClick={() => onRemove(item.id)}
-                label={removeLabel}
-              />
-            )}
+            {renderEditOverlay(item)}
           </div>
         ))}
       </div>

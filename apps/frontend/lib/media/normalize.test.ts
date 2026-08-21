@@ -10,6 +10,39 @@ import {
 
 const file = (name: string, type: string) => new File([new Uint8Array(1)], name, { type });
 
+/** Stands in for the browser encode path, recording what it was asked to do. */
+function stubCanvas(source = { width: 10, height: 10 }) {
+	const state = { encodes: 0, width: 0, height: 0, quality: 0, smoothing: true };
+	vi.stubGlobal('createImageBitmap', async () => ({ ...source, close() {} }));
+	vi.stubGlobal(
+		'OffscreenCanvas',
+		class {
+			constructor(
+				public width: number,
+				public height: number,
+			) {
+				state.width = width;
+				state.height = height;
+			}
+			getContext() {
+				return {
+					drawImage() {},
+					set imageSmoothingEnabled(v: boolean) {
+						state.smoothing = v;
+					},
+				};
+			}
+			async convertToBlob(options: { quality: number }) {
+				state.encodes++;
+				state.quality = options.quality;
+				return new Blob([new Uint8Array(4)], { type: 'image/webp' });
+			}
+		},
+	);
+	return state;
+}
+
+
 describe('fitWithin', () => {
 	it('leaves images that already fit untouched', () => {
 		expect(fitWithin(800, 600, 2048)).toEqual({ width: 800, height: 600 });
@@ -62,32 +95,6 @@ describe('file classification', () => {
 describe('normalizeForUpload', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
-	/** Minimal stand-ins for the browser encode path, counting encodes. */
-	function stubCanvas() {
-		const state = { encodes: 0 };
-		vi.stubGlobal('createImageBitmap', async () => ({
-			width: 10,
-			height: 10,
-			close() {},
-		}));
-		vi.stubGlobal(
-			'OffscreenCanvas',
-			class {
-				constructor(
-					public width: number,
-					public height: number,
-				) {}
-				getContext() {
-					return { drawImage() {} };
-				}
-				async convertToBlob() {
-					state.encodes++;
-					return new Blob([new Uint8Array(4)], { type: 'image/webp' });
-				}
-			},
-		);
-		return state;
-	}
 
 	it('re-encodes a still image to webp', async () => {
 		const state = stubCanvas();
@@ -154,6 +161,7 @@ describe('pickVideoBitrate', () => {
 			durationSec: 97.2,
 			width: 1835,
 			height: 1920,
+			bitsPerPixel: 0.1,
 			maxBytes: LIMIT,
 		});
 
@@ -169,6 +177,7 @@ describe('pickVideoBitrate', () => {
 			durationSec: 20,
 			width: 1920,
 			height: 1080,
+			bitsPerPixel: 0.1,
 			maxBytes: LIMIT,
 		});
 
@@ -183,6 +192,7 @@ describe('pickVideoBitrate', () => {
 			durationSec,
 			width: 1920,
 			height: 1080,
+			bitsPerPixel: 0.1,
 			maxBytes: LIMIT,
 		});
 
@@ -197,7 +207,8 @@ describe('pickVideoBitrate', () => {
 				durationSec: 3600,
 				width: 1920,
 				height: 1080,
-				maxBytes: LIMIT,
+				bitsPerPixel: 0.1,
+			maxBytes: LIMIT,
 			}),
 		).toBeNull();
 	});
@@ -210,11 +221,83 @@ describe('pickVideoBitrate', () => {
 			durationSec: 30,
 			width: 640,
 			height: 480,
+			bitsPerPixel: 0.1,
 			maxBytes: LIMIT,
 		});
 
 		expect(bitrate).not.toBeNull();
 		expect(bitrate!).toBeGreaterThan(0);
 		expect(outputBytes(bitrate!, 30)).toBeLessThan(2 * MiB);
+	});
+});
+
+describe('quality modes', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+
+	const png = () => new File([new Uint8Array(4)], 'a.png', { type: 'image/png' });
+
+	it('resizes and compresses according to the image mode', async () => {
+		const cases = [
+			{ mode: 'performance', edge: 1280, quality: 0.65 },
+			{ mode: 'balance', edge: 2048, quality: 0.82 },
+			{ mode: 'quality', edge: 3072, quality: 0.95 },
+		] as const;
+
+		for (const { mode, edge, quality } of cases) {
+			const state = stubCanvas({ width: 4000, height: 2000 });
+			await normalizeForUpload(png(), { imageMode: mode });
+
+			expect(state.width, mode).toBe(edge);
+			expect(state.height, mode).toBe(edge / 2);
+			expect(state.quality, mode).toBe(quality);
+			expect(state.smoothing, mode).toBe(true);
+			vi.unstubAllGlobals();
+		}
+	});
+
+	// Pixel art must come out the size it went in, with no interpolation.
+	it('leaves dot-by-dot at its original size with smoothing off', async () => {
+		const state = stubCanvas({ width: 4000, height: 2000 });
+
+		await normalizeForUpload(png(), { imageMode: 'dot-by-dot' });
+
+		expect(state.width).toBe(4000);
+		expect(state.height).toBe(2000);
+		expect(state.quality).toBe(1);
+		expect(state.smoothing).toBe(false);
+	});
+
+	// 'none' is the poster saying the file already suits the server.
+	it('uploads untouched in the none mode', async () => {
+		const state = stubCanvas({ width: 4000, height: 2000 });
+		const webp = new File([new Uint8Array(4)], 'a.webp', { type: 'image/webp' });
+
+		const result = await normalizeForUpload(webp, { imageMode: 'none' });
+
+		expect(result).toBe(webp);
+		expect(state.encodes).toBe(0);
+		// Still marked, so the upload path does not convert it either.
+		expect(await normalizeForUpload(result)).toBe(webp);
+		expect(state.encodes).toBe(0);
+	});
+
+	it('raises and lowers the video ceiling with the video mode', () => {
+		// A short clip, so the ceiling binds rather than the budget or the source.
+		const args = {
+			fileSize: 500 * 1024 * 1024,
+			durationSec: 10,
+			width: 1920,
+			height: 1080,
+			maxBytes: 100 * 1024 * 1024,
+		};
+
+		const performance = pickVideoBitrate({ ...args, bitsPerPixel: 0.07 });
+		const balance = pickVideoBitrate({ ...args, bitsPerPixel: 0.1 });
+		const quality = pickVideoBitrate({ ...args, bitsPerPixel: 0.15 });
+
+		expect(performance).toBeLessThan(balance!);
+		expect(balance).toBeLessThan(quality!);
+		expect(balance).toBe(Math.round(0.1 * 1920 * 1080 * 30));
 	});
 });

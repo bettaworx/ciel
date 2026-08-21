@@ -572,7 +572,14 @@
     "converting": "Converting video",
     "convertingPercent": "Converting {percent}%",
     "conversionComplete": "Conversion complete",
-    "videoCannotFit": "This video cannot be compressed under {maxSize}MB"
+    "videoCannotFit": "This video cannot be compressed under {maxSize}MB",
+    "qualityImageTitle": "Image quality",
+    "qualityVideoTitle": "Video quality",
+    "qualityDotByDot": "Dotted",
+    "qualityPerformance": "Performance first",
+    "qualityBalance": "Balanced",
+    "qualityHigh": "Quality first",
+    "qualityNone": "None"
   },
   "lightbox": {
     "title": "Image viewer",

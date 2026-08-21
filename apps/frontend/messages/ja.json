@@ -572,7 +572,14 @@
     "converting": "動画を変換中",
     "convertingPercent": "変換中 {percent}%",
     "conversionComplete": "変換完了",
-    "videoCannotFit": "この動画は{maxSize}MB以内に収められません"
+    "videoCannotFit": "この動画は{maxSize}MB以内に収められません",
+    "qualityImageTitle": "画像の品質",
+    "qualityVideoTitle": "動画の品質",
+    "qualityDotByDot": "ドット絵",
+    "qualityPerformance": "パフォーマンス優先",
+    "qualityBalance": "バランス",
+    "qualityHigh": "クオリティ優先",
+    "qualityNone": "なし"
   },
   "lightbox": {
     "title": "画像ビューア",

@@ -15,12 +15,53 @@
  * into the container is dropped, because only decoded pixels and samples survive.
  */
 
-/** Longest edge of a normalized still image, in pixels. */
-const IMAGE_MAX_EDGE = 2048;
-/** WebP quality for still images (0-1). 0.82 is the knee of the size/quality curve. */
-const IMAGE_QUALITY = 0.82;
-/** Longest edge of a normalized video, in pixels. */
-const VIDEO_MAX_EDGE = 1920;
+/**
+ * How hard to compress, chosen per attachment by the poster.
+ *
+ * 'dot-by-dot' is for pixel art: it keeps the original dimensions and turns off
+ * interpolation, because for that material not being resized matters far more
+ * than the compression setting.
+ *
+ * 'none' uploads the file untouched. It is only worth offering for a file that
+ * already satisfies the server, since nothing else would get past validation.
+ */
+export type ImageQualityMode =
+	| 'none'
+	| 'dot-by-dot'
+	| 'performance'
+	| 'balance'
+	| 'quality';
+export type VideoQualityMode = 'none' | 'performance' | 'balance' | 'quality';
+
+export const DEFAULT_IMAGE_MODE: ImageQualityMode = 'balance';
+export const DEFAULT_VIDEO_MODE: VideoQualityMode = 'balance';
+
+/**
+ * Longest edge in pixels, and WebP quality (0-1). A null edge means "leave the
+ * dimensions alone".
+ */
+const IMAGE_MODES: Record<
+	Exclude<ImageQualityMode, 'none'>,
+	{ maxEdge: number | null; quality: number }
+> = {
+	// Chrome's canvas encoder goes lossless at quality 1; other browsers stay
+	// lossy there, which is still visually exact.
+	'dot-by-dot': { maxEdge: null, quality: 1 },
+	performance: { maxEdge: 1280, quality: 0.65 },
+	balance: { maxEdge: 2048, quality: 0.82 },
+	quality: { maxEdge: 3072, quality: 0.95 },
+};
+
+/** Longest edge in pixels, and the bitrate ceiling as bits per pixel per frame. */
+const VIDEO_MODES: Record<
+	Exclude<VideoQualityMode, 'none'>,
+	{ maxEdge: number; bitsPerPixel: number }
+> = {
+	performance: { maxEdge: 1280, bitsPerPixel: 0.07 },
+	balance: { maxEdge: 1920, bitsPerPixel: 0.1 },
+	quality: { maxEdge: 1920, bitsPerPixel: 0.15 },
+};
+
 /** Audio bitrate of a normalized video, in bits per second. */
 const AUDIO_BITRATE = 96_000;
 /**
@@ -29,16 +70,12 @@ const AUDIO_BITRATE = 96_000;
  */
 const SIZE_BUDGET_HEADROOM = 0.9;
 /**
- * Upper bound on video bitrate, as bits per pixel per frame at an assumed 30fps.
- * 0.1 bpp is ~6 Mbps at 1080p — roughly "medium" quality, and the point past
- * which more bits stop being visible for typical social video. The source frame
- * rate is preserved, so a 60fps clip gets the same ceiling spread over twice the
- * frames.
+ * Frame rate the bitrate ceiling is reckoned against. The source frame rate is
+ * preserved, so a 60fps clip gets the same ceiling spread over twice the frames.
  *
- * ponytail: fixed 30fps assumption; read the real frame rate off the track if
+ * ponytail: fixed assumption; read the real frame rate off the track if
  * high-frame-rate uploads ever look starved.
  */
-const BITS_PER_PIXEL = 0.1;
 const ASSUMED_FPS = 30;
 /** Below this, the result is not worth watching; reject instead of encoding mush. */
 const MIN_VIDEO_BITRATE = 250_000;
@@ -54,6 +91,10 @@ export type NormalizeErrorCode =
 	| 'video_unsupported';
 
 export type NormalizeOptions = {
+	/** How hard to compress a still image. Defaults to 'balance'. */
+	imageMode?: ImageQualityMode;
+	/** How hard to compress a video. Defaults to 'balance'. */
+	videoMode?: VideoQualityMode;
 	/**
 	 * Size budget for the output, in bytes. Video is encoded at a bitrate that
 	 * fits it, so a long clip comes out watchable-but-smaller instead of being
@@ -139,11 +180,12 @@ export function pickVideoBitrate(input: {
 	durationSec: number;
 	width: number;
 	height: number;
+	bitsPerPixel: number;
 	maxBytes?: number;
 }): number | null {
-	const { fileSize, durationSec, width, height, maxBytes } = input;
+	const { fileSize, durationSec, width, height, bitsPerPixel, maxBytes } = input;
 
-	const ceiling = BITS_PER_PIXEL * width * height * ASSUMED_FPS;
+	const ceiling = bitsPerPixel * width * height * ASSUMED_FPS;
 
 	const budget =
 		maxBytes && durationSec > 0
@@ -173,16 +215,26 @@ export async function normalizeForUpload(
 ): Promise<File> {
 	if (isMarkedNormalized(file)) return file;
 
-	const result = isGifFile(file)
-		? file
-		: isVideoFile(file)
-			? await normalizeVideo(file, opts)
-			: await normalizeImage(file);
+	const isVideo = isVideoFile(file);
+	const mode = isVideo
+		? (opts.videoMode ?? DEFAULT_VIDEO_MODE)
+		: (opts.imageMode ?? DEFAULT_IMAGE_MODE);
+
+	// GIF has no browser encoder, and 'none' is the poster saying the file is
+	// already in shape. Either way it goes up as it is.
+	if (mode === 'none' || isGifFile(file)) return markNormalized(file);
+
+	const result = isVideo
+		? await normalizeVideo(file, mode as Exclude<VideoQualityMode, 'none'>, opts)
+		: await normalizeImage(file, mode as Exclude<ImageQualityMode, 'none'>);
 
 	return markNormalized(result);
 }
 
-async function normalizeImage(file: File): Promise<File> {
+async function normalizeImage(
+	file: File,
+	modeName: Exclude<ImageQualityMode, 'none'>,
+): Promise<File> {
 	let bitmap: ImageBitmap;
 	try {
 		// `from-image` bakes EXIF orientation into the pixels; the stripped output
@@ -197,17 +249,22 @@ async function normalizeImage(file: File): Promise<File> {
 			throw new MediaNormalizeError('image_too_large');
 		}
 
-		const { width, height } = fitWithin(
-			bitmap.width,
-			bitmap.height,
-			IMAGE_MAX_EDGE,
-		);
+		const mode = IMAGE_MODES[modeName];
+		const { width, height } =
+			mode.maxEdge === null
+				? { width: bitmap.width, height: bitmap.height }
+				: fitWithin(bitmap.width, bitmap.height, mode.maxEdge);
+
 		const canvas = new OffscreenCanvas(width, height);
 		const ctx = canvas.getContext('2d');
 		if (!ctx) throw new MediaNormalizeError('webp_unsupported');
+		// Interpolation is what turns pixel art to mush, so dot-by-dot turns it off.
+		// At its original size this is a straight copy either way, but the flag also
+		// covers the case where a browser still scales for device pixel ratio.
+		ctx.imageSmoothingEnabled = mode.maxEdge !== null;
 		ctx.drawImage(bitmap, 0, 0, width, height);
 
-		const blob = await canvas.convertToBlob({ type: 'image/webp', quality: IMAGE_QUALITY });
+		const blob = await canvas.convertToBlob({ type: 'image/webp', quality: mode.quality });
 		// Browsers without a WebP encoder silently fall back to PNG.
 		if (blob.type !== 'image/webp') throw new MediaNormalizeError('webp_unsupported');
 
@@ -217,7 +274,11 @@ async function normalizeImage(file: File): Promise<File> {
 	}
 }
 
-async function normalizeVideo(file: File, opts: NormalizeOptions): Promise<File> {
+async function normalizeVideo(
+	file: File,
+	modeName: Exclude<VideoQualityMode, 'none'>,
+	opts: NormalizeOptions,
+): Promise<File> {
 	const {
 		ALL_FORMATS,
 		BlobSource,
@@ -236,10 +297,11 @@ async function normalizeVideo(file: File, opts: NormalizeOptions): Promise<File>
 	const track = await input.getPrimaryVideoTrack();
 	if (!track) throw new MediaNormalizeError('no_video_track');
 
+	const mode = VIDEO_MODES[modeName];
 	const { width, height } = fitWithin(
 		await track.getDisplayWidth(),
 		await track.getDisplayHeight(),
-		VIDEO_MAX_EDGE,
+		mode.maxEdge,
 	);
 
 	const videoBitrate = pickVideoBitrate({
@@ -247,6 +309,7 @@ async function normalizeVideo(file: File, opts: NormalizeOptions): Promise<File>
 		durationSec: await input.computeDuration(),
 		width,
 		height,
+		bitsPerPixel: mode.bitsPerPixel,
 		maxBytes: opts.maxBytes,
 	});
 	if (videoBitrate === null) throw new MediaNormalizeError('video_too_large');

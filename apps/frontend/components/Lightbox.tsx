@@ -14,6 +14,7 @@ import Hammer from "@egjs/hammerjs";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
+import { pixelArtRendering } from "@/lib/media/display";
 import {
   dismissProgress,
   resolveSwipe,
@@ -1281,6 +1282,8 @@ export function Lightbox({
                             : "cursor-default",
                         )}
                         style={{
+                          // Zooming is exactly where interpolation ruins pixel art.
+                          imageRendering: pixelArtRendering(currentItem.width),
                           backgroundImage: blurhashUrl
                             ? `url(${blurhashUrl})`
                             : undefined,

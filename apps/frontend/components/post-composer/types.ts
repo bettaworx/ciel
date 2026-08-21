@@ -2,6 +2,10 @@ import type { Dispatch, SetStateAction } from "react";
 import type { Crop } from "react-image-crop";
 import type { AspectRatioId } from "@/components/shared/image-crop/aspectRatios";
 import type { Transform } from "@/components/shared/image-crop/transforms";
+import type {
+  ImageQualityMode,
+  VideoQualityMode,
+} from "@/lib/media/normalize";
 
 /**
  * Types for post composition
@@ -19,6 +23,10 @@ export interface LocalImage {
   file: File;
   previewUrl: string; // Object URL (blob:)
   isAnimated: boolean; // true for GIF and other animated image formats
+  /** How hard to compress on upload; chosen per image from the preview. */
+  quality: ImageQualityMode;
+  /** True when the file already suits the server and may be uploaded untouched. */
+  canSkipConversion: boolean;
   width: number;
   height: number;
 }
@@ -30,12 +38,14 @@ export interface LocalVideo {
   previewUrl: string; // Object URL (blob:) of the *original* file
   width: number;
   height: number;
-  /** True while the file is being converted; posting is blocked until it clears. */
+  /** True while the file is being converted on submit. */
   converting: boolean;
   /** Conversion progress, 0-1. */
   progress: number;
-  /** Aborts the in-flight conversion when the video is removed. */
-  abort: AbortController;
+  /** How hard to compress on upload; chosen from the preview. */
+  quality: VideoQualityMode;
+  /** True when the file already suits the server and may be uploaded untouched. */
+  canSkipConversion: boolean;
 }
 
 export type LocalMedia =
@@ -57,6 +67,10 @@ export interface PreviewMediaItem {
   blurhash?: string | null;
   /** 0-1 while the composer is converting this item; null/undefined otherwise. */
   conversionProgress?: number | null;
+  /** Compression mode for an editable attachment, shown on its own control. */
+  quality?: ImageQualityMode | VideoQualityMode;
+  /** Whether the "upload untouched" mode is on offer for this attachment. */
+  allowNoConversion?: boolean;
 }
 
 export interface TextSelectionRange {
