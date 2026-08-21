@@ -84,5 +84,57 @@ docker compose run --rm backend /app/migrate-db down 1
 docker compose run --rm backend /app/migrate-db down -all
 ```
 
+## Local development (native apps, containerized dependencies)
+
+For day-to-day development, run the frontend and backend natively and keep only
+PostgreSQL, Redis and Meilisearch in containers.
+
+**Prerequisites:** Docker, Go, pnpm
+
+```bash
+cp .env.example .env
+cp docker-compose.dev.yml.example docker-compose.dev.yml
+cp apps/backend/config/config.yaml.example apps/backend/config/config.yaml
+```
+
+`.env.example` is written for the all-in-Docker setup, so its connection
+strings use compose service names. For native development, point them at
+`localhost` instead:
+
+```dotenv
+DATABASE_URL=postgres://ciel:your-password@localhost:5432/ciel?sslmode=disable
+REDIS_ADDR=redis://:your-password@localhost:6379
+MEILISEARCH_HOST=http://localhost:7700
+```
+
+Set the remaining secrets in `.env` as usual (`POSTGRES_PASSWORD`,
+`REDIS_PASSWORD`, `MEILI_MASTER_KEY`, `MEILISEARCH_API_KEY`, `JWT_SECRET`,
+`REALTIME_SIGNING_SECRET`, `INITIAL_SETUP_PASSWORD`). The dev compose file reads
+the same `.env`, so the containers and the native backend always agree on
+credentials.
+
+Start the dependencies:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+```
+
+Apply migrations (run once on first setup, and after pulling new migrations):
+
+```bash
+pnpm run migrate:up
+```
+
+Start the frontend and backend natively:
+
+```bash
+pnpm dev
+```
+
+Frontend: <http://localhost:3000> — backend: <http://localhost:6137>
+
+Stop the dependencies with `docker compose -f docker-compose.dev.yml down`, or
+`down -v` to also discard the database, Redis and search data.
+
 # License
 [MIT License](https://opensource.org/license/MIT)
