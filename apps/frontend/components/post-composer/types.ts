@@ -25,10 +25,17 @@ export interface LocalImage {
 
 export interface LocalVideo {
   localId: string;
+  /** The original file until conversion finishes, then the normalized WebM/MP4. */
   file: File;
-  previewUrl: string; // Object URL (blob:)
+  previewUrl: string; // Object URL (blob:) of the *original* file
   width: number;
   height: number;
+  /** True while the file is being converted; posting is blocked until it clears. */
+  converting: boolean;
+  /** Conversion progress, 0-1. */
+  progress: number;
+  /** Aborts the in-flight conversion when the video is removed. */
+  abort: AbortController;
 }
 
 export type LocalMedia =
@@ -48,6 +55,8 @@ export interface PreviewMediaItem {
   height: number;
   thumbnailUrl?: string | null;
   blurhash?: string | null;
+  /** 0-1 while the composer is converting this item; null/undefined otherwise. */
+  conversionProgress?: number | null;
 }
 
 export interface TextSelectionRange {

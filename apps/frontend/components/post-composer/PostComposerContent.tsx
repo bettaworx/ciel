@@ -33,8 +33,8 @@ import { MediaUploadOverflowMenu } from "./MediaUploadOverflowMenu";
 import { ComposerEmojiPicker } from "./ComposerEmojiPicker";
 import { insertCenterDecoration } from "./centerDecoration";
 import {
-  ACCEPTED_IMAGE_TYPES,
-  ACCEPTED_VIDEO_TYPES,
+  ACCEPTED_IMAGE_ACCEPT,
+  ACCEPTED_VIDEO_ACCEPT,
 } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
 import { useComposerPlaceholder } from "./useComposerPlaceholder";
@@ -281,7 +281,7 @@ export function PostComposerContent({
     <div className="flex items-center gap-1">
       <MediaUploadButton
         inputRef={imageFileInputRef}
-        accept={ACCEPTED_IMAGE_TYPES.join(",")}
+        accept={ACCEPTED_IMAGE_ACCEPT}
         multiple
         disabled={isImageUploadDisabled}
         onChange={handleImageSelect}
@@ -292,7 +292,7 @@ export function PostComposerContent({
       />
       <MediaUploadButton
         inputRef={videoFileInputRef}
-        accept={ACCEPTED_VIDEO_TYPES.join(",")}
+        accept={ACCEPTED_VIDEO_ACCEPT}
         disabled={isVideoUploadDisabled}
         onChange={handleImageSelect}
         icon={VideoIcon}

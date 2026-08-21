@@ -225,6 +225,17 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		};
 		// IMPORTANT: do NOT set content-type here; the browser will set the multipart boundary.
 
+		// Trust boundary: every file leaving the browser is normalized into a shape the
+		// backend accepts (WebP / WebM, GIF passthrough). This is the only multipart path
+		// in the client, so no upload can bypass it. Imported lazily to keep mediabunny
+		// out of the initial bundle and off the server.
+		for (const [key, value] of Array.from(init.form.entries())) {
+			if (!(value instanceof File)) continue;
+			const { normalizeForUpload } = await import('@/lib/media/normalize');
+			const normalized = await normalizeForUpload(value);
+			if (normalized !== value) init.form.set(key, normalized, normalized.name);
+		}
+
 		try {
 			const res = await fetch(url, {
 				method,

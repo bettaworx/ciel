@@ -33,9 +33,15 @@ import {
   MAX_VIDEOS,
   MAX_TEXTAREA_HEIGHT,
   CHARACTER_COUNT_THRESHOLD,
-  ACCEPTED_IMAGE_TYPES,
-  ACCEPTED_VIDEO_TYPES,
+  MAX_RAW_IMAGE_BYTES,
+  MAX_RAW_VIDEO_BYTES,
 } from "./constants";
+import {
+  MediaNormalizeError,
+  isGifFile,
+  isVideoFile,
+  normalizeForUpload,
+} from "@/lib/media/normalize";
 import type { Crop } from "react-image-crop";
 import type { AspectRatioId } from "@/components/shared/image-crop/aspectRatios";
 import type { Transform } from "@/components/shared/image-crop/transforms";
@@ -65,16 +71,13 @@ interface UseComposePostOptions {
   referenceId?: string;
 }
 
-function isVideoFile(file: File): boolean {
-  return ACCEPTED_VIDEO_TYPES.includes(file.type as (typeof ACCEPTED_VIDEO_TYPES)[number]);
-}
-
+/**
+ * Anything the browser can decode is accepted; lib/media/normalize.ts converts it
+ * to WebP/WebM at upload time. Files the OS reports no MIME type for (e.g. .heic
+ * on some platforms) take the image path, where decoding decides.
+ */
 function isImageFile(file: File): boolean {
-  return ACCEPTED_IMAGE_TYPES.includes(file.type as (typeof ACCEPTED_IMAGE_TYPES)[number]);
-}
-
-function isAnimatedImageFile(file: File): boolean {
-  return file.type === "image/gif";
+  return !isVideoFile(file) && (file.type.startsWith("image/") || file.type === "");
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -99,14 +102,16 @@ function getImageDimensions(blobUrl: string): Promise<{ width: number; height: n
 }
 
 /**
- * Load a video blob URL and return its native dimensions.
+ * Load a video blob URL and return its native dimensions and duration.
  */
-function getVideoDimensions(blobUrl: string): Promise<{ width: number; height: number }> {
+function getVideoMetadata(
+  blobUrl: string,
+): Promise<{ width: number; height: number; duration: number }> {
   return new Promise((resolve, reject) => {
     const vid = document.createElement("video");
     vid.preload = "metadata";
     vid.onloadedmetadata = () => {
-      resolve({ width: vid.videoWidth, height: vid.videoHeight });
+      resolve({ width: vid.videoWidth, height: vid.videoHeight, duration: vid.duration });
       // Clean up to release the blob reference held by the video element
       vid.src = "";
       vid.load();
@@ -189,7 +194,9 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     (referenceId ? hasContent : (hasContent || hasMedia)) &&
     isContentValid &&
     !createPostMutation.isPending &&
-    !isUploading;
+    !isUploading &&
+    // Posting an unconverted video would send a format the backend rejects.
+    !video?.converting;
 
   // Build a unified PreviewMediaItem list for the shared PostMediaPreview component
   const previewMedia: PreviewMediaItem[] = useMemo(() => {
@@ -202,6 +209,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
           width: video.width,
           height: video.height,
           thumbnailUrl: null,
+          conversionProgress: video.progress,
         },
       ];
     }
@@ -233,6 +241,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       }
       const latestVideo = latestVideoRef.current;
       if (latestVideo) {
+        latestVideo.abort.abort();
         URL.revokeObjectURL(latestVideo.previewUrl);
       }
     };
@@ -268,6 +277,58 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     textarea.style.height = `${newHeight}px`;
   }, [content, autoResize]);
 
+  /** Drop the attached video, if it is still the one identified by localId. */
+  const discardVideo = (localId: string, previewUrl: string) => {
+    // Revoking a URL that was already released on removal is a no-op, so this
+    // stays outside the updater rather than making it non-idempotent.
+    URL.revokeObjectURL(previewUrl);
+    setVideo((prev) => (prev?.localId === localId ? null : prev));
+  };
+
+  /**
+   * Convert an attached video in the background and swap the normalized file in
+   * when it finishes. Every update is guarded by localId, because the user can
+   * remove the video or attach a different one while this is running.
+   */
+  const convertAttachedVideo = async (
+    file: File,
+    localId: string,
+    previewUrl: string,
+    abort: AbortController,
+  ) => {
+    try {
+      let lastPercent = -1;
+      const converted = await normalizeForUpload(file, {
+        // Encoding to fit means a long video comes out smaller rather than being
+        // transcoded in full and then thrown away for being over the limit.
+        maxBytes: mediaLimits.videoMaxUploadSizeBytes,
+        signal: abort.signal,
+        onProgress: (progress) => {
+          // mediabunny reports far more often than a percentage can change.
+          const percent = Math.round(progress * 100);
+          if (percent === lastPercent) return;
+          lastPercent = percent;
+          setVideo((prev) =>
+            prev?.localId === localId ? { ...prev, progress } : prev,
+          );
+        },
+      });
+
+      setVideo((prev) =>
+        prev?.localId === localId
+          ? { ...prev, file: converted, converting: false, progress: 1 }
+          : prev,
+      );
+    } catch (error) {
+      // An abort is the user removing the video, not a failure.
+      if (abort.signal.aborted) return;
+      // A video the browser cannot convert is one the backend will not accept,
+      // so there is nothing useful left to keep in the composer.
+      discardVideo(localId, previewUrl);
+      showUploadError(error, "video");
+    }
+  };
+
   // Process files (validation and preview generation)
   const processFiles = async (files: File[] | FileList) => {
     const fileArray = Array.from(files);
@@ -302,8 +363,9 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
       const videoFile = videoFiles[0];
 
-      // Validate file size against video-specific limit
-      if (videoFile.size > mediaLimits.videoMaxUploadSizeBytes) {
+      // Guard the raw import only. The server limit applies to the normalized
+      // WebM, which is far smaller, so it is checked by the 413 handler instead.
+      if (videoFile.size > MAX_RAW_VIDEO_BYTES) {
         toast.error(
           t("createPost.videoTooLarge", {
             maxSize: mediaLimits.videoMaxUploadSizeMB,
@@ -319,20 +381,43 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       let width = 1920;
       let height = 1080;
       try {
-        const dims = await getVideoDimensions(previewUrl);
-        width = dims.width;
-        height = dims.height;
+        const meta = await getVideoMetadata(previewUrl);
+        width = meta.width;
+        height = meta.height;
+        // Reject over-long videos here rather than after a full transcode.
+        // Some containers report Infinity/NaN until fully buffered; the server
+        // re-checks the duration anyway, so only reject on a known-bad value.
+        if (
+          Number.isFinite(meta.duration) &&
+          meta.duration > mediaLimits.videoMaxDurationSeconds
+        ) {
+          URL.revokeObjectURL(previewUrl);
+          toast.error(
+            t("createPost.videoTooLong", {
+              maxDuration: mediaLimits.videoMaxDurationSeconds,
+            }),
+          );
+          return;
+        }
       } catch {
         // Fall back to default dimensions if metadata cannot be read
       }
 
+      const localId = crypto.randomUUID();
+      const abort = new AbortController();
       setVideo({
-        localId: crypto.randomUUID(),
+        localId,
         file: videoFile,
         previewUrl,
         width,
         height,
+        converting: true,
+        progress: 0,
+        abort,
       });
+      // Convert now rather than at upload time: the user is going to spend the
+      // next while writing the post anyway, and the ring shows the cost.
+      void convertAttachedVideo(videoFile, localId, previewUrl, abort);
       return;
     }
 
@@ -347,8 +432,12 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       const newImages: LocalImage[] = [];
 
       for (const file of imageFiles) {
-        // Validate file size against image limit
-        if (file.size > mediaLimits.maxUploadSizeBytes) {
+        // GIFs are uploaded as-is, so the server limit applies directly. Everything
+        // else is re-encoded to WebP first, so only the raw import is guarded here.
+        const rawCap = isGifFile(file)
+          ? mediaLimits.maxUploadSizeBytes
+          : MAX_RAW_IMAGE_BYTES;
+        if (file.size > rawCap) {
           toast.error(t("createPost.fileTooLarge"));
           continue;
         }
@@ -379,7 +468,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
             cropAspectId: null,
             file,
             previewUrl,
-            isAnimated: isAnimatedImageFile(file),
+            isAnimated: isGifFile(file),
             width,
             height,
           });
@@ -491,6 +580,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
   const handleRemoveVideo = () => {
     if (video) {
+      video.abort.abort();
       URL.revokeObjectURL(video.previewUrl);
       setVideo(null);
     }
@@ -648,6 +738,22 @@ export function useComposePost(options: UseComposePostOptions = {}) {
    * Returns true so callers can `return showUploadError(error, "image")`.
    */
   const showUploadError = (error: unknown, kind: "image" | "video") => {
+    if (error instanceof MediaNormalizeError) {
+      if (error.code === "unsupported_image") {
+        toast.error(t("createPost.invalidFileType"));
+      } else if (error.code === "image_too_large") {
+        toast.error(t("createPost.fileTooLarge"));
+      } else if (error.code === "video_too_large") {
+        toast.error(
+          t("createPost.videoCannotFit", {
+            maxSize: mediaLimits.videoMaxUploadSizeMB,
+          }),
+        );
+      } else {
+        toast.error(t("createPost.conversionError"));
+      }
+      return;
+    }
     if (error instanceof ApiHttpError) {
       if (error.status === 429) {
         const retryAfter = error.retryAfterSeconds;
@@ -774,6 +880,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       }
     }
     if (video) {
+      video.abort.abort();
       URL.revokeObjectURL(video.previewUrl);
     }
     setImages([]);

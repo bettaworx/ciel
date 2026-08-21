@@ -8,6 +8,7 @@ import { BlurhashImage } from "@/components/BlurhashImage";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
+import { MediaConversionIndicator } from "@/components/post-composer/MediaConversionIndicator";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
 
 const VideoPlayer = dynamic(
@@ -243,6 +244,9 @@ export function PostMediaPreview({
             poster={videoMedia.thumbnailUrl}
             className="w-full h-full"
           />
+          {videoMedia.conversionProgress != null && (
+            <MediaConversionIndicator progress={videoMedia.conversionProgress} />
+          )}
           {editable && onRemove && (
             <RemoveButton
               onClick={() => onRemove(videoMedia.id)}

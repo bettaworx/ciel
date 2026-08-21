@@ -51,6 +51,7 @@
     "framer-motion": "^12.7.5",
     "jotai": "^2.16.2",
     "lucide-react": "^1.8.0",
+    "mediabunny": "^1.55.1",
     "mfm-js": "^0.26.0",
     "next": "16.3.0",
     "next-intl": "^4.7.0",

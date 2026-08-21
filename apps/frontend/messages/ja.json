@@ -566,7 +566,13 @@
     "dropMedia": "ファイルをドロップ",
     "rateLimited": "アップロードの回数制限に達しました。しばらくしてからお試しください",
     "rateLimitedWithRetry": "アップロードの回数制限に達しました。{seconds}秒後にお試しください",
-    "uploadNetworkError": "アップロードに失敗しました。ファイルが大きすぎるか、接続が中断された可能性があります"
+    "uploadNetworkError": "アップロードに失敗しました。ファイルが大きすぎるか、接続が中断された可能性があります",
+    "conversionError": "メディアの変換に失敗しました。別のファイルをお試しください",
+    "videoTooLong": "動画が長すぎます（最大{maxDuration}秒）",
+    "converting": "動画を変換中",
+    "convertingPercent": "変換中 {percent}%",
+    "conversionComplete": "変換完了",
+    "videoCannotFit": "この動画は{maxSize}MB以内に収められません"
   },
   "lightbox": {
     "title": "画像ビューア",

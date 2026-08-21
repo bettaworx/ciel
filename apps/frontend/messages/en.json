@@ -566,7 +566,13 @@
     "dropMedia": "Drop files here",
     "rateLimited": "Upload rate limit reached. Please wait and try again",
     "rateLimitedWithRetry": "Upload rate limit reached. Please try again in {seconds} seconds",
-    "uploadNetworkError": "Upload failed. The file may be too large or the connection was interrupted"
+    "uploadNetworkError": "Upload failed. The file may be too large or the connection was interrupted",
+    "conversionError": "Failed to convert media. Please try a different file",
+    "videoTooLong": "Video is too long (maximum {maxDuration} seconds)",
+    "converting": "Converting video",
+    "convertingPercent": "Converting {percent}%",
+    "conversionComplete": "Conversion complete",
+    "videoCannotFit": "This video cannot be compressed under {maxSize}MB"
   },
   "lightbox": {
     "title": "Image viewer",
