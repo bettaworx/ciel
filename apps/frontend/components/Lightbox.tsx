@@ -1,17 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { animate, motion, useMotionValue, useTransform } from "framer-motion";
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from "framer-motion";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Hammer from "@egjs/hammerjs";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
 import {
   dismissProgress,
@@ -20,6 +21,12 @@ import {
   swipeAxis,
   type SwipeIntent,
 } from "@/lib/lightbox-swipe";
+import {
+  containRect,
+  containsPoint,
+  transformRect,
+  type Rect,
+} from "@/lib/lightbox-morph";
 import {
   anchorPan,
   clampPan,
@@ -43,6 +50,12 @@ interface LightboxProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialIndex?: number;
+  /**
+   * Resolves the on-screen thumbnail for an item index. The lightbox grows out
+   * of it on open and shrinks back into it on close. Returning null (scrolled
+   * away, unmounted) simply skips the morph.
+   */
+  getSource?: (index: number) => HTMLElement | null;
 }
 
 const clampIndex = (value: number, min: number, max: number) =>
@@ -64,6 +77,52 @@ const ZOOM_TWEEN = { duration: 0.16, ease: EASE_OUT } as const;
 const ZOOM_EPSILON = 1.01;
 /** Idle time before the control overlay fades out. */
 const CONTROLS_HIDE_MS = 2500;
+/** Open/close morph. Long enough to read as one continuous move. */
+const MORPH = { duration: 0.28, ease: EASE_OUT } as const;
+/**
+ * Mirrors the `p-2` on the zoom layer below — that padding is what insets the
+ * box `object-contain` fits the image into, so the morph has to use it too.
+ */
+const STAGE_PADDING = 8;
+const NO_RADIUS = "0px 0px 0px 0px";
+
+type Phase = "opening" | "open" | "closing";
+
+/** The four corner radii of `el`, in the order framer-motion interpolates. */
+function readRadius(el: Element): string {
+  const s = getComputedStyle(el);
+  return [
+    s.borderTopLeftRadius,
+    s.borderTopRightRadius,
+    s.borderBottomRightRadius,
+    s.borderBottomLeftRadius,
+  ].join(" ");
+}
+
+/** Where the fitted image sits in the viewport, at rest. */
+function fittedRect(natW: number, natH: number): Rect {
+  return containRect(natW, natH, {
+    x: STAGE_PADDING,
+    y: STAGE_PADDING,
+    width: window.innerWidth - STAGE_PADDING * 2,
+    height: window.innerHeight - STAGE_PADDING * 2,
+  });
+}
+
+/**
+ * Natural pixel size, from the API metadata when we have it and the decoded
+ * image otherwise. Without it there is no aspect ratio to morph towards.
+ */
+function naturalSize(
+  item: LightboxItem | undefined,
+  img: HTMLImageElement | null,
+): { w: number; h: number } | null {
+  if (item?.width && item.height) return { w: item.width, h: item.height };
+  if (img?.naturalWidth && img.naturalHeight) {
+    return { w: img.naturalWidth, h: img.naturalHeight };
+  }
+  return null;
+}
 
 /**
  * Controls sit over arbitrary imagery, so they keep one dark surface in every
@@ -84,11 +143,23 @@ export function Lightbox({
   open,
   onOpenChange,
   initialIndex = 0,
+  getSource,
 }: LightboxProps) {
   const t = useTranslations("lightbox");
+  const reduceMotion = useReducedMotion();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoomed, setZoomed] = useState(false);
   const zoomedRef = useRef(false);
+  /**
+   * `opening` and `closing` hand the screen over to the morph layer: the stage
+   * and the controls sit hidden behind it until the image has landed.
+   */
+  const [phase, setPhase] = useState<Phase>("opening");
+  const phaseRef = useRef<Phase>("opening");
+  const enterPhase = useCallback((next: Phase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  }, []);
   const [loaded, setLoaded] = useState(false);
   const [maxScale, setMaxScale] = useState(MIN_MAX_SCALE);
   /** Scale at which the image renders at its natural pixel size (等倍). */
@@ -152,13 +223,32 @@ export function Lightbox({
   const panX = useMotionValue(0);
   const panY = useMotionValue(0);
   const zoom = useMotionValue(1);
-  const backdropOpacity = useTransform(dismiss, [0, 1], [1, 0]);
+  // Morph layer. Driven imperatively so the animation never re-renders React.
+  const morphX = useMotionValue(0);
+  const morphY = useMotionValue(0);
+  const morphW = useMotionValue(0);
+  const morphH = useMotionValue(0);
+  const morphRadius = useMotionValue(NO_RADIUS);
+  const morphImgRef = useRef<HTMLImageElement | null>(null);
+  /** 0 while the morph is still travelling, 1 once the lightbox owns the screen. */
+  const appear = useMotionValue(0);
+  const backdropOpacity = useTransform(
+    [dismiss, appear],
+    ([d, a]: number[]) => (1 - d) * a,
+  );
   const stageScale = useTransform(dismiss, [0, 1], [1, 0.6]);
 
   const maxIndex = Math.max(0, items.length - 1);
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < maxIndex;
   const currentItem = items[currentIndex];
+  /**
+   * `currentIndex` is only synced to `initialIndex` by a passive effect, so on
+   * the commit the portal mounts it can still hold the previous open's index.
+   * The morph layer reads the clamped prop directly instead.
+   */
+  const openIndex = clampIndex(initialIndex, 0, maxIndex);
+  const morphItem = items[phase === "opening" ? openIndex : currentIndex];
 
   /**
    * Latest render's volatile values, for the Hammer handlers. Reading these
@@ -173,6 +263,9 @@ export function Lightbox({
     maxScale,
     naturalScale,
     index: currentIndex,
+    item: currentItem,
+    getSource,
+    reduce: !!reduceMotion,
   });
   latest.current = {
     hasPrev,
@@ -181,6 +274,9 @@ export function Lightbox({
     maxScale,
     naturalScale,
     index: currentIndex,
+    item: currentItem,
+    getSource,
+    reduce: !!reduceMotion,
   };
 
   const resetDrag = useCallback(() => {
@@ -223,6 +319,8 @@ export function Lightbox({
       return;
     }
     setCurrentIndex(clampIndex(initialIndex, 0, maxIndex));
+    enterPhase("opening");
+    appear.set(0);
     resetDrag();
     // Reopening on the same index does not re-run the per-index effect, so the
     // zoom has to be dropped here too or it carries over from last time.
@@ -235,6 +333,8 @@ export function Lightbox({
     onOpenChange,
     resetDrag,
     resetZoom,
+    enterPhase,
+    appear,
   ]);
 
   // Each image starts fresh, with no carried-over zoom or pan. The measured
@@ -308,6 +408,136 @@ export function Lightbox({
   }, [dragX, dragY, dismiss]);
 
   /**
+   * Close by flying the image back into its thumbnail.
+   *
+   * Radix drops the content the instant `open` goes false — there is no exit
+   * animation to wait on, since `tailwindcss-animate` is not installed — so the
+   * parent is only told once the morph has landed.
+   */
+  const requestClose = useCallback(() => {
+    if (phaseRef.current === "closing") return;
+    const close = () => onOpenChange(false);
+
+    const { index, item, getSource: resolve, reduce } = latest.current;
+    const size = naturalSize(item, imgRef.current);
+    const source = resolve?.(index) ?? null;
+    if (reduce || !source || !size || item?.type === "video") {
+      close();
+      return;
+    }
+
+    const to = source.getBoundingClientRect();
+    if (!to.width || !to.height) {
+      close();
+      return;
+    }
+
+    // Start from wherever the image actually is — mid-swipe, shrunk by the
+    // dismiss, zoomed and panned — so the flight back is continuous.
+    const from = transformRect(
+      fittedRect(size.w, size.h),
+      {
+        dragX: dragX.get(),
+        dragY: dragY.get(),
+        stageScale: stageScale.get(),
+        panX: panX.get(),
+        panY: panY.get(),
+        zoom: zoom.get(),
+      },
+      { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+    );
+
+    morphX.set(from.x);
+    morphY.set(from.y);
+    morphW.set(from.width);
+    morphH.set(from.height);
+    morphRadius.set(NO_RADIUS);
+    enterPhase("closing");
+
+    animate(morphX, to.x, MORPH);
+    animate(morphY, to.y, MORPH);
+    animate(morphW, to.width, MORPH);
+    animate(morphH, to.height, MORPH);
+    animate(morphRadius, readRadius(source), MORPH);
+    animate(appear, 0, { ...MORPH, onComplete: close });
+  }, [
+    onOpenChange,
+    enterPhase,
+    dragX,
+    dragY,
+    stageScale,
+    panX,
+    panY,
+    zoom,
+    morphX,
+    morphY,
+    morphW,
+    morphH,
+    morphRadius,
+    appear,
+  ]);
+
+  /**
+   * Grow out of the thumbnail on open.
+   *
+   * Keyed on the `stage` node, not on `open`: the Radix portal mounts a commit
+   * later than the flip, and the fitted rect can only be measured once the
+   * viewport-sized stage exists.
+   */
+  useEffect(() => {
+    if (!stage || phaseRef.current !== "opening") return;
+
+    const reveal = () => {
+      appear.set(1);
+      enterPhase("open");
+    };
+
+    const item = items[openIndex];
+    const size = naturalSize(item, morphImgRef.current);
+    const source = getSource?.(openIndex) ?? null;
+    if (reduceMotion || !source || !size || item?.type === "video") {
+      reveal();
+      return;
+    }
+
+    const from = source.getBoundingClientRect();
+    if (!from.width || !from.height) {
+      reveal();
+      return;
+    }
+
+    const to = fittedRect(size.w, size.h);
+    morphX.set(from.x);
+    morphY.set(from.y);
+    morphW.set(from.width);
+    morphH.set(from.height);
+    morphRadius.set(readRadius(source));
+
+    const running = [
+      animate(morphX, to.x, MORPH),
+      animate(morphY, to.y, MORPH),
+      animate(morphW, to.width, MORPH),
+      animate(morphH, to.height, MORPH),
+      animate(morphRadius, NO_RADIUS, MORPH),
+      animate(appear, 1, { ...MORPH, onComplete: () => enterPhase("open") }),
+    ];
+    return () => running.forEach((animation) => animation.stop());
+  }, [
+    stage,
+    items,
+    openIndex,
+    getSource,
+    reduceMotion,
+    enterPhase,
+    morphX,
+    morphY,
+    morphW,
+    morphH,
+    morphRadius,
+    appear,
+  ]);
+
+  /**
    * Zoom to `target`, keeping the point under the cursor fixed. Offsets are
    * measured from the stage centre because that is where framer-motion applies
    * `scale` from.
@@ -371,7 +601,7 @@ export function Lightbox({
   const commitSwipe = useCallback(
     (intent: SwipeIntent, width: number) => {
       if (intent === "dismiss") {
-        onOpenChange(false);
+        requestClose();
         return;
       }
       if (intent === "prev" || intent === "next") {
@@ -393,7 +623,7 @@ export function Lightbox({
       }
       settle();
     },
-    [dragX, onOpenChange, settle],
+    [dragX, requestClose, settle],
   );
 
   /** Page by one, with the same slide a swipe produces. */
@@ -574,9 +804,23 @@ export function Lightbox({
         resetZoom();
         return;
       }
-      // Otherwise hold the close just long enough for a second tap to arrive
-      // and mean "zoom in" instead.
-      closeTimer = setTimeout(() => onOpenChange(false), DOUBLE_TAP_MS);
+      // Off the image there is nothing a second tap could zoom, so close at
+      // once — waiting out the double-tap window there just reads as lag.
+      //
+      // `event.target` cannot answer this: the <img> is `h-full w-full`, so its
+      // element box covers the whole stage while `object-contain` paints only a
+      // letterboxed slice of it. Hit test the painted rect instead. Zoom and
+      // pan are both at rest here — the zoomed case returned above, and a tap
+      // never drags — so the painted rect is exactly the fitted rect.
+      const size = naturalSize(latest.current.item, imgRef.current);
+      const painted = size ? fittedRect(size.w, size.h) : null;
+      if (painted && !containsPoint(painted, event.center.x, event.center.y)) {
+        requestClose();
+        return;
+      }
+      // On the image, hold the close just long enough for a second tap to
+      // arrive and mean "zoom in" instead.
+      closeTimer = setTimeout(requestClose, DOUBLE_TAP_MS);
     });
 
     return () => {
@@ -596,7 +840,7 @@ export function Lightbox({
     commitSwipe,
     toggleZoom,
     revealControls,
-    onOpenChange,
+    requestClose,
   ]);
 
   /**
@@ -716,14 +960,16 @@ export function Lightbox({
     return () => stage.removeEventListener("wheel", handleWheel);
   }, [stage, zoom, zoomAt, revealControls]);
 
+  /** Chrome stays out of the way until the morph has landed. */
+  const controlsVisible = showControls && phase === "open";
   /** Controls only take clicks while they are actually visible. */
-  const interactive = showControls ? "pointer-events-auto" : "";
+  const interactive = controlsVisible ? "pointer-events-auto" : "";
   /**
    * Paging chrome is meaningless while zoomed — arrows and dots move between
    * images, which is not what a zoomed-in user is doing — so it fades out and
    * leaves only the top-right controls, which are how you zoom back out.
    */
-  const navigable = showControls && !zoomed;
+  const navigable = controlsVisible && !zoomed;
   const navigableInteractive = navigable ? "pointer-events-auto" : "";
 
   const blurhashUrl = useMemo(
@@ -734,11 +980,20 @@ export function Lightbox({
   if (items.length === 0 || !currentItem) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!fixed !inset-0 !h-screen !w-screen !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-transparent !p-0 [&>button]:hidden">
+    <Dialog
+      open={open}
+      onOpenChange={(next) => (next ? onOpenChange(true) : requestClose())}
+    >
+      <DialogContent
+        // Radix's own overlay dims too, but nothing drives its opacity, so it
+        // would snap in and out around the morph. One dim layer only: the
+        // backdrop below carries the whole /85 and fades with the image.
+        overlayClassName="bg-transparent"
+        className="!fixed !inset-0 !h-screen !w-screen !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-transparent !p-0 [&>button]:hidden"
+      >
         <DialogTitle className="sr-only">{t("title")}</DialogTitle>
         <motion.div
-          className="relative h-full w-full bg-black/80"
+          className="relative h-full w-full bg-black/85"
           style={{ opacity: backdropOpacity }}
         >
           {/* Whole control overlay fades out while idle. `pointer-events-none`
@@ -746,46 +1001,52 @@ export function Lightbox({
           <div
             className={cn(
               "pointer-events-none absolute inset-0 z-30 transition-opacity duration-300 ease-out",
-              showControls ? "opacity-100" : "opacity-0",
+              controlsVisible ? "opacity-100" : "opacity-0",
             )}
           >
-          <div
-            className={cn(
-              "absolute right-3 top-3 flex items-center gap-0.5 rounded-full p-1",
-              CONTROL_SURFACE,
-              interactive,
-            )}
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => zoomFromCentre(1 / WHEEL_STEP)}
-              className={cn("h-8 w-8 rounded-full", CONTROL_HOVER)}
-              aria-label={t("zoomOut")}
+          {/* Two pills, not one: zooming and closing are unrelated actions, and
+              sharing a surface made the × read as part of the zoom group. */}
+          <div className="absolute right-3 top-3 flex items-center gap-2">
+            <div
+              className={cn(
+                "flex items-center gap-0.5 rounded-full p-1",
+                CONTROL_SURFACE,
+                interactive,
+              )}
             >
-              <ZoomOut className="h-5 w-5" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => zoomFromCentre(WHEEL_STEP)}
-              className={cn("h-8 w-8 rounded-full", CONTROL_HOVER)}
-              aria-label={t("zoomIn")}
-            >
-              <ZoomIn className="h-5 w-5" />
-            </Button>
-            <DialogClose asChild>
               <Button
+                type="button"
                 variant="ghost"
                 size="icon"
+                onClick={() => zoomFromCentre(1 / WHEEL_STEP)}
+                className={cn("h-8 w-8 rounded-full", CONTROL_HOVER)}
+                aria-label={t("zoomOut")}
+              >
+                <ZoomOut className="h-5 w-5" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => zoomFromCentre(WHEEL_STEP)}
+                className={cn("h-8 w-8 rounded-full", CONTROL_HOVER)}
+                aria-label={t("zoomIn")}
+              >
+                <ZoomIn className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className={cn("rounded-full p-1", CONTROL_SURFACE, interactive)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={requestClose}
                 className={cn("h-8 w-8 rounded-full", CONTROL_HOVER)}
                 aria-label={t("close")}
               >
                 <X className="h-5 w-5" />
               </Button>
-            </DialogClose>
+            </div>
           </div>
 
           <div
@@ -875,7 +1136,12 @@ export function Lightbox({
 
           <div
             ref={attachStage}
-            className="absolute inset-0 overscroll-contain"
+            className={cn(
+              "absolute inset-0 overscroll-contain",
+              // Hidden, not unmounted: the fitted rect is measured off it, and
+              // Hammer stays bound across the whole open/close cycle.
+              phase !== "open" && "pointer-events-none opacity-0",
+            )}
             style={{ touchAction: "none" }}
           >
             {/* Swipe layer: horizontal paging and swipe-to-dismiss. */}
@@ -903,9 +1169,11 @@ export function Lightbox({
                       // has to be the rendered image box exactly.
                       className={cn(
                         "h-full w-full select-none object-contain",
+                        // Fitted, a click closes rather than zooms — only the
+                        // zoomed state earns a magnifier.
                         zoomed
                           ? "cursor-zoom-out active:cursor-grabbing"
-                          : "cursor-zoom-in",
+                          : "cursor-default",
                       )}
                       style={{
                         backgroundImage: blurhashUrl
@@ -921,6 +1189,33 @@ export function Lightbox({
             </motion.div>
           </div>
         </motion.div>
+
+        {/* Outside the backdrop on purpose: nested, the closing fade would take
+            the image with it before it reached the thumbnail. */}
+        {phase !== "open" && morphItem && morphItem.type !== "video" && (
+          <motion.div
+            aria-hidden
+            className="pointer-events-none fixed left-0 top-0 z-40 overflow-hidden"
+            style={{
+              x: morphX,
+              y: morphY,
+              width: morphW,
+              height: morphH,
+              borderRadius: morphRadius,
+            }}
+          >
+            {/* object-cover the whole way. At the landing rect the box aspect
+                equals the image aspect, so cover and contain coincide and the
+                card's crop unwinds instead of cutting. */}
+            <img
+              ref={morphImgRef}
+              src={morphItem.url}
+              alt=""
+              draggable={false}
+              className="h-full w-full object-cover"
+            />
+          </motion.div>
+        )}
       </DialogContent>
     </Dialog>
   );

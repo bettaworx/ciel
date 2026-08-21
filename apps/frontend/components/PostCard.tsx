@@ -614,10 +614,28 @@ export function PostCard({
     [media],
   );
 
-  const handleLightboxOpen = useCallback((index: number) => {
-    setLightboxIndex(index);
-    setLightboxOpen(true);
-  }, []);
+  /** The media wrapper that was clicked; the lightbox morphs out of it. */
+  const lightboxSourceRef = useRef<HTMLElement | null>(null);
+
+  const handleLightboxOpen = useCallback(
+    (index: number, source: HTMLElement | null) => {
+      lightboxSourceRef.current = source;
+      setLightboxIndex(index);
+      setLightboxOpen(true);
+    },
+    [],
+  );
+
+  // Resolved from the clicked wrapper's siblings rather than a ref on the media
+  // container: `mediaNode` is placed in two mutually exclusive branches, and a
+  // quoted post nests a second PostCard whose media must not be picked up here.
+  const getLightboxSource = useCallback(
+    (index: number) =>
+      lightboxSourceRef.current?.parentElement?.querySelector<HTMLElement>(
+        `[data-lightbox-index="${index}"]`,
+      ) ?? null,
+    [],
+  );
 
   const avatarButton = (
     <Button
@@ -1371,6 +1389,7 @@ export function PostCard({
         open={lightboxOpen}
         onOpenChange={setLightboxOpen}
         initialIndex={lightboxIndex}
+        getSource={getLightboxSource}
       />
       {isDesktop ? (
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
