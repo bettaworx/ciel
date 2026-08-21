@@ -833,20 +833,27 @@ export function useComposePost(options: UseComposePostOptions = {}) {
             maxBytes: mediaLimits.videoMaxUploadSizeBytes,
             videoMode: video.quality,
             onProgress: (progress) => {
-              // mediabunny reports far more often than a percentage can change.
-              const percent = Math.round(progress * 100);
+              // What mediabunny reports is input fed to the encoder, and the
+              // encoder's own queue is flushed after that reads 100% — long
+              // enough on slow codecs to look stuck. Hold just short of full so
+              // the ring never claims to be done while it is still working.
+              const held = Math.min(progress, 0.99);
+              // It reports far more often than a percentage can change.
+              const percent = Math.round(held * 100);
               if (percent === lastPercent) return;
               lastPercent = percent;
-              setVideo((prev) => (prev ? { ...prev, progress } : prev));
+              setVideo((prev) => (prev ? { ...prev, progress: held } : prev));
             },
           });
           // Keep the converted file, so a failure further along does not mean
-          // paying for the transcode twice.
+          // paying for the transcode twice. The indicator stays up through the
+          // upload, showing its finished state.
           setVideo((prev) =>
-            prev ? { ...prev, file: converted, converting: false } : prev,
+            prev ? { ...prev, file: converted, progress: 1 } : prev,
           );
 
           const result = await uploadMediaMutation.mutateAsync(converted);
+          setVideo((prev) => (prev ? { ...prev, converting: false } : prev));
           mediaIds.push(result.id);
         } catch (error) {
           setVideo((prev) => (prev ? { ...prev, converting: false } : prev));

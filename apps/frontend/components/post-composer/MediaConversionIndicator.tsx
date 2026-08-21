@@ -47,16 +47,9 @@ export function MediaConversionIndicator({
       aria-valuenow={percent}
       aria-valuemin={0}
       aria-valuemax={100}
-      // Named group: the wrapper already owns `group` for the remove button.
-      // The gap lives here rather than on the label so that p-2 stays symmetric:
-      // collapsed it is the same circle as the remove button, expanded it is a
-      // pill with the same padding at both ends. It uses plain `hover:` — a
-      // `group-hover/conv:` variant is a descendant selector and would never
-      // match the group element itself.
-      //
-      // Touch layouts have no hover, so below `sm` the label is simply always
-      // out — the same treatment RemoveButton gives itself.
-      className={`group/conv ${shell} gap-1.5 transition-all duration-200 ease-out sm:gap-0 sm:hover:gap-1.5`}
+      // The percentage is the whole point of the indicator, so it is always out
+      // rather than waiting on a hover that touch layouts cannot deliver.
+      className={`${shell} gap-1.5`}
     >
       <svg className="w-3.5 h-3.5 shrink-0 -rotate-90" viewBox="0 0 24 24">
         <circle
@@ -77,14 +70,10 @@ export function MediaConversionIndicator({
           strokeLinecap="round"
         />
       </svg>
-      {/*
-        max-width rather than width so the label animates without a fixed size.
-        leading-none keeps the collapsed disc square: an inherited line-height
-        taller than the 14px ring would stretch the box into an ellipse.
-      */}
+      {/* leading-none keeps the row as tall as the ring, not as the text box. */}
       <span
         aria-hidden
-        className="max-w-12 overflow-hidden whitespace-nowrap text-[11px] font-medium leading-none tabular-nums opacity-100 transition-all duration-200 ease-out sm:max-w-0 sm:opacity-0 sm:group-hover/conv:max-w-12 sm:group-hover/conv:opacity-100"
+        className="whitespace-nowrap text-[11px] font-medium leading-none tabular-nums"
       >
         {percent}%
       </span>

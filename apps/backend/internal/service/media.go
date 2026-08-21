@@ -1737,7 +1737,7 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath, ext string
 
 	// The declared extension must match what ffprobe actually demuxed.
 	if want := expectedContainerName[ext]; !strings.Contains(probeResult.Format.FormatName, want) {
-		return nil, fmt.Errorf("container mismatch: %s is not %s", probeResult.Format.FormatName, want)
+		return nil, fmt.Errorf("file is a %s container, not %s", probeResult.Format.FormatName, want)
 	}
 
 	// Extract video info
@@ -1749,7 +1749,7 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath, ext string
 		case "video":
 			videoStreams++
 			if _, ok := videoCodecs[stream.CodecName]; !ok {
-				return nil, fmt.Errorf("disallowed video codec: %s", stream.CodecName)
+				return nil, fmt.Errorf("%s video is not allowed in a%s file", stream.CodecName, ext)
 			}
 			info.HasVideo = true
 			info.Width = stream.Width
@@ -1757,7 +1757,7 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath, ext string
 		case "audio":
 			audioStreams++
 			if _, ok := audioCodecs[stream.CodecName]; !ok {
-				return nil, fmt.Errorf("disallowed audio codec: %s", stream.CodecName)
+				return nil, fmt.Errorf("%s audio is not allowed in a%s file", stream.CodecName, ext)
 			}
 			info.HasAudio = true
 		default:
