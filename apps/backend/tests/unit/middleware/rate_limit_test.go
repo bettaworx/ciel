@@ -198,7 +198,7 @@ func TestRateLimit_MediaUpload_PerUser_DailyLimit(t *testing.T) {
 	ctx := auth.WithUser(context.Background(), auth.User{ID: uid, Username: "u"})
 
 	key := rateLimitKey("media_upload", "user:"+uid.String(), 24*time.Hour, now)
-	if err := rdb.Set(context.Background(), key, "50", 24*time.Hour).Err(); err != nil {
+	if err := rdb.Set(context.Background(), key, "200", 24*time.Hour).Err(); err != nil {
 		t.Fatalf("Set: %v", err)
 	}
 
@@ -223,7 +223,7 @@ func TestRateLimit_MediaUpload_Unauthed_FallsBackToIP(t *testing.T) {
 
 	ip := "1.2.3.4"
 	key := rateLimitKey("media_upload", "ip:"+ip, 10*time.Minute, now)
-	if err := rdb.Set(context.Background(), key, "10", 10*time.Minute).Err(); err != nil {
+	if err := rdb.Set(context.Background(), key, "40", 10*time.Minute).Err(); err != nil {
 		t.Fatalf("Set: %v", err)
 	}
 

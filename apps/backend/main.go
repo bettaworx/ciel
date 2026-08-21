@@ -204,6 +204,9 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
+	// Outermost, so an early rejection anywhere below still lets an in-flight
+	// upload finish and read the real status instead of a connection reset.
+	r.Use(middleware.DrainRequestBody)
 
 	// JWT_SECRET is now validated above - no fallback to ephemeral secret
 	jwtSecret := []byte(os.Getenv("JWT_SECRET"))

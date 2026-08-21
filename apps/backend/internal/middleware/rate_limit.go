@@ -57,9 +57,10 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		{routeKey: "auth_login_finish", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "auth_stepup_start", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "auth_stepup_finish", limit: 10, window: 1 * time.Minute, subject: subjectIP},
-		// Media upload: per-user, low frequency + daily cap.
-		{routeKey: "media_upload", limit: 10, window: 10 * time.Minute, subject: subjectUser},
-		{routeKey: "media_upload", limit: 50, window: 24 * time.Hour, subject: subjectUser},
+		// Media upload: per-user, per-file. A post can carry four images, so the
+		// window has to hold several full posts, not several files.
+		{routeKey: "media_upload", limit: 40, window: 10 * time.Minute, subject: subjectUser},
+		{routeKey: "media_upload", limit: 200, window: 24 * time.Hour, subject: subjectUser},
 		// Avatar upload: per-user, modest limits.
 		{routeKey: "avatar_upload", limit: 5, window: 10 * time.Minute, subject: subjectUser},
 		{routeKey: "avatar_upload", limit: 20, window: 24 * time.Hour, subject: subjectUser},
