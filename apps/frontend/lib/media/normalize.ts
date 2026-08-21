@@ -31,7 +31,9 @@ const SIZE_BUDGET_HEADROOM = 0.9;
 /**
  * Upper bound on video bitrate, as bits per pixel per frame at an assumed 30fps.
  * 0.1 bpp is ~6 Mbps at 1080p — roughly "medium" quality, and the point past
- * which more bits stop being visible for typical social video.
+ * which more bits stop being visible for typical social video. The source frame
+ * rate is preserved, so a 60fps clip gets the same ceiling spread over twice the
+ * frames.
  *
  * ponytail: fixed 30fps assumption; read the real frame rate off the track if
  * high-frame-rate uploads ever look starved.
@@ -65,12 +67,25 @@ export type NormalizeOptions = {
 };
 
 /**
- * Files this module produced. Video is converted when it is attached to the
- * composer and then passes through the upload path again, so without this the
- * WebM would be re-encoded a second time. Registering outputs rather than
- * flagging call sites means no caller can forget.
+ * Marks a file this module produced, so the upload path does not convert it a
+ * second time. Video is normalized when it is attached to the composer and then
+ * passes through requestForm() again on submit.
+ *
+ * The mark lives on the file rather than in a module-scoped WeakSet: the
+ * composer imports this module statically while the upload path imports it
+ * dynamically, and a bundler is free to give those two separate instances. It
+ * does — measured — and a WeakSet then misses, doubling every video conversion.
  */
-const alreadyNormalized = new WeakSet<File>();
+const NORMALIZED_MARK = '__cielNormalized';
+
+function isMarkedNormalized(file: File): boolean {
+	return NORMALIZED_MARK in file;
+}
+
+function markNormalized(file: File): File {
+	Object.defineProperty(file, NORMALIZED_MARK, { value: true });
+	return file;
+}
 
 export class MediaNormalizeError extends Error {
 	readonly code: NormalizeErrorCode;
@@ -156,7 +171,7 @@ export async function normalizeForUpload(
 	file: File,
 	opts: NormalizeOptions = {},
 ): Promise<File> {
-	if (alreadyNormalized.has(file)) return file;
+	if (isMarkedNormalized(file)) return file;
 
 	const result = isGifFile(file)
 		? file
@@ -164,8 +179,7 @@ export async function normalizeForUpload(
 			? await normalizeVideo(file, opts)
 			: await normalizeImage(file);
 
-	alreadyNormalized.add(result);
-	return result;
+	return markNormalized(result);
 }
 
 async function normalizeImage(file: File): Promise<File> {
@@ -258,7 +272,9 @@ async function normalizeVideo(file: File, opts: NormalizeOptions): Promise<File>
 		video: {
 			...(width >= height ? { width } : { height }),
 			...(videoCodec ? { codec: videoCodec } : {}),
-			quality: new Quality({ bitrate: videoBitrate, bitrateMode: 'variable' }),
+			// Constant rate: variable overshot the target by ~2x on real footage,
+			// and here a predictable size matters more than constant quality.
+			quality: new Quality({ bitrate: videoBitrate, bitrateMode: 'constant' }),
 		},
 		audio: { quality: new Quality({ bitrate: AUDIO_BITRATE }) },
 	});
