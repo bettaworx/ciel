@@ -29,41 +29,55 @@ import (
 	"github.com/google/uuid"
 )
 
-// expectedMimeByExt maps file extensions to their expected MIME types
+// expectedMimeByExt maps file extensions to their expected MIME types.
+// Restricted to the formats the frontend normalizer produces; see
+// config.MediaConfig.IsExtensionAllowed for why.
 var expectedMimeByExt = map[string]string{
 	// Images
-	".png":  "image/png",
-	".jpg":  "image/jpeg",
-	".jpeg": "image/jpeg",
 	".webp": "image/webp",
 	".gif":  "image/gif",
 	// Videos
-	".mp4":  "video/mp4",
 	".webm": "video/webm",
-	".mov":  "video/quicktime",
-	".avi":  "video/x-msvideo",
-	".mkv":  "video/x-matroska",
-	".m4v":  "video/x-m4v",
-	".3gp":  "video/3gpp",
-	".ogv":  "video/ogg",
+	".mp4":  "video/mp4",
 }
 
 // allowedMIMESniff contains MIME types allowed after content sniffing
 var allowedMIMESniff = map[string]struct{}{
 	// Images
-	"image/png":  {},
-	"image/jpeg": {},
 	"image/webp": {},
 	"image/gif":  {},
 	// Videos
-	"video/mp4":        {},
-	"video/webm":       {},
-	"video/quicktime":  {},
-	"video/x-msvideo":  {},
-	"video/x-matroska": {},
-	"video/x-m4v":      {},
-	"video/3gpp":       {},
-	"video/ogg":        {},
+	"video/webm": {},
+	"video/mp4":  {},
+}
+
+// allowedImageFormats are the decoder-reported formats accepted for image
+// uploads. Defence in depth: a file that survived MIME sniffing but decodes as
+// something else (e.g. a PNG named .webp) is still rejected.
+var allowedImageFormats = map[string]struct{}{
+	"webp": {},
+	"gif":  {},
+}
+
+// allowedVideoCodecs lists the codecs permitted inside each accepted container.
+// Anything else — including a codec that is merely muxable but that the
+// frontend never emits — is rejected.
+var allowedVideoCodecs = map[string]map[string]struct{}{
+	".webm": {"vp8": {}, "vp9": {}, "av1": {}},
+	".mp4":  {"h264": {}, "hevc": {}, "av1": {}},
+}
+
+// allowedAudioCodecs mirrors allowedVideoCodecs for audio streams.
+var allowedAudioCodecs = map[string]map[string]struct{}{
+	".webm": {"opus": {}, "vorbis": {}},
+	".mp4":  {"aac": {}, "opus": {}},
+}
+
+// expectedContainerName maps an extension to the ffprobe format_name token that
+// must be present, so a renamed container cannot slip through.
+var expectedContainerName = map[string]string{
+	".webm": "webm",
+	".mp4":  "mp4",
 }
 
 type MediaService struct {
@@ -669,7 +683,7 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 	}
 
 	// Validate video file (streams, duration, dimensions)
-	videoInfo, err := s.validateVideoFile(ctx, inPath)
+	videoInfo, err := s.validateVideoFile(ctx, inPath, ext)
 	if err != nil {
 		return api.Media{}, err
 	}
@@ -1653,13 +1667,19 @@ type videoInfo struct {
 	HasAudio bool
 }
 
-// validateVideoFile validates a video file using ffprobe, checking streams, duration, and dimensions
-func (s *MediaService) validateVideoFile(ctx context.Context, inPath string) (*videoInfo, error) {
+// validateVideoFile validates a video file using ffprobe.
+//
+// SECURITY: beyond dimensions and duration, this pins the container and the
+// codecs inside it to what the frontend normalizer emits (see allowedVideoCodecs).
+// Without a codec check, any codec ffmpeg can mux — including ones no browser can
+// play, and ones with a history of decoder CVEs — would be accepted purely because
+// the file was named .webm.
+func (s *MediaService) validateVideoFile(ctx context.Context, inPath, ext string) (*videoInfo, error) {
 	// Use ffprobe to get video metadata in JSON format
 	args := []string{
 		"-v", "error",
-		"-show_entries", "stream=width,height,duration,codec_type",
-		"-show_entries", "format=duration",
+		"-show_entries", "stream=codec_type,codec_name,width,height,duration",
+		"-show_entries", "format=format_name,duration",
 		"-of", "json",
 		inPath,
 	}
@@ -1679,12 +1699,14 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath string) (*v
 	var probeResult struct {
 		Streams []struct {
 			CodecType string `json:"codec_type"`
+			CodecName string `json:"codec_name"`
 			Width     int    `json:"width"`
 			Height    int    `json:"height"`
 			Duration  string `json:"duration"`
 		} `json:"streams"`
 		Format struct {
-			Duration string `json:"duration"`
+			FormatName string `json:"format_name"`
+			Duration   string `json:"duration"`
 		} `json:"format"`
 	}
 
@@ -1692,22 +1714,50 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath string) (*v
 		return nil, fmt.Errorf("failed to parse ffprobe output")
 	}
 
+	ext = strings.ToLower(ext)
+	videoCodecs, ok := allowedVideoCodecs[ext]
+	if !ok {
+		return nil, fmt.Errorf("unsupported video container: %s", ext)
+	}
+	audioCodecs := allowedAudioCodecs[ext]
+
+	// The declared extension must match what ffprobe actually demuxed.
+	if want := expectedContainerName[ext]; !strings.Contains(probeResult.Format.FormatName, want) {
+		return nil, fmt.Errorf("container mismatch: %s is not %s", probeResult.Format.FormatName, want)
+	}
+
 	// Extract video info
 	info := &videoInfo{}
+	videoStreams, audioStreams := 0, 0
 
 	for _, stream := range probeResult.Streams {
 		switch stream.CodecType {
 		case "video":
+			videoStreams++
+			if _, ok := videoCodecs[stream.CodecName]; !ok {
+				return nil, fmt.Errorf("disallowed video codec: %s", stream.CodecName)
+			}
 			info.HasVideo = true
 			info.Width = stream.Width
 			info.Height = stream.Height
 		case "audio":
+			audioStreams++
+			if _, ok := audioCodecs[stream.CodecName]; !ok {
+				return nil, fmt.Errorf("disallowed audio codec: %s", stream.CodecName)
+			}
 			info.HasAudio = true
+		default:
+			// Subtitles, attachments, data and cover-art streams are never emitted
+			// by the normalizer and can carry arbitrary payloads.
+			return nil, fmt.Errorf("disallowed stream type: %s", stream.CodecType)
 		}
 	}
 
-	if !info.HasVideo {
-		return nil, fmt.Errorf("no video stream found")
+	if videoStreams != 1 {
+		return nil, fmt.Errorf("expected exactly one video stream, got %d", videoStreams)
+	}
+	if audioStreams > 1 {
+		return nil, fmt.Errorf("expected at most one audio stream, got %d", audioStreams)
 	}
 
 	// Parse duration (try stream duration first, fall back to format duration)
@@ -1723,6 +1773,11 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath string) (*v
 		if err == nil {
 			info.Duration = duration
 		}
+	}
+
+	// A file with no readable duration is malformed, not a zero-length video.
+	if info.Duration <= 0 {
+		return nil, fmt.Errorf("invalid or missing video duration")
 	}
 
 	// Validate dimensions

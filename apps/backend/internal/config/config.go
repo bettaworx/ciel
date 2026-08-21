@@ -226,31 +226,31 @@ func (m *MediaConfig) MaxUploadBytesForType(mediaType string) int64 {
 	return int64(m.MaxUploadSize) << 20 // MiB to bytes (for images)
 }
 
-// IsExtensionAllowed checks if file extension is allowed
-// Known image formats: png, jpg, jpeg, webp, gif
-// Known video formats: mp4, webm, mov, avi, mkv, m4v, 3gp, ogv
+// IsExtensionAllowed checks if file extension is allowed.
+//
+// SECURITY: knownFormats is a hard floor that allowed_extensions can only narrow,
+// never widen. It is deliberately limited to the formats the frontend normalizer
+// (lib/media/normalize.ts) produces:
+//
+//	webp       — every still image is re-encoded to WebP in the browser
+//	gif        — passed through; browsers have no animated-WebP encoder
+//	webm, mp4  — every video is re-encoded to WebM, or to MP4 on browsers with
+//	             no VP8/VP9/AV1 encoder (Safari)
+//
+// Source formats such as png, jpeg, mov, avi, mkv, m4v, 3gp and ogv are rejected:
+// a client that reaches this endpoint without normalizing is not a client we serve.
 func (m *MediaConfig) IsExtensionAllowed(ext string) bool {
 	// Remove leading dot if present
 	ext = strings.TrimPrefix(ext, ".")
 	ext = strings.ToLower(ext)
 
-	// Only allow known formats for security
 	knownFormats := map[string]bool{
 		// Images
-		"png":  true,
-		"jpg":  true,
-		"jpeg": true,
 		"webp": true,
 		"gif":  true,
 		// Videos
-		"mp4":  true,
 		"webm": true,
-		"mov":  true,
-		"avi":  true,
-		"mkv":  true,
-		"m4v":  true,
-		"3gp":  true,
-		"ogv":  true,
+		"mp4":  true,
 	}
 
 	// Check if extension is in allowed list AND is a known format
@@ -269,14 +269,8 @@ func (m *MediaConfig) IsVideoExtension(ext string) bool {
 	ext = strings.ToLower(ext)
 
 	videoExts := map[string]bool{
-		"mp4":  true,
 		"webm": true,
-		"mov":  true,
-		"avi":  true,
-		"mkv":  true,
-		"m4v":  true,
-		"3gp":  true,
-		"ogv":  true,
+		"mp4":  true,
 	}
 
 	return videoExts[ext]
@@ -490,7 +484,7 @@ func DefaultConfig() *Config {
 		},
 		Media: MediaConfig{
 			MaxUploadSize:     15,
-			AllowedExtensions: []string{"png", "jpg", "jpeg", "webp", "gif", "mp4", "webm", "mov", "avi", "mkv", "m4v", "3gp", "ogv"},
+			AllowedExtensions: []string{"webp", "gif", "webm", "mp4"},
 			MaxInputWidth:     16384,
 			MaxInputHeight:    16384,
 			MaxInputPixels:    100_000_000,

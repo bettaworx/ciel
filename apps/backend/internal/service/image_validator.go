@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/gif"
@@ -13,6 +14,13 @@ import (
 
 	"backend/internal/config"
 )
+
+// maxGifFramePixels caps total decoded GIF animation area (frames x pixels).
+//
+// SECURITY: MaxInputPixels only bounds a single frame, so a GIF declaring a large
+// logical screen with thousands of frames passes it and then exhausts memory
+// inside gif.DecodeAll. 400 megapixels is ~1300 frames of 640x480.
+const maxGifFramePixels = 400_000_000
 
 // ImageInfo contains validated image metadata extracted during Go-based decoding.
 type ImageInfo struct {
@@ -33,8 +41,9 @@ type ImageInfo struct {
 // For GIF files, gif.DecodeAll is used to validate all animation frames.
 // For other formats, image.Decode performs a single-frame full decode.
 //
-// After decoding, dimensions are checked against the configured limits
-// (MaxInputWidth, MaxInputHeight, MaxInputPixels).
+// After decoding, the format is checked against allowedImageFormats and the
+// dimensions against the configured limits (MaxInputWidth, MaxInputHeight,
+// MaxInputPixels).
 func validateImageFile(path string, cfg config.MediaConfig) (*ImageInfo, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -59,8 +68,18 @@ func validateImageFile(path string, cfg config.MediaConfig) (*ImageInfo, error) 
 		Format: format,
 	}
 
+	// Reject formats the frontend normalizer never produces, even if the byte-level
+	// MIME sniff let them through (e.g. a PNG named .webp).
+	if _, ok := allowedImageFormats[format]; !ok {
+		return nil, NewError(400, "unsupported_media_type", "unsupported image format")
+	}
+
 	// Full decode: validates that the compressed pixel data is intact.
 	if format == "gif" {
+		// Bound the animation before decoding it: gif.DecodeAll allocates every frame.
+		if err := checkGifFrameBudget(path, imgCfg.Width, imgCfg.Height); err != nil {
+			return nil, err
+		}
 		g, err := gif.DecodeAll(f)
 		if err != nil {
 			return nil, fmt.Errorf("gif full decode failed: %w", err)
@@ -104,6 +123,46 @@ func validateImageDimensionsFromInfo(info *ImageInfo, cfg config.MediaConfig) er
 		return NewError(400, "invalid_request", "image too large")
 	}
 	return nil
+}
+
+// checkGifFrameBudget rejects GIFs whose total decoded area would blow past
+// maxGifFramePixels, by counting Image Descriptor blocks in the raw bytes before
+// any frame is allocated.
+func checkGifFrameBudget(path string, width, height int) error {
+	area := width * height
+	if area <= 0 {
+		return NewError(400, "invalid_request", "invalid image dimensions")
+	}
+	maxFrames := maxGifFramePixels / area
+
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("failed to open image: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	// An Image Descriptor is the only block that introduces a frame, so counting
+	// its separator byte is an upper bound on the frame count. It may over-count
+	// if the byte appears inside compressed data, which is the safe direction.
+	buf := make([]byte, 32*1024)
+	frames := 0
+	for {
+		n, err := f.Read(buf)
+		for _, b := range buf[:n] {
+			if b == 0x2C {
+				frames++
+				if frames > maxFrames {
+					return NewError(400, "invalid_request", "gif animation too large")
+				}
+			}
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return fmt.Errorf("failed to scan gif: %w", err)
+		}
+	}
 }
 
 // formatToExt maps image.Decode format strings to file extensions.
