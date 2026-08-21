@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { createBodyScrollLockManager } from "@/lib/hooks/use-body-scroll-lock";
 
 function createTarget() {

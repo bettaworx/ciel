@@ -16,7 +16,7 @@ describe('userPosts query string serialization', () => {
 	});
 
 	it('omits excludeForeignReplies when not set', async () => {
-		const fetchMock = vi.fn(async () => jsonResponse(emptyPage));
+		const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse(emptyPage));
 		vi.stubGlobal('fetch', fetchMock);
 
 		const api = createApiClient({});
@@ -28,7 +28,7 @@ describe('userPosts query string serialization', () => {
 	});
 
 	it('appends excludeForeignReplies=true when set', async () => {
-		const fetchMock = vi.fn(async () => jsonResponse(emptyPage));
+		const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse(emptyPage));
 		vi.stubGlobal('fetch', fetchMock);
 
 		const api = createApiClient({});
@@ -39,7 +39,7 @@ describe('userPosts query string serialization', () => {
 	});
 
 	it('omits excludeForeignReplies when explicitly false', async () => {
-		const fetchMock = vi.fn(async () => jsonResponse(emptyPage));
+		const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse(emptyPage));
 		vi.stubGlobal('fetch', fetchMock);
 
 		const api = createApiClient({});
@@ -50,7 +50,7 @@ describe('userPosts query string serialization', () => {
 	});
 
 	it('appends onlyReplies=true when set', async () => {
-		const fetchMock = vi.fn(async () => jsonResponse(emptyPage));
+		const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse(emptyPage));
 		vi.stubGlobal('fetch', fetchMock);
 
 		const api = createApiClient({});
@@ -62,7 +62,7 @@ describe('userPosts query string serialization', () => {
 	});
 
 	it('can combine excludeForeignReplies with other params', async () => {
-		const fetchMock = vi.fn(async () => jsonResponse(emptyPage));
+		const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse(emptyPage));
 		vi.stubGlobal('fetch', fetchMock);
 
 		const api = createApiClient({});
@@ -75,7 +75,7 @@ describe('userPosts query string serialization', () => {
 	});
 
 	it('URL-encodes special characters in username', async () => {
-		const fetchMock = vi.fn(async () => jsonResponse(emptyPage));
+		const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse(emptyPage));
 		vi.stubGlobal('fetch', fetchMock);
 
 		const api = createApiClient({});
