@@ -282,6 +282,43 @@ describe('quality modes', () => {
 		expect(state.encodes).toBe(0);
 	});
 
+	// The mode picks the quality; the server picks what it will accept. When the
+	// server's ceiling is the lower of the two, it wins.
+	it('never scales past what the server accepts', async () => {
+		const state = stubCanvas({ width: 4000, height: 2000 });
+
+		await normalizeForUpload(png(), {
+			imageMode: 'quality',
+			limits: { maxWidth: 800, maxHeight: 800, maxPixels: 50_000_000, maxFrameRate: 60 },
+		});
+
+		expect(state.width).toBe(800);
+		expect(state.height).toBe(400);
+	});
+
+	it('holds dot-by-dot to the server ceiling too', async () => {
+		const state = stubCanvas({ width: 4000, height: 2000 });
+
+		await normalizeForUpload(png(), {
+			imageMode: 'dot-by-dot',
+			limits: { maxWidth: 1000, maxHeight: 1000, maxPixels: 50_000_000, maxFrameRate: 60 },
+		});
+
+		// Resizing pixel art is a loss, but an upload the server refuses is worse.
+		expect(state.width).toBe(1000);
+		expect(state.smoothing).toBe(false);
+	});
+
+	it('rejects an image over the server pixel budget', async () => {
+		stubCanvas({ width: 9000, height: 9000 });
+
+		await expect(
+			normalizeForUpload(png(), {
+				limits: { maxWidth: 16384, maxHeight: 16384, maxPixels: 50_000_000, maxFrameRate: 60 },
+			}),
+		).rejects.toThrow();
+	});
+
 	it('raises and lowers the video ceiling with the video mode', () => {
 		// A short clip, so the ceiling binds rather than the budget or the source.
 		const args = {

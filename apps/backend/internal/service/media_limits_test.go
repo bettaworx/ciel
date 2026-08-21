@@ -95,7 +95,7 @@ func TestParseFrameRate(t *testing.T) {
 			t.Errorf("parseFrameRate(%q) = %v, want %v", in, got, want)
 		}
 	}
-	if parseFrameRate("240/1") <= maxVideoFrameRate {
+	if parseFrameRate("240/1") <= MaxVideoFrameRate {
 		t.Error("240fps should read as over the cap")
 	}
 }

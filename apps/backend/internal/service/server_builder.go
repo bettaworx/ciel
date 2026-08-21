@@ -15,6 +15,9 @@ func BuildServerConfig(cfg *config.Config) api.ServerConfig {
 		MediaLimits: api.MediaLimits{
 			MaxUploadSizeMB:   cfg.Media.MaxUploadSize,
 			AllowedExtensions: cfg.Media.AllowedExtensions,
+			MaxInputWidth:     cfg.Media.MaxInputWidth,
+			MaxInputHeight:    cfg.Media.MaxInputHeight,
+			MaxInputPixels:    cfg.Media.MaxInputPixels,
 			Post: api.MediaPostLimits{
 				Static: struct {
 					MaxSize int `json:"maxSize"`
@@ -74,6 +77,7 @@ func BuildServerConfig(cfg *config.Config) api.ServerConfig {
 				MaxUploadSizeMB:    cfg.Media.Video.MaxUploadSize,
 				MaxDurationSeconds: cfg.Media.Video.MaxDuration,
 				MaxSize:            cfg.Media.Video.MaxSize,
+				MaxFrameRate:       MaxVideoFrameRate,
 			},
 		},
 	}

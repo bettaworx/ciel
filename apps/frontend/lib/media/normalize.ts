@@ -79,8 +79,25 @@ const SIZE_BUDGET_HEADROOM = 0.9;
 const ASSUMED_FPS = 30;
 /** Below this, the result is not worth watching; reject instead of encoding mush. */
 const MIN_VIDEO_BITRATE = 250_000;
-/** A decoded image larger than this is a decompression bomb, not a photo. */
-const IMAGE_MAX_PIXELS = 100_000_000;
+/**
+ * Ceilings the server enforces. Passed in rather than restated here, so a change
+ * to the server's configuration reaches the converter instead of being silently
+ * contradicted by a second copy of the same numbers.
+ */
+export type ServerMediaLimits = {
+	maxWidth: number;
+	maxHeight: number;
+	maxPixels: number;
+	maxFrameRate: number;
+};
+
+/** Used only until /server/config answers; see lib/media/requirements.ts. */
+const FALLBACK_LIMITS: ServerMediaLimits = {
+	maxWidth: 16384,
+	maxHeight: 16384,
+	maxPixels: 50_000_000,
+	maxFrameRate: 60,
+};
 
 export type NormalizeErrorCode =
 	| 'unsupported_image'
@@ -91,6 +108,8 @@ export type NormalizeErrorCode =
 	| 'video_unsupported';
 
 export type NormalizeOptions = {
+	/** What the server will accept. Defaults to the shipped configuration. */
+	limits?: ServerMediaLimits;
 	/** How hard to compress a still image. Defaults to 'balance'. */
 	imageMode?: ImageQualityMode;
 	/** How hard to compress a video. Defaults to 'balance'. */
@@ -224,9 +243,10 @@ export async function normalizeForUpload(
 	// already in shape. Either way it goes up as it is.
 	if (mode === 'none' || isGifFile(file)) return markNormalized(file);
 
+	const limits = opts.limits ?? FALLBACK_LIMITS;
 	const result = isVideo
-		? await normalizeVideo(file, mode as Exclude<VideoQualityMode, 'none'>, opts)
-		: await normalizeImage(file, mode as Exclude<ImageQualityMode, 'none'>);
+		? await normalizeVideo(file, mode as Exclude<VideoQualityMode, 'none'>, opts, limits)
+		: await normalizeImage(file, mode as Exclude<ImageQualityMode, 'none'>, limits);
 
 	return markNormalized(result);
 }
@@ -234,6 +254,7 @@ export async function normalizeForUpload(
 async function normalizeImage(
 	file: File,
 	modeName: Exclude<ImageQualityMode, 'none'>,
+	limits: ServerMediaLimits,
 ): Promise<File> {
 	let bitmap: ImageBitmap;
 	try {
@@ -245,15 +266,16 @@ async function normalizeImage(
 	}
 
 	try {
-		if (bitmap.width * bitmap.height > IMAGE_MAX_PIXELS) {
+		if (bitmap.width * bitmap.height > limits.maxPixels) {
 			throw new MediaNormalizeError('image_too_large');
 		}
 
 		const mode = IMAGE_MODES[modeName];
-		const { width, height } =
-			mode.maxEdge === null
-				? { width: bitmap.width, height: bitmap.height }
-				: fitWithin(bitmap.width, bitmap.height, mode.maxEdge);
+		// Dot-by-dot asks for no resizing, but the server's ceiling still applies:
+		// its limit is what it accepts, not a matter of taste.
+		const serverEdge = Math.min(limits.maxWidth, limits.maxHeight);
+		const maxEdge = Math.min(mode.maxEdge ?? serverEdge, serverEdge);
+		const { width, height } = fitWithin(bitmap.width, bitmap.height, maxEdge);
 
 		const canvas = new OffscreenCanvas(width, height);
 		const ctx = canvas.getContext('2d');
@@ -278,6 +300,7 @@ async function normalizeVideo(
 	file: File,
 	modeName: Exclude<VideoQualityMode, 'none'>,
 	opts: NormalizeOptions,
+	limits: ServerMediaLimits,
 ): Promise<File> {
 	const {
 		ALL_FORMATS,
@@ -301,8 +324,15 @@ async function normalizeVideo(
 	const { width, height } = fitWithin(
 		await track.getDisplayWidth(),
 		await track.getDisplayHeight(),
-		mode.maxEdge,
+		Math.min(mode.maxEdge, limits.maxWidth, limits.maxHeight),
 	);
+
+	// The source frame rate is kept, except where it would put the result over
+	// what the server accepts — better a 60fps upload than a 240fps one rejected
+	// after minutes of encoding.
+	const { averagePacketRate } = await track.computePacketStats(100);
+	const frameRate =
+		averagePacketRate > limits.maxFrameRate ? limits.maxFrameRate : undefined;
 
 	const videoBitrate = pickVideoBitrate({
 		fileSize: file.size,
@@ -335,6 +365,7 @@ async function normalizeVideo(
 		video: {
 			...(width >= height ? { width } : { height }),
 			...(videoCodec ? { codec: videoCodec } : {}),
+			...(frameRate ? { frameRate } : {}),
 			// Constant rate: variable overshot the target by ~2x on real footage,
 			// and here a predictable size matters more than constant quality.
 			quality: new Quality({ bitrate: videoBitrate, bitrateMode: 'constant' }),

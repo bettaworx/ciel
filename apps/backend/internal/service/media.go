@@ -71,9 +71,12 @@ func isVideoExt(ext string) bool {
 	return ok
 }
 
-// maxVideoFrameRate bounds frames per second. Combined with the duration limit
+// MaxVideoFrameRate bounds frames per second. Combined with the duration limit
 // this bounds the total frame count, and so the work one upload can demand.
-const maxVideoFrameRate = 120
+//
+// ponytail: a constant rather than config, because it is a safety bound and not
+// a taste. Move it into MediaConfig if a deployment ever needs to raise it.
+const MaxVideoFrameRate = 60
 
 // parseFrameRate reads ffprobe's "num/den" rational. An unreadable or zero
 // denominator reports 0, leaving the judgement to the other checks.
@@ -1695,8 +1698,8 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath, ext string
 			if _, ok := videoCodecs[stream.CodecName]; !ok {
 				return nil, fmt.Errorf("%s video is not allowed in a%s file", stream.CodecName, ext)
 			}
-			if fps := parseFrameRate(stream.AvgFrameRate); fps > maxVideoFrameRate {
-				return nil, fmt.Errorf("frame rate %.0f exceeds the maximum of %d", fps, maxVideoFrameRate)
+			if fps := parseFrameRate(stream.AvgFrameRate); fps > MaxVideoFrameRate {
+				return nil, fmt.Errorf("frame rate %.0f exceeds the maximum of %d", fps, MaxVideoFrameRate)
 			}
 			info.HasVideo = true
 			info.Width = stream.Width

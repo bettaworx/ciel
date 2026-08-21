@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   useQuery,
   useMutation,
@@ -12,6 +12,7 @@ import { useApi } from "@/lib/api/use-api";
 import type { components } from "@/lib/api/api";
 import { ApiHttpError } from "@/lib/api/client";
 import { collectOwnerReplyThreadChunk } from "@/lib/post-thread";
+import { toMediaRequirements } from "@/lib/media/requirements";
 import { useSetAtom, useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { ERROR_CODES } from "@/lib/errors";
@@ -182,35 +183,20 @@ export function useCustomEmojis() {
 export function useMediaLimits() {
   const { data: serverConfig } = useServerConfig();
 
-  return {
-    maxUploadSizeMB: serverConfig?.mediaLimits?.maxUploadSizeMB ?? 15,
-    maxUploadSizeBytes:
-      (serverConfig?.mediaLimits?.maxUploadSizeMB ?? 15) * 1024 * 1024,
-    allowedExtensions: serverConfig?.mediaLimits?.allowedExtensions ?? [
-      "png",
-      "jpg",
-      "jpeg",
-      "webp",
-      "gif",
-    ],
-    postStaticMaxSize: serverConfig?.mediaLimits?.post?.static?.maxSize ?? 2048,
-    postGifMaxSize: serverConfig?.mediaLimits?.post?.gif?.maxSize ?? 1024,
-    avatarSize: serverConfig?.mediaLimits?.avatar?.size ?? 400,
-    serverIconStaticSize:
-      serverConfig?.mediaLimits?.serverIcon?.static?.size ?? 512,
-    serverIconGifMaxSize:
-      serverConfig?.mediaLimits?.serverIcon?.gif?.maxSize ?? 512,
-    // Video limits
-    videoMaxUploadSizeMB:
-      serverConfig?.mediaLimits?.video?.maxUploadSizeMB ?? 100,
-    videoMaxUploadSizeBytes:
-      (serverConfig?.mediaLimits?.video?.maxUploadSizeMB ?? 100) * 1024 * 1024,
-    videoMaxDurationSeconds:
-      serverConfig?.mediaLimits?.video?.maxDurationSeconds ?? 300,
-    videoMaxSize: serverConfig?.mediaLimits?.video?.maxSize ?? 1920,
-    // Post content limits
-    maxPostContentLength: serverConfig?.maxPostContentLength ?? 1000,
-  };
+  // One derivation, in lib/media/requirements.ts. Everything the client decides
+  // about media — which files may go up untouched, how far a conversion may
+  // scale, what counts as too long — reads from what the server said, so the two
+  // cannot drift apart the way a second hardcoded copy would.
+  return useMemo(() => {
+    const requirements = toMediaRequirements(serverConfig);
+    return {
+      ...requirements,
+      // Megabytes for the messages that quote a limit back to the poster.
+      maxUploadSizeMB: Math.round(requirements.maxImageBytes / 1024 / 1024),
+      videoMaxUploadSizeMB: Math.round(requirements.maxVideoBytes / 1024 / 1024),
+      maxPostContentLength: serverConfig?.maxPostContentLength ?? 1000,
+    };
+  }, [serverConfig]);
 }
 
 // Timeline with infinite scroll

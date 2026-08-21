@@ -55,11 +55,12 @@ const isVideoMode = (mode: QualityMode): mode is VideoQualityMode =>
 
 /**
  * Whether a file already satisfies the server and can be uploaded untouched.
- * The server also bounds dimensions and, for video, codecs; those are left to it
- * to report, since a file that trips them is not one anybody uploads by accident.
+ * The accepted types come from the server's own list; it also bounds dimensions
+ * and, for video, codecs, which are left to it to report since a file that trips
+ * them is not one anybody uploads by accident.
  */
-const canUploadUntouched = (file: File, maxBytes: number, kinds: string[]) =>
-  kinds.includes(file.type) && file.size <= maxBytes;
+const canUploadUntouched = (file: File, maxBytes: number, accepted: string[]) =>
+  accepted.includes(file.type) && file.size <= maxBytes;
 import type { Crop } from "react-image-crop";
 import type { AspectRatioId } from "@/components/shared/image-crop/aspectRatios";
 import type { Transform } from "@/components/shared/image-crop/transforms";
@@ -368,7 +369,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         // re-checks the duration anyway, so only reject on a known-bad value.
         tooLong =
           Number.isFinite(meta.duration) &&
-          meta.duration > mediaLimits.videoMaxDurationSeconds;
+          meta.duration > mediaLimits.maxVideoDurationSec;
       } catch {
         // Unreadable metadata is left to the server to judge.
       }
@@ -377,7 +378,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       if (tooLong) {
         toast.error(
           t("createPost.videoTooLong", {
-            maxDuration: mediaLimits.videoMaxDurationSeconds,
+            maxDuration: mediaLimits.maxVideoDurationSec,
           }),
         );
         return;
@@ -397,8 +398,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       // The duration was checked above, so eligibility rests on type and size.
       const canSkipConversion = canUploadUntouched(
         videoFile,
-        mediaLimits.videoMaxUploadSizeBytes,
-        ["video/mp4", "video/webm"],
+        mediaLimits.maxVideoBytes,
+        mediaLimits.videoMimeTypes,
       );
 
       setVideo({
@@ -429,19 +430,17 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         // GIFs are uploaded as-is, so the server limit applies directly. Everything
         // else is re-encoded to WebP first, so only the raw import is guarded here.
         const rawCap = isGifFile(file)
-          ? mediaLimits.maxUploadSizeBytes
+          ? mediaLimits.maxImageBytes
           : MAX_RAW_IMAGE_BYTES;
         if (file.size > rawCap) {
           toast.error(t("createPost.fileTooLarge"));
           continue;
         }
 
-        // These are the still formats the server accepts, so a small one can go
-        // up as it is.
         const canSkipConversion = canUploadUntouched(
           file,
-          mediaLimits.maxUploadSizeBytes,
-          ["image/webp", "image/png", "image/jpeg"],
+          mediaLimits.maxImageBytes,
+          mediaLimits.imageMimeTypes,
         );
 
         // Create preview via Object URL (blob:)
@@ -806,6 +805,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
             // upload path sees an already-marked file and leaves it alone.
             const normalized = await normalizeForUpload(image.file, {
               imageMode: image.quality,
+              limits: mediaLimits,
             });
             const result = await uploadMediaMutation.mutateAsync(normalized);
             mediaIds.push(result.id);
@@ -830,8 +830,9 @@ export function useComposePost(options: UseComposePostOptions = {}) {
           const converted = await normalizeForUpload(video.file, {
             // Encoding to fit means a long video comes out smaller rather than
             // being transcoded in full and then rejected for being too large.
-            maxBytes: mediaLimits.videoMaxUploadSizeBytes,
+            maxBytes: mediaLimits.maxVideoBytes,
             videoMode: video.quality,
+            limits: mediaLimits,
             onProgress: (progress) => {
               // What mediabunny reports is input fed to the encoder, and the
               // encoder's own queue is flushed after that reads 100% — long
