@@ -22,9 +22,9 @@ import {
   type SwipeIntent,
 } from "@/lib/lightbox-swipe";
 import {
+  boxGeometry,
   containRect,
   containsPoint,
-  transformRect,
   type Rect,
 } from "@/lib/lightbox-morph";
 import {
@@ -56,6 +56,11 @@ interface LightboxProps {
    * away, unmounted) simply skips the morph.
    */
   getSource?: (index: number) => HTMLElement | null;
+  /**
+   * The index the lightbox is currently showing, or null once it has let go.
+   * The card hides that thumbnail so the same image is never painted twice.
+   */
+  onShownIndexChange?: (index: number | null) => void;
 }
 
 const clampIndex = (value: number, min: number, max: number) =>
@@ -79,10 +84,7 @@ const ZOOM_EPSILON = 1.01;
 const CONTROLS_HIDE_MS = 2500;
 /** Open/close morph. Long enough to read as one continuous move. */
 const MORPH = { duration: 0.28, ease: EASE_OUT } as const;
-/**
- * Mirrors the `p-2` on the zoom layer below — that padding is what insets the
- * box `object-contain` fits the image into, so the morph has to use it too.
- */
+/** Breathing room between the fitted image and the viewport edge. */
 const STAGE_PADDING = 8;
 const NO_RADIUS = "0px 0px 0px 0px";
 
@@ -99,14 +101,24 @@ function readRadius(el: Element): string {
   ].join(" ");
 }
 
-/** Where the fitted image sits in the viewport, at rest. */
-function fittedRect(natW: number, natH: number): Rect {
-  return containRect(natW, natH, {
+/** The whole area an image may occupy. */
+function stageBox(): Rect {
+  return {
     x: STAGE_PADDING,
     y: STAGE_PADDING,
     width: window.innerWidth - STAGE_PADDING * 2,
     height: window.innerHeight - STAGE_PADDING * 2,
-  });
+  };
+}
+
+/** Where the fitted image sits in the viewport, at rest. */
+function fittedRect(natW: number, natH: number): Rect {
+  return containRect(natW, natH, stageBox());
+}
+
+/** Centre of the stage, which is also the image box's transform origin. */
+function stageCentre() {
+  return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 }
 
 /**
@@ -144,6 +156,7 @@ export function Lightbox({
   onOpenChange,
   initialIndex = 0,
   getSource,
+  onShownIndexChange,
 }: LightboxProps) {
   const t = useTranslations("lightbox");
   const reduceMotion = useReducedMotion();
@@ -223,13 +236,29 @@ export function Lightbox({
   const panX = useMotionValue(0);
   const panY = useMotionValue(0);
   const zoom = useMotionValue(1);
-  // Morph layer. Driven imperatively so the animation never re-renders React.
-  const morphX = useMotionValue(0);
-  const morphY = useMotionValue(0);
-  const morphW = useMotionValue(0);
-  const morphH = useMotionValue(0);
-  const morphRadius = useMotionValue(NO_RADIUS);
-  const morphImgRef = useRef<HTMLImageElement | null>(null);
+  /**
+   * The image box's geometry. Not a separate morph layer any more: this *is*
+   * where the one <img> lives, so opening and closing move the real image
+   * rather than handing off between two copies of it. Driven imperatively so
+   * the animation never re-renders React.
+   */
+  const boxX = useMotionValue(0);
+  const boxY = useMotionValue(0);
+  const boxW = useMotionValue(0);
+  const boxH = useMotionValue(0);
+  const boxRadius = useMotionValue(NO_RADIUS);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * True once the natural size is known and the box is sized to the fitted
+   * rect, where `object-cover` and `object-contain` paint identically. Until
+   * then the box spans the whole stage and the image is letterboxed inside it.
+   */
+  const [fitted, setFitted] = useState(false);
+  const fittedRef = useRef(false);
+  const markFitted = useCallback((next: boolean) => {
+    fittedRef.current = next;
+    setFitted(next);
+  }, []);
   /** 0 while the morph is still travelling, 1 once the lightbox owns the screen. */
   const appear = useMotionValue(0);
   const backdropOpacity = useTransform(
@@ -245,10 +274,9 @@ export function Lightbox({
   /**
    * `currentIndex` is only synced to `initialIndex` by a passive effect, so on
    * the commit the portal mounts it can still hold the previous open's index.
-   * The morph layer reads the clamped prop directly instead.
+   * The opening morph reads the clamped prop directly instead.
    */
   const openIndex = clampIndex(initialIndex, 0, maxIndex);
-  const morphItem = items[phase === "opening" ? openIndex : currentIndex];
 
   /**
    * Latest render's volatile values, for the Hammer handlers. Reading these
@@ -278,6 +306,48 @@ export function Lightbox({
     getSource,
     reduce: !!reduceMotion,
   };
+
+  /** Put the box exactly on a viewport rect, without animating. */
+  const parkBox = useCallback(
+    (rect: Rect, radius: string) => {
+      const geometry = boxGeometry(rect, stageCentre());
+      boxX.set(geometry.x);
+      boxY.set(geometry.y);
+      boxW.set(geometry.width);
+      boxH.set(geometry.height);
+      boxRadius.set(radius);
+    },
+    [boxX, boxY, boxW, boxH, boxRadius],
+  );
+
+  /**
+   * Park the box at its resting geometry for the current image.
+   *
+   * With a known natural size that is the fitted rect, where the box aspect
+   * equals the image aspect and `object-cover` paints exactly what
+   * `object-contain` would. Without one there is nothing to fit to, so the box
+   * spans the stage and the image letterboxes inside it instead — the painted
+   * pixels land in the same place either way, so the switch is invisible.
+   */
+  const restBox = useCallback(() => {
+    const size = naturalSize(latest.current.item, imgRef.current);
+    parkBox(size ? fittedRect(size.w, size.h) : stageBox(), NO_RADIUS);
+    markFitted(!!size);
+  }, [parkBox, markFitted]);
+
+  /** Fly the box to a viewport rect, fading the backdrop to `dim` alongside. */
+  const flyBox = useCallback(
+    (rect: Rect, radius: string, dim: 0 | 1, onComplete: () => void) => {
+      const geometry = boxGeometry(rect, stageCentre());
+      animate(boxX, geometry.x, MORPH);
+      animate(boxY, geometry.y, MORPH);
+      animate(boxW, geometry.width, MORPH);
+      animate(boxH, geometry.height, MORPH);
+      animate(boxRadius, radius, MORPH);
+      animate(appear, dim, { ...MORPH, onComplete });
+    },
+    [boxX, boxY, boxW, boxH, boxRadius, appear],
+  );
 
   const resetDrag = useCallback(() => {
     dragX.set(0);
@@ -312,14 +382,27 @@ export function Lightbox({
     [zoom],
   );
 
+  /**
+   * Once per open, latched rather than keyed on the dependency list: this
+   * rewinds the whole session, so a parent handing over a fresh callback
+   * identity mid-flight must not be able to run it again and drag the lightbox
+   * back to its opening state.
+   */
+  const openedRef = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      openedRef.current = false;
+      return;
+    }
     if (items.length === 0) {
       onOpenChange(false);
       return;
     }
+    if (openedRef.current) return;
+    openedRef.current = true;
     setCurrentIndex(clampIndex(initialIndex, 0, maxIndex));
     enterPhase("opening");
+    markFitted(false);
     appear.set(0);
     resetDrag();
     // Reopening on the same index does not re-run the per-index effect, so the
@@ -334,6 +417,7 @@ export function Lightbox({
     resetDrag,
     resetZoom,
     enterPhase,
+    markFitted,
     appear,
   ]);
 
@@ -342,7 +426,23 @@ export function Lightbox({
   // callback, which runs before this effect.
   useEffect(() => {
     resetZoom(false);
-  }, [currentIndex, resetZoom]);
+    // Skipped while opening: the morph owns the box until it lands, and it has
+    // already told the card which thumbnail to hide.
+    if (phaseRef.current !== "open") return;
+    restBox();
+    onShownIndexChange?.(currentIndex);
+  }, [currentIndex, resetZoom, restBox, onShownIndexChange]);
+
+  /**
+   * The resting size is measured from the viewport, so it has to be remeasured
+   * when the viewport changes. `object-contain` used to do this for free.
+   */
+  useEffect(() => {
+    if (phase !== "open") return;
+    const onResize = () => restBox();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [phase, restBox]);
 
   const goTo = useCallback(
     (delta: number) => {
@@ -407,6 +507,7 @@ export function Lightbox({
     animate(dismiss, 0, SETTLE);
   }, [dragX, dragY, dismiss]);
 
+
   /**
    * Close by flying the image back into its thumbnail.
    *
@@ -419,9 +520,10 @@ export function Lightbox({
     const close = () => onOpenChange(false);
 
     const { index, item, getSource: resolve, reduce } = latest.current;
-    const size = naturalSize(item, imgRef.current);
     const source = resolve?.(index) ?? null;
-    if (reduce || !source || !size || item?.type === "video") {
+    // Unfitted, the box still spans the stage with the image letterboxed inside
+    // it, so shrinking it would drag that empty margin along. Just close.
+    if (reduce || !source || !fittedRef.current || item?.type === "video") {
       close();
       return;
     }
@@ -432,49 +534,32 @@ export function Lightbox({
       return;
     }
 
-    // Start from wherever the image actually is — mid-swipe, shrunk by the
-    // dismiss, zoomed and panned — so the flight back is continuous.
-    const from = transformRect(
-      fittedRect(size.w, size.h),
-      {
-        dragX: dragX.get(),
-        dragY: dragY.get(),
-        stageScale: stageScale.get(),
-        panX: panX.get(),
-        panY: panY.get(),
-        zoom: zoom.get(),
-      },
-      { x: window.innerWidth / 2, y: window.innerHeight / 2 },
-    );
-
-    morphX.set(from.x);
-    morphY.set(from.y);
-    morphW.set(from.width);
-    morphH.set(from.height);
-    morphRadius.set(NO_RADIUS);
+    // The box's target is a viewport rect, but the box lives inside the swipe
+    // and zoom layers. Rather than snapping those to identity first — which
+    // would keep the box's size but hand `object-cover` a different slice of a
+    // zoomed image, so the crop would jump — run them down to identity on the
+    // same curve. Nothing moves discontinuously: the first frame is exactly
+    // what was on screen, and by the last one every ancestor is neutral, so the
+    // box has landed on the thumbnail rect for real.
+    animate(dragX, 0, MORPH);
+    animate(dragY, 0, MORPH);
+    animate(dismiss, 0, MORPH);
+    animate(panX, 0, MORPH);
+    animate(panY, 0, MORPH);
+    animate(zoom, 1, MORPH);
     enterPhase("closing");
 
-    animate(morphX, to.x, MORPH);
-    animate(morphY, to.y, MORPH);
-    animate(morphW, to.width, MORPH);
-    animate(morphH, to.height, MORPH);
-    animate(morphRadius, readRadius(source), MORPH);
-    animate(appear, 0, { ...MORPH, onComplete: close });
+    flyBox(to, readRadius(source), 0, close);
   }, [
     onOpenChange,
     enterPhase,
+    flyBox,
     dragX,
     dragY,
-    stageScale,
+    dismiss,
     panX,
     panY,
     zoom,
-    morphX,
-    morphY,
-    morphW,
-    morphH,
-    morphRadius,
-    appear,
   ]);
 
   /**
@@ -488,52 +573,39 @@ export function Lightbox({
     if (!stage || phaseRef.current !== "opening") return;
 
     const reveal = () => {
+      restBox();
       appear.set(1);
       enterPhase("open");
+      onShownIndexChange?.(openIndex);
     };
 
     const item = items[openIndex];
-    const size = naturalSize(item, morphImgRef.current);
+    const size = naturalSize(item, imgRef.current);
     const source = getSource?.(openIndex) ?? null;
-    if (reduceMotion || !source || !size || item?.type === "video") {
+    const from = source?.getBoundingClientRect();
+    if (reduceMotion || !source || !from?.width || !size || item?.type === "video") {
       reveal();
       return;
     }
 
-    const from = source.getBoundingClientRect();
-    if (!from.width || !from.height) {
-      reveal();
-      return;
-    }
-
-    const to = fittedRect(size.w, size.h);
-    morphX.set(from.x);
-    morphY.set(from.y);
-    morphW.set(from.width);
-    morphH.set(from.height);
-    morphRadius.set(readRadius(source));
-
-    const running = [
-      animate(morphX, to.x, MORPH),
-      animate(morphY, to.y, MORPH),
-      animate(morphW, to.width, MORPH),
-      animate(morphH, to.height, MORPH),
-      animate(morphRadius, NO_RADIUS, MORPH),
-      animate(appear, 1, { ...MORPH, onComplete: () => enterPhase("open") }),
-    ];
-    return () => running.forEach((animation) => animation.stop());
+    parkBox(from, readRadius(source));
+    markFitted(true);
+    // Only now is the image sitting on the thumbnail, so this is the moment the
+    // card can hide its copy without a hole showing.
+    onShownIndexChange?.(openIndex);
+    flyBox(fittedRect(size.w, size.h), NO_RADIUS, 1, () => enterPhase("open"));
   }, [
     stage,
     items,
     openIndex,
     getSource,
+    onShownIndexChange,
     reduceMotion,
     enterPhase,
-    morphX,
-    morphY,
-    morphW,
-    morphH,
-    morphRadius,
+    parkBox,
+    flyBox,
+    restBox,
+    markFitted,
     appear,
   ]);
 
@@ -712,7 +784,8 @@ export function Lightbox({
           (event.deltaX < 0 && !latest.current.hasNext);
         dragX.set(blocked ? rubberBand(event.deltaX) : event.deltaX);
       } else {
-        dragY.set(event.deltaY > 0 ? event.deltaY : rubberBand(event.deltaY));
+        // Free in both directions: up dismisses just like down.
+        dragY.set(event.deltaY);
         dismiss.set(dismissProgress(event.deltaY, stageH));
       }
     });
@@ -807,13 +880,14 @@ export function Lightbox({
       // Off the image there is nothing a second tap could zoom, so close at
       // once — waiting out the double-tap window there just reads as lag.
       //
-      // `event.target` cannot answer this: the <img> is `h-full w-full`, so its
-      // element box covers the whole stage while `object-contain` paints only a
-      // letterboxed slice of it. Hit test the painted rect instead. Zoom and
-      // pan are both at rest here — the zoomed case returned above, and a tap
-      // never drags — so the painted rect is exactly the fitted rect.
-      const size = naturalSize(latest.current.item, imgRef.current);
-      const painted = size ? fittedRect(size.w, size.h) : null;
+      // `event.target` cannot answer this: the <img> fills its box, and while
+      // the natural size is unknown that box spans the whole stage with the
+      // image letterboxed inside it. Hit test the box's own rect, which is the
+      // painted rect once fitted and is measured live, so it stays correct
+      // mid-zoom and mid-swipe too.
+      const painted = fittedRef.current
+        ? boxRef.current?.getBoundingClientRect()
+        : null;
       if (painted && !containsPoint(painted, event.center.x, event.center.y)) {
         requestClose();
         return;
@@ -874,22 +948,34 @@ export function Lightbox({
     return () => mc.destroy();
   }, [dots, scrubDots]);
 
-  const measureImage = useCallback((img: HTMLImageElement) => {
-    setLoaded(true);
-    if (!img.clientWidth || !img.clientHeight) return;
-    const fit = Math.min(
-      img.clientWidth / img.naturalWidth,
-      img.clientHeight / img.naturalHeight,
-    );
-    // fit > 1 means the image was scaled *up* to fill the stage, so natural
-    // size sits below the fitted size and toggleZoom falls back to a magnify.
-    const natural = 1 / fit;
-    setNaturalScale(natural);
-    setMaxScale(Math.max(MIN_MAX_SCALE, natural));
-  }, []);
+  const measureImage = useCallback(
+    (img: HTMLImageElement) => {
+      setLoaded(true);
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      // Straight from the fitted rect rather than the element's client size:
+      // `load` can beat layout, and a 0-wide element used to abandon the
+      // measurement and leave the zoom capped at the default.
+      //
+      // natural < 1 means the image was scaled *up* to fill the stage, so 1:1
+      // sits below the fitted size and toggleZoom falls back to a magnify.
+      const natural =
+        img.naturalWidth / fittedRect(img.naturalWidth, img.naturalHeight).width;
+      setNaturalScale(natural);
+      setMaxScale(Math.max(MIN_MAX_SCALE, natural));
+      // A late `load` on an item whose size the API did not carry: the box is
+      // still spanning the stage, so settle it onto the real fitted rect. Only
+      // while at rest — the morph and any live gesture own the box otherwise.
+      if (!fittedRef.current && phaseRef.current === "open") restBox();
+    },
+    [restBox],
+  );
 
   /**
-   * The <img> is keyed per item, so this runs for every image. Measuring here
+   * The <img> is keyed per item, so this runs for every image. It deliberately
+   * leaves `fitted` alone: that describes the box's geometry, which `restBox`
+   * owns, and clearing it here would race the opening morph.
+   *
+   * Measuring here
    * rather than waiting for `load` is what stops the blurhash from flashing:
    * a cached or preloaded image is already complete when it mounts, and this
    * callback runs in the commit phase, so the state lands before paint.
@@ -992,18 +1078,20 @@ export function Lightbox({
         className="!fixed !inset-0 !h-screen !w-screen !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-transparent !p-0 [&>button]:hidden"
       >
         <DialogTitle className="sr-only">{t("title")}</DialogTitle>
+        {/* Dim only, and a sibling rather than the parent of everything: the
+            image has to stay opaque while this fades out from under it. */}
         <motion.div
-          className="relative h-full w-full bg-black/85"
+          className="absolute inset-0 bg-black/85"
           style={{ opacity: backdropOpacity }}
+        />
+        {/* Whole control overlay fades out while idle. `pointer-events-none`
+            follows the fade so invisible controls cannot swallow a click. */}
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 z-30 transition-opacity duration-300 ease-out",
+            controlsVisible ? "opacity-100" : "opacity-0",
+          )}
         >
-          {/* Whole control overlay fades out while idle. `pointer-events-none`
-              follows the fade so invisible controls cannot swallow a click. */}
-          <div
-            className={cn(
-              "pointer-events-none absolute inset-0 z-30 transition-opacity duration-300 ease-out",
-              controlsVisible ? "opacity-100" : "opacity-0",
-            )}
-          >
           {/* Two pills, not one: zooming and closing are unrelated actions, and
               sharing a surface made the × read as part of the zoom group. */}
           <div className="absolute right-3 top-3 flex items-center gap-2">
@@ -1138,9 +1226,9 @@ export function Lightbox({
             ref={attachStage}
             className={cn(
               "absolute inset-0 overscroll-contain",
-              // Hidden, not unmounted: the fitted rect is measured off it, and
-              // Hammer stays bound across the whole open/close cycle.
-              phase !== "open" && "pointer-events-none opacity-0",
+              // The morph is the image moving, not an overlay, so the stage
+              // stays visible throughout — it just does not take gestures.
+              phase !== "open" && "pointer-events-none",
             )}
             style={{ touchAction: "none" }}
           >
@@ -1151,71 +1239,61 @@ export function Lightbox({
             >
               {/* Zoom layer, nested so a dismiss shrinks the zoomed image too. */}
               <motion.div
-                className="flex h-full w-full items-center justify-center p-2"
+                className="flex h-full w-full items-center justify-center"
                 style={{ x: panX, y: panY, scale: zoom }}
               >
                   {/* ponytail: images only for now. Video preview is typed but not
                       implemented — add a <VideoPlayer> branch here, and drop the
                       `type !== "video"` filter in PostCard, when it lands. */}
                   {currentItem.type === "video" ? null : (
-                    <img
-                      key={currentItem.url}
-                      ref={attachImage}
-                      src={currentItem.url}
-                      alt={currentItem.alt || t("imageAlt")}
-                      draggable={false}
-                      onLoad={(event) => measureImage(event.currentTarget)}
-                      // No padding here: clientWidth feeds the 等倍 scale, so it
-                      // has to be the rendered image box exactly.
-                      className={cn(
-                        "h-full w-full select-none object-contain",
-                        // Fitted, a click closes rather than zooms — only the
-                        // zoomed state earns a magnifier.
-                        zoomed
-                          ? "cursor-zoom-out active:cursor-grabbing"
-                          : "cursor-default",
-                      )}
+                    // The image box. Its geometry *is* the morph: it starts on
+                    // the card thumbnail and grows to the fitted rect, so the
+                    // one <img> below travels rather than handing off to a copy.
+                    <motion.div
+                      ref={boxRef}
+                      className="overflow-hidden"
                       style={{
-                        backgroundImage: blurhashUrl
-                          ? `url(${blurhashUrl})`
-                          : undefined,
-                        backgroundSize: "contain",
-                        backgroundRepeat: "no-repeat",
-                        backgroundPosition: "center",
+                        x: boxX,
+                        y: boxY,
+                        width: boxW,
+                        height: boxH,
+                        borderRadius: boxRadius,
                       }}
-                    />
+                    >
+                      <img
+                        key={currentItem.url}
+                        ref={attachImage}
+                        src={currentItem.url}
+                        alt={currentItem.alt || t("imageAlt")}
+                        draggable={false}
+                        onLoad={(event) => measureImage(event.currentTarget)}
+                        className={cn(
+                          "h-full w-full select-none",
+                          // Cover once the box carries the image's own aspect,
+                          // which is what unwinds the card's crop on the way
+                          // out; contain only while the box still spans the
+                          // stage because the natural size is unknown.
+                          fitted ? "object-cover" : "object-contain",
+                          // Fitted, a click closes rather than zooms — only the
+                          // zoomed state earns a magnifier.
+                          zoomed
+                            ? "cursor-zoom-out active:cursor-grabbing"
+                            : "cursor-default",
+                        )}
+                        style={{
+                          backgroundImage: blurhashUrl
+                            ? `url(${blurhashUrl})`
+                            : undefined,
+                          backgroundSize: fitted ? "cover" : "contain",
+                          backgroundRepeat: "no-repeat",
+                          backgroundPosition: "center",
+                        }}
+                      />
+                    </motion.div>
                   )}
               </motion.div>
             </motion.div>
           </div>
-        </motion.div>
-
-        {/* Outside the backdrop on purpose: nested, the closing fade would take
-            the image with it before it reached the thumbnail. */}
-        {phase !== "open" && morphItem && morphItem.type !== "video" && (
-          <motion.div
-            aria-hidden
-            className="pointer-events-none fixed left-0 top-0 z-40 overflow-hidden"
-            style={{
-              x: morphX,
-              y: morphY,
-              width: morphW,
-              height: morphH,
-              borderRadius: morphRadius,
-            }}
-          >
-            {/* object-cover the whole way. At the landing rect the box aspect
-                equals the image aspect, so cover and contain coincide and the
-                card's crop unwinds instead of cutting. */}
-            <img
-              ref={morphImgRef}
-              src={morphItem.url}
-              alt=""
-              draggable={false}
-              className="h-full w-full object-cover"
-            />
-          </motion.div>
-        )}
       </DialogContent>
     </Dialog>
   );

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  boxGeometry,
   containRect,
   containsPoint,
-  transformRect,
   type Rect,
 } from "./lightbox-morph";
 
@@ -36,62 +36,40 @@ describe("containRect", () => {
   });
 });
 
-const IDENTITY = {
-  dragX: 0,
-  dragY: 0,
-  stageScale: 1,
-  panX: 0,
-  panY: 0,
-  zoom: 1,
-};
-const CENTRE = { x: 500, y: 300 };
+describe("boxGeometry", () => {
+  const CENTRE = { x: 500, y: 300 };
 
-describe("transformRect", () => {
-  it("is a no-op at rest", () => {
-    const base: Rect = { x: 100, y: 50, width: 400, height: 300 };
-    expect(transformRect(base, IDENTITY, CENTRE)).toEqual(base);
+  it("is all zeros for a rect already centred", () => {
+    expect(boxGeometry({ x: 300, y: 200, width: 400, height: 200 }, CENTRE)).toEqual({
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 200,
+    });
   });
 
-  it("leaves a centred rect centred while the dismiss shrinks it", () => {
-    // A rect centred on the origin must stay centred: scaling is about `centre`.
-    const base: Rect = { x: 300, y: 200, width: 400, height: 200 };
-    const r = transformRect(base, { ...IDENTITY, stageScale: 0.6 }, CENTRE);
-    expect(r.width).toBeCloseTo(240);
-    expect(r.height).toBeCloseTo(120);
-    expect(r.x + r.width / 2).toBeCloseTo(CENTRE.x);
-    expect(r.y + r.height / 2).toBeCloseTo(CENTRE.y);
+  it("offsets by the gap between the two centres", () => {
+    // A thumbnail up and to the left of the stage centre.
+    expect(boxGeometry({ x: 100, y: 50, width: 200, height: 100 }, CENTRE)).toEqual({
+      x: 200 - 500,
+      y: 100 - 300,
+      width: 200,
+      height: 100,
+    });
   });
 
-  it("applies the drag after the scale, like the CSS transform does", () => {
-    const base: Rect = { x: 300, y: 200, width: 400, height: 200 };
-    const r = transformRect(
-      { ...base },
-      { ...IDENTITY, stageScale: 0.5, dragX: 100, dragY: -40 },
-      CENTRE,
-    );
-    // Centre lands at centre*1 + drag, not (centre + drag) * scale.
-    expect(r.x + r.width / 2).toBeCloseTo(CENTRE.x + 100);
-    expect(r.y + r.height / 2).toBeCloseTo(CENTRE.y - 40);
-  });
-
-  it("compounds the zoom layer inside the swipe layer", () => {
-    const base: Rect = { x: 300, y: 200, width: 400, height: 200 };
-    const r = transformRect(
-      base,
-      { ...IDENTITY, zoom: 2, panX: 30, stageScale: 0.5 },
-      CENTRE,
-    );
-    expect(r.width).toBeCloseTo(400);
-    expect(r.height).toBeCloseTo(200);
-    // pan is applied in zoom-layer space, so the swipe scale halves it.
-    expect(r.x + r.width / 2).toBeCloseTo(CENTRE.x + 15);
+  it("round-trips a fitted rect back to the resting position", () => {
+    const fitted = containRect(1968, 984, BOX);
+    const centre = { x: BOX.x + BOX.width / 2, y: BOX.y + BOX.height / 2 };
+    const geom = boxGeometry(fitted, centre);
+    expect(geom.x).toBeCloseTo(0);
+    expect(geom.y).toBeCloseTo(0);
   });
 });
 
 describe("containsPoint", () => {
-  // The <img> element is `h-full w-full`, so it covers the whole stage while
-  // `object-contain` paints only a letterboxed slice of it. Hit testing has to
-  // use the painted rect, not the element.
+  // The <img> fills its box, but during the morph that box is the thumbnail
+  // rect, and at rest the painted rect is what a tap has to be tested against.
   const painted = containRect(1968, 984, BOX);
 
   it("accepts a point on the image", () => {

@@ -41,42 +41,19 @@ export function containsPoint(rect: Rect, x: number, y: number): boolean {
   );
 }
 
-export interface StageTransform {
-  /** Swipe layer translation. */
-  dragX: number;
-  dragY: number;
-  /** Swipe layer scale, shrunk by the dismiss gesture. */
-  stageScale: number;
-  /** Zoom layer translation. */
-  panX: number;
-  panY: number;
-  /** Zoom layer scale. */
-  zoom: number;
-}
-
 /**
- * The rect a stage-space `base` occupies on screen under the two nested
- * transforms the Lightbox applies.
+ * A viewport rect expressed as the image box's own `x/y/width/height`.
  *
- * Both layers fill the viewport, so both transform about the same origin `c`.
- * CSS applies `translate(t) scale(s)` right-to-left — scale first — so:
- *
- *   inner: p -> c + (p - c) * zoom + pan
- *   outer: q -> c + (q - c) * stageScale + drag
- *   both:  p -> c + ((p - c) * zoom + pan) * stageScale + drag
+ * The box is flex-centred in a viewport-sized stage, so its `x`/`y` are offsets
+ * of its centre from the stage centre. Converting through this is what lets a
+ * thumbnail rect become an animation target for a box that lives inside the
+ * swipe and zoom layers.
  */
-export function transformRect(
-  base: Rect,
-  t: StageTransform,
-  centre: { x: number; y: number },
-): Rect {
-  const project = (p: number, c: number, pan: number, drag: number) =>
-    c + ((p - c) * t.zoom + pan) * t.stageScale + drag;
-  const scale = t.zoom * t.stageScale;
+export function boxGeometry(rect: Rect, centre: { x: number; y: number }): Rect {
   return {
-    x: project(base.x, centre.x, t.panX, t.dragX),
-    y: project(base.y, centre.y, t.panY, t.dragY),
-    width: base.width * scale,
-    height: base.height * scale,
+    x: rect.x + rect.width / 2 - centre.x,
+    y: rect.y + rect.height / 2 - centre.y,
+    width: rect.width,
+    height: rect.height,
   };
 }

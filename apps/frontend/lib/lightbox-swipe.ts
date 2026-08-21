@@ -23,7 +23,7 @@ export interface SwipeInput {
 
 /** Fraction of the stage width a horizontal drag must cross to commit. */
 const HORIZONTAL_RATIO = 0.25;
-/** Fraction of the stage height a downward drag must cross to dismiss. */
+/** Fraction of the stage height a vertical drag must cross to dismiss. */
 const VERTICAL_RATIO = 0.2;
 /**
  * Absolute ceilings on those fractions. A ratio alone scales with the stage,
@@ -73,16 +73,22 @@ export function resolveSwipe({
     return hasNext ? "next" : "none";
   }
 
-  // Only downward swipes dismiss; upward does nothing.
-  if (dy <= 0) return "none";
+  // Either direction dismisses. As on the horizontal axis, a flick only counts
+  // when it agrees with the travel, so dragging one way and flicking back
+  // cancels instead of committing.
+  const flicked =
+    Math.abs(vy) > FLICK_VELOCITY && Math.sign(vy) === Math.sign(dy);
   const needed = commitDistance(height, VERTICAL_RATIO, MAX_VERTICAL_PX);
-  return dy > needed || vy > FLICK_VELOCITY ? "dismiss" : "none";
+  return Math.abs(dy) > needed || flicked ? "dismiss" : "none";
 }
 
-/** Progress of an in-flight dismiss drag, 0..1 — drives backdrop fade and shrink. */
+/**
+ * Progress of an in-flight dismiss drag, 0..1 — drives backdrop fade and
+ * shrink. Direction-agnostic: dragging up dismisses just like dragging down.
+ */
 export function dismissProgress(dy: number, height: number): number {
-  if (dy <= 0 || height <= 0) return 0;
-  return Math.min(1, dy / height);
+  if (height <= 0) return 0;
+  return Math.min(1, Math.abs(dy) / height);
 }
 
 /** Resistance applied when dragging toward an edge that has no neighbour. */

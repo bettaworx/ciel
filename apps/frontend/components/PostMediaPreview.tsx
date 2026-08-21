@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Crop, X } from "lucide-react";
 import { BlurhashImage } from "@/components/BlurhashImage";
+import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
@@ -37,6 +38,11 @@ export interface PostMediaPreviewProps {
    * it, and reads its rounding from it.
    */
   onLightboxOpen?: (index: number, source: HTMLElement | null) => void;
+  /**
+   * Index of the image the lightbox is currently showing. That cell falls back
+   * to its blurhash so the same image is never painted twice on screen at once.
+   */
+  hiddenIndex?: number | null;
   /** Additional class name for the outer wrapper. */
   className?: string;
 }
@@ -123,6 +129,7 @@ export function PostMediaPreview({
   onRemove,
   onCrop,
   onLightboxOpen,
+  hiddenIndex,
   className,
 }: PostMediaPreviewProps) {
   const tLightbox = useTranslations("lightbox");
@@ -165,10 +172,39 @@ export function PostMediaPreview({
     return undefined;
   };
 
-  // Marks the wrapper the lightbox morph animates from. Only meaningful when a
-  // lightbox is wired up, so the composer preview stays untouched.
+  // Marks the wrapper the lightbox morph animates from, and — while the
+  // lightbox has that image — swaps the cell for its blurhash. Only meaningful
+  // when a lightbox is wired up, so the composer preview stays untouched.
   const lightboxIndexAttr = (index: number) =>
     onLightboxOpen ? { "data-lightbox-index": index } : undefined;
+
+  /** True while the lightbox is the one painting this image. */
+  const isHidden = (index: number) =>
+    Boolean(onLightboxOpen) && hiddenIndex === index;
+
+  /** Blurhash stand-in for the cell the lightbox has taken over. */
+  const hiddenStyle = (
+    index: number,
+    item: PreviewMediaItem,
+  ): React.CSSProperties | undefined =>
+    isHidden(index)
+      ? {
+          backgroundImage: `url(${getBlurhashDataUrl(item.blurhash)})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }
+      : undefined;
+
+  /**
+   * The card must not also paint what the lightbox is showing.
+   *
+   * `invisible` rather than `opacity-0`: BlurhashImage appends its own
+   * `transition-opacity` after this class, so an opacity hide would fade over
+   * 240ms — leaving the duplicate on screen for exactly the stretch of the
+   * morph where the backdrop is still too light to cover it.
+   */
+  const hiddenClass = (index: number) =>
+    isHidden(index) ? "invisible" : undefined;
 
   const renderImageActionOverlay = (item: PreviewMediaItem, index: number) => {
     // The button is `absolute inset-0` directly inside the wrapper, so its
@@ -227,7 +263,7 @@ export function PostMediaPreview({
       <div className={className}>
         <div
           className="relative w-full overflow-hidden rounded-xl group"
-          style={singleImageStyle}
+          style={{ ...singleImageStyle, ...hiddenStyle(0, imageMedia[0]) }}
           {...lightboxIndexAttr(0)}
         >
           <BlurhashImage
@@ -236,7 +272,11 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover", getImageCursorClass(imageMedia[0]))}
+            className={cn(
+              "object-cover",
+              hiddenClass(0),
+              getImageCursorClass(imageMedia[0]),
+            )}
             sizes="(max-width: 600px) 100vw, 600px"
           />
           {renderImageActionOverlay(imageMedia[0], 0)}
@@ -261,6 +301,7 @@ export function PostMediaPreview({
         <div
           className="relative aspect-[8/9] overflow-hidden rounded-l-xl group"
           {...lightboxIndexAttr(0)}
+          style={hiddenStyle(0, imageMedia[0])}
         >
           <BlurhashImage
             blurhash={imageMedia[0].blurhash}
@@ -268,7 +309,11 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover", getImageCursorClass(imageMedia[0]))}
+            className={cn(
+              "object-cover",
+              hiddenClass(0),
+              getImageCursorClass(imageMedia[0]),
+            )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[0], 0)}
@@ -285,6 +330,7 @@ export function PostMediaPreview({
         <div
           className="relative aspect-[8/9] overflow-hidden rounded-r-xl group"
           {...lightboxIndexAttr(1)}
+          style={hiddenStyle(1, imageMedia[1])}
         >
           <BlurhashImage
             blurhash={imageMedia[1].blurhash}
@@ -292,7 +338,11 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover", getImageCursorClass(imageMedia[1]))}
+            className={cn(
+              "object-cover",
+              hiddenClass(1),
+              getImageCursorClass(imageMedia[1]),
+            )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[1], 1)}
@@ -317,6 +367,7 @@ export function PostMediaPreview({
         <div
           className="relative row-span-2 overflow-hidden rounded-l-xl group"
           {...lightboxIndexAttr(0)}
+          style={hiddenStyle(0, imageMedia[0])}
         >
           <BlurhashImage
             blurhash={imageMedia[0].blurhash}
@@ -324,7 +375,11 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover", getImageCursorClass(imageMedia[0]))}
+            className={cn(
+              "object-cover",
+              hiddenClass(0),
+              getImageCursorClass(imageMedia[0]),
+            )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[0], 0)}
@@ -341,6 +396,7 @@ export function PostMediaPreview({
         <div
           className="relative aspect-video overflow-hidden rounded-tr-xl group"
           {...lightboxIndexAttr(1)}
+          style={hiddenStyle(1, imageMedia[1])}
         >
           <BlurhashImage
             blurhash={imageMedia[1].blurhash}
@@ -348,7 +404,11 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover", getImageCursorClass(imageMedia[1]))}
+            className={cn(
+              "object-cover",
+              hiddenClass(1),
+              getImageCursorClass(imageMedia[1]),
+            )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[1], 1)}
@@ -365,6 +425,7 @@ export function PostMediaPreview({
         <div
           className="relative aspect-video overflow-hidden rounded-br-xl group"
           {...lightboxIndexAttr(2)}
+          style={hiddenStyle(2, imageMedia[2])}
         >
           <BlurhashImage
             blurhash={imageMedia[2].blurhash}
@@ -372,7 +433,11 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn("object-cover", getImageCursorClass(imageMedia[2]))}
+            className={cn(
+              "object-cover",
+              hiddenClass(2),
+              getImageCursorClass(imageMedia[2]),
+            )}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[2], 2)}
@@ -409,6 +474,7 @@ export function PostMediaPreview({
               roundingClasses[i],
             )}
             {...lightboxIndexAttr(i)}
+            style={hiddenStyle(i, item)}
           >
             <BlurhashImage
               blurhash={item.blurhash}
@@ -416,7 +482,11 @@ export function PostMediaPreview({
               alt=""
               fill
               unoptimized
-              className={cn("object-cover", getImageCursorClass(item))}
+              className={cn(
+                "object-cover",
+                hiddenClass(i),
+                getImageCursorClass(item),
+              )}
               sizes="(max-width: 600px) 50vw, 300px"
             />
             {renderImageActionOverlay(item, i)}

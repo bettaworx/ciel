@@ -616,6 +616,12 @@ export function PostCard({
 
   /** The media wrapper that was clicked; the lightbox morphs out of it. */
   const lightboxSourceRef = useRef<HTMLElement | null>(null);
+  /**
+   * The cell whose image the lightbox is currently showing. Hidden here so the
+   * same image is never painted twice at once — the lightbox moves the card's
+   * image rather than flying a copy over it.
+   */
+  const [hiddenMediaIndex, setHiddenMediaIndex] = useState<number | null>(null);
 
   const handleLightboxOpen = useCallback(
     (index: number, source: HTMLElement | null) => {
@@ -629,6 +635,15 @@ export function PostCard({
   // Resolved from the clicked wrapper's siblings rather than a ref on the media
   // container: `mediaNode` is placed in two mutually exclusive branches, and a
   // quoted post nests a second PostCard whose media must not be picked up here.
+  // Stable: an inline handler here re-fires the lightbox's per-open reset on
+  // every render of this card, which the lightbox itself triggers by reporting
+  // the index it is showing.
+  const handleLightboxOpenChange = useCallback((next: boolean) => {
+    setLightboxOpen(next);
+    // Unhide in the same commit as the unmount, or the cell flashes empty.
+    if (!next) setHiddenMediaIndex(null);
+  }, []);
+
   const getLightboxSource = useCallback(
     (index: number) =>
       lightboxSourceRef.current?.parentElement?.querySelector<HTMLElement>(
@@ -1116,6 +1131,7 @@ export function PostCard({
       <PostMediaPreview
         media={previewMedia}
         onLightboxOpen={handleLightboxOpen}
+        hiddenIndex={hiddenMediaIndex}
       />
     </div>
   );
@@ -1387,9 +1403,10 @@ export function PostCard({
       <Lightbox
         items={lightboxItems}
         open={lightboxOpen}
-        onOpenChange={setLightboxOpen}
+        onOpenChange={handleLightboxOpenChange}
         initialIndex={lightboxIndex}
         getSource={getLightboxSource}
+        onShownIndexChange={setHiddenMediaIndex}
       />
       {isDesktop ? (
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
