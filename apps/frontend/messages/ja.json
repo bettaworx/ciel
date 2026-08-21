@@ -579,7 +579,7 @@
     "qualityPerformance": "パフォーマンス優先",
     "qualityBalance": "バランス",
     "qualityHigh": "クオリティ優先",
-    "qualityNone": "なし"
+    "qualityNone": "そのまま"
   },
   "lightbox": {
     "title": "画像ビューア",

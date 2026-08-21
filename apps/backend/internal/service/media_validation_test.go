@@ -69,6 +69,12 @@ func TestValidateMIMEType(t *testing.T) {
 		{"octet-stream declared is ignored", webp, ".webp", "application/octet-stream", false},
 		{"empty declared is ignored", gif, ".gif", "", false},
 
+		// Go only recognises MP4 whose ftyp lists an "mp4*" brand; the rest come
+		// back as octet-stream and are left for ffprobe to judge.
+		{"unrecognised bytes in a video name", make([]byte, 64), ".mp4", "video/mp4", false},
+		{"unrecognised bytes in a webm name", make([]byte, 64), ".webm", "video/webm", false},
+		{"unrecognised bytes in an image name", make([]byte, 64), ".webp", "image/webp", true},
+
 		{"png content is rejected outright", png, ".png", "image/png", true},
 		{"png renamed to webp", png, ".webp", "image/webp", true},
 		{"gif content in a webp name", gif, ".webp", "image/webp", true},

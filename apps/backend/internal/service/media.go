@@ -59,6 +59,13 @@ var allowedImageFormats = map[string]struct{}{
 	"gif":  {},
 }
 
+// isVideoExt reports whether the extension names one of the accepted video
+// containers, independent of any per-server configuration.
+func isVideoExt(ext string) bool {
+	_, ok := allowedVideoCodecs[strings.ToLower(ext)]
+	return ok
+}
+
 // allowedVideoCodecs lists the codecs permitted inside each accepted container.
 // Anything else — including a codec that is merely muxable but that the
 // frontend never emits — is rejected.
@@ -685,7 +692,10 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 	// Validate video file (streams, duration, dimensions)
 	videoInfo, err := s.validateVideoFile(ctx, inPath, ext)
 	if err != nil {
-		return api.Media{}, err
+		// These are all "this file is not acceptable", so say so rather than
+		// letting the handler report an internal error.
+		slog.Info("video rejected", "error", err, "ext", ext)
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", err.Error())
 	}
 
 	// Check duration limit
@@ -952,9 +962,14 @@ func validateMIMEType(buf []byte, ext, declaredCT string) error {
 	// Validate sniffed MIME type
 	sniff := http.DetectContentType(buf)
 	if _, ok := allowedMIMESniff[sniff]; !ok {
-		return NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "unsupported mime type")
-	}
-	if expectedMime != "" && sniff != expectedMime {
+		// Go's sniffer only recognises MP4 whose ftyp box lists an "mp4*" brand,
+		// so perfectly good files come back as octet-stream. For video that is
+		// not worth rejecting on: ffprobe checks the container and every codec
+		// straight after, which is a far stronger test than four magic bytes.
+		if !(sniff == "application/octet-stream" && isVideoExt(ext)) {
+			return NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "unsupported mime type")
+		}
+	} else if expectedMime != "" && sniff != expectedMime {
 		return NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "file extension and content-type mismatch")
 	}
 

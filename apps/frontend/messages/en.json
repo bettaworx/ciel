@@ -579,7 +579,7 @@
     "qualityPerformance": "Performance first",
     "qualityBalance": "Balanced",
     "qualityHigh": "Quality first",
-    "qualityNone": "None"
+    "qualityNone": "As is"
   },
   "lightbox": {
     "title": "Image viewer",

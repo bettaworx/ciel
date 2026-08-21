@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Ban, Check, Gauge, Grid2x2, Scale, Sparkles } from "lucide-react";
+import { Check, FileUp, Gauge, Grid2x2, Scale, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +27,7 @@ const DESKTOP = "(min-width: 640px)";
 export type QualityMode = ImageQualityMode | VideoQualityMode;
 
 const ICON_FOR: Record<QualityMode, LucideIcon> = {
-  none: Ban,
+  none: FileUp,
   "dot-by-dot": Grid2x2,
   performance: Gauge,
   balance: Scale,
