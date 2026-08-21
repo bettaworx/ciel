@@ -4,6 +4,7 @@ import {
 	isGifFile,
 	isVideoFile,
 	normalizeForUpload,
+	pickVideoBitrate,
 	replaceExt,
 } from './normalize';
 
@@ -115,5 +116,88 @@ describe('normalizeForUpload', () => {
 	it('passes gifs through untouched', async () => {
 		const gif = new File([new Uint8Array(4)], 'a.gif', { type: 'image/gif' });
 		expect(await normalizeForUpload(gif)).toBe(gif);
+	});
+});
+
+describe('pickVideoBitrate', () => {
+	const MiB = 1024 * 1024;
+	const LIMIT = 100 * MiB;
+
+	/** Output size the chosen bitrate implies, including the 96 kbps audio track. */
+	const outputBytes = (bitrate: number, durationSec: number) =>
+		((bitrate + 96_000) * durationSec) / 8;
+
+	// 2023-07-18 12-47-26.mkv: 32.4 MB, 97.2s, 2152x2252 HEVC 60fps -> 2.67 Mbps.
+	// Downscaled to 1835x1920, the quality ceiling is 10.6 Mbps and the size
+	// budget 7.7 Mbps, so without the source limit this was re-encoded at 7.7
+	// Mbps into a ~90 MiB file: nearly three times the input.
+	it('never spends more bits than the source did', () => {
+		const bitrate = pickVideoBitrate({
+			fileSize: 32_418_755,
+			durationSec: 97.2,
+			width: 1835,
+			height: 1920,
+			maxBytes: LIMIT,
+		});
+
+		expect(bitrate).not.toBeNull();
+		expect(bitrate!).toBeLessThan(2_700_000);
+		expect(outputBytes(bitrate!, 97.2)).toBeLessThan(35 * MiB);
+	});
+
+	it('caps a high-bitrate source at the quality ceiling', () => {
+		// 50 Mbps 4K source, downscaled to 1920x1080.
+		const bitrate = pickVideoBitrate({
+			fileSize: 50_000_000 * 20 / 8,
+			durationSec: 20,
+			width: 1920,
+			height: 1080,
+			maxBytes: LIMIT,
+		});
+
+		expect(bitrate).toBe(Math.round(0.1 * 1920 * 1080 * 30));
+	});
+
+	it('lets the size budget bind on a long video', () => {
+		// 5 minutes at a source bitrate far above what the limit allows.
+		const durationSec = 300;
+		const bitrate = pickVideoBitrate({
+			fileSize: 2_000 * MiB,
+			durationSec,
+			width: 1920,
+			height: 1080,
+			maxBytes: LIMIT,
+		});
+
+		expect(bitrate).not.toBeNull();
+		expect(outputBytes(bitrate!, durationSec)).toBeLessThan(LIMIT);
+	});
+
+	it('rejects a video too long to fit at a watchable bitrate', () => {
+		expect(
+			pickVideoBitrate({
+				fileSize: 2_000 * MiB,
+				durationSec: 3600,
+				width: 1920,
+				height: 1080,
+				maxBytes: LIMIT,
+			}),
+		).toBeNull();
+	});
+
+	// The source limit must not be mistaken for "cannot fit": a clip that was
+	// already tiny should stay tiny, not be rejected.
+	it('keeps an already-tiny video instead of rejecting it', () => {
+		const bitrate = pickVideoBitrate({
+			fileSize: 200 * 1024,
+			durationSec: 30,
+			width: 640,
+			height: 480,
+			maxBytes: LIMIT,
+		});
+
+		expect(bitrate).not.toBeNull();
+		expect(bitrate!).toBeGreaterThan(0);
+		expect(outputBytes(bitrate!, 30)).toBeLessThan(2 * MiB);
 	});
 });

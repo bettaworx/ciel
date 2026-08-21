@@ -107,6 +107,41 @@ export function fitWithin(
 	};
 }
 
+/**
+ * Video bitrate, in bits per second, as the tightest of three limits:
+ *
+ *   ceiling — more bits than this stop being visible
+ *   budget  — what the caller's size limit leaves for this duration
+ *   source  — what the input actually spent; encoding above it only inflates
+ *             the file, and the output is downscaled on top of that
+ *
+ * Returns null when even the budget cannot buy a watchable bitrate, i.e. the
+ * video is too long to fit at all. The source limit never triggers that: a clip
+ * that was already tiny is fine to keep tiny.
+ */
+export function pickVideoBitrate(input: {
+	fileSize: number;
+	durationSec: number;
+	width: number;
+	height: number;
+	maxBytes?: number;
+}): number | null {
+	const { fileSize, durationSec, width, height, maxBytes } = input;
+
+	const ceiling = BITS_PER_PIXEL * width * height * ASSUMED_FPS;
+
+	const budget =
+		maxBytes && durationSec > 0
+			? (maxBytes * 8 * SIZE_BUDGET_HEADROOM) / durationSec - AUDIO_BITRATE
+			: Infinity;
+	if (budget < MIN_VIDEO_BITRATE) return null;
+
+	const source =
+		durationSec > 0 ? (fileSize * 8) / durationSec - AUDIO_BITRATE : Infinity;
+
+	return Math.round(Math.min(ceiling, budget, Math.max(source, MIN_VIDEO_BITRATE)));
+}
+
 /** Swap a filename's extension, e.g. ("cat.HEIC", "webp") -> "cat.webp". */
 export function replaceExt(filename: string, ext: string): string {
 	const base = filename.replace(/\.[^.]*$/, '') || 'media';
@@ -193,16 +228,14 @@ async function normalizeVideo(file: File, opts: NormalizeOptions): Promise<File>
 		VIDEO_MAX_EDGE,
 	);
 
-	// Pick the bitrate from whichever binds first: the quality ceiling, or the
-	// share of the caller's size budget this video's duration leaves per second.
-	const ceiling = BITS_PER_PIXEL * width * height * ASSUMED_FPS;
-	const duration = await input.computeDuration();
-	const budget =
-		opts.maxBytes && duration > 0
-			? (opts.maxBytes * 8 * SIZE_BUDGET_HEADROOM) / duration - AUDIO_BITRATE
-			: Infinity;
-	const videoBitrate = Math.min(ceiling, budget);
-	if (videoBitrate < MIN_VIDEO_BITRATE) throw new MediaNormalizeError('video_too_large');
+	const videoBitrate = pickVideoBitrate({
+		fileSize: file.size,
+		durationSec: await input.computeDuration(),
+		width,
+		height,
+		maxBytes: opts.maxBytes,
+	});
+	if (videoBitrate === null) throw new MediaNormalizeError('video_too_large');
 
 	// WebM is the target. Safari exposes no VP8/VP9/AV1 *encoder*, so fall back to
 	// MP4/H.264 there rather than locking those users out of uploading video.
@@ -225,7 +258,7 @@ async function normalizeVideo(file: File, opts: NormalizeOptions): Promise<File>
 		video: {
 			...(width >= height ? { width } : { height }),
 			...(videoCodec ? { codec: videoCodec } : {}),
-			quality: new Quality({ bitrate: Math.round(videoBitrate), bitrateMode: 'variable' }),
+			quality: new Quality({ bitrate: videoBitrate, bitrateMode: 'variable' }),
 		},
 		audio: { quality: new Quality({ bitrate: AUDIO_BITRATE }) },
 	});
