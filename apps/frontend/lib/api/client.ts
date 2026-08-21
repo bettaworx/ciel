@@ -233,7 +233,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			if (!(value instanceof File)) continue;
 			const { normalizeForUpload } = await import('@/lib/media/normalize');
 			const normalized = await normalizeForUpload(value);
-			if (normalized !== value) init.form.set(key, normalized, normalized.name);
+			if (normalized !== value) init.form.set(key, normalized);
 		}
 
 		try {
@@ -404,7 +404,10 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		uploadMedia: (file: File) => {
 			const form = new FormData();
-			form.set('file', file, file.name);
+			// No filename argument: passing one makes FormData construct a *new* File,
+			// which drops the mark normalizeForUpload puts on its output and costs a
+			// second full conversion. The name travels on the File either way.
+			form.set('file', file);
 			return requestForm<components['schemas']['Media']>('POST', '/media', { form });
 		},
 
@@ -622,13 +625,19 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		updateAvatar: (file: File) => {
 			const form = new FormData();
-			form.set('file', file, file.name);
+			// No filename argument: passing one makes FormData construct a *new* File,
+			// which drops the mark normalizeForUpload puts on its output and costs a
+			// second full conversion. The name travels on the File either way.
+			form.set('file', file);
 			return requestForm<components['schemas']['User']>('POST', '/me/avatar', { form });
 		},
 
 		updateBanner: (file: File) => {
 			const form = new FormData();
-			form.set('file', file, file.name);
+			// No filename argument: passing one makes FormData construct a *new* File,
+			// which drops the mark normalizeForUpload puts on its output and costs a
+			// second full conversion. The name travels on the File either way.
+			form.set('file', file);
 			return requestForm<components['schemas']['User']>('POST', '/me/banner', { form });
 		},
 

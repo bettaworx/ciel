@@ -113,6 +113,23 @@ describe('normalizeForUpload', () => {
 		expect(state.encodes).toBe(1);
 	});
 
+	// The upload path re-reads the file out of a FormData before normalizing, so
+	// the mark has to survive that round trip. It only does while no filename
+	// argument is passed to FormData.set().
+	it('survives a FormData round trip', async () => {
+		const state = stubCanvas();
+		const png = new File([new Uint8Array(4)], 'a.png', { type: 'image/png' });
+		const once = await normalizeForUpload(png);
+
+		const form = new FormData();
+		form.set('file', once);
+		const roundTripped = form.get('file') as File;
+
+		expect(roundTripped).toBe(once);
+		expect(await normalizeForUpload(roundTripped)).toBe(once);
+		expect(state.encodes).toBe(1);
+	});
+
 	it('passes gifs through untouched', async () => {
 		const gif = new File([new Uint8Array(4)], 'a.gif', { type: 'image/gif' });
 		expect(await normalizeForUpload(gif)).toBe(gif);
