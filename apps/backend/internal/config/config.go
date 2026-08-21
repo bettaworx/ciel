@@ -89,6 +89,10 @@ type MediaEncodingConfig struct {
 	Video      bool `yaml:"video"`       // Encode videos to MP4 H.264+AAC (default: true)
 }
 
+// maxInputPixelsCeiling caps what media.max_input_pixels may be set to, so a
+// config cannot hand one request an unbounded allocation.
+const maxInputPixelsCeiling = 50_000_000
+
 // MediaConfig holds media upload and processing settings
 type MediaConfig struct {
 	MaxUploadSize     int                   `yaml:"max_upload_size"`    // in MiB (for images)
@@ -281,8 +285,12 @@ func (m *MediaConfig) IsVideoExtension(ext string) bool {
 	return videoExts[ext]
 }
 
-// ClampQuality ensures all quality values are in 0-100 range
+// ClampQuality ensures all quality values are in 0-100 range, and holds
+// max_input_pixels under its ceiling.
 func (m *MediaConfig) ClampQuality() {
+	// A decoded pixel costs about four bytes, so this bounds what a single
+	// upload can ask the server to allocate.
+	m.MaxInputPixels = clamp(m.MaxInputPixels, 1, maxInputPixelsCeiling)
 	m.Post.Static.Quality = clamp(m.Post.Static.Quality, 0, 100)
 	m.Post.Gif.Quality = clamp(m.Post.Gif.Quality, 0, 100)
 	m.Avatar.Static.Quality = clamp(m.Avatar.Static.Quality, 0, 100)
@@ -395,6 +403,10 @@ func (m *MediaConfig) Validate() error {
 
 // LogClampedQuality logs warnings if quality values were clamped
 func (m *MediaConfig) LogClampedQuality(original *MediaConfig) {
+	if m.MaxInputPixels != original.MaxInputPixels {
+		slog.Warn("media.max_input_pixels clamped",
+			"original", original.MaxInputPixels, "clamped", m.MaxInputPixels)
+	}
 	if m.Post.Static.Quality != original.Post.Static.Quality {
 		slog.Warn("media config quality clamped to valid range",
 			"field", "post.static.quality",
@@ -492,7 +504,7 @@ func DefaultConfig() *Config {
 			AllowedExtensions: []string{"webp", "png", "jpg", "jpeg", "gif", "webm", "mp4"},
 			MaxInputWidth:     16384,
 			MaxInputHeight:    16384,
-			MaxInputPixels:    100_000_000,
+			MaxInputPixels:    50_000_000,
 			Encoding: MediaEncodingConfig{
 				Post:       true,
 				Avatar:     true,

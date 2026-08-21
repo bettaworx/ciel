@@ -57,11 +57,6 @@ func validateImageFile(path string, cfg config.MediaConfig) (*ImageInfo, error) 
 		return nil, fmt.Errorf("image decode config failed: %w", err)
 	}
 
-	// Rewind for full decode.
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("failed to seek: %w", err)
-	}
-
 	info := &ImageInfo{
 		Width:  imgCfg.Width,
 		Height: imgCfg.Height,
@@ -72,6 +67,19 @@ func validateImageFile(path string, cfg config.MediaConfig) (*ImageInfo, error) 
 	// let it through.
 	if _, ok := allowedImageFormats[format]; !ok {
 		return nil, NewError(400, "unsupported_media_type", "unsupported image format")
+	}
+
+	// SECURITY: check the header's dimensions BEFORE decoding a single pixel.
+	// A uniform 16384x16384 PNG compresses to a few hundred kilobytes, so it
+	// sails past the upload size limit and then asks for a gigabyte. The header
+	// is all it takes to know that, and it costs nothing.
+	if err := validateImageDimensionsFromInfo(info, cfg); err != nil {
+		return nil, err
+	}
+
+	// Rewind for full decode.
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("failed to seek: %w", err)
 	}
 
 	// Full decode: validates that the compressed pixel data is intact.
@@ -98,7 +106,7 @@ func validateImageFile(path string, cfg config.MediaConfig) (*ImageInfo, error) 
 		info.Height = bounds.Dy()
 	}
 
-	// Validate dimensions.
+	// And again on what actually came out, in case the header undersold it.
 	if err := validateImageDimensionsFromInfo(info, cfg); err != nil {
 		return nil, err
 	}
