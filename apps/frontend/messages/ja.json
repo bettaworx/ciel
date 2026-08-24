@@ -189,6 +189,64 @@
         "doneTitle": "パスワードを変更しました",
         "doneDescription": "他のすべてのデバイスからログアウトされました。このデバイスはログインしたままです。",
         "updateError": "パスワードを変更できませんでした"
+      },
+      "mfa": {
+        "title": "多要素認証",
+        "description": "パスワードに加えてもう一つの要素を求めることで、パスワードが漏れてもアカウントを守れます。",
+        "cancel": "キャンセル",
+        "confirmRemove": "削除する",
+        "removed": "削除しました",
+        "removeTitle": "この認証方法を削除しますか？",
+        "removeDescription": "この認証方法は使えなくなります。他の方法は引き続き使えます。",
+        "removeLastDescription": "最後の認証方法です。削除すると多要素認証が無効になり、バックアップコードも破棄されます。",
+        "totp": {
+          "title": "ワンタイムパスワード",
+          "configure": "設定する",
+          "reconfigure": "再設定する",
+          "remove": "削除する",
+          "enabled": "設定済み",
+          "enabledToast": "ワンタイムパスワードを有効にしました",
+          "enrollTitle": "ワンタイムパスワードを設定",
+          "enrollDescription": "認証アプリでQRコードを読み取り、表示された6桁のコードを入力してください。",
+          "manualEntry": "QRコードを読み取れない場合は、このキーを手動で入力してください。",
+          "copySecret": "シークレットキーをコピー",
+          "secretCopied": "シークレットキーをコピーしました",
+          "codeLabel": "認証アプリに表示されているコード",
+          "confirm": "有効にする",
+          "invalidCode": "コードが正しくありません",
+          "alreadyEnabled": "ワンタイムパスワードはすでに設定されています",
+          "unavailable": "このサーバーではワンタイムパスワードが利用できません",
+          "enabledAt": "{date} に設定",
+          "resetTitle": "ワンタイムパスワードを再設定しますか？",
+          "resetDescription": "現在の設定はいったん無効になります。新しいQRコードを読み取り直してください。",
+          "confirmReset": "再設定する"
+        },
+        "securityKeys": {
+          "title": "セキュリティキー",
+          "add": "キーを追加",
+          "added": "セキュリティキーを追加しました",
+          "addFailed": "セキュリティキーを追加できませんでした",
+          "alreadyRegistered": "このセキュリティキーはすでに登録されています",
+          "rename": "名前を変更",
+          "saveName": "保存",
+          "remove": "削除",
+          "addedAt": "{date} に追加",
+          "lastUsedAt": "最終使用 {date}",
+          "unsupported": "このブラウザーはセキュリティキーに対応していません。",
+          "defaultName": "セキュリティキー"
+        },
+        "backupCodes": {
+          "title": "バックアップコード",
+          "dialogTitle": "バックアップコード",
+          "dialogDescription": "認証アプリもセキュリティキーも使えないときに、1回ずつ使えるコードです。ここでしか表示されません。",
+          "copy": "コピー",
+          "copied": "バックアップコードをコピーしました",
+          "download": "ダウンロード",
+          "acknowledge": "安全な場所に保存しました",
+          "done": "閉じる",
+          "remaining": "残り {count} 個",
+          "regenerate": "再生成する"
+        }
       }
     },
     "account": {
@@ -374,6 +432,27 @@
         "title": "パスワードを入力",
         "description": "パスワードを入力してください",
         "welcomeBack": "おかえりなさい！"
+      },
+      "mfa": {
+        "heading": "本人確認",
+        "codeLabel": "認証アプリのコード",
+        "backupLabel": "バックアップコード",
+        "useBackup": "バックアップコードを使う",
+        "useCode": "認証アプリのコードを使う",
+        "useSecurityKey": "セキュリティキーを使う",
+        "failed": "コードが正しくありません",
+        "webauthnFailed": "セキュリティキーで確認できませんでした",
+        "method": {
+          "totp": "認証アプリ",
+          "webauthn": "セキュリティキー",
+          "backup_code": "バックアップコード"
+        },
+        "chooseDescription": "認証方法を選んでください。",
+        "useAnotherWay": "別の方法を使う",
+        "retry": "再試行",
+        "backupHeading": "バックアップコード",
+        "totpDescription": "認証アプリに表示されているコードを入力してください。",
+        "passkeyPending": "セキュリティキーの確認を待っています…"
       }
     }
   },
@@ -488,7 +567,8 @@
       "settingsAbout": "情報",
       "settingsAboutServer": "サーバーについて",
       "settingsAboutApp": "アプリについて",
-      "settingsAboutLicenses": "ライセンス"
+      "settingsAboutLicenses": "ライセンス",
+      "settingsSecurityMfa": "多要素認証"
     }
   },
   "timeline": {

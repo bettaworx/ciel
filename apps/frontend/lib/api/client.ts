@@ -156,6 +156,11 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		}
 	}
 
+	/** X-Stepup-Token header, or nothing when no token is held. */
+	function stepup(token?: string | null): Record<string, string> | undefined {
+		return token ? { 'x-stepup-token': token } : undefined;
+	}
+
 	async function attemptRefresh(): Promise<boolean> {
 		const result = await refreshSession(baseUrl);
 		return result.ok;
@@ -298,6 +303,120 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		stepupFinish: (body: components['schemas']['StepupFinishRequest']) =>
 			request<components['schemas']['StepupFinishResponse']>('POST', '/auth/stepup/finish', { body }),
 
+		// --- MFA -------------------------------------------------------------
+		// Enrollment endpoints take a step-up token. It is reusable inside its
+		// 5-minute window (see requireMfaStepup on the backend), so the settings
+		// screen mints one and drives the whole session with it.
+		mfaStatus: () => request<components['schemas']['MfaStatus']>('GET', '/auth/mfa'),
+
+		totpSetup: (stepupToken?: string | null) =>
+			request<components['schemas']['TotpSetupResponse']>('POST', '/auth/mfa/totp/setup', {
+				headers: stepup(stepupToken)
+			}),
+
+		totpConfirm: (
+			body: components['schemas']['TotpConfirmRequest'],
+			stepupToken?: string | null
+		) =>
+			request<components['schemas']['TotpConfirmResponse']>('POST', '/auth/mfa/totp/confirm', {
+				body,
+				headers: stepup(stepupToken)
+			}),
+
+		totpDisable: (stepupToken?: string | null) =>
+			request<void>('DELETE', '/auth/mfa/totp', { headers: stepup(stepupToken) }),
+
+		mfaDisable: (stepupToken?: string | null) =>
+			request<void>('POST', '/auth/mfa/disable', { headers: stepup(stepupToken) }),
+
+		backupCodesRegenerate: (stepupToken?: string | null) =>
+			request<components['schemas']['BackupCodesRegenerateResponse']>(
+				'POST',
+				'/auth/mfa/backup-codes/regenerate',
+				{ headers: stepup(stepupToken) }
+			),
+
+		// Login-time challenge. A wrong code is a plain 401 and must NOT be read
+		// as an expired session, so the refresh-and-retry path is skipped.
+		mfaVerify: (body: components['schemas']['MfaCodeVerifyRequest']) =>
+			request<components['schemas']['LoginAuthenticated']>('POST', '/auth/mfa/verify', {
+				body,
+				_skipRefresh: true
+			}),
+
+		mfaWebauthnOptions: (body: components['schemas']['MfaWebAuthnOptionsRequest']) =>
+			request<components['schemas']['WebAuthnAssertionOptionsResponse']>(
+				'POST',
+				'/auth/mfa/webauthn/options',
+				{ body, _skipRefresh: true }
+			),
+
+		mfaWebauthnVerify: (body: components['schemas']['MfaWebAuthnVerifyRequest']) =>
+			request<components['schemas']['LoginAuthenticated']>('POST', '/auth/mfa/webauthn/verify', {
+				body,
+				_skipRefresh: true
+			}),
+
+		// Step-up challenge. Same shapes, but authenticated and returning a
+		// step-up token instead of a session.
+		stepupMfaVerify: (body: components['schemas']['MfaCodeVerifyRequest']) =>
+			request<components['schemas']['StepupAuthenticated']>('POST', '/auth/stepup/mfa/verify', {
+				body,
+				_skipRefresh: true
+			}),
+
+		stepupMfaWebauthnOptions: (body: components['schemas']['MfaWebAuthnOptionsRequest']) =>
+			request<components['schemas']['WebAuthnAssertionOptionsResponse']>(
+				'POST',
+				'/auth/stepup/mfa/webauthn/options',
+				{ body, _skipRefresh: true }
+			),
+
+		stepupMfaWebauthnVerify: (body: components['schemas']['MfaWebAuthnVerifyRequest']) =>
+			request<components['schemas']['StepupAuthenticated']>(
+				'POST',
+				'/auth/stepup/mfa/webauthn/verify',
+				{ body, _skipRefresh: true }
+			),
+
+		webauthnCredentials: () =>
+			request<components['schemas']['WebAuthnCredential'][]>('GET', '/auth/mfa/webauthn/credentials'),
+
+		webauthnRegisterOptions: (stepupToken?: string | null) =>
+			request<components['schemas']['WebAuthnRegisterOptionsResponse']>(
+				'POST',
+				'/auth/mfa/webauthn/register/options',
+				{ headers: stepup(stepupToken) }
+			),
+
+		webauthnRegisterVerify: (
+			body: components['schemas']['WebAuthnRegisterVerifyRequest'],
+			stepupToken?: string | null
+		) =>
+			request<components['schemas']['WebAuthnRegisterVerifyResponse']>(
+				'POST',
+				'/auth/mfa/webauthn/register/verify',
+				{ body, headers: stepup(stepupToken) }
+			),
+
+		// Renaming is not a security-relevant change, so it needs no step-up.
+		webauthnCredentialRename: (
+			credentialId: string,
+			body: components['schemas']['WebAuthnCredentialUpdateRequest']
+		) =>
+			request<components['schemas']['WebAuthnCredential']>(
+				'PATCH',
+				`/auth/mfa/webauthn/credentials/${encodeURIComponent(credentialId)}`,
+				{ body }
+			),
+
+		webauthnCredentialDelete: (credentialId: string, stepupToken?: string | null) =>
+			request<void>(
+				'DELETE',
+				`/auth/mfa/webauthn/credentials/${encodeURIComponent(credentialId)}`,
+				{ headers: stepup(stepupToken) }
+			),
+
 		refresh: () => refreshSession(baseUrl),
 
 		logout: () => request<void>('POST', '/auth/logout'),
@@ -308,7 +427,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		) =>
 			request<void>('POST', '/auth/password/change', {
 				body,
-				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
+				headers: stepup(stepupToken)
 			}),
 
 		me: () => request<components['schemas']['User']>('GET', '/me'),
@@ -317,14 +436,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			body: components['schemas']['UpdateUsernameRequest'],
 			stepupToken?: string | null
 		) =>
-			request<components['schemas']['LoginFinishResponse']>('PATCH', '/me/username', {
+			request<components['schemas']['LoginAuthenticated']>('PATCH', '/me/username', {
 				body,
-				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
+				headers: stepup(stepupToken)
 			}),
 
 		deleteMe: (stepupToken?: string | null) =>
 			request<void>('DELETE', '/me', {
-				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
+				headers: stepup(stepupToken)
 			}),
 
 		userByUsername: (username: string) =>

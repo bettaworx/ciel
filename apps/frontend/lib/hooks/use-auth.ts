@@ -5,12 +5,29 @@ import { useSetAtom } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
 import { authAtom } from '@/atoms/auth';
 import { createApiClient } from '@/lib/api/client';
+import { getAssertion } from '@/lib/api/webauthn';
+import type { components } from '@/lib/api/api';
 import { computeClientProof, randomBase64Url } from '@/lib/api/scram';
 import { ERROR_CODES } from '@/lib/errors';
 import { getSafeRedirect } from '@/lib/utils/redirect';
 import { queryKeys } from '@/lib/hooks/use-queries';
 
 const api = createApiClient();
+
+type MfaMethod = components['schemas']['MfaMethod'];
+
+/**
+ * SCRAM proved the password; the account may still owe a second factor.
+ * `ok: 'mfa'` carries the short-lived token that binds the verified session to
+ * the pending challenge — the caller shows the challenge step and finishes with
+ * completeLoginMfa* / completeStepupMfa*.
+ */
+export type MfaChallenge = { ok: 'mfa'; mfaToken: string; methods: MfaMethod[] };
+export type LoginResult = { ok: true } | { ok: false } | MfaChallenge;
+export type StepupResult =
+	| { ok: true; stepupToken: string; expiresInSeconds: number }
+	| { ok: false }
+	| MfaChallenge;
 
 export function useAuth() {
 	const setAuth = useSetAtom(authAtom);
@@ -50,7 +67,19 @@ export function useAuth() {
 		}
 	};
 
-	const login = async (username: string, password: string) => {
+	// Everything that happens once the server accepts a login: cache the user,
+	// then hard-reload so the session cookie is picked up everywhere.
+	const finishLogin = (user: components['schemas']['User']) => {
+		setAuth({ status: 'ready', user, error: null });
+
+		if (typeof window !== 'undefined') {
+			const params = new URLSearchParams(window.location.search);
+			const redirect = params.get('redirect');
+			window.location.href = getSafeRedirect(redirect);
+		}
+	};
+
+	const login = async (username: string, password: string): Promise<LoginResult> => {
 		setAuth((prev) => ({ ...prev, status: 'loading', error: null }));
 
 		const clientNonce = randomBase64Url(16);
@@ -81,19 +110,42 @@ export function useAuth() {
 		return { ok: false };
 	}
 
-		setAuth({
-			status: 'ready',
-			user: finishRes.data.user,
-			error: null,
-		});
-
-		// Reload page to ensure session is properly initialized
-		if (typeof window !== 'undefined') {
-			const params = new URLSearchParams(window.location.search);
-			const redirect = params.get('redirect');
-			window.location.href = getSafeRedirect(redirect);
+		if (finishRes.data.status === 'mfa_required') {
+			// Not an error and not signed in: hand the challenge to the caller and
+			// leave the atom settled so the wizard can render its next step.
+			setAuth({ status: 'ready', user: null, error: null });
+			return {
+				ok: 'mfa',
+				mfaToken: finishRes.data.mfaToken,
+				methods: finishRes.data.methods,
+			};
 		}
 
+		finishLogin(finishRes.data.user);
+		return { ok: true };
+	};
+
+	// Second half of a login that came back mfa_required.
+	const completeLoginMfa = async (
+		mfaToken: string,
+		code: string,
+		method?: MfaMethod
+	): Promise<LoginResult> => {
+		const res = await api.mfaVerify({ mfaToken, code, method });
+		if (!res.ok) return { ok: false };
+		finishLogin(res.data.user);
+		return { ok: true };
+	};
+
+	const completeLoginMfaWebAuthn = async (mfaToken: string): Promise<LoginResult> => {
+		const optionsRes = await api.mfaWebauthnOptions({ mfaToken });
+		if (!optionsRes.ok) return { ok: false };
+
+		const credential = await getAssertion(optionsRes.data.options);
+		const res = await api.mfaWebauthnVerify({ mfaToken, credential });
+		if (!res.ok) return { ok: false };
+
+		finishLogin(res.data.user);
 		return { ok: true };
 	};
 
@@ -149,6 +201,13 @@ export function useAuth() {
 		return { ok: false };
 	}
 
+		if (finishRes.data.status === 'mfa_required') {
+			// Unreachable in practice — an account created seconds ago has no second
+			// factor — but the response is a union, so it has to be narrowed.
+			setAuth((prev) => ({ ...prev, status: 'error', error: ERROR_CODES.AUTH_LOGIN_FAILED }));
+			return { ok: false };
+		}
+
 		setAuth({
 			status: 'ready',
 			user: finishRes.data.user,
@@ -165,7 +224,7 @@ export function useAuth() {
 	// Same SCRAM exchange as login. `username` must be the user's CURRENT
 	// username: the server builds the auth message from the name stored in the
 	// database, so a rename flow has to prove with the old name.
-	const stepup = async (username: string, password: string) => {
+	const stepup = async (username: string, password: string): Promise<StepupResult> => {
 		const clientNonce = randomBase64Url(16);
 		const startRes = await api.stepupStart({ clientNonce });
 
@@ -189,10 +248,52 @@ export function useAuth() {
 		});
 
 		if (!finishRes.ok) {
-			return { ok: false as const };
+			return { ok: false };
 		}
 
-		return { ok: true as const, stepupToken: finishRes.data.stepupToken };
+		if (finishRes.data.status === 'mfa_required') {
+			return {
+				ok: 'mfa',
+				mfaToken: finishRes.data.mfaToken,
+				methods: finishRes.data.methods,
+			};
+		}
+
+		return {
+			ok: true,
+			stepupToken: finishRes.data.stepupToken,
+			expiresInSeconds: finishRes.data.expiresInSeconds,
+		};
+	};
+
+	// Second half of a step-up that came back mfa_required.
+	const completeStepupMfa = async (
+		mfaToken: string,
+		code: string,
+		method?: MfaMethod
+	): Promise<StepupResult> => {
+		const res = await api.stepupMfaVerify({ mfaToken, code, method });
+		if (!res.ok) return { ok: false };
+		return {
+			ok: true,
+			stepupToken: res.data.stepupToken,
+			expiresInSeconds: res.data.expiresInSeconds,
+		};
+	};
+
+	const completeStepupMfaWebAuthn = async (mfaToken: string): Promise<StepupResult> => {
+		const optionsRes = await api.stepupMfaWebauthnOptions({ mfaToken });
+		if (!optionsRes.ok) return { ok: false };
+
+		const credential = await getAssertion(optionsRes.data.options);
+		const res = await api.stepupMfaWebauthnVerify({ mfaToken, credential });
+		if (!res.ok) return { ok: false };
+
+		return {
+			ok: true,
+			stepupToken: res.data.stepupToken,
+			expiresInSeconds: res.data.expiresInSeconds,
+		};
 	};
 
 	const logout = async () => {
@@ -211,8 +312,12 @@ export function useAuth() {
 	return {
 		initAuth,
 		login,
+		completeLoginMfa,
+		completeLoginMfaWebAuthn,
 		register,
 		stepup,
+		completeStepupMfa,
+		completeStepupMfaWebAuthn,
 		logout,
 	};
 }

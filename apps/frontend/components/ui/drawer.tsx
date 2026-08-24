@@ -38,8 +38,10 @@ const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & {
     overlayClassName?: string;
+    /** Drops the drag handle, for sheets that cannot be dragged shut. */
+    hideHandle?: boolean;
   }
->(({ className, overlayClassName, children, ...props }, ref) => (
+>(({ className, overlayClassName, hideHandle = false, children, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay className={overlayClassName} />
     <DrawerPrimitive.Content
@@ -50,7 +52,9 @@ const DrawerContent = React.forwardRef<
       )}
       {...props}
     >
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+      {!hideHandle && (
+        <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+      )}
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>

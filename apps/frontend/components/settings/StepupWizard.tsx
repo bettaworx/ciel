@@ -3,15 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useAtomValue } from "jotai";
 import { toast } from "sonner";
 import { ChevronLeft } from "lucide-react";
-import { userAtom } from "@/atoms/auth";
-import { useAuth } from "@/lib/hooks/use-auth";
+import { useStepup } from "@/lib/hooks/use-stepup";
+import { useMfaChallenge } from "@/lib/hooks/use-mfa-challenge";
 import { Button } from "@/components/ui/button";
 import { AuthLayoutShell } from "@/components/auth/AuthLayoutShell";
 import { SetupTransition } from "@/components/setup/SetupTransition";
 import { PasswordStep } from "@/components/auth/login/PasswordStep";
+import { MfaChallengeStep } from "@/components/auth/MfaChallengeStep";
+import { useAtomValue } from "jotai";
+import { userAtom } from "@/atoms/auth";
 
 /**
  * What `onSubmit` tells the wizard to do next.
@@ -41,16 +43,20 @@ interface StepupWizardProps {
   children: React.ReactNode;
 }
 
+/** Step indices, kept in one place because SetupTransition animates on them. */
+const STEP = { password: 0, mfa: 1, action: 2, done: 3 } as const;
+
 /**
- * Full-screen three-step flow shared by every sensitive account operation:
+ * Full-screen flow shared by every sensitive account operation:
  *
  *   0. re-authenticate with the current password (step-up)
- *   1. enter / confirm what is about to happen
- *   2. done
+ *   1. present a second factor, when the account has 2FA enabled
+ *   2. enter / confirm what is about to happen
+ *   3. done
  *
  * Step 0 comes first so nothing is typed before the identity is proven. The
- * step-up token lives in component state only — never localStorage — and is
- * handed to `onSubmit` for its single use.
+ * step-up exchange itself lives in useStepup; the token stays in state only —
+ * never localStorage — and is handed to `onSubmit` for its single use.
  *
  * It takes over the whole screen rather than sitting inside the settings
  * sidebar: this is the same AuthLayoutShell as /login, and the re-auth step
@@ -72,77 +78,87 @@ export function StepupWizard({
   const t = useTranslations();
   const router = useRouter();
   const user = useAtomValue(userAtom);
-  const { stepup } = useAuth();
+  const stepup = useStepup();
 
-  const [step, setStep] = useState<0 | 1 | 2>(0);
-  const [stepupToken, setStepupToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const challenge = useMfaChallenge(stepup.methods, {
+    verifyWithSecurityKey: stepup.submitMfaWebAuthn,
+  });
+  const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const username = user?.username ?? "";
+  const loading = stepup.loading || submitting;
 
-  const handleReauth = async (password: string) => {
-    setLoading(true);
-    try {
-      const result = await stepup(username, password);
-      if (!result.ok) {
-        toast.error(t("settings.reauth.failed"));
-        return;
-      }
-      setStepupToken(result.stepupToken);
-      setStep(1);
-    } catch {
-      toast.error(t("error.generic"));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const step = done
+    ? STEP.done
+    : stepup.phase === "password"
+      ? STEP.password
+      : stepup.phase === "mfa"
+        ? STEP.mfa
+        : STEP.action;
 
   const handleSubmit = async () => {
-    if (!stepupToken) {
-      setStep(0);
-      return;
-    }
+    if (!stepup.token) return;
 
-    setLoading(true);
+    setSubmitting(true);
     try {
-      const outcome = await onSubmit(stepupToken);
+      const outcome = await onSubmit(stepup.token);
       if (outcome === "done") {
-        setStep(2);
+        setDone(true);
         return;
       }
       if (outcome === "reauth") {
         // The token is spent or expired either way; force a fresh one.
-        setStepupToken(null);
-        setStep(0);
+        stepup.invalidate();
         toast.error(t("settings.reauth.expired"));
       }
     } catch {
       toast.error(t("error.generic"));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   const renderStep = () => {
     switch (step) {
-      case 0:
+      case STEP.password:
         return (
           <PasswordStep
             username={username}
             heading={reauthHeading}
-            onSubmit={handleReauth}
+            onSubmit={async (password) => {
+              const failure = await stepup.submitPassword(password);
+              if (failure) toast.error(t(failure));
+            }}
             loading={loading}
           />
         );
-      case 1:
+      case STEP.mfa:
+        return (
+          <MfaChallengeStep
+            challenge={challenge}
+            formId="stepup-mfa-form"
+            loading={loading}
+            onSubmitCode={async (code, method) => {
+              const failure = await stepup.submitMfaCode(code, method);
+              if (failure) challenge.fail(failure);
+            }}
+          />
+        );
+      case STEP.action:
         return children;
-      case 2:
+      default:
         return completion;
     }
   };
 
   const renderFooter = () => {
-    if (step === 0) {
+    if (step === STEP.password || step === STEP.mfa) {
+      const primaryLabel = step === STEP.mfa ? challenge.primaryOverride : "setup.next";
+      const primaryIsFallback =
+        typeof primaryLabel === "string" && primaryLabel !== "setup.next";
+      const secondaryLabel =
+        (step === STEP.mfa && challenge.secondaryOverride) || "setup.back";
       return (
         <div className="flex items-center justify-between gap-2">
           <Button
@@ -150,32 +166,39 @@ export function StepupWizard({
             variant="secondary"
             // replace, not push: leaving the wizard is a step back up, so it
             // must not stay in the history for the parent's own back arrow.
-            onClick={() => router.replace(cancelHref)}
+            // Inside the challenge, back walks to the factor chooser first;
+            // only once there is nothing above it does it leave for the password.
+            onClick={() => {
+              if (step !== STEP.mfa) return router.replace(cancelHref);
+              if (!challenge.goBack()) stepup.invalidate();
+            }}
             disabled={loading}
           >
             <ChevronLeft />
-            {t("setup.back")}
+            {t(secondaryLabel)}
           </Button>
 
-          <Button
-            type="submit"
-            form="login-password-form"
-            variant="primary"
-            disabled={loading}
-          >
-            {loading ? t("loading") : t("setup.next")}
-          </Button>
+          {primaryLabel !== null && (
+            <Button
+              type="submit"
+              form={step === STEP.mfa ? "stepup-mfa-form" : "login-password-form"}
+              variant={primaryIsFallback ? "secondary" : "primary"}
+              disabled={loading || (step === STEP.mfa && challenge.primaryDisabled)}
+            >
+              {loading ? t("loading") : t(primaryLabel ?? "setup.next")}
+            </Button>
+          )}
         </div>
       );
     }
 
-    if (step === 1) {
+    if (step === STEP.action) {
       return (
         <div className="flex items-center justify-between gap-2">
           <Button
             type="button"
             variant="secondary"
-            onClick={() => setStep(0)}
+            onClick={() => stepup.invalidate()}
             disabled={loading}
           >
             <ChevronLeft />

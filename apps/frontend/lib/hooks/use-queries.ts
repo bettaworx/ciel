@@ -48,6 +48,7 @@ export const NOTIFICATION_TAB_TYPES: Record<
 // Query keys
 export const queryKeys = {
   me: ["me"] as const,
+  mfa: ["mfa"] as const,
   serverInfo: ["serverInfo"] as const,
   serverConfig: ["serverConfig"] as const,
   customEmojis: ["customEmojis"] as const,

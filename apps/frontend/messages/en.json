@@ -189,6 +189,64 @@
         "doneTitle": "Password changed",
         "doneDescription": "Every other device has been signed out. This device stays signed in.",
         "updateError": "Could not change your password"
+      },
+      "mfa": {
+        "title": "Two-factor authentication",
+        "description": "Asking for a second factor on top of your password keeps your account safe even if the password leaks.",
+        "cancel": "Cancel",
+        "confirmRemove": "Remove",
+        "removed": "Removed",
+        "removeTitle": "Remove this method?",
+        "removeDescription": "This method will stop working. Your other methods stay available.",
+        "removeLastDescription": "This is your last method. Removing it turns two-factor authentication off and discards your backup codes.",
+        "totp": {
+          "title": "One-time password",
+          "configure": "Set up",
+          "reconfigure": "Set up again",
+          "remove": "Remove",
+          "enabled": "Enabled",
+          "enabledToast": "One-time passwords are on",
+          "enrollTitle": "Set up one-time passwords",
+          "enrollDescription": "Scan the QR code with your authenticator app, then enter the 6-digit code it shows.",
+          "manualEntry": "Can't scan? Enter this key into the app by hand.",
+          "copySecret": "Copy secret key",
+          "secretCopied": "Secret key copied",
+          "codeLabel": "Code from your authenticator app",
+          "confirm": "Turn on",
+          "invalidCode": "That code is not correct",
+          "alreadyEnabled": "One-time passwords are already set up",
+          "unavailable": "This server does not have one-time passwords available",
+          "enabledAt": "Set up {date}",
+          "resetTitle": "Set up one-time passwords again?",
+          "resetDescription": "Your current setup is turned off first. You will need to scan a new QR code.",
+          "confirmReset": "Set up again"
+        },
+        "securityKeys": {
+          "title": "Security keys",
+          "add": "Add a key",
+          "added": "Security key added",
+          "addFailed": "Could not add that security key",
+          "alreadyRegistered": "This security key is already registered",
+          "rename": "Rename",
+          "saveName": "Save",
+          "remove": "Remove",
+          "addedAt": "Added {date}",
+          "lastUsedAt": "Last used {date}",
+          "unsupported": "This browser does not support security keys.",
+          "defaultName": "Security key"
+        },
+        "backupCodes": {
+          "title": "Backup codes",
+          "dialogTitle": "Backup codes",
+          "dialogDescription": "Single-use codes for when neither your authenticator app nor your security key is at hand. This is the only time they are shown.",
+          "copy": "Copy",
+          "copied": "Backup codes copied",
+          "download": "Download",
+          "acknowledge": "I saved these somewhere safe",
+          "done": "Close",
+          "remaining": "{count} left",
+          "regenerate": "Regenerate"
+        }
       }
     },
     "account": {
@@ -374,6 +432,27 @@
         "title": "Enter Password",
         "description": "Enter your password",
         "welcomeBack": "Welcome back"
+      },
+      "mfa": {
+        "heading": "Verify it's you",
+        "codeLabel": "Code from your authenticator app",
+        "backupLabel": "Backup code",
+        "useBackup": "Use a backup code",
+        "useCode": "Use your authenticator app",
+        "useSecurityKey": "Use a security key",
+        "failed": "That code is not correct",
+        "webauthnFailed": "Could not verify with that security key",
+        "method": {
+          "totp": "Authenticator",
+          "webauthn": "Security key",
+          "backup_code": "Backup code"
+        },
+        "chooseDescription": "Choose how to verify.",
+        "useAnotherWay": "Use another way",
+        "retry": "Retry",
+        "backupHeading": "Backup code",
+        "totpDescription": "Enter the code from your authenticator app.",
+        "passkeyPending": "Waiting for your security key…"
       }
     }
   },
@@ -488,7 +567,8 @@
       "settingsAbout": "About",
       "settingsAboutServer": "About this server",
       "settingsAboutApp": "About this app",
-      "settingsAboutLicenses": "Licenses"
+      "settingsAboutLicenses": "Licenses",
+      "settingsSecurityMfa": "Two-factor authentication"
     }
   },
   "timeline": {
