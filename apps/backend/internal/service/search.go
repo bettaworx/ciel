@@ -289,6 +289,11 @@ func (s *SearchService) StartBackfill(ctx context.Context, c cache.Cache, force 
 			} else if !ok {
 				slog.Info("search: backfill already running elsewhere, skipping")
 				return
+			} else {
+				// Release the lock once this run ends (including on error),
+				// otherwise a restart within the TTL finds the lock held by a
+				// finished run and skips its own backfill.
+				defer func() { _ = c.Delete(context.WithoutCancel(ctx), searchBackfillLockKey) }()
 			}
 		}
 		s.backfill(ctx, force)
