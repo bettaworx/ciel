@@ -23,12 +23,16 @@ func (h API) requireMfaAuth(w http.ResponseWriter, r *http.Request) (auth.User, 
 	return user, true
 }
 
+// stepupMfaMaxUses lets one step-up token drive a whole MFA management session
+// (sudo mode): the settings screen asks for the password once and then runs
+// enrol / disable / add key / remove key against the same token until it
+// expires. Capped rather than unlimited so a leaked token still cannot be
+// replayed indefinitely inside the window.
+const stepupMfaMaxUses = 20
+
 // requireMfaStepup guards MFA enrollment changes with step-up.
 func (h API) requireMfaStepup(w http.ResponseWriter, r *http.Request, user auth.User, action string) bool {
-	if !requireStepup(w, r, h.Tokens, h.Redis, user, action) {
-		return false
-	}
-	return true
+	return requireStepup(w, r, h.Tokens, h.Redis, user, action, stepupMfaMaxUses)
 }
 
 func (h API) GetAuthMfa(w http.ResponseWriter, r *http.Request) {

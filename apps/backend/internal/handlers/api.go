@@ -418,7 +418,7 @@ func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.Patch
 		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
 		return
 	}
-	if !requireStepup(w, r, h.Tokens, h.Redis, user, "username_change") {
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "username_change", stepupSingleUse) {
 		return
 	}
 
@@ -532,7 +532,7 @@ func (h API) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request, _ ap
 		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
 		return
 	}
-	if !requireStepup(w, r, h.Tokens, h.Redis, user, "password_change") {
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "password_change", stepupSingleUse) {
 		return
 	}
 	var req api.PasswordChangeRequest
@@ -588,7 +588,7 @@ func (h API) DeleteMe(w http.ResponseWriter, r *http.Request, _ api.DeleteMePara
 		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
 		return
 	}
-	if !requireStepup(w, r, h.Tokens, h.Redis, user, "account_delete") {
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "account_delete", stepupSingleUse) {
 		return
 	}
 	if err := h.Auth.DeleteAccount(r.Context(), user); err != nil {
@@ -1158,6 +1158,9 @@ func requirePermission(w http.ResponseWriter, r *http.Request, authz *service.Au
 
 const stepupHeader = "X-Stepup-Token"
 
+// stepupSingleUse: the token authorises exactly one operation, then it is spent.
+const stepupSingleUse = 1
+
 // stepupAuditAttrs creates audit log attributes for stepup operations
 func stepupAuditAttrs(r *http.Request, user auth.User, action string) []slog.Attr {
 	attrs := []slog.Attr{
@@ -1202,8 +1205,14 @@ func extractAndParseStepupToken(w http.ResponseWriter, r *http.Request, tokens *
 	return stepupUser, jti, exp, true
 }
 
-// checkStepupTokenReplay validates token is not expired and prevents replay attacks using Redis
-func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.Client, jti string, exp time.Time, user auth.User, auditAttrs []slog.Attr) bool {
+// checkStepupTokenReplay counts how often a step-up token has been presented and
+// rejects it past maxUses. maxUses == 1 is the single-use default every
+// sensitive operation gets; MFA enrollment passes a higher cap so one password
+// prompt can drive a whole management session (see stepupMfaMaxUses).
+//
+// ponytail: a use-capped 5-minute window, not per-action tokens. Tighten it with
+// TokenManager.SetStepupTTL if the window ever needs to be shorter.
+func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.Client, jti string, exp time.Time, user auth.User, auditAttrs []slog.Attr, maxUses int) bool {
 	if rdb == nil {
 		logging.Audit(r.Context(), "auth.stepup.use", "failure", append(auditAttrs, slog.String("reason", "redis_unavailable"))...)
 		writeServiceError(w, service.NewError(http.StatusServiceUnavailable, "service_unavailable", "step-up verification temporarily unavailable"))
@@ -1217,7 +1226,8 @@ func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.C
 		return false
 	}
 
-	ok, err := rdb.SetNX(r.Context(), "stepup:jti:"+jti, "1", ttl).Result()
+	key := "stepup:jti:" + jti
+	uses, err := rdb.Incr(r.Context(), key).Result()
 	if err != nil {
 		// Redis error: fail closed for security
 		slog.Error("stepup replay check failed", "error", err, "user_id", user.ID)
@@ -1225,8 +1235,18 @@ func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.C
 		writeServiceError(w, service.NewError(http.StatusServiceUnavailable, "service_unavailable", "step-up verification failed"))
 		return false
 	}
+	// First use creates the counter; expire it with the token so the key never
+	// outlives the JWT it guards.
+	if uses == 1 {
+		if err := rdb.Expire(r.Context(), key, ttl).Err(); err != nil {
+			slog.Error("stepup replay ttl failed", "error", err, "user_id", user.ID)
+			logging.Audit(r.Context(), "auth.stepup.use", "failure", append(auditAttrs, slog.String("reason", "redis_error"))...)
+			writeServiceError(w, service.NewError(http.StatusServiceUnavailable, "service_unavailable", "step-up verification failed"))
+			return false
+		}
+	}
 
-	if !ok {
+	if uses > int64(maxUses) {
 		logging.Audit(r.Context(), "auth.stepup.use", "failure", append(auditAttrs, slog.String("reason", "replay"))...)
 		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
 		return false
@@ -1235,7 +1255,7 @@ func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.C
 	return true
 }
 
-func requireStepup(w http.ResponseWriter, r *http.Request, tokens *auth.TokenManager, rdb *redis.Client, user auth.User, action string) bool {
+func requireStepup(w http.ResponseWriter, r *http.Request, tokens *auth.TokenManager, rdb *redis.Client, user auth.User, action string, maxUses int) bool {
 	// Step 1: Setup audit logging attributes
 	auditAttrs := stepupAuditAttrs(r, user, action)
 
@@ -1251,7 +1271,7 @@ func requireStepup(w http.ResponseWriter, r *http.Request, tokens *auth.TokenMan
 	}
 
 	// Step 4: Check token replay using Redis
-	if !checkStepupTokenReplay(w, r, rdb, jti, exp, user, auditAttrs) {
+	if !checkStepupTokenReplay(w, r, rdb, jti, exp, user, auditAttrs, maxUses) {
 		return false
 	}
 

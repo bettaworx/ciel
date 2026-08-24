@@ -196,3 +196,48 @@ func matchString(entry map[string]any, key, want string) bool {
 	got, ok := entry[key].(string)
 	return ok && got == want
 }
+
+// MFA management runs in a sudo window: one step-up token authorises the whole
+// settings session, so the same token must survive more than one call. The
+// service has no store here, so both calls fail the same way (503) — what is
+// under test is that the SECOND one gets past the step-up guard at all.
+func TestPostAuthMfaDisable_StepupTokenReusableWithinWindow(t *testing.T) {
+	buf := captureAuditLogs(t)
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
+	tm := auth.NewTokenManager([]byte("secret"), time.Minute)
+	user := auth.User{ID: uuid.New(), Username: "alice"}
+	stepupToken, _, err := tm.IssueStepup(user)
+	if err != nil {
+		t.Fatalf("IssueStepup: %v", err)
+	}
+
+	apiHandler := handlers.API{
+		Auth:   service.NewAuthService(nil, tm),
+		Tokens: tm,
+		Redis:  rdb,
+	}
+	ctx := auth.WithUser(context.Background(), user)
+
+	call := func() int {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/mfa/disable", nil).WithContext(ctx)
+		req.Header.Set("X-Stepup-Token", stepupToken)
+		rr := httptest.NewRecorder()
+		apiHandler.PostAuthMfaDisable(rr, req, api.PostAuthMfaDisableParams{})
+		return rr.Code
+	}
+
+	for i := 1; i <= 3; i++ {
+		if code := call(); code == http.StatusUnauthorized {
+			t.Fatalf("call %d: step-up token rejected inside the sudo window", i)
+		}
+	}
+
+	if hasAuditEntry(t, buf, "auth.stepup.use", "failure", "replay", "mfa_disable") {
+		t.Fatalf("did not expect a replay rejection inside the sudo window")
+	}
+	if !hasAuditEntry(t, buf, "auth.stepup.use", "success", "", "mfa_disable") {
+		t.Fatalf("expected audit log for stepup use success")
+	}
+}
