@@ -162,6 +162,8 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 		Bookmarks:     bookmarksSvc,
 		Notifications: notificationsSvc,
 		Media:         mediaSvc,
+		Tokens:        tokenManager,
+		Redis:         rdb,
 	}
 	api.HandlerFromMuxWithBaseURL(&apiServer, r, "/api/v1")
 
@@ -997,7 +999,11 @@ func TestIntegration_Auth_Login_Success_And_ReplayPrevented(t *testing.T) {
 		t.Fatalf("login finish: expected 200, got %d (%v)", finishResp.StatusCode, errBody)
 	}
 	finish := decodeJSON[api.LoginFinishResponse](t, finishResp)
-	if finish.AccessToken == "" {
+	authed, err := finish.AsLoginAuthenticated()
+	if err != nil {
+		t.Fatalf("login finish: expected authenticated variant, got %v", err)
+	}
+	if authed.AccessToken == "" {
 		t.Fatalf("login finish: expected accessToken")
 	}
 

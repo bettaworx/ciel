@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	BackupCodeCount  = 10
-	backupCodeBytes  = 4 // 8 hex chars → XXXX-XXXX
+	BackupCodeCount = 10
+	backupCodeBytes = 4 // 8 hex chars → XXXX-XXXX
 )
 
 // GenerateBackupCodes returns plaintext backup codes and their SHA-256 hashes.
