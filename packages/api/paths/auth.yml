@@ -75,11 +75,12 @@
     tags:
     - Auth
     summary: Finish challenge-response login
-    description: 'Verifies `clientProof` for the one-time challenge.
+    description: >-
+      Verifies `clientProof` for the one-time challenge.
 
-      On success returns an access token.
-
-      '
+      When the account has no second factor, returns `status: authenticated` with
+      an access token. When 2FA is enabled, returns `status: mfa_required` with an
+      `mfaToken` that must be completed via `/auth/mfa/*`.
     requestBody:
       required: true
       content:
@@ -88,7 +89,7 @@
             $ref: ../schemas/auth.yml#/components/schemas/LoginFinishRequest
     responses:
       '200':
-        description: Logged in
+        description: Authenticated or MFA required
         content:
           application/json:
             schema:
@@ -135,9 +136,12 @@
     tags:
     - Auth
     summary: Finish step-up authentication
-    description: 'Verifies `clientProof` for the step-up challenge and returns a short-lived token.
+    description: >-
+      Verifies `clientProof` for the step-up challenge.
 
-      '
+      When the account has no second factor, returns `status: authenticated` with
+      a short-lived step-up token. When 2FA is enabled, returns
+      `status: mfa_required` and the client must complete `/auth/stepup/mfa/*`.
     security:
     - bearerAuth: []
     requestBody:
@@ -148,7 +152,7 @@
             $ref: ../schemas/auth.yml#/components/schemas/StepupFinishRequest
     responses:
       '200':
-        description: Step-up token issued
+        description: Step-up token issued or MFA required
         content:
           application/json:
             schema:
@@ -167,6 +171,7 @@
     - Auth
     summary: Logout
     description: 'Stateless JWT logout is typically handled on the client.
+
 
       If you later add token revocation/blacklist, implement it here.
 
@@ -227,7 +232,7 @@
         content:
           application/json:
             schema:
-              $ref: ../schemas/auth.yml#/components/schemas/LoginFinishResponse
+              $ref: ../schemas/auth.yml#/components/schemas/LoginAuthenticated
       '400':
         description: Bad request
         content:
@@ -236,3 +241,455 @@
               $ref: ../schemas/common.yml#/components/schemas/Error
       '401':
         description: Unauthorized / step-up required
+/auth/mfa:
+  get:
+    tags:
+    - Auth
+    summary: Get MFA status for the current user
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: MFA status
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/MfaStatus
+      '401':
+        description: Unauthorized
+/auth/mfa/totp/setup:
+  post:
+    tags:
+    - Auth
+    summary: Begin TOTP enrollment (step-up required)
+    description: >-
+      Issues a pending TOTP secret and otpauth URL. Confirm with
+      `/auth/mfa/totp/confirm` before the secret is stored.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Pending TOTP secret issued
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/TotpSetupResponse
+      '401':
+        description: Unauthorized / step-up required
+      '409':
+        description: TOTP already enabled
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '503':
+        description: Encryption key not configured
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/mfa/totp/confirm:
+  post:
+    tags:
+    - Auth
+    summary: Confirm TOTP enrollment (step-up required)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/TotpConfirmRequest
+    responses:
+      '200':
+        description: TOTP enabled; backup codes returned once
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/TotpConfirmResponse
+      '400':
+        description: Invalid code or no pending setup
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized / step-up required
+/auth/mfa/totp:
+  delete:
+    tags:
+    - Auth
+    summary: Disable TOTP (step-up required)
+    description: >-
+      Removes the TOTP factor. If no other second factor remains, 2FA is fully
+      disabled and backup codes are discarded.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+    responses:
+      '204':
+        description: TOTP disabled
+      '401':
+        description: Unauthorized / step-up required
+      '404':
+        description: TOTP not enabled
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/mfa/backup-codes/regenerate:
+  post:
+    tags:
+    - Auth
+    summary: Regenerate backup codes (step-up required)
+    description: Requires at least one active second factor (TOTP or WebAuthn).
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+    responses:
+      '200':
+        description: New backup codes (shown once)
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/BackupCodesRegenerateResponse
+      '400':
+        description: 2FA not enabled
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized / step-up required
+/auth/mfa/disable:
+  post:
+    tags:
+    - Auth
+    summary: Disable all MFA factors (step-up required)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+    responses:
+      '204':
+        description: All MFA factors removed
+      '401':
+        description: Unauthorized / step-up required
+/auth/mfa/verify:
+  post:
+    tags:
+    - Auth
+    summary: Complete login MFA with TOTP or backup code
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/MfaCodeVerifyRequest
+    responses:
+      '200':
+        description: Logged in
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/LoginAuthenticated
+      '401':
+        description: Invalid token or code
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/mfa/webauthn/options:
+  post:
+    tags:
+    - Auth
+    summary: Get WebAuthn assertion options for login MFA
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/MfaWebAuthnOptionsRequest
+    responses:
+      '200':
+        description: Assertion options
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/WebAuthnAssertionOptionsResponse
+      '401':
+        description: Invalid or expired mfaToken
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/mfa/webauthn/verify:
+  post:
+    tags:
+    - Auth
+    summary: Complete login MFA with WebAuthn assertion
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/MfaWebAuthnVerifyRequest
+    responses:
+      '200':
+        description: Logged in
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/LoginAuthenticated
+      '401':
+        description: Invalid token or assertion
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/stepup/mfa/verify:
+  post:
+    tags:
+    - Auth
+    summary: Complete step-up MFA with TOTP or backup code
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/MfaCodeVerifyRequest
+    responses:
+      '200':
+        description: Step-up token issued
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/StepupAuthenticated
+      '401':
+        description: Invalid token or code
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/stepup/mfa/webauthn/options:
+  post:
+    tags:
+    - Auth
+    summary: Get WebAuthn assertion options for step-up MFA
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/MfaWebAuthnOptionsRequest
+    responses:
+      '200':
+        description: Assertion options
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/WebAuthnAssertionOptionsResponse
+      '401':
+        description: Invalid or expired mfaToken
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/stepup/mfa/webauthn/verify:
+  post:
+    tags:
+    - Auth
+    summary: Complete step-up MFA with WebAuthn assertion
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/MfaWebAuthnVerifyRequest
+    responses:
+      '200':
+        description: Step-up token issued
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/StepupAuthenticated
+      '401':
+        description: Invalid token or assertion
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/mfa/webauthn/credentials:
+  get:
+    tags:
+    - Auth
+    summary: List registered WebAuthn credentials
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: Credential list
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/auth.yml#/components/schemas/WebAuthnCredential
+      '401':
+        description: Unauthorized
+/auth/mfa/webauthn/register/options:
+  post:
+    tags:
+    - Auth
+    summary: Begin WebAuthn credential registration (step-up required)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Creation options
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/WebAuthnRegisterOptionsResponse
+      '401':
+        description: Unauthorized / step-up required
+/auth/mfa/webauthn/register/verify:
+  post:
+    tags:
+    - Auth
+    summary: Finish WebAuthn credential registration (step-up required)
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/WebAuthnRegisterVerifyRequest
+    responses:
+      '201':
+        description: Credential registered
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/WebAuthnRegisterVerifyResponse
+      '400':
+        description: Invalid attestation
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized / step-up required
+/auth/mfa/webauthn/credentials/{credentialId}:
+  patch:
+    tags:
+    - Auth
+    summary: Rename a WebAuthn credential
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: credentialId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/WebAuthnCredentialUpdateRequest
+    responses:
+      '200':
+        description: Updated credential
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/WebAuthnCredential
+      '401':
+        description: Unauthorized
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+  delete:
+    tags:
+    - Auth
+    summary: Remove a WebAuthn credential (step-up required)
+    description: >-
+      If this was the last second factor, 2FA is fully disabled and backup codes
+      are discarded.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: credentialId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+    responses:
+      '204':
+        description: Credential removed
+      '401':
+        description: Unauthorized / step-up required
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
