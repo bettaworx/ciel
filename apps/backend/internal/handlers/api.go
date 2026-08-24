@@ -276,7 +276,12 @@ func (h API) PostAuthStepupFinish(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
+// clearAuthCookies expires both session cookies.
+//
+// CRITICAL: every attribute (Domain, Path, Secure, SameSite) must match the
+// cookie as it was set, or the browser keeps the original and goes on
+// presenting credentials for a session that is gone.
+func clearAuthCookies(w http.ResponseWriter, r *http.Request) {
 	// Determine if connection is secure
 	isSecure := r.TLS != nil ||
 		r.Header.Get("X-Forwarded-Proto") == "https" ||
@@ -286,9 +291,6 @@ func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 	// Get cookie domain from environment (must match the domain used when setting the cookie)
 	cookieDomain := os.Getenv("COOKIE_DOMAIN")
 
-	// Clear the auth cookie
-	// CRITICAL: All attributes (Domain, Path, Secure, SameSite) must match the original cookie
-	// for the deletion to work properly
 	http.SetCookie(w, &http.Cookie{
 		Name:     "ciel_auth",
 		Value:    "",
@@ -300,7 +302,8 @@ func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 
-	// Clear the refresh cookie (path must match the path used when setting it)
+	// The refresh cookie is scoped to the refresh endpoint, so its path has to
+	// match the path it was set with.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "ciel_refresh",
 		Value:    "",
@@ -311,6 +314,10 @@ func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 		Secure:   isSecure,
 		SameSite: http.SameSiteStrictMode,
 	})
+}
+
+func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
+	clearAuthCookies(w, r)
 
 	// Revoke refresh tokens in the database so a stolen token cannot be reused after logout.
 	// Best-effort: cookie clearing is the primary mechanism; DB revocation is defence-in-depth.
@@ -595,6 +602,12 @@ func (h API) DeleteMe(w http.ResponseWriter, r *http.Request, _ api.DeleteMePara
 		writeServiceError(w, err)
 		return
 	}
+
+	// The account is gone, so the cookies still in the browser now authenticate
+	// nobody. Left in place they are replayed on every request the page makes
+	// next — the realtime socket reconnects in a loop — and each one is a 401
+	// against a user that no longer exists.
+	clearAuthCookies(w, r)
 	w.WriteHeader(http.StatusNoContent)
 }
 

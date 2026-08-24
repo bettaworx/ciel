@@ -241,3 +241,56 @@ func TestPostAuthMfaDisable_StepupTokenReusableWithinWindow(t *testing.T) {
 		t.Fatalf("expected audit log for stepup use success")
 	}
 }
+
+// Both logout and account deletion end a session, so they share
+// clearAuthCookies. Deletion used to skip it and answer 204 on its own, which
+// left the browser presenting credentials for an account that no longer
+// existed — the realtime socket reconnected in a loop against a 401.
+//
+// The deletion path itself needs the whole account-removal transaction to
+// reach its cookie clearing, so what is pinned here is the helper they share:
+// both cookies expired, with the attributes they were set with.
+func TestPostAuthLogout_ClearsBothSessionCookies(t *testing.T) {
+	tm := auth.NewTokenManager([]byte("secret"), time.Minute)
+	apiHandler := handlers.API{Tokens: tm}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	rr := httptest.NewRecorder()
+	apiHandler.PostAuthLogout(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", rr.Code)
+	}
+
+	wantPath := map[string]string{
+		"ciel_auth":    "/",
+		"ciel_refresh": "/api/v1/auth/refresh",
+	}
+	seen := map[string]bool{}
+	for _, c := range rr.Result().Cookies() {
+		path, wanted := wantPath[c.Name]
+		if !wanted {
+			continue
+		}
+		seen[c.Name] = true
+		if c.Value != "" {
+			t.Errorf("%s: expected an empty value, got %q", c.Name, c.Value)
+		}
+		if c.MaxAge >= 0 {
+			t.Errorf("%s: expected MaxAge < 0 to expire it, got %d", c.Name, c.MaxAge)
+		}
+		// A mismatched path leaves the original cookie in place, so the browser
+		// keeps sending it and the expiry silently does nothing.
+		if c.Path != path {
+			t.Errorf("%s: expected path %q, got %q", c.Name, path, c.Path)
+		}
+		if !c.HttpOnly {
+			t.Errorf("%s: expected HttpOnly", c.Name)
+		}
+	}
+	for name := range wantPath {
+		if !seen[name] {
+			t.Errorf("%s was never cleared", name)
+		}
+	}
+}
