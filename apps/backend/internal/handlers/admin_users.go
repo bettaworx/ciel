@@ -293,3 +293,25 @@ func (h API) PatchAdminUsersUserIdPrivacy(w http.ResponseWriter, r *http.Request
 
 	writeJSON(w, http.StatusOK, updated)
 }
+
+// DeleteAdminUsersUserIdMfa resets all MFA factors for a target user.
+func (h API) DeleteAdminUsersUserIdMfa(w http.ResponseWriter, r *http.Request, userId openapi_types.UUID) {
+	actor, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "authentication required"})
+		return
+	}
+	if h.Auth == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "auth not configured"})
+		return
+	}
+	if err := h.Authz.RequirePermission(r.Context(), actor.ID, "admin_users_mfa_reset"); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	if err := h.Auth.ResetUserMFA(r.Context(), actor, uuid.UUID(userId)); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

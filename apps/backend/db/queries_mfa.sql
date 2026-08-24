@@ -36,18 +36,18 @@ WHERE user_id = $1
   AND used_at IS NULL;
 
 -- name: ConsumeBackupCode :one
-UPDATE auth_backup_codes
+UPDATE auth_backup_codes AS c
 SET used_at = now()
-WHERE id = (
-  SELECT id
-  FROM auth_backup_codes
-  WHERE user_id = $1
-    AND code_hash = $2
-    AND used_at IS NULL
+WHERE c.id = (
+  SELECT b.id
+  FROM auth_backup_codes AS b
+  WHERE b.user_id = $1
+    AND b.code_hash = $2
+    AND b.used_at IS NULL
   LIMIT 1
   FOR UPDATE
 )
-RETURNING id, user_id, code_hash, created_at, used_at;
+RETURNING c.id, c.user_id, c.code_hash, c.created_at, c.used_at;
 
 -- name: ListWebAuthnCredentialsByUserID :many
 SELECT id, user_id, credential_id, public_key, attestation_type, aaguid,
@@ -111,10 +111,10 @@ WHERE user_id = $1;
 
 -- name: UserHasMfa :one
 SELECT
-  EXISTS(SELECT 1 FROM auth_totp WHERE user_id = $1) AS has_totp,
-  EXISTS(SELECT 1 FROM auth_webauthn_credentials WHERE user_id = $1) AS has_webauthn,
+  EXISTS(SELECT 1 FROM auth_totp t WHERE t.user_id = sqlc.arg(user_id)) AS has_totp,
+  EXISTS(SELECT 1 FROM auth_webauthn_credentials w WHERE w.user_id = sqlc.arg(user_id)) AS has_webauthn,
   (
     SELECT COUNT(*)::int
-    FROM auth_backup_codes
-    WHERE user_id = $1 AND used_at IS NULL
+    FROM auth_backup_codes b
+    WHERE b.user_id = sqlc.arg(user_id) AND b.used_at IS NULL
   ) AS backup_codes_remaining;

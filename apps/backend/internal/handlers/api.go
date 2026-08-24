@@ -202,10 +202,32 @@ func (h API) PostAuthLoginFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setAuthCookie(w, r, resp.AccessToken, resp.ExpiresInSeconds)
-	setRefreshCookie(w, r, rawRefreshToken, 30*24*60*60)
+	// Only set session cookies on full authentication; mfa_required responses
+	// must not establish a session.
+	if rawRefreshToken != "" {
+		setAuthCookie(w, r, loginFinishAccessToken(resp), loginFinishExpiresIn(resp))
+		setRefreshCookie(w, r, rawRefreshToken, 30*24*60*60)
+	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// loginFinishAccessToken extracts the access token when the union holds
+// LoginAuthenticated; empty otherwise.
+func loginFinishAccessToken(resp api.LoginFinishResponse) string {
+	authed, err := resp.AsLoginAuthenticated()
+	if err != nil {
+		return ""
+	}
+	return authed.AccessToken
+}
+
+func loginFinishExpiresIn(resp api.LoginFinishResponse) int {
+	authed, err := resp.AsLoginAuthenticated()
+	if err != nil {
+		return 0
+	}
+	return authed.ExpiresInSeconds
 }
 
 func (h API) PostAuthStepupStart(w http.ResponseWriter, r *http.Request) {
@@ -424,12 +446,24 @@ func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.Patch
 	}
 
 	setAuthCookie(w, r, token, expiresIn)
-	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+	writeJSON(w, http.StatusOK, mustLoginAuthenticated(api.LoginAuthenticated{
+		Status:           api.LoginAuthenticatedStatusAuthenticated,
 		AccessToken:      token,
-		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		TokenType:        api.Bearer,
 		ExpiresInSeconds: expiresIn,
 		User:             updatedUser,
-	})
+	}))
+}
+
+// mustLoginAuthenticated wraps LoginAuthenticated into the union response type.
+// The wrap cannot fail for a well-formed value; on the impossible error it panics
+// at marshal time rather than silently dropping the login response.
+func mustLoginAuthenticated(v api.LoginAuthenticated) api.LoginFinishResponse {
+	var out api.LoginFinishResponse
+	if err := out.FromLoginAuthenticated(v); err != nil {
+		panic(err)
+	}
+	return out
 }
 
 func (h API) PostMeAvatar(w http.ResponseWriter, r *http.Request) {
@@ -535,12 +569,13 @@ func (h API) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request, _ ap
 	if rawRefreshToken != "" {
 		setRefreshCookie(w, r, rawRefreshToken, 30*24*60*60)
 	}
-	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+	writeJSON(w, http.StatusOK, mustLoginAuthenticated(api.LoginAuthenticated{
+		Status:           api.LoginAuthenticatedStatusAuthenticated,
 		AccessToken:      token,
-		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		TokenType:        api.Bearer,
 		ExpiresInSeconds: expiresIn,
 		User:             updatedUser,
-	})
+	}))
 }
 
 func (h API) DeleteMe(w http.ResponseWriter, r *http.Request, _ api.DeleteMeParams) {
