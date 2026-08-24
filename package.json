@@ -12,6 +12,7 @@
     "gen:backend": "cd apps/backend && go generate ./...",
     "dev:backend": "cd apps/backend && go tool air",
     "run:backend": "cd apps/backend && go run .",
+    "run:frontend": "dotenv -e .env -- pnpm -C apps/frontend run build && pnpm -C apps/frontend run start",
     "test:backend": "cd apps/backend && go test ./...",
     "dev:frontend": "dotenv -e .env -- pnpm -C apps/frontend run dev",
     "build:frontend": "cd apps/frontend && pnpm run build",
