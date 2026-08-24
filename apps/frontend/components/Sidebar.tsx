@@ -94,6 +94,8 @@ export function Sidebar() {
     prevIsMenuOpenRef.current = isMenuOpen;
   }, [isMenuOpen]);
 
+  useEffect(() => { router.prefetch("/"); }, [router]);
+
   const [pinIconRef, animatePinIcon] = useAnimate();
   const hoverBg = "hover:bg-sidebar-hover";
 

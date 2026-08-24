@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, type ReactNode } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAtomValue } from "jotai";
 import { Home, Search, SquarePen, Bell } from "lucide-react";
@@ -22,6 +23,7 @@ function NavButton({
   label,
   isActive = false,
   isPrimary = false,
+  href,
   onClick,
 }: {
   icon: ReactNode;
@@ -29,28 +31,48 @@ function NavButton({
   isActive?: boolean;
   /** サイドバーの sidebar_primary と同じ、常時テーマカラーで塗る扱い */
   isPrimary?: boolean;
-  onClick: () => void;
+  href?: string;
+  onClick?: () => void;
 }) {
+  const inner = (
+    <span
+      className={cn(
+        "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+        isPrimary && "bg-c-1 text-c-foreground group-hover:bg-c-2",
+        !isPrimary &&
+          (isActive
+            ? "bg-c-1/15 text-c-1 group-hover:bg-c-1/25"
+            : "group-hover:bg-sidebar-hover"),
+      )}
+    >
+      {icon}
+    </span>
+  );
+
+  const classes = "group w-12 h-12 p-0 hover:bg-transparent flex items-center justify-center";
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={classes}
+        aria-label={label}
+        aria-current={isActive ? "page" : undefined}
+      >
+        {inner}
+      </Link>
+    );
+  }
+
   return (
     <Button
       variant="ghost"
-      className="group w-12 h-12 p-0 hover:bg-transparent"
+      className={classes}
       onClick={onClick}
       aria-label={label}
       aria-current={isActive ? "page" : undefined}
     >
-      <span
-        className={cn(
-          "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
-          isPrimary && "bg-c-1 text-c-foreground group-hover:bg-c-2",
-          !isPrimary &&
-            (isActive
-              ? "bg-c-1/15 text-c-1 group-hover:bg-c-1/25"
-              : "group-hover:bg-sidebar-hover"),
-        )}
-      >
-        {icon}
-      </span>
+      {inner}
     </Button>
   );
 }
@@ -107,7 +129,7 @@ export function BottomNav() {
             icon={<Search className="w-6 h-6" />}
             label={tNav("search")}
             isActive={pathname === "/search"}
-            onClick={() => router.push("/search")}
+            href="/search"
           />
         )}
 
@@ -124,7 +146,7 @@ export function BottomNav() {
             }
             label={tNav("notifications")}
             isActive={pathname === "/notifications"}
-            onClick={() => router.push("/notifications")}
+            href="/notifications"
           />
         )}
 
