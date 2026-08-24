@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -12,32 +12,12 @@ import { useMediaQuery } from "@/lib/hooks/use-media-query";
 
 // Atoms
 import { isAuthenticatedAtom, userAtom } from "@/atoms/auth";
-import { themeAtom } from "@/atoms/theme";
-
-// i18n
-import { LOCALE_STORAGE_KEY, locales, defaultLocale, type Locale } from "@/i18n/constants";
-
-// Utils
-import { setClientLocale } from "@/i18n/client-locale";
 
 // Components
 import { Button } from "@/components/ui/button";
 import { DesktopUserMenu } from "@/components/auth/DesktopUserMenu";
 import { MobileUserMenu } from "@/components/auth/MobileUserMenu";
 import { MobileLogoutConfirm } from "@/components/auth/MobileLogoutConfirm";
-
-// Types
-type MenuView = 'main' | 'theme' | 'language';
-
-// Get current locale from local storage
-function getCurrentLocale(): Locale {
-  if (typeof window === "undefined") return defaultLocale;
-  const locale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-  if (locale && locales.includes(locale as Locale)) {
-    return locale as Locale;
-  }
-  return defaultLocale;
-}
 
 export function AuthButtons() {
   const t = useTranslations();
@@ -50,18 +30,12 @@ export function AuthButtons() {
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
   // 状態管理
-  const [menuView, setMenuView] = useState<MenuView>('main');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
-  const [theme, setTheme] = useAtom(themeAtom);
-  const [locale, setLocale] = useState<Locale>(getCurrentLocale());
 
   // メニューが開くたびにメイン画面にリセット
   const handleMenuOpenChange = (open: boolean) => {
     setIsMenuOpen(open);
-    if (open) {
-      setMenuView('main');
-    }
   };
 
   const handleLogoutClick = () => {
@@ -74,12 +48,6 @@ export function AuthButtons() {
     await logout();
     // Page will be reloaded by logout function
   };
-
-	const handleLanguageChange = (newLocale: Locale) => {
-		setLocale(newLocale);
-		setClientLocale(newLocale);
-		window.dispatchEvent(new Event('ciel:locale-change'));
-	};
 
   const handleUserInfoClick = () => {
     if (user) {
@@ -126,14 +94,8 @@ export function AuthButtons() {
           initials={initials}
           isOpen={isMenuOpen}
           onOpenChange={handleMenuOpenChange}
-          currentView={menuView}
-          onViewChange={setMenuView}
           isLogoutOpen={isLogoutOpen}
           onLogoutOpenChange={setIsLogoutOpen}
-          theme={theme}
-          onThemeChange={setTheme}
-          locale={locale}
-          onLanguageChange={handleLanguageChange}
           onLogoutClick={handleLogoutClick}
           onLogoutConfirm={handleLogoutConfirm}
           onProfileClick={handleProfileClick}
@@ -152,12 +114,6 @@ export function AuthButtons() {
           initials={initials}
           isOpen={isMenuOpen}
           onOpenChange={handleMenuOpenChange}
-          currentView={menuView}
-          onViewChange={setMenuView}
-          theme={theme}
-          onThemeChange={setTheme}
-          locale={locale}
-          onLanguageChange={handleLanguageChange}
           onLogoutClick={handleLogoutClick}
           onProfileClick={handleProfileClick}
           onBookmarksClick={handleBookmarksClick}

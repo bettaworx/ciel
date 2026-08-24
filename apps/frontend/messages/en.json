@@ -605,8 +605,7 @@
   },
   "userMenu": {
     "viewProfile": "Profile",
-    "theme": "Theme",
-    "language": "Language",
+    "switchAccount": "Switch account",
     "closeMenu": "Close menu"
   },
   "common": {

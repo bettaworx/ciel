@@ -605,8 +605,7 @@
   },
   "userMenu": {
     "viewProfile": "プロフィール",
-    "theme": "テーマ",
-    "language": "言語",
+    "switchAccount": "アカウントの切り替え",
     "closeMenu": "メニューを閉じる"
   },
   "common": {

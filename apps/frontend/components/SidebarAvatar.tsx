@@ -34,18 +34,12 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
   const setMenuOpen = useSetAtom(sidebarMenuOpenAtom);
 
   const {
-    menuView,
-    setMenuView,
     isMenuOpen,
     isLogoutOpen,
     setIsLogoutOpen,
-    theme,
-    setTheme,
-    locale,
     handleMenuOpenChange,
     handleLogoutClick,
     handleLogoutConfirm,
-    handleLanguageChange,
     handleUserInfoClick,
     handleProfileClick,
     handleBookmarksClick,
@@ -69,14 +63,8 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
         initials={initials}
         isOpen={isMenuOpen}
         onOpenChange={handleMenuOpenChange}
-        currentView={menuView}
-        onViewChange={setMenuView}
         isLogoutOpen={isLogoutOpen}
         onLogoutOpenChange={setIsLogoutOpen}
-        theme={theme}
-        onThemeChange={setTheme}
-        locale={locale}
-        onLanguageChange={handleLanguageChange}
         onLogoutClick={handleLogoutClick}
         onLogoutConfirm={handleLogoutConfirm}
         onProfileClick={() => handleProfileClick(user.username)}
@@ -97,12 +85,6 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
         initials={initials}
         isOpen={isMenuOpen}
         onOpenChange={handleMenuOpenChange}
-        currentView={menuView}
-        onViewChange={setMenuView}
-        theme={theme}
-        onThemeChange={setTheme}
-        locale={locale}
-        onLanguageChange={handleLanguageChange}
         onLogoutClick={handleLogoutClick}
         onProfileClick={() => handleProfileClick(user.username)}
         onBookmarksClick={handleBookmarksClick}

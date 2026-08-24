@@ -11,29 +11,20 @@ import { UserMenuContent } from "./UserMenuContent";
 import { LogoutConfirmDialog } from "./LogoutConfirmDialog";
 import { DisplayName } from "@/components/users/DisplayName";
 import type { components } from "@/lib/api/api";
-import type { Theme } from "@/atoms/theme";
-import type { Locale } from "@/i18n/constants";
 import { MoreHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 type User = components["schemas"]["User"];
-type MenuView = "main" | "theme" | "language";
 
 interface DesktopUserMenuProps {
   user: User;
   initials: string;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  currentView: MenuView;
-  onViewChange: (view: MenuView) => void;
   isLogoutOpen: boolean;
   onLogoutOpenChange: (open: boolean) => void;
-  theme: Theme;
-  onThemeChange: (theme: Theme) => void;
-  locale: Locale;
-  onLanguageChange: (locale: Locale) => void;
   onLogoutClick: () => void;
   onLogoutConfirm: () => Promise<void>;
   onProfileClick: () => void;
@@ -51,14 +42,8 @@ export function DesktopUserMenu({
   initials,
   isOpen,
   onOpenChange,
-  currentView,
-  onViewChange,
   isLogoutOpen,
   onLogoutOpenChange,
-  theme,
-  onThemeChange,
-  locale,
-  onLanguageChange,
   onLogoutClick,
   onLogoutConfirm,
   onProfileClick,
@@ -129,12 +114,6 @@ export function DesktopUserMenu({
           <UserMenuContent
             user={user}
             initials={initials}
-            currentView={currentView}
-            onViewChange={onViewChange}
-            theme={theme}
-            onThemeChange={onThemeChange}
-            locale={locale}
-            onLanguageChange={onLanguageChange}
             onProfileClick={onProfileClick}
             onBookmarksClick={onBookmarksClick}
             onSettingsClick={onSettingsClick}
