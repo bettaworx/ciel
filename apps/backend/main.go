@@ -341,13 +341,20 @@ func main() {
 	}
 
 	var webauthnInstance *webauthn.WebAuthn
+	// The RP ID is the host of PUBLIC_BASE_URL, i.e. this server address. It
+	// doubles as the TOTP issuer so an authenticator entry names the instance
+	// it belongs to rather than the software.
+	var totpIssuer string
 	if waCfg, err := auth.WebAuthnConfigFromEnv(); err != nil {
 		slog.Warn("WebAuthn configuration invalid; passkeys disabled", "error", err)
-	} else if wa, err := auth.NewWebAuthn(waCfg); err != nil {
-		slog.Warn("failed to initialize WebAuthn; passkeys disabled", "error", err)
 	} else {
-		webauthnInstance = wa
-		slog.Info("WebAuthn enabled", "rp_id", waCfg.RPID, "origins", waCfg.RPOrigins)
+		totpIssuer = waCfg.RPID
+		if wa, err := auth.NewWebAuthn(waCfg); err != nil {
+			slog.Warn("failed to initialize WebAuthn; passkeys disabled", "error", err)
+		} else {
+			webauthnInstance = wa
+			slog.Info("WebAuthn enabled", "rp_id", waCfg.RPID, "origins", waCfg.RPOrigins)
+		}
 	}
 
 	authSvc.SetMFA(
@@ -357,7 +364,7 @@ func main() {
 		webauthnInstance,
 		webauthnSessionStore,
 		mfaAttemptLimiter,
-		os.Getenv("WEBAUTHN_RP_DISPLAY_NAME"),
+		totpIssuer,
 	)
 
 	// Periodically clean up expired refresh tokens and stale notifications
