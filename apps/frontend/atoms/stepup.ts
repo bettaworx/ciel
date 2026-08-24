@@ -7,15 +7,20 @@ export type SharedStepupToken = {
 };
 
 /**
- * A step-up token handed from the security page to the MFA page across one
- * client-side navigation: the prompt is answered on /settings/security, and the
- * screen it unlocks lives at /settings/security/mfa.
+ * A step-up token handed from a settings row to the screen it unlocks, across
+ * one client-side navigation: the prompt is answered on /settings/security or
+ * /settings/account, and the operation lives a route deeper.
  *
  * Deliberately a plain atom and never atomWithStorage — this token authorises
  * account changes for five minutes, so it must not outlive the tab, let alone
  * reach localStorage.
+ *
+ * Only the MFA management endpoints accept the same token more than once
+ * (stepupMfaMaxUses on the backend). Password change, username change and
+ * account deletion spend it on their first call, so those screens clear this
+ * atom once they succeed rather than leaving a dead token to be picked up.
  */
-export const mfaStepupTokenAtom = atom<SharedStepupToken | null>(null);
+export const stepupTokenAtom = atom<SharedStepupToken | null>(null);
 
 /** The held token if it is still worth sending, otherwise null. */
 export function usableStepupToken(held: SharedStepupToken | null): string | null {

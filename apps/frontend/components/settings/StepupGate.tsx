@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAtom } from "jotai";
-import { mfaStepupTokenAtom, usableStepupToken } from "@/atoms/stepup";
+import { stepupTokenAtom, usableStepupToken } from "@/atoms/stepup";
 import { useStepup } from "@/lib/hooks/use-stepup";
 import { StepupPrompt } from "@/components/settings/StepupPrompt";
 
@@ -30,12 +30,12 @@ interface StepupGateProps {
  *
  * Normally the prompt is answered before arriving — StepupRow does that, so the
  * URL only changes once identity is proven — and the token is picked up from
- * mfaStepupTokenAtom. Landing here directly, by deep link or reload, finds that
+ * stepupTokenAtom. Landing here directly, by deep link or reload, finds that
  * atom empty and asks in place instead.
  */
 export function StepupGate({ heading, cancelHref, children }: StepupGateProps) {
   const router = useRouter();
-  const [shared, setShared] = useAtom(mfaStepupTokenAtom);
+  const [shared, setShared] = useAtom(stepupTokenAtom);
 
   const publish = useCallback(
     (token: string, expiresInSeconds: number) =>
