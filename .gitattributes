@@ -1,0 +1,4 @@
+# Shell scripts run inside Linux containers (see Dockerfile.backend). A CRLF
+# checkout on Windows leaves "#!/bin/sh\r" in the shebang, and the image fails
+# with "no such file or directory" on an executable that plainly exists.
+*.sh text eol=lf
