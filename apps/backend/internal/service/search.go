@@ -218,6 +218,7 @@ func (s *SearchService) ReindexPost(ctx context.Context, postID uuid.UUID) {
 	s.logIndexError("index post", postID, s.provider.IndexPosts(ctx, search.PostDoc{
 		ID:        row.ID.String(),
 		Content:   row.Content,
+		Tags:      search.ExtractHashtags(row.Content),
 		UserID:    row.UserID.String(),
 		CreatedAt: row.CreatedAt.Unix(),
 	}))
@@ -242,6 +243,7 @@ func (s *SearchService) ReindexUser(ctx context.Context, userID uuid.UUID) {
 		Username:    row.Username,
 		DisplayName: row.DisplayName.String,
 		Bio:         row.Bio.String,
+		Tags:        search.ExtractHashtags(row.Bio.String),
 		CreatedAt:   row.CreatedAt.Unix(),
 	}))
 }
@@ -336,6 +338,7 @@ func (s *SearchService) backfillPosts(ctx context.Context, force bool) error {
 			docs = append(docs, search.PostDoc{
 				ID:        row.ID.String(),
 				Content:   row.Content,
+				Tags:      search.ExtractHashtags(row.Content),
 				UserID:    row.UserID.String(),
 				CreatedAt: row.CreatedAt.Unix(),
 			})
@@ -391,6 +394,7 @@ func (s *SearchService) backfillUsers(ctx context.Context, force bool) error {
 				Username:    row.Username,
 				DisplayName: row.DisplayName.String,
 				Bio:         row.Bio.String,
+				Tags:        search.ExtractHashtags(row.Bio.String),
 				CreatedAt:   row.CreatedAt.Unix(),
 			})
 		}
