@@ -14,7 +14,3 @@ formatters:
 
 run:
   timeout: 5m
-
-issues:
-  exclude-dirs:
-    - vendor
