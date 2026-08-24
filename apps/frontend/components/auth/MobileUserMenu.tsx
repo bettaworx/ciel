@@ -12,23 +12,14 @@ import {
 } from "@/components/ui/drawer";
 import { UserMenuContent } from "./UserMenuContent";
 import type { components } from "@/lib/api/api";
-import type { Theme } from "@/atoms/theme";
-import type { Locale } from "@/i18n/constants";
 
 type User = components['schemas']['User'];
-type MenuView = 'main' | 'theme' | 'language';
 
 interface MobileUserMenuProps {
   user: User;
   initials: string;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  currentView: MenuView;
-  onViewChange: (view: MenuView) => void;
-  theme: Theme;
-  onThemeChange: (theme: Theme) => void;
-  locale: Locale;
-  onLanguageChange: (locale: Locale) => void;
   onLogoutClick: () => void;
   onProfileClick: () => void;
   onBookmarksClick: () => void;
@@ -41,12 +32,6 @@ export function MobileUserMenu({
   initials,
   isOpen,
   onOpenChange,
-  currentView,
-  onViewChange,
-  theme,
-  onThemeChange,
-  locale,
-  onLanguageChange,
   onLogoutClick,
   onProfileClick,
   onBookmarksClick,
@@ -76,12 +61,6 @@ export function MobileUserMenu({
         <UserMenuContent
           user={user}
           initials={initials}
-          currentView={currentView}
-          onViewChange={onViewChange}
-          theme={theme}
-          onThemeChange={onThemeChange}
-          locale={locale}
-          onLanguageChange={onLanguageChange}
           onProfileClick={onProfileClick}
           onBookmarksClick={onBookmarksClick}
           onSettingsClick={onSettingsClick}
