@@ -13,7 +13,6 @@
   "profile": "プロフィール",
   "settings": {
     "title": "設定",
-    "backToSettings": "設定に戻る",
     "categories": {
       "profile": "プロフィール",
       "general": "一般",
@@ -181,7 +180,6 @@
       "title": "セキュリティ",
       "password": {
         "title": "パスワードを変更",
-        "wizardTitle": "パスワードを変更",
         "newPassword": "新しいパスワード",
         "confirmPassword": "新しいパスワード（確認）",
         "mismatch": "パスワードが一致しません",
@@ -245,7 +243,10 @@
           "acknowledge": "安全な場所に保存しました",
           "done": "閉じる",
           "remaining": "残り {count} 個",
-          "regenerate": "再生成する"
+          "regenerate": "再生成する",
+          "regenerateTitle": "バックアップコードを再生成しますか？",
+          "regenerateDescription": "今までのバックアップコードはすべて使えなくなり、新しいコードに置き換わります。",
+          "regenerateConfirm": "再生成する"
         }
       }
     },
@@ -253,7 +254,6 @@
       "title": "アカウント",
       "username": {
         "title": "ユーザー名を変更",
-        "wizardTitle": "ユーザー名を変更",
         "newLabel": "新しいユーザー名",
         "placeholder": "新しいユーザー名",
         "submit": "ユーザー名を変更",
@@ -265,7 +265,6 @@
       "delete": {
         "title": "アカウントを削除",
         "warning": "この操作は取り消せません。投稿・メディア・フォロー関係はすべて削除されます。",
-        "wizardTitle": "アカウントを削除",
         "confirmTitle": "本当に削除しますか？",
         "confirmDescription": "アカウントを削除すると、投稿・アップロードしたメディア・フォロー関係を含むすべてのデータが完全に削除されます。",
         "typeUsernamePrompt": "確認のため {username} と入力してください",

@@ -1,19 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Copy, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 
 interface BackupCodesDialogProps {
   /** The plaintext codes. The server never shows them again. */
@@ -24,20 +17,29 @@ interface BackupCodesDialogProps {
 /**
  * Shows freshly generated backup codes exactly once.
  *
- * Dismissal is gated behind an explicit acknowledgement — including Escape and
- * the overlay — because losing these while 2FA is on means losing the account.
+ * Nothing dismisses it except the footer, and the footer waits on an explicit
+ * acknowledgement — no close button, no Escape, no swipe. Losing these while
+ * 2FA is on means losing the account, and there is no second showing.
  */
 export function BackupCodesDialog({ codes, onClose }: BackupCodesDialogProps) {
   const t = useTranslations();
   const [acknowledged, setAcknowledged] = useState(false);
 
   const open = codes !== null && codes.length > 0;
-  const text = (codes ?? []).join("\n");
 
-  const close = () => {
-    setAcknowledged(false);
-    onClose();
-  };
+  // Held past the close: the parent drops the codes to shut this, and
+  // rendering the empty list straight away would collapse the sheet while it
+  // is still animating down.
+  const shown = useRef<string[]>([]);
+  if (open) shown.current = codes;
+  // Same reason the acknowledgement resets on the way in, not on the way out.
+  const wasOpen = useRef(false);
+  if (open !== wasOpen.current) {
+    wasOpen.current = open;
+    if (open) setAcknowledged(false);
+  }
+
+  const text = shown.current.join("\n");
 
   const copy = async () => {
     try {
@@ -58,25 +60,21 @@ export function BackupCodesDialog({ codes, onClose }: BackupCodesDialogProps) {
   };
 
   return (
-    <Dialog
+    <ResponsiveDialog
       open={open}
-      onOpenChange={(next) => {
-        if (!next && acknowledged) close();
-      }}
+      onOpenChange={(next) => !next && onClose()}
+      dismissible={false}
+      title={t("settings.security.mfa.backupCodes.dialogTitle")}
+      description={t("settings.security.mfa.backupCodes.dialogDescription")}
+      footer={
+        <Button type="button" variant="primary" disabled={!acknowledged} onClick={onClose}>
+          {t("settings.security.mfa.backupCodes.done")}
+        </Button>
+      }
     >
-      <DialogContent
-        onEscapeKeyDown={(e) => !acknowledged && e.preventDefault()}
-        onInteractOutside={(e) => !acknowledged && e.preventDefault()}
-      >
-        <DialogHeader>
-          <DialogTitle>{t("settings.security.mfa.backupCodes.dialogTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("settings.security.mfa.backupCodes.dialogDescription")}
-          </DialogDescription>
-        </DialogHeader>
-
+      <div className="space-y-4">
         <ul className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-4 font-mono text-sm">
-          {(codes ?? []).map((code) => (
+          {shown.current.map((code) => (
             <li key={code} className="select-all text-center">
               {code}
             </li>
@@ -101,18 +99,7 @@ export function BackupCodesDialog({ codes, onClose }: BackupCodesDialogProps) {
           />
           {t("settings.security.mfa.backupCodes.acknowledge")}
         </label>
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="primary"
-            disabled={!acknowledged}
-            onClick={close}
-          >
-            {t("settings.security.mfa.backupCodes.done")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </ResponsiveDialog>
   );
 }

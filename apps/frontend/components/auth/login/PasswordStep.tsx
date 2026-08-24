@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import {
+  stepHeadingClass,
+  type StepPresentation,
+} from "@/components/auth/step-presentation";
 import { UserProfileDisplay } from "./UserProfileDisplay";
 
 interface PasswordStepProps {
@@ -20,7 +24,7 @@ interface PasswordStepProps {
    * profile beside it. "sheet" is the bottom-sheet card: a dialog-sized heading
    * centred over a stacked profile.
    */
-  presentation?: "wizard" | "sheet";
+  presentation?: StepPresentation;
 }
 
 export function PasswordStep({
@@ -66,7 +70,7 @@ export function PasswordStep({
           <div className="mb-6">
             <h2
               className={cn(
-                isSheet ? "text-lg font-semibold" : "text-2xl font-bold",
+                stepHeadingClass(presentation),
                 isSheet && "text-center",
               )}
             >

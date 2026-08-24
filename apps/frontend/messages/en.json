@@ -13,7 +13,6 @@
   "profile": "Profile",
   "settings": {
     "title": "Settings",
-    "backToSettings": "Back to settings",
     "categories": {
       "profile": "Profile",
       "general": "General",
@@ -181,7 +180,6 @@
       "title": "Security",
       "password": {
         "title": "Change password",
-        "wizardTitle": "Change password",
         "newPassword": "New password",
         "confirmPassword": "Confirm new password",
         "mismatch": "Passwords do not match",
@@ -245,7 +243,10 @@
           "acknowledge": "I saved these somewhere safe",
           "done": "Close",
           "remaining": "{count} left",
-          "regenerate": "Regenerate"
+          "regenerate": "Regenerate",
+          "regenerateTitle": "Regenerate backup codes?",
+          "regenerateDescription": "Every current backup code stops working and is replaced by a new set.",
+          "regenerateConfirm": "Regenerate"
         }
       }
     },
@@ -253,7 +254,6 @@
       "title": "Account",
       "username": {
         "title": "Change username",
-        "wizardTitle": "Change username",
         "newLabel": "New username",
         "placeholder": "New username",
         "submit": "Change username",
@@ -265,7 +265,6 @@
       "delete": {
         "title": "Delete account",
         "warning": "This cannot be undone. Your posts, media and follow relationships will all be deleted.",
-        "wizardTitle": "Delete account",
         "confirmTitle": "Delete your account?",
         "confirmDescription": "Deleting your account permanently removes all of your data, including your posts, uploaded media and follow relationships.",
         "typeUsernamePrompt": "Type {username} to confirm",

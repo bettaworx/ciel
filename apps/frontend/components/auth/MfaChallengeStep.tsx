@@ -12,6 +12,11 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
+import {
+  stepDescriptionClass,
+  stepHeadingClass,
+  type StepPresentation,
+} from "@/components/auth/step-presentation";
 import type { MfaChallengeState } from "@/lib/hooks/use-mfa-challenge";
 import type { components } from "@/lib/api/api";
 
@@ -27,7 +32,7 @@ interface MfaChallengeStepProps {
   onSubmitCode: (code: string, method: MfaMethod) => void;
   loading?: boolean;
   /** Matches PasswordStep: the bottom sheet wants a smaller, centred heading. */
-  presentation?: "wizard" | "sheet";
+  presentation?: StepPresentation;
 }
 
 /**
@@ -91,11 +96,11 @@ export function MfaChallengeStep({
       className="flex flex-1 flex-col justify-center gap-6"
     >
       <div className={cn("flex flex-col gap-2", isSheet && "text-center")}>
-        <h2 className={isSheet ? "text-lg font-semibold" : "text-2xl font-bold"}>
+        <h2 className={stepHeadingClass(presentation)}>
           {t(isBackup ? "login.wizard.mfa.backupHeading" : "login.wizard.mfa.heading")}
         </h2>
         {description && (
-          <p className={cn("text-muted-foreground", isSheet && "text-sm")}>
+          <p className={stepDescriptionClass(presentation)}>
             {description}
           </p>
         )}

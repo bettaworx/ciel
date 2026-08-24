@@ -10,16 +10,7 @@ import { SettingsRow, SettingsRowGroup } from "@/components/settings/SettingsRow
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { TotpEnrollDialog } from "@/components/settings/mfa/TotpEnrollDialog";
 import { BackupCodesDialog } from "@/components/settings/mfa/BackupCodesDialog";
 import { MfaError, useMfa, type MfaStatus } from "@/lib/hooks/use-mfa";
@@ -34,6 +25,7 @@ type WebAuthnCredential = components["schemas"]["WebAuthnCredential"];
 type PendingConfirm =
   | { kind: "totp-remove" }
   | { kind: "totp-reset" }
+  | { kind: "backup-regenerate" }
   | { kind: "credential"; credential: WebAuthnCredential };
 
 export function MfaSettingsContent() {
@@ -122,15 +114,16 @@ function MfaManager({
       toast.success(t("settings.security.mfa.securityKeys.added"));
     }, "settings.security.mfa.securityKeys.addFailed");
 
-  const regenerateBackupCodes = () =>
-    guard(async () => {
-      const res = await run((token) => api.backupCodesRegenerate(token));
-      setBackupCodes(res.backupCodes);
-    });
-
   const confirmDestructive = () =>
     guard(async () => {
       if (!confirming) return;
+
+      if (confirming.kind === "backup-regenerate") {
+        const res = await run((token) => api.backupCodesRegenerate(token));
+        setConfirming(null);
+        setBackupCodes(res.backupCodes);
+        return;
+      }
 
       if (confirming.kind === "credential") {
         await run((token) =>
@@ -322,7 +315,7 @@ function MfaManager({
             />
             <SettingsRow
               label={t("settings.security.mfa.backupCodes.regenerate")}
-              onClick={regenerateBackupCodes}
+              onClick={() => setConfirming({ kind: "backup-regenerate" })}
               disabled={pending}
             />
           </SettingsRowGroup>
@@ -346,49 +339,63 @@ function MfaManager({
 
       <BackupCodesDialog codes={backupCodes} onClose={() => setBackupCodes(null)} />
 
-      <AlertDialog
+      <ResponsiveDialog
         open={confirming !== null}
         onOpenChange={(next) => !next && setConfirming(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t(
-                confirming?.kind === "totp-reset"
-                  ? "settings.security.mfa.totp.resetTitle"
-                  : "settings.security.mfa.removeTitle",
-              )}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                confirming?.kind === "totp-reset"
-                  ? "settings.security.mfa.totp.resetDescription"
-                  : factorsAfterRemoval(status, confirming) === 0
-                    ? "settings.security.mfa.removeLastDescription"
-                    : "settings.security.mfa.removeDescription",
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("settings.security.mfa.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                confirmDestructive();
-              }}
+        title={t(confirmCopy(confirming, status).title)}
+        description={t(confirmCopy(confirming, status).description)}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setConfirming(null)}
               disabled={pending}
             >
-              {t(
-                confirming?.kind === "totp-reset"
-                  ? "settings.security.mfa.totp.confirmReset"
-                  : "settings.security.mfa.confirmRemove",
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              {t("settings.security.mfa.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant={
+                confirming?.kind === "backup-regenerate" ? "primary" : "destructive"
+              }
+              onClick={confirmDestructive}
+              disabled={pending}
+            >
+              {t(confirmCopy(confirming, status).confirm)}
+            </Button>
+          </>
+        }
+      />
     </>
   );
+}
+
+/** Title, body and button for whichever confirmation is up. */
+function confirmCopy(confirming: PendingConfirm | null, status: MfaStatus) {
+  const mfa = "settings.security.mfa";
+  if (confirming?.kind === "totp-reset") {
+    return {
+      title: `${mfa}.totp.resetTitle`,
+      description: `${mfa}.totp.resetDescription`,
+      confirm: `${mfa}.totp.confirmReset`,
+    };
+  }
+  if (confirming?.kind === "backup-regenerate") {
+    return {
+      title: `${mfa}.backupCodes.regenerateTitle`,
+      description: `${mfa}.backupCodes.regenerateDescription`,
+      confirm: `${mfa}.backupCodes.regenerateConfirm`,
+    };
+  }
+  return {
+    title: `${mfa}.removeTitle`,
+    description:
+      factorsAfterRemoval(status, confirming) === 0
+        ? `${mfa}.removeLastDescription`
+        : `${mfa}.removeDescription`,
+    confirm: `${mfa}.confirmRemove`,
+  };
 }
 
 /** How many second factors would be left if `confirming` went through. */

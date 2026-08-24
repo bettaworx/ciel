@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
@@ -8,20 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { MfaError } from "@/lib/hooks/use-mfa";
 import type { components } from "@/lib/api/api";
 
 type TotpSetup = components["schemas"]["TotpSetupResponse"];
 
 const TOTP_CODE_LENGTH = 6;
+/** The footer lives outside the form, so its submit button reaches it by id. */
+const FORM_ID = "totp-enroll-form";
 
 interface TotpEnrollDialogProps {
   open: boolean;
@@ -52,14 +47,23 @@ export function TotpEnrollDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) {
+  // Cleared as it opens rather than as it closes: dropping the QR and the
+  // footer on the way out collapses the sheet from tall to nearly empty while
+  // it is still animating down, and the exit stutters. Assigning during render
+  // instead of from an effect means the stale QR never reaches the screen.
+  const wasOpen = useRef(false);
+  if (open !== wasOpen.current) {
+    wasOpen.current = open;
+    if (open) {
       setSetup(null);
       setQr(null);
       setCode("");
       setError(null);
-      return;
     }
+  }
+
+  useEffect(() => {
+    if (!open) return;
 
     let cancelled = false;
     (async () => {
@@ -129,84 +133,84 @@ export function TotpEnrollDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("settings.security.mfa.totp.enrollTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("settings.security.mfa.totp.enrollDescription")}
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(next) => !next && onCancel()}
+      title={t("settings.security.mfa.totp.enrollTitle")}
+      description={t("settings.security.mfa.totp.enrollDescription")}
+      footer={
+        setup && (
+          <>
+            <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
+              {t("settings.security.mfa.cancel")}
+            </Button>
+            <Button type="submit" form={FORM_ID} variant="primary" disabled={busy}>
+              {busy ? t("loading") : t("settings.security.mfa.totp.confirm")}
+            </Button>
+          </>
+        )
+      }
+    >
+      {!setup ? (
+        <div className="flex justify-center py-8">
+          <Spinner />
+        </div>
+      ) : (
+        <form id={FORM_ID} onSubmit={submit} className="space-y-4">
+          {qr && (
+            <div
+              className="mx-auto w-48 rounded-xl bg-white p-3 [&_svg]:h-full [&_svg]:w-full"
+              // The SVG is produced locally by the qrcode encoder from a URL the
+              // server generated; no user input reaches this markup.
+              dangerouslySetInnerHTML={{ __html: qr }}
+            />
+          )}
 
-        {!setup ? (
-          <div className="flex justify-center py-8">
-            <Spinner />
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              {t("settings.security.mfa.totp.manualEntry")}
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 select-all break-all rounded-lg bg-muted px-3 py-2 font-mono text-sm">
+                {setup.secret}
+              </code>
+              <Button type="button" variant="secondary" size="icon" onClick={copySecret}>
+                <Copy />
+                <span className="sr-only">
+                  {t("settings.security.mfa.totp.copySecret")}
+                </span>
+              </Button>
+            </div>
           </div>
-        ) : (
-          <form onSubmit={submit} className="space-y-4">
-            {qr && (
-              <div
-                className="mx-auto w-48 rounded-xl bg-white p-3 [&_svg]:h-full [&_svg]:w-full"
-                // The SVG is produced locally by the qrcode encoder from a URL the
-                // server generated; no user input reaches this markup.
-                dangerouslySetInnerHTML={{ __html: qr }}
-              />
-            )}
 
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">
-                {t("settings.security.mfa.totp.manualEntry")}
-              </p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 select-all break-all rounded-lg bg-muted px-3 py-2 font-mono text-sm">
-                  {setup.secret}
-                </code>
-                <Button type="button" variant="secondary" size="icon" onClick={copySecret}>
-                  <Copy />
-                  <span className="sr-only">
-                    {t("settings.security.mfa.totp.copySecret")}
-                  </span>
-                </Button>
-              </div>
-            </div>
+          <div className="flex flex-col items-center gap-2">
+            <Label htmlFor="totp-confirm-code">
+              {t("settings.security.mfa.totp.codeLabel")}
+            </Label>
+            <InputOTP
+              id="totp-confirm-code"
+              value={code}
+              onChange={setCode}
+              // A filled code has nothing left to confirm, so it goes.
+              onComplete={confirm}
+              maxLength={TOTP_CODE_LENGTH}
+              pattern="^[0-9]*$"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              disabled={busy}
+            >
+              <InputOTPGroup>
+                {Array.from({ length: TOTP_CODE_LENGTH }, (_, i) => (
+                  <InputOTPSlot key={i} index={i} />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
 
-            <div className="flex flex-col items-center gap-2">
-              <Label htmlFor="totp-confirm-code">
-                {t("settings.security.mfa.totp.codeLabel")}
-              </Label>
-              <InputOTP
-                id="totp-confirm-code"
-                value={code}
-                onChange={setCode}
-                // A filled code has nothing left to confirm, so it goes.
-                onComplete={confirm}
-                maxLength={TOTP_CODE_LENGTH}
-                pattern="^[0-9]*$"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                autoFocus
-                disabled={busy}
-              >
-                <InputOTPGroup>
-                  {Array.from({ length: TOTP_CODE_LENGTH }, (_, i) => (
-                    <InputOTPSlot key={i} index={i} />
-                  ))}
-                </InputOTPGroup>
-              </InputOTP>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
-                {t("settings.security.mfa.cancel")}
-              </Button>
-              <Button type="submit" variant="primary" disabled={busy}>
-                {busy ? t("loading") : t("settings.security.mfa.totp.confirm")}
-              </Button>
-            </DialogFooter>
-          </form>
-        )}
-      </DialogContent>
-    </Dialog>
+        </form>
+      )}
+    </ResponsiveDialog>
   );
 }
