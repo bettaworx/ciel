@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { getRegisteredSources } from '@/lib/csp'
 
 function sanitize(value: string): string {
-  return value.replace(/[\r\n]/g, '')
+  return value.replace(/[\r\n]/g, '');
 }
 
 function originSource(value: string | undefined): string[] {
@@ -79,7 +79,7 @@ function buildCsp(nonce: string): string {
   ].join('; ')
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID())
   const csp = buildCsp(nonce)
 
