@@ -8,11 +8,11 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StepupGate } from "@/components/settings/StepupGate";
 import { SettingsRow, SettingsRowGroup } from "@/components/settings/SettingsRow";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { TotpEnrollDialog } from "@/components/settings/mfa/TotpEnrollDialog";
 import { BackupCodesDialog } from "@/components/settings/mfa/BackupCodesDialog";
+import { SecurityKeyNameDialog } from "@/components/settings/mfa/SecurityKeyNameDialog";
 import { MfaError, useMfa, type MfaStatus } from "@/lib/hooks/use-mfa";
 import { createCredential, isWebAuthnAvailable } from "@/lib/api/webauthn";
 import { formatFullTimestamp } from "@/lib/utils/format-time";
@@ -70,7 +70,10 @@ function MfaManager({
   const [enrolling, setEnrolling] = useState(false);
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
   const [confirming, setConfirming] = useState<PendingConfirm | null>(null);
-  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  // Naming covers both a key that was just registered and a later rename.
+  const [naming, setNaming] = useState<
+    { id: string; name: string; isNew: boolean } | null
+  >(null);
 
   const credentials = status?.webauthnCredentials ?? [];
   const hasAnyFactor = Boolean(status?.totpEnabled) || credentials.length > 0;
@@ -107,10 +110,14 @@ function MfaManager({
         ),
       );
       // Backup codes come back only when this key is the account's first factor.
+      // They queue in front of the naming prompt, which waits on them: the codes
+      // are shown once and cannot be recovered, the name can wait.
       if (result.backupCodes.length > 0) setBackupCodes(result.backupCodes);
-      // Open the rename field straight away so the placeholder name is a
-      // starting point rather than something to go hunting for later.
-      setRenaming({ id: result.credential.id, name: result.credential.name });
+      setNaming({
+        id: result.credential.id,
+        name: result.credential.name,
+        isNew: true,
+      });
       toast.success(t("settings.security.mfa.securityKeys.added"));
     }, "settings.security.mfa.securityKeys.addFailed");
 
@@ -145,14 +152,12 @@ function MfaManager({
 
   // Renaming needs no step-up, so it goes straight at the API and refreshes the
   // status by hand rather than through `run`.
-  const submitRename = () =>
+  const submitName = (name: string) =>
     guard(async () => {
-      if (!renaming) return;
-      const name = renaming.name.trim();
-      if (!name) return;
-      const res = await api.webauthnCredentialRename(renaming.id, { name });
+      if (!naming) return;
+      const res = await api.webauthnCredentialRename(naming.id, { name });
       if (!res.ok) throw new MfaError(res.status);
-      setRenaming(null);
+      setNaming(null);
       await refresh();
     });
 
@@ -218,74 +223,49 @@ function MfaManager({
           <div className="flex flex-col overflow-hidden rounded-2xl bg-card [&>*+*]:border-t [&>*+*]:border-border">
             {credentials.map((credential) => (
               <div key={credential.id} className="p-4">
-                {renaming?.id === credential.id ? (
-                  <form
-                    className="flex items-center gap-2"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      submitRename();
-                    }}
-                  >
-                    <Input
-                      value={renaming.name}
-                      onChange={(e) =>
-                        setRenaming({ id: credential.id, name: e.target.value })
-                      }
-                      maxLength={64}
-                      autoFocus
-                    />
-                    <Button type="submit" variant="primary" disabled={pending}>
-                      {t("settings.security.mfa.securityKeys.saveName")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setRenaming(null)}
-                    >
-                      {t("settings.security.mfa.cancel")}
-                    </Button>
-                  </form>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <KeyRound className="size-4 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate">{credential.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {t("settings.security.mfa.securityKeys.addedAt", {
-                          date: formatFullTimestamp(credential.createdAt, locale),
-                        })}
-                        {credential.lastUsedAt
-                          ? " · " +
-                            t("settings.security.mfa.securityKeys.lastUsedAt", {
-                              date: formatFullTimestamp(credential.lastUsedAt, locale),
-                            })
-                          : ""}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() =>
-                        setRenaming({ id: credential.id, name: credential.name })
-                      }
-                      aria-label={t("settings.security.mfa.securityKeys.rename")}
-                    >
-                      <Pencil />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => setConfirming({ kind: "credential", credential })}
-                      disabled={pending}
-                      aria-label={t("settings.security.mfa.securityKeys.remove")}
-                    >
-                      <Trash2 />
-                    </Button>
+                <div className="flex items-center gap-3">
+                  <KeyRound className="size-4 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate">{credential.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("settings.security.mfa.securityKeys.addedAt", {
+                        date: formatFullTimestamp(credential.createdAt, locale),
+                      })}
+                      {credential.lastUsedAt
+                        ? " · " +
+                          t("settings.security.mfa.securityKeys.lastUsedAt", {
+                            date: formatFullTimestamp(credential.lastUsedAt, locale),
+                          })
+                        : ""}
+                    </p>
                   </div>
-                )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      setNaming({
+                        id: credential.id,
+                        name: credential.name,
+                        isNew: false,
+                      })
+                    }
+                    aria-label={t("settings.security.mfa.securityKeys.rename")}
+                  >
+                    <Pencil />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive"
+                    onClick={() => setConfirming({ kind: "credential", credential })}
+                    disabled={pending}
+                    aria-label={t("settings.security.mfa.securityKeys.remove")}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
               </div>
             ))}
 
@@ -338,6 +318,17 @@ function MfaManager({
       />
 
       <BackupCodesDialog codes={backupCodes} onClose={() => setBackupCodes(null)} />
+
+      <SecurityKeyNameDialog
+        // Never over the backup codes: those are read once and closing them is
+        // gated on an acknowledgement.
+        open={naming !== null && backupCodes === null}
+        initialName={naming?.name ?? ""}
+        isNew={naming?.isNew ?? false}
+        busy={pending}
+        onSubmit={submitName}
+        onDismiss={() => setNaming(null)}
+      />
 
       <ResponsiveDialog
         open={confirming !== null}

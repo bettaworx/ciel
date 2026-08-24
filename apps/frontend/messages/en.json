@@ -231,7 +231,11 @@
           "addedAt": "Added {date}",
           "lastUsedAt": "Last used {date}",
           "unsupported": "This browser does not support security keys.",
-          "defaultName": "Security key"
+          "defaultName": "Security key",
+          "nameTitle": "Name this security key",
+          "nameDescription": "A name that says which device it is makes it easy to tell apart later.",
+          "nameLabel": "Name",
+          "nameLater": "Later"
         },
         "backupCodes": {
           "title": "Backup codes",

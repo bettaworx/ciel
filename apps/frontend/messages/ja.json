@@ -231,7 +231,11 @@
           "addedAt": "{date} に追加",
           "lastUsedAt": "最終使用 {date}",
           "unsupported": "このブラウザーはセキュリティキーに対応していません。",
-          "defaultName": "セキュリティキー"
+          "defaultName": "セキュリティキー",
+          "nameTitle": "セキュリティキーに名前を付ける",
+          "nameDescription": "どの端末のキーか分かる名前にしておくと、あとで見分けやすくなります。",
+          "nameLabel": "名前",
+          "nameLater": "後で"
         },
         "backupCodes": {
           "title": "バックアップコード",
