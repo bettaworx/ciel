@@ -19,7 +19,7 @@ import { TimelineSwitcher } from "@/components/TimelineSwitcher";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Rocket } from "lucide-react";
+import { Repeat2 } from "lucide-react";
 import type { components } from "@/lib/api/api";
 
 type Post = components["schemas"]["Post"];
@@ -74,7 +74,7 @@ function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) 
   if (pureBoost) {
     const displayPost = boostedPost ?? post.reference;
     const boostIndicator = {
-      icon: <Rocket className="h-3.5 w-3.5" />,
+      icon: <Repeat2 className="h-3.5 w-3.5" />,
       label: t("postCard.actions.boostedBy", {
         name: post.author.displayName || post.author.username,
       }),

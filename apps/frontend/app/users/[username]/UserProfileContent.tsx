@@ -36,7 +36,7 @@ import {
   VolumeX,
   MoreHorizontal,
   Pencil,
-  Rocket,
+  Repeat2,
   Share,
   User,
   X,
@@ -129,7 +129,7 @@ function ProfilePostItem({ post, isLast, onUserClick, revealHidden }: ProfilePos
   if (pureBoost) {
     const displayPost = boostedPost ?? post.reference;
     const boostIndicator = {
-      icon: <Rocket className="h-3.5 w-3.5" />,
+      icon: <Repeat2 className="h-3.5 w-3.5" />,
       label: t("postCard.actions.boostedBy", {
         name: post.author.displayName || post.author.username,
       }),

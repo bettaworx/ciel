@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { AtSign, Lock, Quote, Reply, Rocket, Smile, UserPlus } from "lucide-react";
+import { AtSign, Lock, Plus, Quote, Reply, Repeat2, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmojiInline } from "@/components/EmojiInline";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
@@ -35,13 +35,13 @@ type Actor = NonNullable<Notification["actors"]>[number];
  */
 export const NOTIFICATION_ICONS: Record<
   NotificationDisplayType,
-  typeof Smile
+  typeof Plus
 > = {
-  // Smile is the reaction affordance on a post card; keep the vocabulary shared.
-  reaction: Smile,
+  // Plus is the add-reaction affordance on a post card; keep the vocabulary shared.
+  reaction: Plus,
   reply: Reply,
   mention: AtSign,
-  boost: Rocket,
+  boost: Repeat2,
   quote: Quote,
   follow: UserPlus,
   // A request is not yet a follow, so it gets the lock rather than UserPlus.
