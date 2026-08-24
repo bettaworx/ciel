@@ -36,7 +36,7 @@ import {
   MessageCircle,
   Quote,
   Ban,
-  Rocket,
+  Repeat2,
   MoreHorizontal,
   RotateCcw,
   Share,
@@ -1227,7 +1227,7 @@ export function PostCard({
                   )}
                   aria-label={t("actions.boost")}
                 >
-                  <Rocket className="h-5 w-5" />
+                  <Repeat2 className="h-5 w-5" />
                   {post.boostCount > 0 && (
                     <span className="text-xs tabular-nums">{post.boostCount}</span>
                   )}
@@ -1235,7 +1235,7 @@ export function PostCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuItem onSelect={() => { setBoostMenuOpen(false); handleBoost(); }}>
-                  <Rocket className="h-4 w-4" />
+                  <Repeat2 className="h-4 w-4" />
                   {t("actions.boost")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => { setBoostMenuOpen(false); setQuoteDialogOpen(true); }}>
@@ -1256,7 +1256,7 @@ export function PostCard({
                   )}
                   aria-label={t("actions.boost")}
                 >
-                  <Rocket className="h-5 w-5" />
+                  <Repeat2 className="h-5 w-5" />
                   {post.boostCount > 0 && (
                     <span className="text-xs tabular-nums">{post.boostCount}</span>
                   )}
@@ -1269,7 +1269,7 @@ export function PostCard({
                     className="w-full justify-start gap-2"
                     onClick={() => { setBoostMenuOpen(false); handleBoost(); }}
                   >
-                    <Rocket className="h-4 w-4" />
+                    <Repeat2 className="h-4 w-4" />
                     {t("actions.boost")}
                   </Button>
                   <Button

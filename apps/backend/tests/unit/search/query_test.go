@@ -1,6 +1,7 @@
 package search_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ func TestParseQuery(t *testing.T) {
 		wantUser string
 		wantFrom *time.Time
 		wantTo   *time.Time
+		wantTags []string
 	}{
 		{
 			name:     "plain text defaults to matching every term",
@@ -113,6 +115,27 @@ func TestParseQuery(t *testing.T) {
 			wantUser: "alice",
 		},
 		{
+			name:     "a bare hashtag becomes a tag filter",
+			raw:      "#VRChat cute",
+			wantText: "cute",
+			wantAll:  true,
+			wantTags: []string{"vrchat"},
+		},
+		{
+			name:     "tag directive equals a bare hashtag",
+			raw:      "tag:VRChat",
+			wantText: "",
+			wantAll:  true,
+			wantTags: []string{"vrchat"},
+		},
+		{
+			name:     "multiple hashtags AND together",
+			raw:      "#cats #dogs",
+			wantText: "",
+			wantAll:  true,
+			wantTags: []string{"cats", "dogs"},
+		},
+		{
 			name:     "an empty query is valid and matches everything",
 			raw:      "",
 			wantText: "",
@@ -137,6 +160,9 @@ func TestParseQuery(t *testing.T) {
 			}
 			assertTime(t, "Since", got.Since, tc.wantFrom)
 			assertTime(t, "Until", got.Until, tc.wantTo)
+			if !reflect.DeepEqual(got.Tags, tc.wantTags) {
+				t.Errorf("Tags = %q, want %q", got.Tags, tc.wantTags)
+			}
 			if got.Limit != 30 || got.Offset != 0 {
 				t.Errorf("Limit/Offset = %d/%d, want 30/0", got.Limit, got.Offset)
 			}
@@ -154,6 +180,8 @@ func TestParseQueryRejectsBadInput(t *testing.T) {
 		{"since that is not a date", "since:yesterday"},
 		{"until that is not a date", "until:2026-13-45"},
 		{"since later than until", "since:2026-02-01 until:2026-01-01"},
+		{"tag directive without a name", "tag:"},
+		{"tag directive with invalid characters", "tag:bad!tag"},
 		{"query over the length limit", string(make([]byte, search.MaxQueryLength+1))},
 	}
 

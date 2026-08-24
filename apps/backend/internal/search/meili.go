@@ -37,11 +37,12 @@ func (m *Meilisearch) Name() string { return "meilisearch" }
 // after the first, so that error is tolerated; the settings update that
 // follows is what actually has to succeed.
 func (m *Meilisearch) EnsureIndexes(ctx context.Context) error {
-	// Posts are searched by content only. The author is a filter (from:), not
-	// a matchable field, because finding people is what the users index is for.
+	// Posts are searched by content only. The author and hashtags are filters
+	// (from:, #tag), not matchable fields, because finding people is what the
+	// users index is for and tags must match exactly.
 	if err := m.ensureIndex(ctx, postsIndex, &meilisearch.Settings{
 		SearchableAttributes: []string{"content"},
-		FilterableAttributes: []string{"userId", "createdAt"},
+		FilterableAttributes: []string{"userId", "createdAt", "tags"},
 		SortableAttributes:   []string{"createdAt"},
 		// Meilisearch's default rules with sort moved to the front. Left in its
 		// default fifth position sort only breaks ties, so the createdAt:desc
@@ -58,7 +59,7 @@ func (m *Meilisearch) EnsureIndexes(ctx context.Context) error {
 	}
 	return m.ensureIndex(ctx, usersIndex, &meilisearch.Settings{
 		SearchableAttributes: []string{"username", "displayName", "bio"},
-		FilterableAttributes: []string{"createdAt"},
+		FilterableAttributes: []string{"createdAt", "tags"},
 		SortableAttributes:   []string{"createdAt"},
 	})
 }
@@ -192,6 +193,11 @@ func buildFilter(q Query) string {
 	}
 	if q.Until != nil {
 		clauses = append(clauses, fmt.Sprintf("createdAt <= %d", q.Until.Unix()))
+	}
+	// Each tag becomes its own clause, so multiple tags AND together: the
+	// document must carry every one of them.
+	for _, tag := range q.Tags {
+		clauses = append(clauses, fmt.Sprintf("tags = %s", quoteFilterValue(tag)))
 	}
 	return strings.Join(clauses, " AND ")
 }

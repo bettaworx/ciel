@@ -25,19 +25,21 @@ var ErrUnavailable = errors.New("search provider not configured")
 // The author is stored as an id rather than a username so that renaming a user
 // does not invalidate every post they ever wrote.
 type PostDoc struct {
-	ID        string `json:"id"`
-	Content   string `json:"content"`
-	UserID    string `json:"userId"`
-	CreatedAt int64  `json:"createdAt"` // unix seconds
+	ID        string   `json:"id"`
+	Content   string   `json:"content"`
+	Tags      []string `json:"tags,omitempty"`
+	UserID    string   `json:"userId"`
+	CreatedAt int64    `json:"createdAt"` // unix seconds
 }
 
 // UserDoc is the indexed representation of a user.
 type UserDoc struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	DisplayName string `json:"displayName"`
-	Bio         string `json:"bio"`
-	CreatedAt   int64  `json:"createdAt"` // unix seconds
+	ID          string   `json:"id"`
+	Username    string   `json:"username"`
+	DisplayName string   `json:"displayName"`
+	Bio         string   `json:"bio"`
+	Tags        []string `json:"tags,omitempty"` // hashtags found in the bio
+	CreatedAt   int64    `json:"createdAt"`      // unix seconds
 }
 
 // Query is a parsed search request. Text is passed to the engine as-is
@@ -51,6 +53,7 @@ type Query struct {
 	MatchAll bool // true: every term must match. false: relaxed matching.
 	Username string
 	AuthorID *uuid.UUID
+	Tags     []string // exact hashtags to require (`#tag` or `tag:`)
 	Since    *time.Time
 	Until    *time.Time
 	Limit    int

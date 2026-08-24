@@ -10,6 +10,8 @@
 
       - `from:alice` — only posts by this user (a leading `@` is allowed)
 
+      - `#tag` or `tag:name` — only posts carrying this exact hashtag
+
       - `since:2026-01-01` — created on or after this date (UTC)
 
       - `until:2026-01-31` — created on or before this date (UTC, inclusive)
@@ -17,6 +19,10 @@
       - `"exact phrase"` — match the phrase exactly
 
       - `OR` — match any term instead of all of them (must be uppercase)
+
+
+      A hashtag filter matches posts that actually carry the hashtag, not
+      posts merely containing the word, and is case-insensitive.
 
 
       Dates also accept a full RFC 3339 timestamp. Anything else is treated as
@@ -91,7 +97,8 @@
 
       The `q` parameter accepts the same mini-syntax as post search, except that
       `from:` is ignored because the results are users. `since:` and `until:`
-      filter on when the account was created.
+      filter on when the account was created. `#tag` matches users whose bio
+      carries that exact hashtag.
 
       '
     security:

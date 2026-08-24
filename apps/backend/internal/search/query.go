@@ -12,6 +12,7 @@ const MaxQueryLength = 256
 // ParseQuery turns a raw user query into a Query. The supported mini-syntax is
 //
 //	from:alice          restrict to a username (a leading @ is allowed)
+//	#tag or tag:name    require the exact hashtag (posts) or bio hashtag (users)
 //	since:2026-01-01    created on or after this date (UTC)
 //	until:2026-01-31    created on or before this date (UTC, inclusive)
 //	"exact phrase"      phrase match, passed through to the engine
@@ -49,6 +50,25 @@ func ParseQuery(raw string, limit, offset int) (Query, error) {
 		}
 
 		key, value, isDirective := strings.Cut(tok.value, ":")
+
+		// A bare #tag (or tag:) filters on the exact hashtag instead of
+		// searching for the word, so "#VRChat" never matches plain "VRChat".
+		if !isDirective && strings.HasPrefix(tok.value, "#") {
+			if tag, ok := NormalizeTag(tok.value); ok {
+				q.Tags = append(q.Tags, tag)
+				continue
+			}
+			text = append(text, tok.value)
+			continue
+		}
+		if isDirective && strings.EqualFold(key, "tag") {
+			tag, ok := NormalizeTag(value)
+			if !ok {
+				return Query{}, fmt.Errorf(`"tag:" needs a hashtag name`)
+			}
+			q.Tags = append(q.Tags, tag)
+			continue
+		}
 		if !isDirective {
 			text = append(text, tok.value)
 			continue
