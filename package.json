@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "concurrently -n frontend,backend -c cyan,green \"pnpm run dev:frontend\" \"pnpm run dev:backend\"",
+    "build": "concurrently -n frontend,backend -c cyan,green \"pnpm run build:frontend\" \"pnpm run build:backend \"",
+    "run": "concurrently -n frontend,backend -c cyan,green \"pnpm run run:frontend\" \"pnpm run run:backend\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "gen:openapi": "cd apps/backend && go generate ./internal/api",
     "gen:openapi:ts": "pnpm -C apps/frontend run gen:openapi",
@@ -12,7 +14,7 @@
     "gen:backend": "cd apps/backend && go generate ./...",
     "dev:backend": "cd apps/backend && go tool air",
     "run:backend": "cd apps/backend && go run .",
-    "run:frontend": "dotenv -e .env -- pnpm -C apps/frontend run build && pnpm -C apps/frontend run start",
+    "run:frontend": "dotenv -e .env -- pnpm -C apps/frontend run start",
     "test:backend": "cd apps/backend && go test ./...",
     "dev:frontend": "dotenv -e .env -- pnpm -C apps/frontend run dev",
     "build:frontend": "cd apps/frontend && pnpm run build",
