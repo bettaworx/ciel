@@ -10,7 +10,7 @@ export function AboutSettingsContent() {
 
   return (
     <>
-      <PageHeader backHref="/settings" showBackButton="mobile">
+      <PageHeader backHref="/settings">
         {t("settings.about.title")}
       </PageHeader>
       <SettingsRowGroup>

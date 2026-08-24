@@ -1,13 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { settingsCategories } from "@/lib/settings-categories";
 import { isConcentratedMode } from "@/lib/utils/concentrated-mode";
 import { RequireAuth } from "@/components/auth/RequireAuth";
-import { AccountCard } from "@/components/settings/AccountCard";
 import { PageContainer } from "@/components/PageContainer";
 
 export default function SettingsLayout({
@@ -15,17 +10,10 @@ export default function SettingsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const t = useTranslations();
   const pathname = usePathname();
 
-  // 翻訳を適用
-  const categories = settingsCategories.map((cat) => ({
-    ...cat,
-    label: t(cat.labelKey),
-  }));
-
   // Step-up wizards own the whole screen: they bring their own full-screen
-  // shell, so the sidebar and page container would only box them in.
+  // shell, so the page container would only box them in.
   if (isConcentratedMode(pathname)) {
     return <RequireAuth redirectOnClose="/">{children}</RequireAuth>;
   }
@@ -35,33 +23,10 @@ export default function SettingsLayout({
       {/* pt-0: every settings page leads with a PageHeader, which brings its
           own top inset — the same deal PageContainer's `header` prop makes. */}
       <PageContainer padding="compact" as="div" className="pt-0">
-        <div className="flex flex-col md:flex-row gap-3">
-          {/* Desktop Sidebar */}
-          <aside className="hidden md:block w-64 shrink-0">
-            <AccountCard />
-            <nav className="space-y-2">
-              {categories.map((category) => {
-                const Icon = category.icon;
-                const isActive = pathname === category.href;
-
-                return (
-                  <Link key={category.id} href={category.href}>
-                    <Button
-                      variant={isActive ? "primary" : "ghost"}
-                      className="w-full justify-start gap-2"
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{category.label}</span>
-                    </Button>
-                  </Link>
-                );
-              })}
-            </nav>
-          </aside>
-
-          {/* Content Area */}
-          <main className="flex-1 max-w-2xl">{children}</main>
-        </div>
+        {/* One layout at every width: settings is a stack of lists you drill
+            into, so a desktop gets the same index → category → detail path a
+            phone does, just centred and capped at a readable width. */}
+        <main className="mx-auto w-full max-w-2xl">{children}</main>
       </PageContainer>
     </RequireAuth>
   );

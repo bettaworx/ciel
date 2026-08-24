@@ -16,7 +16,7 @@ export function AccountSettingsContent() {
 
   return (
     <>
-      <PageHeader backHref="/settings" showBackButton="mobile">
+      <PageHeader backHref="/settings">
         {t("settings.account.title")}
       </PageHeader>
       <div className="space-y-3">

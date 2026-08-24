@@ -36,7 +36,7 @@ export function GeneralSettingsContent() {
 
   return (
     <>
-      <PageHeader backHref="/settings" showBackButton="mobile">
+      <PageHeader backHref="/settings">
         {t("settings.general.title")}
       </PageHeader>
       <div className="space-y-3">
