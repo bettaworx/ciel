@@ -45,6 +45,7 @@ type AuthService struct {
 	totpSetup        auth.TotpSetupStore
 	webauthn         *webauthn.WebAuthn
 	webauthnSessions auth.WebAuthnSessionStore
+	attempts         auth.AttemptLimiter
 	totpIssuer       string
 }
 

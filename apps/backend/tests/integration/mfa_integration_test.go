@@ -45,6 +45,7 @@ func newTestAppWithMFA(t *testing.T) *testApp {
 		auth.NewMemoryTotpSetupStore(),
 		wa,
 		auth.NewMemoryWebAuthnSessionStore(),
+		auth.NewMemoryAttemptLimiter(),
 		"Ciel",
 	)
 	return app

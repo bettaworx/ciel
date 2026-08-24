@@ -35,7 +35,7 @@ func newMFATestService(t *testing.T) (*service.AuthService, sqlmock.Sqlmock, *au
 		t.Fatalf("NewSecretBox: %v", err)
 	}
 	mfaSessions := auth.NewMemoryMfaSessionStore()
-	svc.SetMFA(box, mfaSessions, auth.NewMemoryTotpSetupStore(), nil, nil, "Ciel")
+	svc.SetMFA(box, mfaSessions, auth.NewMemoryTotpSetupStore(), nil, nil, auth.NewMemoryAttemptLimiter(), "Ciel")
 
 	cleanup := func() { _ = db.Close() }
 	return svc, mock, mfaSessions, cleanup
@@ -195,7 +195,7 @@ func TestAuthService_VerifyMfaCode_BackupCode(t *testing.T) {
 		ExpiresAtUTC: time.Now().UTC().Add(5 * time.Minute),
 	})
 
-	// No TOTP row → falls through to backup code path.
+	// No TOTP row ↁEfalls through to backup code path.
 	mock.ExpectQuery(`SELECT user_id, secret_enc`).WithArgs(userID).
 		WillReturnError(sql.ErrNoRows)
 	mock.ExpectQuery(`UPDATE auth_backup_codes AS c`).
@@ -261,7 +261,7 @@ func TestAuthService_LoginFinish_MfaRequired(t *testing.T) {
 			sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey)
 		return r
 	}())
-	// TOTP enrolled → MFA required
+	// TOTP enrolled ↁEMFA required
 	mock.ExpectQuery(`EXISTS\(SELECT 1 FROM auth_totp`).WithArgs(userID).
 		WillReturnRows(sqlmock.NewRows([]string{"has_totp", "has_webauthn", "backup_codes_remaining"}).AddRow(true, false, 10))
 
@@ -323,5 +323,61 @@ func TestListMFAMethods_None(t *testing.T) {
 	}
 	if len(methods) != 0 {
 		t.Fatalf("expected no methods, got %v", methods)
+	}
+}
+
+func TestAuthService_VerifyMfaCode_LockoutAfterRepeatedFailures(t *testing.T) {
+	svc, mock, mfaSessions, cleanup := newMFATestService(t)
+	defer cleanup()
+
+	userID := uuid.New()
+	token := "mfa-token-lock"
+	if err := mfaSessions.Put(auth.MfaSession{
+		Token:        token,
+		UserID:       userID.String(),
+		Username:     "alice",
+		Purpose:      auth.MfaPurposeLogin,
+		Methods:      []string{"totp"},
+		ExpiresAtUTC: time.Now().UTC().Add(5 * time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	key, _ := auth.DecodeTotpSecret("JBSWY3DPEHPK3PXP")
+	boxKey := make([]byte, 32)
+	for i := range boxKey {
+		boxKey[i] = byte(i + 1)
+	}
+	box, _ := auth.NewSecretBox(boxKey)
+	enc, _ := box.Seal(key)
+
+	// DefaultMaxAttempts failures are allowed...
+	for i := 0; auth.DefaultMaxAttempts > i; i++ {
+		mock.ExpectQuery(`SELECT user_id, secret_enc`).WithArgs(userID).
+			WillReturnRows(sqlmock.NewRows([]string{"user_id", "secret_enc", "enabled_at", "last_used_step"}).
+				AddRow(userID, enc, time.Now(), sql.NullInt64{}))
+		_, _, _, err := svc.VerifyMfaCode(context.Background(), api.MfaCodeVerifyRequest{
+			MfaToken: token,
+			Code:     "000000",
+		}, auth.MfaPurposeLogin)
+		assertServiceError(t, err, http.StatusUnauthorized, "unauthorized")
+	}
+
+	// ...then the account locks out without touching the database.
+	_, _, _, err := svc.VerifyMfaCode(context.Background(), api.MfaCodeVerifyRequest{
+		MfaToken: token,
+		Code:     "000000",
+	}, auth.MfaPurposeLogin)
+	assertServiceError(t, err, http.StatusTooManyRequests, "too_many_attempts")
+
+	// A wrong mfaToken still reports unauthorized rather than revealing lockout state.
+	_, _, _, err = svc.VerifyMfaCode(context.Background(), api.MfaCodeVerifyRequest{
+		MfaToken: "no-such-token",
+		Code:     "000000",
+	}, auth.MfaPurposeLogin)
+	assertServiceError(t, err, http.StatusUnauthorized, "unauthorized")
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
 	}
 }

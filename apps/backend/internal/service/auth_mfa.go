@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -34,6 +36,7 @@ func (s *AuthService) SetMFA(
 	totpSetup auth.TotpSetupStore,
 	wa *webauthn.WebAuthn,
 	waSessions auth.WebAuthnSessionStore,
+	attempts auth.AttemptLimiter,
 	issuer string,
 ) {
 	s.secretBox = box
@@ -41,10 +44,29 @@ func (s *AuthService) SetMFA(
 	s.totpSetup = totpSetup
 	s.webauthn = wa
 	s.webauthnSessions = waSessions
+	s.attempts = attempts
 	if issuer == "" {
 		issuer = totpIssuerDefault
 	}
 	s.totpIssuer = issuer
+}
+
+// mfaBlocked reports whether the account is locked out after repeated failed
+// verifications. Nil limiter (tests, legacy wiring) means the check passes.
+func (s *AuthService) mfaBlocked(key string) bool {
+	return s.attempts != nil && s.attempts.Blocked(key)
+}
+
+func (s *AuthService) recordMfaFailure(key string) {
+	if s.attempts != nil {
+		s.attempts.Fail(key)
+	}
+}
+
+func (s *AuthService) resetMfaFailures(key string) {
+	if s.attempts != nil {
+		s.attempts.Reset(key)
+	}
 }
 
 func (s *AuthService) ensureMFAReady() error {
@@ -165,10 +187,20 @@ func (s *AuthService) TotpSetup(ctx context.Context, user auth.User) (api.TotpSe
 	if err != nil {
 		return api.TotpSetupResponse{}, err
 	}
+	// The pending secret is stored sealed (AES-GCM) so a Redis compromise
+	// between setup and confirm does not expose usable TOTP keys.
+	key, err := auth.DecodeTotpSecret(secret)
+	if err != nil {
+		return api.TotpSetupResponse{}, err
+	}
+	sealed, err := s.secretBox.Seal(key)
+	if err != nil {
+		return api.TotpSetupResponse{}, err
+	}
 	expires := s.now().UTC().Add(totpSetupTTL)
 	if err := s.totpSetup.Put(auth.TotpPendingSetup{
 		UserID:       user.ID.String(),
-		Secret:       secret,
+		Secret:       base64.StdEncoding.EncodeToString(sealed),
 		ExpiresAtUTC: expires,
 	}); err != nil {
 		return api.TotpSetupResponse{}, err
@@ -202,7 +234,12 @@ func (s *AuthService) TotpConfirm(ctx context.Context, user auth.User, req api.T
 		return api.TotpConfirmResponse{}, NewError(http.StatusBadRequest, "invalid_request", "no pending TOTP setup")
 	}
 
-	key, err := auth.DecodeTotpSecret(pending.Secret)
+	// Unseal the pending secret (stored AES-GCM sealed, base64 wrapped).
+	sealed, err := base64.StdEncoding.DecodeString(pending.Secret)
+	if err != nil {
+		return api.TotpConfirmResponse{}, NewError(http.StatusBadRequest, "invalid_request", "invalid pending secret")
+	}
+	key, err := s.secretBox.Open(sealed)
 	if err != nil {
 		return api.TotpConfirmResponse{}, NewError(http.StatusBadRequest, "invalid_request", "invalid pending secret")
 	}
@@ -334,6 +371,9 @@ func (s *AuthService) DisableAllMFA(ctx context.Context, user auth.User) error {
 		auditMFA(ctx, "auth.mfa.disable", "failure", user, "internal")
 		return err
 	}
+	if s.totpSetup != nil {
+		_ = s.totpSetup.Delete(user.ID.String())
+	}
 	auditMFA(ctx, "auth.mfa.disable", "success", user, "")
 	return nil
 }
@@ -419,6 +459,12 @@ func (s *AuthService) VerifyMfaCode(ctx context.Context, req api.MfaCodeVerifyRe
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid mfa token")
 	}
 
+	// Account-level lockout after repeated failures (brute-force defense).
+	if s.mfaBlocked(sess.UserID) {
+		auditMFA(ctx, "auth.mfa.verify", "failure", auth.User{ID: userID, Username: sess.Username}, "locked_out")
+		return login, stepup, "", NewError(http.StatusTooManyRequests, "too_many_attempts", "too many failed attempts; try again later")
+	}
+
 	methodHint := ""
 	if req.Method != nil {
 		methodHint = string(*req.Method)
@@ -426,9 +472,11 @@ func (s *AuthService) VerifyMfaCode(ctx context.Context, req api.MfaCodeVerifyRe
 
 	verified, verifyErr := s.verifyCodeForUser(ctx, userID, req.Code, methodHint)
 	if verifyErr != nil || !verified {
+		s.recordMfaFailure(sess.UserID)
 		auditMFA(ctx, "auth.mfa.verify", "failure", auth.User{ID: userID, Username: sess.Username}, "invalid_code")
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid code")
 	}
+	s.resetMfaFailures(sess.UserID)
 
 	// Consume session only after successful verification.
 	if _, ok := s.mfaSessions.Consume(req.MfaToken); !ok {
@@ -574,6 +622,9 @@ func (s *AuthService) ResetUserMFA(ctx context.Context, actor auth.User, targetU
 	})
 	if err != nil {
 		return err
+	}
+	if s.totpSetup != nil {
+		_ = s.totpSetup.Delete(targetUserID.String())
 	}
 	if err := s.tokens.InvalidateUserTokens(ctx, targetUserID.String()); err != nil {
 		slog.Warn("failed to invalidate tokens after MFA reset", "error", err, "user_id", targetUserID.String())
@@ -778,6 +829,12 @@ func (s *AuthService) WebAuthnRegisterVerify(ctx context.Context, user auth.User
 			BackupState:     credential.Flags.BackupState,
 		})
 		if err != nil {
+			// The same authenticator cannot be enrolled twice; surface the
+			// unique violation on credential_id as a client error.
+			var pgErr *pgconn.PgError
+			if errorsAs(err, &pgErr) && pgErr.Code == "23505" {
+				return NewError(http.StatusConflict, "credential_already_registered", "this authenticator is already registered")
+			}
 			return err
 		}
 		stored = row
@@ -944,16 +1001,9 @@ func (s *AuthService) WebAuthnAssertionVerify(ctx context.Context, mfaToken stri
 		return login, stepup, "", NewError(http.StatusServiceUnavailable, "service_unavailable", "WebAuthn not configured")
 	}
 
-	// Find matching webauthn session by scanning is awkward; client sends credential
-	// but sessionId is inside options flow. We require credential only + mfaToken;
-	// look up by consuming webauthn sessions is done via embedding session in...
-	// Actually OpenAPI MfaWebAuthnVerifyRequest only has mfaToken + credential.
-	// We store MfaToken on the webauthn session and the client must have called options first.
-	// Problem: we don't get sessionId in verify request for MFA path.
-	// Fix: put the latest assert session keyed also by mfaToken.
-	// Simpler approach: require sessionId in credential path via reusing register verify shape.
-	// Our OpenAPI has only mfaToken+credential. We'll look up by parsing and matching credential id.
-
+	// The assertion ceremony was stored keyed by mfaToken; the verify request
+	// carries only mfaToken + credential (no sessionId), so options overwrote
+	// any previous in-flight ceremony for this token.
 	mfaSess, ok := s.mfaSessions.Get(mfaToken)
 	if !ok || mfaSess.Purpose != expect {
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid or expired mfa token")
@@ -961,6 +1011,11 @@ func (s *AuthService) WebAuthnAssertionVerify(ctx context.Context, mfaToken stri
 	userID, err := uuid.Parse(mfaSess.UserID)
 	if err != nil {
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid mfa token")
+	}
+
+	if s.mfaBlocked(mfaSess.UserID) {
+		auditMFA(ctx, "auth.webauthn.verify", "failure", auth.User{ID: userID, Username: mfaSess.Username}, "locked_out")
+		return login, stepup, "", NewError(http.StatusTooManyRequests, "too_many_attempts", "too many failed attempts; try again later")
 	}
 
 	// The assertion ceremony was stored keyed by mfaToken (see AssertionOptions).
@@ -975,14 +1030,17 @@ func (s *AuthService) WebAuthnAssertionVerify(ctx context.Context, mfaToken stri
 	}
 	credJSON, err := json.Marshal(credential)
 	if err != nil {
+		s.recordMfaFailure(mfaSess.UserID)
 		return login, stepup, "", NewError(http.StatusBadRequest, "invalid_request", "invalid credential")
 	}
 	parsed, err := protocol.ParseCredentialRequestResponseBytes(credJSON)
 	if err != nil {
+		s.recordMfaFailure(mfaSess.UserID)
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid credential")
 	}
 	updated, err := s.webauthn.ValidateLogin(waUser, waSess.SessionData, parsed)
 	if err != nil {
+		s.recordMfaFailure(mfaSess.UserID)
 		auditMFA(ctx, "auth.webauthn.verify", "failure", auth.User{ID: userID, Username: mfaSess.Username}, "invalid_assertion")
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid credential")
 	}
@@ -992,7 +1050,11 @@ func (s *AuthService) WebAuthnAssertionVerify(ctx context.Context, mfaToken stri
 	if err != nil {
 		return login, stepup, "", err
 	}
-	if int64(updated.Authenticator.SignCount) > 0 && int64(updated.Authenticator.SignCount) < dbCred.SignCount {
+	// Clone detection: a non-zero counter that does not strictly advance means
+	// the credential may have been duplicated.
+	if int64(updated.Authenticator.SignCount) > 0 && int64(updated.Authenticator.SignCount) <= dbCred.SignCount {
+		s.recordMfaFailure(mfaSess.UserID)
+		auditMFA(ctx, "auth.webauthn.verify", "failure", auth.User{ID: userID, Username: mfaSess.Username}, "sign_count_regression")
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid credential")
 	}
 	if err := s.store.Q.UpdateWebAuthnCredentialSignCount(ctx, sqlc.UpdateWebAuthnCredentialSignCountParams{
@@ -1007,6 +1069,7 @@ func (s *AuthService) WebAuthnAssertionVerify(ctx context.Context, mfaToken stri
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid or expired mfa token")
 	}
 
+	s.resetMfaFailures(mfaSess.UserID)
 	auditMFA(ctx, "auth.webauthn.verify", "success", auth.User{ID: userID, Username: mfaSess.Username}, "")
 
 	if expect == auth.MfaPurposeStepup {

@@ -326,14 +326,17 @@ func main() {
 	var mfaSessionStore auth.MfaSessionStore
 	var totpSetupStore auth.TotpSetupStore
 	var webauthnSessionStore auth.WebAuthnSessionStore
+	var mfaAttemptLimiter auth.AttemptLimiter
 	if redisClient != nil {
 		mfaSessionStore = auth.NewRedisMfaSessionStore(redisClient, 5*time.Minute)
 		totpSetupStore = auth.NewRedisTotpSetupStore(redisClient, 10*time.Minute)
 		webauthnSessionStore = auth.NewRedisWebAuthnSessionStore(redisClient, 5*time.Minute)
+		mfaAttemptLimiter = auth.NewRedisAttemptLimiter(redisClient)
 	} else {
 		mfaSessionStore = auth.NewMemoryMfaSessionStore()
 		totpSetupStore = auth.NewMemoryTotpSetupStore()
 		webauthnSessionStore = auth.NewMemoryWebAuthnSessionStore()
+		mfaAttemptLimiter = auth.NewMemoryAttemptLimiter()
 		slog.Warn("Redis not available; using in-memory MFA session stores")
 	}
 
@@ -353,6 +356,7 @@ func main() {
 		totpSetupStore,
 		webauthnInstance,
 		webauthnSessionStore,
+		mfaAttemptLimiter,
 		os.Getenv("WEBAUTHN_RP_DISPLAY_NAME"),
 	)
 
