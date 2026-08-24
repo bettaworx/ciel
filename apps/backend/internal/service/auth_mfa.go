@@ -134,10 +134,10 @@ func (s *AuthService) GetMfaStatus(ctx context.Context, user auth.User) (api.Mfa
 	}
 
 	return api.MfaStatus{
-		TotpEnabled:           row.HasTotp,
-		TotpEnabledAt:         enabledAt,
-		WebauthnCredentials:   creds,
-		BackupCodesRemaining:  int(row.BackupCodesRemaining),
+		TotpEnabled:          row.HasTotp,
+		TotpEnabledAt:        enabledAt,
+		WebauthnCredentials:  creds,
+		BackupCodesRemaining: int(row.BackupCodesRemaining),
 	}, nil
 }
 

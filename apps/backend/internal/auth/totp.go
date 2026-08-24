@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	totpDigits     = 6
-	totpPeriod     = 30
+	totpDigits      = 6
+	totpPeriod      = 30
 	totpSecretBytes = 20
 )
 
