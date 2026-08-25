@@ -95,3 +95,46 @@ export const OpenTest: Story = {
     await expect(body.getByText("Drawer title")).toBeInTheDocument();
   },
 };
+
+/**
+ * A sheet taller than the viewport, with the keyboard inset faked so the story
+ * shows what a focused form field does to it on a phone. The sheet should stop
+ * short of the top, sit above the greyed keyboard band, and scroll internally —
+ * the last field has to stay reachable. Setting `--keyboard-inset` to `0px`
+ * returns it to the no-keyboard layout.
+ */
+export const TallWithKeyboard: Story = {
+  render: () => (
+    <div
+      // Stands in for the software keyboard, which no desktop browser will
+      // raise for us. KeyboardInset writes the same variable at runtime.
+      style={{ ["--keyboard-inset" as string]: "300px" }}
+    >
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex h-[300px] items-center justify-center bg-muted/80 text-sm text-muted-foreground">
+        software keyboard (300px)
+      </div>
+      <Drawer>
+        <DrawerTrigger asChild>
+          <Button variant="outline">Open Tall Drawer</Button>
+        </DrawerTrigger>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Long form</DrawerTitle>
+            <DrawerDescription>
+              Twenty fields, more than fits above the keyboard.
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="flex flex-col gap-3 px-4 pb-4">
+            {Array.from({ length: 20 }, (_, i) => (
+              <input
+                key={i}
+                className="h-11 rounded-md border bg-background px-3"
+                placeholder={`Field ${i + 1}`}
+              />
+            ))}
+          </div>
+        </DrawerContent>
+      </Drawer>
+    </div>
+  ),
+};

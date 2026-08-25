@@ -130,7 +130,9 @@ export function BookmarkListFormDialog({
 
   const picker = (
     <EmojiPicker
-      className="h-[360px] w-full sm:w-[340px]"
+      // The sheet has to yield to the keyboard; the desktop popover has no
+      // keyboard to yield to and keeps its fixed height.
+      className="h-[min(400px,calc(100dvh-var(--keyboard-inset,0px)-8rem))] w-full sm:h-[360px] sm:w-[340px]"
       columns={isDesktop ? 8 : 8}
       onEmojiSelect={handleEmojiSelect}
     >
