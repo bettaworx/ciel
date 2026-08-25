@@ -49,7 +49,8 @@ function NavButton({
     </span>
   );
 
-  const classes = "group w-12 h-12 p-0 hover:bg-transparent flex items-center justify-center";
+  const classes =
+    "group w-12 h-12 p-0 hover:bg-transparent flex items-center justify-center [&_svg]:size-6";
 
   if (href) {
     return (
@@ -117,7 +118,7 @@ export function BottomNav() {
 
         {/* ホームボタン */}
         <NavButton
-          icon={<Home className="w-6 h-6" />}
+          icon={<Home />}
           label={tNav("home")}
           isActive={pathname === "/"}
           onClick={handleHomeClick}
@@ -126,7 +127,7 @@ export function BottomNav() {
         {/* 検索ボタン */}
         {isMounted && isAuthenticated && showSearch && (
           <NavButton
-            icon={<Search className="w-6 h-6" />}
+            icon={<Search />}
             label={tNav("search")}
             isActive={pathname === "/search"}
             href="/search"
@@ -138,7 +139,7 @@ export function BottomNav() {
           <NavButton
             icon={
               <span className="relative flex">
-                <Bell className="w-6 h-6" />
+                <Bell />
                 {/* Centred on the icon's top-right corner, so it clears the glyph
                     regardless of how many digits it renders. */}
                 <NotificationBadge className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 ring-2 ring-background-1" />
@@ -153,7 +154,7 @@ export function BottomNav() {
         {/* 投稿ボタン */}
         {isMounted && isAuthenticated && (
           <NavButton
-            icon={<SquarePen className="w-6 h-6" />}
+            icon={<SquarePen />}
             label={tCreatePost("title")}
             isPrimary
             onClick={() => setIsPostDialogOpen(true)}
