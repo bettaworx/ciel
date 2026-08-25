@@ -23,16 +23,19 @@ export function MainContent({ children }: MainContentProps) {
   const isAuthenticated = useAtomValue(isAuthenticatedAtom);
   const isSidebarExpanded = useAtomValue(sidebarExpandedAtom);
   const isConcentrated = isConcentratedMode(pathname);
-  const shouldApplySidebarOffset = isAuthenticated && !isConcentrated;
+  // Same condition ConditionalSidebar uses to render the nav, so the bottom
+  // padding is only reserved when a BottomNav is actually there to clear.
+  const hasNavChrome = isAuthenticated && !isConcentrated;
 
   return (
     <div
       className={cn(
-        "pb-16 sm:pb-0",
-        shouldApplySidebarOffset &&
-          (isSidebarExpanded
+        hasNavChrome && [
+          "pb-16 sm:pb-0",
+          isSidebarExpanded
             ? "sm:pl-[72px] sm:pr-0 xl:pl-[248px] xl:pr-[248px]"
-            : "sm:pl-[72px] sm:pr-0 xl:pr-[72px]"),
+            : "sm:pl-[72px] sm:pr-0 xl:pr-[72px]",
+        ],
       )}
     >
       {children}
