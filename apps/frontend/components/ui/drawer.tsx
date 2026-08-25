@@ -5,12 +5,31 @@ import { Drawer as DrawerPrimitive } from "vaul";
 
 import { cn } from "@/lib/utils";
 
-const Drawer = ({
-  shouldScaleBackground = true,
-  ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
+const Drawer = (props: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
   <DrawerPrimitive.Root
-    shouldScaleBackground={shouldScaleBackground}
+    // Between them these two switch off everything vaul does to the body and
+    // the window scroll, which is every path in it that calls window.scrollTo.
+    //
+    // vaul locks the background by pinning window.scrollY at 0 and offsetting
+    // the body with `position: fixed; top: -scrollY`. The two halves read the
+    // scroll position at different moments — one from a layout effect, the
+    // other from a passive effect that runs a scroll event later — so the
+    // offset it saves collapses to 0, and touching anywhere in the sheet tears
+    // the first half down and re-records 0 again. The background jumps to the
+    // top on open and lands somewhere arbitrary on close. At scroll position 0
+    // every one of those values agrees, which is why it only shows up once the
+    // page has been scrolled.
+    //
+    // Nothing here needs that: Radix wraps DrawerOverlay in RemoveScroll, which
+    // blocks background scrolling with non-passive touchmove handlers and a
+    // `body { overflow: hidden }` rule, and never writes a scroll offset — so
+    // there is nothing to restore and nothing to lose. The sheet itself is the
+    // shard it allows, so scrolling inside it still works.
+    noBodyStyles
+    // Also stops vaul writing inline height/bottom onto the sheet from
+    // onVisualViewportChange; the keyboard is handled in CSS off
+    // --keyboard-inset instead. See DrawerContent below.
+    repositionInputs={false}
     {...props}
   />
 );
@@ -47,20 +66,7 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        // `bottom-0!` and `h-auto!` are the whole of vaul's keyboard handling
-        // that we want gone. Its repositionInputs prop looks like the switch
-        // for it, but the same flag also gates usePreventScroll — which on iOS
-        // is what pins window.scrollY at 0 while the sheet is open. That has to
-        // stay on: vaul's other half puts `position: fixed; top: -scrollY` on
-        // the body, and with the window still scrolled the two disagree, so
-        // every fixed element's hit area lands offset from where it is painted
-        // (taps miss) and the scroll restored on close is wrong. So the prop is
-        // left at its default and only the styling is overridden. vaul writes
-        // exactly `height` and `bottom` inline, from onVisualViewportChange and
-        // nowhere else; dragging animates `transform`, and snap points — the
-        // other user of those two — are unused here. The keyboard is handled in
-        // CSS below off --keyboard-inset instead.
-        "fixed inset-x-0 bottom-0! z-50 flex h-auto! flex-col overflow-hidden rounded-t-[10px] border bg-card",
+        "fixed inset-x-0 bottom-0 z-50 flex h-auto flex-col overflow-hidden rounded-t-[10px] border bg-card",
         // The sheet stays pinned to the bottom and pads its content up over the
         // keyboard instead of moving. Shifting `bottom` would leave it short of
         // offscreen when vaul closes it with translate3d(0, 100%, 0).
