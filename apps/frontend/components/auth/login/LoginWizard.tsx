@@ -109,13 +109,13 @@ export function LoginWizard() {
   const renderFooter = () => {
     if (currentStep === "username") {
       return (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-2">
           <Button
             type="button"
             variant="secondary"
             onClick={() => router.push("/signup")}
             disabled={loading}
-            className="transition-colors duration-160 ease w-full sm:w-auto"
+            className="transition-colors duration-160 ease"
           >
             {t("signup.createAccount")}
           </Button>
@@ -124,7 +124,7 @@ export function LoginWizard() {
             type="submit"
             form="login-username-form"
             disabled={loading}
-            className="bg-c-1 text-c-foreground hover:bg-c-2 transition-colors duration-160 ease w-full sm:w-auto"
+            className="bg-c-1 text-c-foreground hover:bg-c-2 transition-colors duration-160 ease"
           >
             {t("setup.next")}
           </Button>
