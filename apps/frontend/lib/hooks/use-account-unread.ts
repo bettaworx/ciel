@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { accountsAtom, updateCachedUnreadAtom, upsertAccountAtom } from '@/atoms/accounts';
+import { accountsAtom, refreshAccountAtom, updateCachedUnreadAtom } from '@/atoms/accounts';
 import { userAtom } from '@/atoms/auth';
 import { createApiClient } from '@/lib/api/client';
 import type { components } from '@/lib/api/api';
@@ -65,7 +65,9 @@ export function useAccountUnread() {
 	const accounts = useAtomValue(accountsAtom);
 	const activeUser = useAtomValue(userAtom);
 	const updateCachedUnread = useSetAtom(updateCachedUnreadAtom);
-	const upsertAccount = useSetAtom(upsertAccountAtom);
+	// Refresh, never insert: a poll started before a switch can resolve after the
+	// account it asked about was dropped, and an upsert would list it again.
+	const refreshAccount = useSetAtom(refreshAccountAtom);
 
 	const others = accounts.filter((account) => account.userId !== activeUser?.id);
 
@@ -80,7 +82,7 @@ export function useAccountUnread() {
 					if (!session) return;
 
 					if (session.user) {
-						upsertAccount({
+						refreshAccount({
 							userId: account.userId,
 							username: session.user.username,
 							displayName: session.user.displayName ?? null,

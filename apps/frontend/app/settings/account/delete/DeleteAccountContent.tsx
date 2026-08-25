@@ -6,6 +6,7 @@ import { useAtomValue } from "jotai";
 import { useQueryClient } from "@tanstack/react-query";
 import { userAtom } from "@/atoms/auth";
 import { useApi } from "@/lib/api/use-api";
+import { useAccountSwitch } from "@/lib/hooks/use-account-switch";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StepupGate } from "@/components/settings/StepupGate";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,7 @@ function DeleteForm({
   const api = useApi();
   const queryClient = useQueryClient();
   const user = useAtomValue(userAtom);
+  const { forgetAccount, switchToNext } = useAccountSwitch();
 
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +54,11 @@ function DeleteForm({
   const username = user?.username ?? "";
   const canSubmit = typed === username && username.length > 0 && !busy;
 
-  const goHome = () => {
+  const goHome = async () => {
+    // Deleting one account is not signing out of the browser: if another one is
+    // signed in here, land there rather than in a signed-out shell.
+    if (await switchToNext(user?.id ? [user.id] : [])) return;
+
     // Full reload rather than a router push: the session is gone, and this is
     // the same way logout tears down client state.
     window.location.href = "/";
@@ -78,6 +84,10 @@ function DeleteForm({
       // bounce us to /login before the goodbye is ever read. Stop them, and
       // leave authAtom alone — RequireAuth wraps this page and watches it.
       queryClient.cancelQueries();
+
+      // Drop it from the switcher here rather than in goHome: the list has to be
+      // right even if the user closes the tab on the goodbye screen.
+      if (user?.id) await forgetAccount(user.id);
       setDone(true);
     } finally {
       setBusy(false);
@@ -97,7 +107,7 @@ function DeleteForm({
             {t("settings.account.delete.goodbyeDescription")}
           </p>
         </div>
-        <Button variant="primary" onClick={goHome}>
+        <Button variant="primary" onClick={() => void goHome()}>
           {t("settings.account.delete.goHome")}
         </Button>
       </div>

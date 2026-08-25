@@ -4,8 +4,8 @@ import { useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
 import { authAtom, userAtom } from '@/atoms/auth';
-import { markAccountActiveAtom, orderedAccountsAtom, removeAccountAtom, upsertAccountAtom } from '@/atoms/accounts';
-import { deleteAccountToken, getDevicePublicKey, loadAccountToken, saveAccountToken } from '@/lib/auth/account-tokens';
+import { markAccountActiveAtom, upsertAccountAtom } from '@/atoms/accounts';
+import { getDevicePublicKey, loadAccountToken, saveAccountToken } from '@/lib/auth/account-tokens';
 import { createApiClient } from '@/lib/api/client';
 import { getAssertion } from '@/lib/api/webauthn';
 import type { components } from '@/lib/api/api';
@@ -33,6 +33,26 @@ export type StepupResult =
 	| MfaChallenge;
 
 /**
+ * Arms one automatic fall-through per load. If the switch lands us back here
+ * still signed out, the exchange is succeeding while the cookie is not
+ * sticking, and retrying would bounce the browser between accounts forever.
+ */
+const AUTO_SWITCH_FLAG = 'ciel:auto-switch';
+
+function canAutoSwitch(): boolean {
+	if (typeof window === 'undefined') return false;
+	// /login is where "add account" sends the user; switching them into an old
+	// account there would take away the only screen that can add a new one.
+	const path = window.location.pathname;
+	if (path.startsWith('/login') || path.startsWith('/signup')) return false;
+	if (sessionStorage.getItem(AUTO_SWITCH_FLAG)) {
+		sessionStorage.removeItem(AUTO_SWITCH_FLAG);
+		return false;
+	}
+	return true;
+}
+
+/**
  * Mints the device-bound token that lets this browser come back to the account
  * without a password, and files it encrypted.
  *
@@ -51,11 +71,9 @@ async function rememberAccount(userId: string) {
 export function useAuth() {
 	const setAuth = useSetAtom(authAtom);
 	const upsertAccount = useSetAtom(upsertAccountAtom);
-	const removeAccount = useSetAtom(removeAccountAtom);
 	const markAccountActive = useSetAtom(markAccountActiveAtom);
 	const activeUser = useAtomValue(userAtom);
-	const orderedAccounts = useAtomValue(orderedAccountsAtom);
-	const { switchTo } = useAccountSwitch();
+	const { forgetAccount, switchToNext } = useAccountSwitch();
 	const queryClient = useQueryClient();
 	const isInitializingRef = useRef(false);
 
@@ -71,10 +89,23 @@ export function useAuth() {
 			const res = await api.me();
 
 			if (!res.ok) {
-				// Not authenticated or session expired
+				// Not authenticated or session expired. Settle the atom first: if
+				// the fall-through below ends at a password login instead of a
+				// session, that screen has to render rather than spin.
 				setAuth({ status: 'ready', user: null, error: null });
+
+				// Losing one account's session is not being signed out of the
+				// browser — another account here may still hold a live token.
+				if (canAutoSwitch()) {
+					sessionStorage.setItem(AUTO_SWITCH_FLAG, '1');
+					if (!(await switchToNext())) sessionStorage.removeItem(AUTO_SWITCH_FLAG);
+				}
 				return;
 			}
+
+			// A load that authenticates clears the guard, so a session that dies
+			// later in this tab still gets its one automatic fall-through.
+			sessionStorage.removeItem(AUTO_SWITCH_FLAG);
 
 			// Pre-populate React Query cache before enabling useMe() to avoid a duplicate request.
 			// setQueryData must come before setAuth so the cache is ready when the
@@ -358,18 +389,11 @@ export function useAuth() {
 		// The server revokes every refresh token for this user, so the stored
 		// account token is already dead: leaving the row in the switcher would
 		// offer a switch that cannot happen.
-		if (userId) {
-			await deleteAccountToken(userId);
-			removeAccount(userId);
-		}
+		if (userId) await forgetAccount(userId);
 
 		// Signing out of one account is not signing out of the browser: fall
 		// through to whichever account was used most recently before this one.
-		const next = orderedAccounts.find((account) => account.userId !== userId);
-		if (next) {
-			await switchTo(next);
-			return;
-		}
+		if (await switchToNext(userId ? [userId] : [])) return;
 
 		setAuth({ status: 'ready', user: null, error: null });
 
