@@ -691,6 +691,10 @@
     "switchAccount": "アカウントの切り替え",
     "closeMenu": "メニューを閉じる"
   },
+  "accountSwitcher": {
+    "addAccount": "アカウントを追加",
+    "active": "アクティブ"
+  },
   "common": {
     "back": "戻る",
     "close": "閉じる"

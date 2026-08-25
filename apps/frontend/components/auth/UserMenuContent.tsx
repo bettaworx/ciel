@@ -30,6 +30,7 @@ interface UserMenuContentProps {
   onUserInfoClick?: () => void;
   onClose?: () => void;
   isMobile?: boolean;
+  onSwitchAccountClick?: () => void;
 }
 
 export function UserMenuContent({
@@ -42,6 +43,7 @@ export function UserMenuContent({
   onUserInfoClick,
   onClose,
   isMobile = false,
+  onSwitchAccountClick,
 }: UserMenuContentProps) {
   const t = useTranslations();
 
@@ -147,17 +149,20 @@ export function UserMenuContent({
         <Separator />
 
         <div className="space-y-1 p-2">
-          <Button
-            variant="ghost"
-            rounded="md"
-            className="w-full justify-between"
-          >
-            <span className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              {t("userMenu.switchAccount")}
-            </span>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          {isMobile && onSwitchAccountClick && (
+            <Button
+              variant="ghost"
+              rounded="md"
+              className="w-full justify-between"
+              onClick={onSwitchAccountClick}
+            >
+              <span className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                {t("userMenu.switchAccount")}
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
 
           <Button
             variant="ghost"

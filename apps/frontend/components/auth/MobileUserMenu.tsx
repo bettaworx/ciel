@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,7 +12,9 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { UserMenuContent } from "./UserMenuContent";
+import { AccountSwitcherContent } from "./AccountSwitcher";
 import type { components } from "@/lib/api/api";
+import type { AccountEntry } from "@/atoms/accounts";
 
 type User = components['schemas']['User'];
 
@@ -25,6 +28,9 @@ interface MobileUserMenuProps {
   onBookmarksClick: () => void;
   onSettingsClick: () => void;
   onUserInfoClick: () => void;
+  accounts?: AccountEntry[];
+  onAccountClick?: (account: AccountEntry) => void;
+  onAddAccount?: () => void;
 }
 
 export function MobileUserMenu({
@@ -37,11 +43,30 @@ export function MobileUserMenu({
   onBookmarksClick,
   onSettingsClick,
   onUserInfoClick,
+  accounts = [],
+  onAccountClick,
+  onAddAccount,
 }: MobileUserMenuProps) {
   const t = useTranslations();
+  const [view, setView] = useState<"main" | "accounts">("main");
+
+  const handleSwitchAccountClick = () => {
+    setView("accounts");
+  };
+
+  const handleBackToMain = () => {
+    setView("main");
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setView("main");
+    }
+    onOpenChange(open);
+  };
 
   return (
-    <Drawer open={isOpen} onOpenChange={onOpenChange}>
+    <Drawer open={isOpen} onOpenChange={handleOpenChange}>
       <DrawerTrigger asChild>
         <Button
           variant="ghost"
@@ -58,16 +83,31 @@ export function MobileUserMenu({
       </DrawerTrigger>
 
       <DrawerContent>
-        <UserMenuContent
-          user={user}
-          initials={initials}
-          onProfileClick={onProfileClick}
-          onBookmarksClick={onBookmarksClick}
-          onSettingsClick={onSettingsClick}
-          onLogoutClick={onLogoutClick}
-          onUserInfoClick={onUserInfoClick}
-          isMobile={true}
-        />
+        {view === "main" ? (
+          <UserMenuContent
+            user={user}
+            initials={initials}
+            onProfileClick={onProfileClick}
+            onBookmarksClick={onBookmarksClick}
+            onSettingsClick={onSettingsClick}
+            onLogoutClick={onLogoutClick}
+            onUserInfoClick={onUserInfoClick}
+            isMobile={true}
+            onSwitchAccountClick={handleSwitchAccountClick}
+          />
+        ) : (
+          <AccountSwitcherContent
+            accounts={accounts}
+            activeUserId={user.id}
+            onAccountClick={(account) => {
+              onAccountClick?.(account);
+            }}
+            onAddAccount={() => {
+              onAddAccount?.();
+            }}
+            onBack={handleBackToMain}
+          />
+        )}
 
         <DrawerFooter>
           <DrawerClose asChild>

@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { useSetAtom } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
 import { authAtom } from '@/atoms/auth';
+import { addAccountAtom } from '@/atoms/accounts';
 import { createApiClient } from '@/lib/api/client';
 import { getAssertion } from '@/lib/api/webauthn';
 import type { components } from '@/lib/api/api';
@@ -31,6 +32,7 @@ export type StepupResult =
 
 export function useAuth() {
 	const setAuth = useSetAtom(authAtom);
+	const addAccount = useSetAtom(addAccountAtom);
 	const queryClient = useQueryClient();
 	const isInitializingRef = useRef(false);
 
@@ -70,6 +72,13 @@ export function useAuth() {
 	// Everything that happens once the server accepts a login: cache the user,
 	// then hard-reload so the session cookie is picked up everywhere.
 	const finishLogin = (user: components['schemas']['User']) => {
+		addAccount({
+			userId: user.id,
+			username: user.username,
+			displayName: user.displayName ?? null,
+			avatarUrl: user.avatarUrl ?? null,
+		});
+
 		setAuth({ status: 'ready', user, error: null });
 
 		if (typeof window !== 'undefined') {

@@ -23,11 +23,15 @@ import type { components } from "@/lib/api/api";
 
 type MfaMethod = components["schemas"]["MfaMethod"];
 
+interface LoginWizardProps {
+  initialUsername?: string;
+}
+
 /**
  * LoginWizard is the main component for the login flow.
  * It manages step navigation, animations, and API calls.
  */
-export function LoginWizard() {
+export function LoginWizard({ initialUsername = "" }: LoginWizardProps) {
   const router = useRouter();
   const t = useTranslations();
   const { login, completeLoginMfa, completeLoginMfaWebAuthn } = useAuth();
@@ -36,7 +40,7 @@ export function LoginWizard() {
   const [currentStep, setCurrentStep] = useState<LoginStep>("username");
   const [direction, setDirection] = useState<AnimationDirection>("forward");
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(initialUsername);
   const [loading, setLoading] = useState(false);
   // Set only when /auth/login/finish answers mfa_required. The token binds the
   // password-verified session to the pending second factor and lives here for

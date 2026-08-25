@@ -691,6 +691,10 @@
     "switchAccount": "Switch account",
     "closeMenu": "Close menu"
   },
+  "accountSwitcher": {
+    "addAccount": "Add account",
+    "active": "Active"
+  },
   "common": {
     "back": "Back",
     "close": "Close"
