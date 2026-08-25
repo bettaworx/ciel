@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useAtomValue } from "jotai";
+import { userAtom } from "@/atoms/auth";
 import { toast } from "sonner";
 import { Copy, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,8 @@ interface BackupCodesDialogProps {
  */
 export function BackupCodesDialog({ codes, onClose }: BackupCodesDialogProps) {
   const t = useTranslations();
+  const user = useAtomValue(userAtom);
+  const host = typeof window === "undefined" ? "" : window.location.hostname;
   const [acknowledged, setAcknowledged] = useState(false);
 
   const open = codes !== null && codes.length > 0;
@@ -54,7 +58,13 @@ export function BackupCodesDialog({ codes, onClose }: BackupCodesDialogProps) {
     const url = URL.createObjectURL(new Blob([`${text}\n`], { type: "text/plain" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "ciel-backup-codes.txt";
+    // Which instance and which account, so a file sitting in Downloads still
+    // says what it unlocks. Usernames and hostnames are already limited to
+    // characters that are safe here, but the filter keeps a future rule change
+    // from putting a path separator in a filename.
+    const safe = (value: string) => value.replace(/[^A-Za-z0-9_.-]/g, "");
+    const parts = [safe(host), safe(user?.username ?? "")].filter(Boolean);
+    link.download = ["ciel-backup-codes", ...parts].join("-") + ".txt";
     link.click();
     URL.revokeObjectURL(url);
   };

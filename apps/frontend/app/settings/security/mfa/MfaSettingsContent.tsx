@@ -110,8 +110,7 @@ function MfaManager({
         ),
       );
       // Backup codes come back only when this key is the account's first factor.
-      // They queue in front of the naming prompt, which waits on them: the codes
-      // are shown once and cannot be recovered, the name can wait.
+      // They queue behind the naming prompt — see the dialogs below.
       if (result.backupCodes.length > 0) setBackupCodes(result.backupCodes);
       setNaming({
         id: result.credential.id,
@@ -317,12 +316,15 @@ function MfaManager({
         onCancel={() => setEnrolling(false)}
       />
 
-      <BackupCodesDialog codes={backupCodes} onClose={() => setBackupCodes(null)} />
+      <BackupCodesDialog
+        // Held back while a key is being named, so the two never stack: name
+        // first, then read the codes.
+        codes={naming === null ? backupCodes : null}
+        onClose={() => setBackupCodes(null)}
+      />
 
       <SecurityKeyNameDialog
-        // Never over the backup codes: those are read once and closing them is
-        // gated on an acknowledgement.
-        open={naming !== null && backupCodes === null}
+        open={naming !== null}
         initialName={naming?.name ?? ""}
         isNew={naming?.isNew ?? false}
         busy={pending}

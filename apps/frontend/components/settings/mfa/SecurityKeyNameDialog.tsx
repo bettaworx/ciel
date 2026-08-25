@@ -55,6 +55,11 @@ export function SecurityKeyNameDialog({
     <ResponsiveDialog
       open={open}
       onOpenChange={(next) => !next && onDismiss()}
+      // A key that has just been registered is trapped here until the footer
+      // answers: swiping the sheet away would leave it sitting in the list
+      // under a placeholder name with nothing having asked. A later rename is
+      // an ordinary edit and closes like one.
+      dismissible={!isNew}
       title={t(
         isNew
           ? "settings.security.mfa.securityKeys.nameTitle"
