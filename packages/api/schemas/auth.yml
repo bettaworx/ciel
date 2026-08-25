@@ -148,6 +148,70 @@ components:
           type: integer
           minimum: 1
           description: Lifetime of the newly issued access token in seconds.
+    SessionTokenRequest:
+      type: object
+      required:
+      - publicKey
+      properties:
+        publicKey:
+          type: string
+          description: Base64-encoded SPKI of the browser's non-extractable ECDSA P-256 device key.
+    SessionTokenResponse:
+      type: object
+      required:
+      - token
+      - expiresInSeconds
+      properties:
+        token:
+          type: string
+          description: Opaque account token, useless without a signature from the bound device key.
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+    SessionExchangeRequest:
+      type: object
+      required:
+      - token
+      - timestamp
+      - nonce
+      - signature
+      properties:
+        token:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix seconds the signature was made at. Accepted within a 60 second window.
+        nonce:
+          type: string
+          minLength: 16
+          maxLength: 128
+          description: Single-use random value; a repeat within the window is rejected.
+        signature:
+          type: string
+          description: Base64 ECDSA P-256 / SHA-256 signature over "<token>.<timestamp>.<nonce>".
+        activate:
+          type: boolean
+          description: >-
+            When true, the session cookies are re-issued for this account and the
+            account token is rotated. Omit for read-only use.
+    SessionExchangeResponse:
+      type: object
+      required:
+      - user
+      - accessToken
+      - expiresInSeconds
+      properties:
+        user:
+          $ref: ./user.yml#/components/schemas/User
+        accessToken:
+          type: string
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+        token:
+          type: string
+          description: Replacement account token. Present only when activate was true.
     StepupStartRequest:
       type: object
       required:

@@ -693,3 +693,76 @@
           application/json:
             schema:
               $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/session/token:
+  post:
+    tags:
+    - Auth
+    summary: Issue a device-bound account token for the current session
+    description: >-
+      Mints an opaque long-lived token the browser stores (encrypted, in
+      IndexedDB) so it can switch back into this account without the password.
+
+      The token is bound to `publicKey`: it is only ever accepted together with a
+      signature made by the matching private key, which never leaves the browser.
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/SessionTokenRequest
+    responses:
+      '200':
+        description: Token issued
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/SessionTokenResponse
+      '400':
+        description: Invalid public key
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+/auth/session/exchange:
+  post:
+    tags:
+    - Auth
+    summary: Exchange a device-bound account token for an access token
+    description: >-
+      Verifies the device signature and returns an access token for the account
+      the token belongs to. Used to read another signed-in account's unread
+      count, and — with `activate` — to switch the browser session to it.
+
+      When `activate` is true the account token is rotated and the session
+      cookies are re-issued for that account. Presenting an already-consumed
+      token is treated as a compromise: every refresh token for that user is
+      revoked.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/SessionExchangeRequest
+    responses:
+      '200':
+        description: Exchanged
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/SessionExchangeResponse
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Invalid, expired or replayed token
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

@@ -375,7 +375,10 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   token_hash  BYTEA       NOT NULL UNIQUE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   expires_at  TIMESTAMPTZ NOT NULL,
-  revoked_at  TIMESTAMPTZ
+  revoked_at  TIMESTAMPTZ,
+  -- NULL: ordinary cookie refresh token. NOT NULL: device-bound account token
+  -- (SPKI public key), only usable with a matching signature.
+  device_public_key BYTEA
 );
 
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id

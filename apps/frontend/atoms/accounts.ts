@@ -13,9 +13,17 @@ export type AccountEntry = {
 
 export const accountsAtom = atomWithStorage<AccountEntry[]>('ciel:accounts', []);
 
-export const addAccountAtom = atom(null, (get, set, account: Omit<AccountEntry, 'cachedUnreadCount'>) => {
+/**
+ * Adds an account, or refreshes the profile of one already listed. The switcher
+ * is the only place these names and avatars are shown, so nothing else would
+ * ever notice they had gone stale.
+ */
+export const upsertAccountAtom = atom(null, (get, set, account: Omit<AccountEntry, 'cachedUnreadCount'>) => {
 	const current = get(accountsAtom);
-	if (current.some((a) => a.userId === account.userId)) return;
+	if (current.some((a) => a.userId === account.userId)) {
+		set(accountsAtom, current.map((a) => (a.userId === account.userId ? { ...a, ...account } : a)));
+		return;
+	}
 	set(accountsAtom, [...current, { ...account, cachedUnreadCount: 0 }]);
 });
 

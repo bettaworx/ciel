@@ -1,10 +1,11 @@
 'use client';
 
 import { useRef } from 'react';
-import { useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
-import { authAtom } from '@/atoms/auth';
-import { addAccountAtom } from '@/atoms/accounts';
+import { authAtom, userAtom } from '@/atoms/auth';
+import { upsertAccountAtom, removeAccountAtom } from '@/atoms/accounts';
+import { deleteAccountToken, getDevicePublicKey, loadAccountToken, saveAccountToken } from '@/lib/auth/account-tokens';
 import { createApiClient } from '@/lib/api/client';
 import { getAssertion } from '@/lib/api/webauthn';
 import type { components } from '@/lib/api/api';
@@ -30,9 +31,27 @@ export type StepupResult =
 	| { ok: false }
 	| MfaChallenge;
 
+/**
+ * Mints the device-bound token that lets this browser come back to the account
+ * without a password, and files it encrypted.
+ *
+ * Best-effort by design: without it the account is still usable, the switcher
+ * just falls back to asking for the password.
+ */
+async function rememberAccount(userId: string) {
+	try {
+		const res = await api.sessionToken({ publicKey: await getDevicePublicKey() });
+		if (res.ok) await saveAccountToken(userId, res.data.token);
+	} catch (error) {
+		console.error('[Auth] Failed to store the account token:', error);
+	}
+}
+
 export function useAuth() {
 	const setAuth = useSetAtom(authAtom);
-	const addAccount = useSetAtom(addAccountAtom);
+	const upsertAccount = useSetAtom(upsertAccountAtom);
+	const removeAccount = useSetAtom(removeAccountAtom);
+	const activeUser = useAtomValue(userAtom);
 	const queryClient = useQueryClient();
 	const isInitializingRef = useRef(false);
 
@@ -59,6 +78,12 @@ export function useAuth() {
 			queryClient.setQueryData(queryKeys.me, res.data);
 			// User is authenticated
 			setAuth({ status: 'ready', user: res.data, error: null });
+
+			// Sessions that predate account switching — and accounts whose token
+			// was spent by the last switch — get one here rather than at login.
+			if (!(await loadAccountToken(res.data.id))) {
+				await rememberAccount(res.data.id);
+			}
 		} catch (error) {
 			// Network error or backend is offline
 			// Set auth to ready state (unauthenticated) so the app can load
@@ -71,13 +96,14 @@ export function useAuth() {
 
 	// Everything that happens once the server accepts a login: cache the user,
 	// then hard-reload so the session cookie is picked up everywhere.
-	const finishLogin = (user: components['schemas']['User']) => {
-		addAccount({
+	const finishLogin = async (user: components['schemas']['User']) => {
+		upsertAccount({
 			userId: user.id,
 			username: user.username,
 			displayName: user.displayName ?? null,
 			avatarUrl: user.avatarUrl ?? null,
 		});
+		await rememberAccount(user.id);
 
 		setAuth({ status: 'ready', user, error: null });
 
@@ -130,7 +156,7 @@ export function useAuth() {
 			};
 		}
 
-		finishLogin(finishRes.data.user);
+		await finishLogin(finishRes.data.user);
 		return { ok: true };
 	};
 
@@ -142,7 +168,7 @@ export function useAuth() {
 	): Promise<LoginResult> => {
 		const res = await api.mfaVerify({ mfaToken, code, method });
 		if (!res.ok) return { ok: false };
-		finishLogin(res.data.user);
+		await finishLogin(res.data.user);
 		return { ok: true };
 	};
 
@@ -154,7 +180,7 @@ export function useAuth() {
 		const res = await api.mfaWebauthnVerify({ mfaToken, credential });
 		if (!res.ok) return { ok: false };
 
-		finishLogin(res.data.user);
+		await finishLogin(res.data.user);
 		return { ok: true };
 	};
 
@@ -216,6 +242,16 @@ export function useAuth() {
 			setAuth((prev) => ({ ...prev, status: 'error', error: ERROR_CODES.AUTH_LOGIN_FAILED }));
 			return { ok: false };
 		}
+
+		// Same bookkeeping as finishLogin, minus the reload: a freshly registered
+		// account belongs in the switcher too.
+		upsertAccount({
+			userId: finishRes.data.user.id,
+			username: finishRes.data.user.username,
+			displayName: finishRes.data.user.displayName ?? null,
+			avatarUrl: finishRes.data.user.avatarUrl ?? null,
+		});
+		await rememberAccount(finishRes.data.user.id);
 
 		setAuth({
 			status: 'ready',
@@ -306,9 +342,18 @@ export function useAuth() {
 	};
 
 	const logout = async () => {
+		const userId = activeUser?.id;
 		setAuth((prev) => ({ ...prev, status: 'loading', error: null }));
 
 		await api.logout();
+
+		// The server revokes every refresh token for this user, so the stored
+		// account token is already dead: leaving the row in the switcher would
+		// offer a switch that cannot happen.
+		if (userId) {
+			await deleteAccountToken(userId);
+			removeAccount(userId);
+		}
 
 		setAuth({ status: 'ready', user: null, error: null });
 

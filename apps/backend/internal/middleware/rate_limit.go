@@ -57,6 +57,9 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		{routeKey: "auth_login_finish", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "auth_stepup_start", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "auth_stepup_finish", limit: 10, window: 1 * time.Minute, subject: subjectIP},
+		// Account switching: one request per listed account when the menu opens,
+		// so the cap has to clear a handful of accounts a few times a minute.
+		{routeKey: "auth_session_exchange", limit: 60, window: 1 * time.Minute, subject: subjectIP},
 		// Media upload: per-user, per-file. A post can carry four images, so the
 		// window has to hold several full posts, not several files.
 		{routeKey: "media_upload", limit: 40, window: 10 * time.Minute, subject: subjectUser},
@@ -225,6 +228,8 @@ func classifyAuthRoute(method, path string) string {
 		return "auth_stepup_start"
 	case "/api/v1/auth/stepup/finish":
 		return "auth_stepup_finish"
+	case "/api/v1/auth/session/exchange":
+		return "auth_session_exchange"
 	default:
 		return ""
 	}

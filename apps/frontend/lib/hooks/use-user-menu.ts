@@ -6,6 +6,8 @@ import type { AccountEntry } from "@/atoms/accounts";
 
 // Hooks
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useAccountSwitch } from "@/lib/hooks/use-account-switch";
+import { useAccountUnread } from "@/lib/hooks/use-account-unread";
 
 /**
  * ユーザーメニューの状態管理とイベントハンドラーを提供するカスタムフック
@@ -14,10 +16,14 @@ import { useAuth } from "@/lib/hooks/use-auth";
 export function useUserMenu() {
   const router = useRouter();
   const { logout } = useAuth();
+  const { switchTo } = useAccountSwitch();
 
   // 状態管理
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+
+  // 他アカウントの未読件数はメニューを開いている間だけ取りに行く
+  useAccountUnread(isMenuOpen);
 
   const handleMenuOpenChange = (open: boolean) => {
     setIsMenuOpen(open);
@@ -54,9 +60,9 @@ export function useUserMenu() {
     router.push("/settings");
   };
 
-  const handleAccountClick = (account: AccountEntry) => {
+  const handleAccountClick = async (account: AccountEntry) => {
     setIsMenuOpen(false);
-    router.push(`/login?username=${encodeURIComponent(account.username)}`);
+    await switchTo(account);
   };
 
   const handleAddAccount = () => {

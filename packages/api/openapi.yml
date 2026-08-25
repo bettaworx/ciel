@@ -146,6 +146,10 @@ paths:
     $ref: ./paths/auth.yml#/~1auth~1logout
   /auth/refresh:
     $ref: ./paths/auth.yml#/~1auth~1refresh
+  /auth/session/token:
+    $ref: ./paths/auth.yml#/~1auth~1session~1token
+  /auth/session/exchange:
+    $ref: ./paths/auth.yml#/~1auth~1session~1exchange
   /auth/password/change:
     $ref: ./paths/auth.yml#/~1auth~1password~1change
   /auth/mfa:

@@ -169,7 +169,19 @@ export function createApiClient(options: ApiClientOptions = {}) {
 	async function request<T>(
 		method: HttpMethod,
 		path: string,
-		init?: { body?: unknown; token?: string | null; headers?: Record<string, string>; _skipRefresh?: boolean }
+		init?: {
+			body?: unknown;
+			token?: string | null;
+			headers?: Record<string, string>;
+			_skipRefresh?: boolean;
+			/**
+			 * Defaults to 'include'. Account-switching calls pass 'omit': the
+			 * backend prefers the ciel_auth cookie over the Authorization header
+			 * (internal/middleware/auth.go), so sending cookies would resolve the
+			 * request as the *active* account instead of the one being asked about.
+			 */
+			credentials?: RequestCredentials;
+		}
 	): Promise<ApiResult<T>> {
 		const url = `${baseUrl}${path}`;
 
@@ -183,7 +195,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
 				method,
 				headers,
 				body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-				credentials: 'include', // Send cookies with requests
+				credentials: init?.credentials ?? 'include', // Send cookies with requests
 			});
 
 			if (!res.ok) {
@@ -296,6 +308,28 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		loginFinish: (body: components['schemas']['LoginFinishRequest']) =>
 			request<components['schemas']['LoginFinishResponse']>('POST', '/auth/login/finish', { body }),
+
+		// --- Account switching -----------------------------------------------
+		// The account token is minted for the *current* session (cookie auth) and
+		// then only ever presented with a signature from the device key it is
+		// bound to, so the stored copy is useless anywhere else.
+		sessionToken: (body: components['schemas']['SessionTokenRequest']) =>
+			request<components['schemas']['SessionTokenResponse']>('POST', '/auth/session/token', { body }),
+
+		sessionExchange: (body: components['schemas']['SessionExchangeRequest']) =>
+			request<components['schemas']['SessionExchangeResponse']>('POST', '/auth/session/exchange', {
+				body,
+				credentials: 'omit',
+				_skipRefresh: true
+			}),
+
+		/** Unread count for an account other than the active one. */
+		unreadNotificationCountAs: (accessToken: string) =>
+			request<components['schemas']['UnreadCount']>('GET', '/notifications/unread-count', {
+				headers: { authorization: `Bearer ${accessToken}` },
+				credentials: 'omit',
+				_skipRefresh: true
+			}),
 
 		stepupStart: (body: components['schemas']['StepupStartRequest']) =>
 			request<components['schemas']['StepupStartResponse']>('POST', '/auth/stepup/start', { body }),
