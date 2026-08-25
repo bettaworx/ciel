@@ -15,10 +15,9 @@ type PageHeaderProps = {
   backHref?: string;
   /**
    * `false` hides the back arrow on pages reached from the nav rather than
-   * drilled into, where there is nothing meaningful to go back to. `"mobile"`
-   * hides it from md up, where a sidebar already carries the parent.
+   * drilled into, where there is nothing meaningful to go back to.
    */
-  showBackButton?: boolean | "mobile";
+  showBackButton?: boolean;
   /** Right-aligned slot for a page-level action, e.g. "create". */
   action?: React.ReactNode;
 };
@@ -47,23 +46,16 @@ export function PageHeader({
           // so pr-2 lands that glyph on the same 16px inset as the title.
           "pr-2",
           // Without the button, the title needs the inset it used to provide.
-          showBackButton === false
-            ? "pl-4"
-            : showBackButton === "mobile"
-              ? "pl-1 md:pl-4"
-              : "pl-1",
+          showBackButton ? "pl-1" : "pl-4",
         )}
       >
-        {showBackButton !== false && (
+        {showBackButton && (
           <Button
             variant="ghost"
             size="icon"
             onClick={() => (backHref ? router.push(backHref) : router.back())}
             aria-label="Go back"
-            className={cn(
-              "shrink-0",
-              showBackButton === "mobile" && "md:hidden",
-            )}
+            className="shrink-0"
           >
             <ChevronLeft className="w-5 h-5" />
           </Button>

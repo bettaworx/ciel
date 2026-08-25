@@ -35,6 +35,45 @@ CREATE TABLE IF NOT EXISTS auth_credentials (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Two-factor authentication factors
+CREATE TABLE IF NOT EXISTS auth_totp (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  secret_enc BYTEA NOT NULL,
+  enabled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_used_step BIGINT
+);
+
+CREATE TABLE IF NOT EXISTS auth_backup_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  used_at TIMESTAMPTZ,
+  UNIQUE (user_id, code_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_backup_codes_user_unused
+  ON auth_backup_codes (user_id) WHERE used_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS auth_webauthn_credentials (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  credential_id BYTEA NOT NULL UNIQUE,
+  public_key BYTEA NOT NULL,
+  attestation_type TEXT NOT NULL DEFAULT '',
+  aaguid BYTEA,
+  sign_count BIGINT NOT NULL DEFAULT 0,
+  transports TEXT[] NOT NULL DEFAULT '{}',
+  name TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_used_at TIMESTAMPTZ,
+  backup_eligible BOOLEAN NOT NULL DEFAULT false,
+  backup_state BOOLEAN NOT NULL DEFAULT false
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_webauthn_credentials_user
+  ON auth_webauthn_credentials (user_id);
+
 CREATE TYPE permission_effect AS ENUM ('allow', 'deny');
 
 CREATE TABLE IF NOT EXISTS roles (
@@ -336,7 +375,10 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   token_hash  BYTEA       NOT NULL UNIQUE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   expires_at  TIMESTAMPTZ NOT NULL,
-  revoked_at  TIMESTAMPTZ
+  revoked_at  TIMESTAMPTZ,
+  -- NULL: ordinary cookie refresh token. NOT NULL: device-bound account token
+  -- (SPKI public key), only usable with a matching signature.
+  device_public_key BYTEA
 );
 
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id
@@ -589,6 +631,7 @@ INSERT INTO permissions (id, name, description) VALUES
   -- User management
   ('admin:users:read', 'Admin users read', 'Read user information and search users'),
   ('admin:users:write', 'Admin users write', 'Modify user information and manage user notes'),
+  ('admin_users_mfa_reset', 'Admin users MFA reset', 'Reset all MFA factors for a user'),
   
   -- Invite management
   ('admin:invites:read', 'Admin invites read', 'View invite codes and settings'),

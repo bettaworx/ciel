@@ -10,6 +10,8 @@ import { AuthLayoutShell } from "@/components/auth/AuthLayoutShell";
 import { SetupTransition } from "@/components/setup/SetupTransition";
 import { UsernameStep } from "@/components/auth/login/UsernameStep";
 import { PasswordStep } from "@/components/auth/login/PasswordStep";
+import { MfaChallengeStep } from "@/components/auth/MfaChallengeStep";
+import { useMfaChallenge } from "@/lib/hooks/use-mfa-challenge";
 import { ChevronLeft } from "lucide-react";
 import {
   type LoginStep,
@@ -17,22 +19,38 @@ import {
   getLoginStepByIndex,
 } from "@/lib/config/auth-steps";
 import type { AnimationDirection } from "@/lib/config/setup-animation";
+import type { components } from "@/lib/api/api";
+
+type MfaMethod = components["schemas"]["MfaMethod"];
+
+interface LoginWizardProps {
+  initialUsername?: string;
+}
 
 /**
  * LoginWizard is the main component for the login flow.
  * It manages step navigation, animations, and API calls.
  */
-export function LoginWizard() {
+export function LoginWizard({ initialUsername = "" }: LoginWizardProps) {
   const router = useRouter();
   const t = useTranslations();
-  const { login } = useAuth();
+  const { login, completeLoginMfa, completeLoginMfaWebAuthn } = useAuth();
 
   // State
   const [currentStep, setCurrentStep] = useState<LoginStep>("username");
   const [direction, setDirection] = useState<AnimationDirection>("forward");
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(initialUsername);
   const [loading, setLoading] = useState(false);
+  // Set only when /auth/login/finish answers mfa_required. The token binds the
+  // password-verified session to the pending second factor and lives here for
+  // the few seconds the challenge is on screen.
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaMethods, setMfaMethods] = useState<MfaMethod[]>([]);
+  const challenge = useMfaChallenge(mfaMethods, {
+    // Declared below; only called once the ceremony starts, never during render.
+    verifyWithSecurityKey: () => handleMfaSecurityKey(),
+  });
 
   // Navigation functions
   const goToStep = (targetStep: LoginStep, dir: AnimationDirection) => {
@@ -72,6 +90,12 @@ export function LoginWizard() {
 
     try {
       const result = await login(username, password);
+      if (result.ok === "mfa") {
+        setMfaToken(result.mfaToken);
+        setMfaMethods(result.methods);
+        goNext();
+        return;
+      }
       if (result.ok) {
         toast.success(t("login.success"));
         // Page will be reloaded by login function
@@ -85,6 +109,44 @@ export function LoginWizard() {
     }
   };
 
+  // Both MFA paths end the same way: success reloads the page from useAuth, so
+  // there is nothing to do here but report a failure into the challenge card.
+  // `failureKey` is omitted when the caller reports for itself — the security
+  // key path is driven by useMfaChallenge, which already knows how it went.
+  const runMfa = async (
+    attempt: () => Promise<{ ok: boolean | "mfa" }>,
+    failureKey: string,
+  ): Promise<string | null> => {
+    setLoading(true);
+    try {
+      const result = await attempt();
+      if (result.ok === true) {
+        toast.success(t("login.success"));
+        return null;
+      }
+      return failureKey;
+    } catch {
+      return "error.generic";
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMfaCode = async (code: string, method: MfaMethod) => {
+    const failure = await runMfa(
+      () => completeLoginMfa(mfaToken ?? "", code, method),
+      "login.wizard.mfa.failed",
+    );
+    if (failure) challenge.fail(failure);
+  };
+
+  // useMfaChallenge reports this one itself, so it only hands back the key.
+  const handleMfaSecurityKey = () =>
+    runMfa(
+      () => completeLoginMfaWebAuthn(mfaToken ?? ""),
+      "login.wizard.mfa.webauthnFailed",
+    );
+
   // Render current step
   const renderCurrentStep = () => {
     switch (currentStep) {
@@ -96,6 +158,16 @@ export function LoginWizard() {
           <PasswordStep
             username={username}
             onSubmit={handlePasswordSubmit}
+            loading={loading}
+          />
+        );
+
+      case "mfa":
+        return (
+          <MfaChallengeStep
+            challenge={challenge}
+            formId="login-mfa-form"
+            onSubmitCode={handleMfaCode}
             loading={loading}
           />
         );
@@ -132,28 +204,44 @@ export function LoginWizard() {
       );
     }
 
-    if (currentStep === "password") {
+    if (currentStep === "password" || currentStep === "mfa") {
+      const isMfa = currentStep === "mfa";
+      const primaryLabel = isMfa ? challenge.primaryOverride : "login.title";
+      const primaryIsFallback = isMfa && challenge.primaryIsFallback;
+      const secondaryLabel = (isMfa && challenge.secondaryOverride) || "setup.back";
       return (
         <div className="flex items-center justify-between gap-2">
           <Button
             type="button"
             variant="secondary"
-            onClick={goBack}
+            // Inside the challenge, back walks to the factor chooser first;
+            // only once there is nothing above it does it step to the password.
+            onClick={() => {
+              if (isMfa && challenge.goBack()) return;
+              goBack();
+            }}
             disabled={loading}
             className="transition-colors duration-160 ease"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
-            {t("setup.back")}
+            {t(secondaryLabel)}
           </Button>
 
-          <Button
-            type="submit"
-            form="login-password-form"
-            disabled={loading}
-            className="bg-c-1 text-c-foreground hover:bg-c-2 transition-colors duration-160 ease"
-          >
-            {loading ? t("loading") : t("login.title")}
-          </Button>
+          {primaryLabel !== null && (
+            <Button
+              type="submit"
+              form={isMfa ? "login-mfa-form" : "login-password-form"}
+              variant={primaryIsFallback ? "secondary" : undefined}
+              disabled={loading || (isMfa && challenge.primaryDisabled)}
+              className={
+                primaryIsFallback
+                  ? "transition-colors duration-160 ease"
+                  : "bg-c-1 text-c-foreground hover:bg-c-2 transition-colors duration-160 ease"
+              }
+            >
+              {loading ? t("loading") : t(primaryLabel ?? "login.title")}
+            </Button>
+          )}
         </div>
       );
     }

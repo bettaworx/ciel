@@ -469,3 +469,37 @@
           application/json:
             schema:
               $ref: ../../schemas/common.yml#/components/schemas/Error
+/admin/users/{userId}/mfa:
+  delete:
+    tags:
+    - Admin
+    summary: Reset all MFA factors for a user
+    description: >-
+      Removes TOTP, all WebAuthn credentials, and backup codes for the target
+      user. Also revokes refresh tokens and invalidates access tokens so any
+      active sessions must re-authenticate. Requires admin_users_mfa_reset.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        $ref: ../../schemas/common.yml#/components/schemas/UserId
+    responses:
+      '204':
+        description: MFA reset
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../schemas/common.yml#/components/schemas/Error

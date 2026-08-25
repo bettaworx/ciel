@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { userAtom } from "@/atoms/auth";
+import { orderedAccountsAtom } from "@/atoms/accounts";
 import { sidebarMenuOpenAtom } from "@/atoms/sidebar";
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
@@ -30,6 +31,7 @@ interface SidebarAvatarProps {
  */
 export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate = true }: SidebarAvatarProps) {
   const user = useAtomValue(userAtom);
+  const accounts = useAtomValue(orderedAccountsAtom);
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const setMenuOpen = useSetAtom(sidebarMenuOpenAtom);
 
@@ -44,6 +46,8 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
     handleProfileClick,
     handleBookmarksClick,
     handleSettingsClick,
+    handleAccountClick,
+    handleAddAccount,
   } = useUserMenu();
 
   useEffect(() => {
@@ -67,12 +71,11 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
         onLogoutOpenChange={setIsLogoutOpen}
         onLogoutClick={handleLogoutClick}
         onLogoutConfirm={handleLogoutConfirm}
-        onProfileClick={() => handleProfileClick(user.username)}
-        onBookmarksClick={handleBookmarksClick}
-        onSettingsClick={handleSettingsClick}
-        onUserInfoClick={() => handleUserInfoClick(user.username)}
         isExpanded={isExpanded}
         canAnimate={canAnimate}
+        accounts={accounts}
+        onAccountClick={handleAccountClick}
+        onAddAccount={handleAddAccount}
       />
     );
   }
@@ -90,6 +93,9 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
         onBookmarksClick={handleBookmarksClick}
         onSettingsClick={handleSettingsClick}
         onUserInfoClick={() => handleUserInfoClick(user.username)}
+        accounts={accounts}
+        onAccountClick={handleAccountClick}
+        onAddAccount={handleAddAccount}
       />
 
       <MobileLogoutConfirm

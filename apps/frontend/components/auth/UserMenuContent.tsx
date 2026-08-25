@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { DisplayName } from "@/components/users/DisplayName";
+import { UnreadDot } from "./UnreadDot";
 import { cn } from "@/lib/utils";
 
 interface UserMenuContentProps {
@@ -30,6 +31,9 @@ interface UserMenuContentProps {
   onUserInfoClick?: () => void;
   onClose?: () => void;
   isMobile?: boolean;
+  onSwitchAccountClick?: () => void;
+  /** Marks the row when another signed-in account has notifications waiting. */
+  hasOtherUnread?: boolean;
 }
 
 export function UserMenuContent({
@@ -42,6 +46,8 @@ export function UserMenuContent({
   onUserInfoClick,
   onClose,
   isMobile = false,
+  onSwitchAccountClick,
+  hasOtherUnread = false,
 }: UserMenuContentProps) {
   const t = useTranslations();
 
@@ -147,17 +153,23 @@ export function UserMenuContent({
         <Separator />
 
         <div className="space-y-1 p-2">
-          <Button
-            variant="ghost"
-            rounded="md"
-            className="w-full justify-between"
-          >
-            <span className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              {t("userMenu.switchAccount")}
-            </span>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          {isMobile && onSwitchAccountClick && (
+            <Button
+              variant="ghost"
+              rounded="md"
+              className="w-full justify-between"
+              onClick={onSwitchAccountClick}
+            >
+              <span className="flex items-center gap-2">
+                <span className="relative flex">
+                  <Users className="h-4 w-4" />
+                  {hasOtherUnread && <UnreadDot className="-right-1 -top-1 h-1.5 w-1.5" />}
+                </span>
+                {t("userMenu.switchAccount")}
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
 
           <Button
             variant="ghost"

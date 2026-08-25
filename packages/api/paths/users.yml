@@ -58,7 +58,7 @@
         content:
           application/json:
             schema:
-              $ref: ../schemas/auth.yml#/components/schemas/LoginFinishResponse
+              $ref: ../schemas/auth.yml#/components/schemas/LoginAuthenticated
       '400':
         description: Bad request
         content:

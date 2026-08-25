@@ -32,6 +32,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
@@ -306,6 +308,64 @@ func main() {
 	})
 	authSvc.SetConfigManager(configMgr)
 	authSvc.SetPublisher(realtimeHub)
+
+	// --- Two-factor authentication wiring (TOTP + WebAuthn + backup codes) ---
+	var mfaBox *auth.SecretBox
+	if keyB64 := os.Getenv("TOTP_ENCRYPTION_KEY"); keyB64 != "" {
+		box, err := auth.NewSecretBoxFromBase64(keyB64)
+		if err != nil {
+			slog.Error("invalid TOTP_ENCRYPTION_KEY", "error", err)
+			os.Exit(1)
+		}
+		mfaBox = box
+		slog.Info("TOTP secret encryption enabled")
+	} else {
+		slog.Warn("TOTP_ENCRYPTION_KEY not set; TOTP enrollment disabled (generate with: openssl rand -base64 32)")
+	}
+
+	var mfaSessionStore auth.MfaSessionStore
+	var totpSetupStore auth.TotpSetupStore
+	var webauthnSessionStore auth.WebAuthnSessionStore
+	var mfaAttemptLimiter auth.AttemptLimiter
+	if redisClient != nil {
+		mfaSessionStore = auth.NewRedisMfaSessionStore(redisClient, 5*time.Minute)
+		totpSetupStore = auth.NewRedisTotpSetupStore(redisClient, 10*time.Minute)
+		webauthnSessionStore = auth.NewRedisWebAuthnSessionStore(redisClient, 5*time.Minute)
+		mfaAttemptLimiter = auth.NewRedisAttemptLimiter(redisClient)
+	} else {
+		mfaSessionStore = auth.NewMemoryMfaSessionStore()
+		totpSetupStore = auth.NewMemoryTotpSetupStore()
+		webauthnSessionStore = auth.NewMemoryWebAuthnSessionStore()
+		mfaAttemptLimiter = auth.NewMemoryAttemptLimiter()
+		slog.Warn("Redis not available; using in-memory MFA session stores")
+	}
+
+	var webauthnInstance *webauthn.WebAuthn
+	// The RP ID is the host of PUBLIC_BASE_URL, i.e. this server address. It
+	// doubles as the TOTP issuer so an authenticator entry names the instance
+	// it belongs to rather than the software.
+	var totpIssuer string
+	if waCfg, err := auth.WebAuthnConfigFromEnv(); err != nil {
+		slog.Warn("WebAuthn configuration invalid; passkeys disabled", "error", err)
+	} else {
+		totpIssuer = waCfg.RPID
+		if wa, err := auth.NewWebAuthn(waCfg); err != nil {
+			slog.Warn("failed to initialize WebAuthn; passkeys disabled", "error", err)
+		} else {
+			webauthnInstance = wa
+			slog.Info("WebAuthn enabled", "rp_id", waCfg.RPID, "origins", waCfg.RPOrigins)
+		}
+	}
+
+	authSvc.SetMFA(
+		mfaBox,
+		mfaSessionStore,
+		totpSetupStore,
+		webauthnInstance,
+		webauthnSessionStore,
+		mfaAttemptLimiter,
+		totpIssuer,
+	)
 
 	// Periodically clean up expired refresh tokens and stale notifications
 	if store != nil {

@@ -17,7 +17,7 @@ export function AppearanceSettingsContent() {
 
   return (
     <>
-      <PageHeader backHref="/settings" showBackButton="mobile">
+      <PageHeader backHref="/settings">
         {t("settings.appearance.title")}
       </PageHeader>
       <div className="space-y-3">

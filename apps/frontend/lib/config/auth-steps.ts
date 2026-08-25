@@ -2,7 +2,8 @@
  * Auth wizard step definitions for login and signup flows
  */
 
-export const LOGIN_STEPS = ['username', 'password'] as const
+// 'mfa' is only reached when /auth/login/finish answers mfa_required.
+export const LOGIN_STEPS = ['username', 'password', 'mfa'] as const
 export const SIGNUP_STEPS = ['terms', 'privacy', 'username', 'password', 'invite-code'] as const
 
 /**

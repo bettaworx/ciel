@@ -202,10 +202,32 @@ func (h API) PostAuthLoginFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setAuthCookie(w, r, resp.AccessToken, resp.ExpiresInSeconds)
-	setRefreshCookie(w, r, rawRefreshToken, 30*24*60*60)
+	// Only set session cookies on full authentication; mfa_required responses
+	// must not establish a session.
+	if rawRefreshToken != "" {
+		setAuthCookie(w, r, loginFinishAccessToken(resp), loginFinishExpiresIn(resp))
+		setRefreshCookie(w, r, rawRefreshToken, 30*24*60*60)
+	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// loginFinishAccessToken extracts the access token when the union holds
+// LoginAuthenticated; empty otherwise.
+func loginFinishAccessToken(resp api.LoginFinishResponse) string {
+	authed, err := resp.AsLoginAuthenticated()
+	if err != nil {
+		return ""
+	}
+	return authed.AccessToken
+}
+
+func loginFinishExpiresIn(resp api.LoginFinishResponse) int {
+	authed, err := resp.AsLoginAuthenticated()
+	if err != nil {
+		return 0
+	}
+	return authed.ExpiresInSeconds
 }
 
 func (h API) PostAuthStepupStart(w http.ResponseWriter, r *http.Request) {
@@ -254,7 +276,12 @@ func (h API) PostAuthStepupFinish(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
+// clearAuthCookies expires both session cookies.
+//
+// CRITICAL: every attribute (Domain, Path, Secure, SameSite) must match the
+// cookie as it was set, or the browser keeps the original and goes on
+// presenting credentials for a session that is gone.
+func clearAuthCookies(w http.ResponseWriter, r *http.Request) {
 	// Determine if connection is secure
 	isSecure := r.TLS != nil ||
 		r.Header.Get("X-Forwarded-Proto") == "https" ||
@@ -264,9 +291,6 @@ func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 	// Get cookie domain from environment (must match the domain used when setting the cookie)
 	cookieDomain := os.Getenv("COOKIE_DOMAIN")
 
-	// Clear the auth cookie
-	// CRITICAL: All attributes (Domain, Path, Secure, SameSite) must match the original cookie
-	// for the deletion to work properly
 	http.SetCookie(w, &http.Cookie{
 		Name:     "ciel_auth",
 		Value:    "",
@@ -278,7 +302,8 @@ func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 
-	// Clear the refresh cookie (path must match the path used when setting it)
+	// The refresh cookie is scoped to the refresh endpoint, so its path has to
+	// match the path it was set with.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "ciel_refresh",
 		Value:    "",
@@ -289,6 +314,10 @@ func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 		Secure:   isSecure,
 		SameSite: http.SameSiteStrictMode,
 	})
+}
+
+func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
+	clearAuthCookies(w, r)
 
 	// Revoke refresh tokens in the database so a stolen token cannot be reused after logout.
 	// Best-effort: cookie clearing is the primary mechanism; DB revocation is defence-in-depth.
@@ -396,7 +425,7 @@ func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.Patch
 		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
 		return
 	}
-	if !requireStepup(w, r, h.Tokens, h.Redis, user, "username_change") {
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "username_change", stepupSingleUse) {
 		return
 	}
 
@@ -424,12 +453,24 @@ func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.Patch
 	}
 
 	setAuthCookie(w, r, token, expiresIn)
-	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+	writeJSON(w, http.StatusOK, mustLoginAuthenticated(api.LoginAuthenticated{
+		Status:           api.LoginAuthenticatedStatusAuthenticated,
 		AccessToken:      token,
-		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		TokenType:        api.Bearer,
 		ExpiresInSeconds: expiresIn,
 		User:             updatedUser,
-	})
+	}))
+}
+
+// mustLoginAuthenticated wraps LoginAuthenticated into the union response type.
+// The wrap cannot fail for a well-formed value; on the impossible error it panics
+// at marshal time rather than silently dropping the login response.
+func mustLoginAuthenticated(v api.LoginAuthenticated) api.LoginFinishResponse {
+	var out api.LoginFinishResponse
+	if err := out.FromLoginAuthenticated(v); err != nil {
+		panic(err)
+	}
+	return out
 }
 
 func (h API) PostMeAvatar(w http.ResponseWriter, r *http.Request) {
@@ -498,7 +539,7 @@ func (h API) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request, _ ap
 		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
 		return
 	}
-	if !requireStepup(w, r, h.Tokens, h.Redis, user, "password_change") {
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "password_change", stepupSingleUse) {
 		return
 	}
 	var req api.PasswordChangeRequest
@@ -535,12 +576,13 @@ func (h API) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request, _ ap
 	if rawRefreshToken != "" {
 		setRefreshCookie(w, r, rawRefreshToken, 30*24*60*60)
 	}
-	writeJSON(w, http.StatusOK, api.LoginFinishResponse{
+	writeJSON(w, http.StatusOK, mustLoginAuthenticated(api.LoginAuthenticated{
+		Status:           api.LoginAuthenticatedStatusAuthenticated,
 		AccessToken:      token,
-		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
+		TokenType:        api.Bearer,
 		ExpiresInSeconds: expiresIn,
 		User:             updatedUser,
-	})
+	}))
 }
 
 func (h API) DeleteMe(w http.ResponseWriter, r *http.Request, _ api.DeleteMeParams) {
@@ -553,13 +595,19 @@ func (h API) DeleteMe(w http.ResponseWriter, r *http.Request, _ api.DeleteMePara
 		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
 		return
 	}
-	if !requireStepup(w, r, h.Tokens, h.Redis, user, "account_delete") {
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "account_delete", stepupSingleUse) {
 		return
 	}
 	if err := h.Auth.DeleteAccount(r.Context(), user); err != nil {
 		writeServiceError(w, err)
 		return
 	}
+
+	// The account is gone, so the cookies still in the browser now authenticate
+	// nobody. Left in place they are replayed on every request the page makes
+	// next — the realtime socket reconnects in a loop — and each one is a 401
+	// against a user that no longer exists.
+	clearAuthCookies(w, r)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -1123,6 +1171,9 @@ func requirePermission(w http.ResponseWriter, r *http.Request, authz *service.Au
 
 const stepupHeader = "X-Stepup-Token"
 
+// stepupSingleUse: the token authorises exactly one operation, then it is spent.
+const stepupSingleUse = 1
+
 // stepupAuditAttrs creates audit log attributes for stepup operations
 func stepupAuditAttrs(r *http.Request, user auth.User, action string) []slog.Attr {
 	attrs := []slog.Attr{
@@ -1167,8 +1218,14 @@ func extractAndParseStepupToken(w http.ResponseWriter, r *http.Request, tokens *
 	return stepupUser, jti, exp, true
 }
 
-// checkStepupTokenReplay validates token is not expired and prevents replay attacks using Redis
-func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.Client, jti string, exp time.Time, user auth.User, auditAttrs []slog.Attr) bool {
+// checkStepupTokenReplay counts how often a step-up token has been presented and
+// rejects it past maxUses. maxUses == 1 is the single-use default every
+// sensitive operation gets; MFA enrollment passes a higher cap so one password
+// prompt can drive a whole management session (see stepupMfaMaxUses).
+//
+// ponytail: a use-capped 5-minute window, not per-action tokens. Tighten it with
+// TokenManager.SetStepupTTL if the window ever needs to be shorter.
+func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.Client, jti string, exp time.Time, user auth.User, auditAttrs []slog.Attr, maxUses int) bool {
 	if rdb == nil {
 		logging.Audit(r.Context(), "auth.stepup.use", "failure", append(auditAttrs, slog.String("reason", "redis_unavailable"))...)
 		writeServiceError(w, service.NewError(http.StatusServiceUnavailable, "service_unavailable", "step-up verification temporarily unavailable"))
@@ -1182,7 +1239,8 @@ func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.C
 		return false
 	}
 
-	ok, err := rdb.SetNX(r.Context(), "stepup:jti:"+jti, "1", ttl).Result()
+	key := "stepup:jti:" + jti
+	uses, err := rdb.Incr(r.Context(), key).Result()
 	if err != nil {
 		// Redis error: fail closed for security
 		slog.Error("stepup replay check failed", "error", err, "user_id", user.ID)
@@ -1190,8 +1248,18 @@ func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.C
 		writeServiceError(w, service.NewError(http.StatusServiceUnavailable, "service_unavailable", "step-up verification failed"))
 		return false
 	}
+	// First use creates the counter; expire it with the token so the key never
+	// outlives the JWT it guards.
+	if uses == 1 {
+		if err := rdb.Expire(r.Context(), key, ttl).Err(); err != nil {
+			slog.Error("stepup replay ttl failed", "error", err, "user_id", user.ID)
+			logging.Audit(r.Context(), "auth.stepup.use", "failure", append(auditAttrs, slog.String("reason", "redis_error"))...)
+			writeServiceError(w, service.NewError(http.StatusServiceUnavailable, "service_unavailable", "step-up verification failed"))
+			return false
+		}
+	}
 
-	if !ok {
+	if uses > int64(maxUses) {
 		logging.Audit(r.Context(), "auth.stepup.use", "failure", append(auditAttrs, slog.String("reason", "replay"))...)
 		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
 		return false
@@ -1200,7 +1268,7 @@ func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.C
 	return true
 }
 
-func requireStepup(w http.ResponseWriter, r *http.Request, tokens *auth.TokenManager, rdb *redis.Client, user auth.User, action string) bool {
+func requireStepup(w http.ResponseWriter, r *http.Request, tokens *auth.TokenManager, rdb *redis.Client, user auth.User, action string, maxUses int) bool {
 	// Step 1: Setup audit logging attributes
 	auditAttrs := stepupAuditAttrs(r, user, action)
 
@@ -1216,7 +1284,7 @@ func requireStepup(w http.ResponseWriter, r *http.Request, tokens *auth.TokenMan
 	}
 
 	// Step 4: Check token replay using Redis
-	if !checkStepupTokenReplay(w, r, rdb, jti, exp, user, auditAttrs) {
+	if !checkStepupTokenReplay(w, r, rdb, jti, exp, user, auditAttrs, maxUses) {
 		return false
 	}
 

@@ -156,6 +156,11 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		}
 	}
 
+	/** X-Stepup-Token header, or nothing when no token is held. */
+	function stepup(token?: string | null): Record<string, string> | undefined {
+		return token ? { 'x-stepup-token': token } : undefined;
+	}
+
 	async function attemptRefresh(): Promise<boolean> {
 		const result = await refreshSession(baseUrl);
 		return result.ok;
@@ -164,7 +169,19 @@ export function createApiClient(options: ApiClientOptions = {}) {
 	async function request<T>(
 		method: HttpMethod,
 		path: string,
-		init?: { body?: unknown; token?: string | null; headers?: Record<string, string>; _skipRefresh?: boolean }
+		init?: {
+			body?: unknown;
+			token?: string | null;
+			headers?: Record<string, string>;
+			_skipRefresh?: boolean;
+			/**
+			 * Defaults to 'include'. Account-switching calls pass 'omit': the
+			 * backend prefers the ciel_auth cookie over the Authorization header
+			 * (internal/middleware/auth.go), so sending cookies would resolve the
+			 * request as the *active* account instead of the one being asked about.
+			 */
+			credentials?: RequestCredentials;
+		}
 	): Promise<ApiResult<T>> {
 		const url = `${baseUrl}${path}`;
 
@@ -178,7 +195,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
 				method,
 				headers,
 				body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-				credentials: 'include', // Send cookies with requests
+				credentials: init?.credentials ?? 'include', // Send cookies with requests
 			});
 
 			if (!res.ok) {
@@ -292,11 +309,150 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		loginFinish: (body: components['schemas']['LoginFinishRequest']) =>
 			request<components['schemas']['LoginFinishResponse']>('POST', '/auth/login/finish', { body }),
 
+		// --- Account switching -----------------------------------------------
+		// The account token is minted for the *current* session (cookie auth) and
+		// then only ever presented with a signature from the device key it is
+		// bound to, so the stored copy is useless anywhere else.
+		sessionToken: (body: components['schemas']['SessionTokenRequest']) =>
+			request<components['schemas']['SessionTokenResponse']>('POST', '/auth/session/token', { body }),
+
+		sessionExchange: (body: components['schemas']['SessionExchangeRequest']) =>
+			request<components['schemas']['SessionExchangeResponse']>('POST', '/auth/session/exchange', {
+				body,
+				// Activating is the switch itself, and 'omit' would throw away the
+				// Set-Cookie that performs it. Reads stay cookie-free: asking about
+				// another account must not involve the active session at all.
+				credentials: body.activate ? 'include' : 'omit',
+				_skipRefresh: true
+			}),
+
+		/** Unread count for an account other than the active one. */
+		unreadNotificationCountAs: (accessToken: string) =>
+			request<components['schemas']['UnreadCount']>('GET', '/notifications/unread-count', {
+				headers: { authorization: `Bearer ${accessToken}` },
+				credentials: 'omit',
+				_skipRefresh: true
+			}),
+
 		stepupStart: (body: components['schemas']['StepupStartRequest']) =>
 			request<components['schemas']['StepupStartResponse']>('POST', '/auth/stepup/start', { body }),
 
 		stepupFinish: (body: components['schemas']['StepupFinishRequest']) =>
 			request<components['schemas']['StepupFinishResponse']>('POST', '/auth/stepup/finish', { body }),
+
+		// --- MFA -------------------------------------------------------------
+		// Enrollment endpoints take a step-up token. It is reusable inside its
+		// 5-minute window (see requireMfaStepup on the backend), so the settings
+		// screen mints one and drives the whole session with it.
+		mfaStatus: () => request<components['schemas']['MfaStatus']>('GET', '/auth/mfa'),
+
+		totpSetup: (stepupToken?: string | null) =>
+			request<components['schemas']['TotpSetupResponse']>('POST', '/auth/mfa/totp/setup', {
+				headers: stepup(stepupToken)
+			}),
+
+		totpConfirm: (
+			body: components['schemas']['TotpConfirmRequest'],
+			stepupToken?: string | null
+		) =>
+			request<components['schemas']['TotpConfirmResponse']>('POST', '/auth/mfa/totp/confirm', {
+				body,
+				headers: stepup(stepupToken)
+			}),
+
+		totpDisable: (stepupToken?: string | null) =>
+			request<void>('DELETE', '/auth/mfa/totp', { headers: stepup(stepupToken) }),
+
+		mfaDisable: (stepupToken?: string | null) =>
+			request<void>('POST', '/auth/mfa/disable', { headers: stepup(stepupToken) }),
+
+		backupCodesRegenerate: (stepupToken?: string | null) =>
+			request<components['schemas']['BackupCodesRegenerateResponse']>(
+				'POST',
+				'/auth/mfa/backup-codes/regenerate',
+				{ headers: stepup(stepupToken) }
+			),
+
+		// Login-time challenge. A wrong code is a plain 401 and must NOT be read
+		// as an expired session, so the refresh-and-retry path is skipped.
+		mfaVerify: (body: components['schemas']['MfaCodeVerifyRequest']) =>
+			request<components['schemas']['LoginAuthenticated']>('POST', '/auth/mfa/verify', {
+				body,
+				_skipRefresh: true
+			}),
+
+		mfaWebauthnOptions: (body: components['schemas']['MfaWebAuthnOptionsRequest']) =>
+			request<components['schemas']['WebAuthnAssertionOptionsResponse']>(
+				'POST',
+				'/auth/mfa/webauthn/options',
+				{ body, _skipRefresh: true }
+			),
+
+		mfaWebauthnVerify: (body: components['schemas']['MfaWebAuthnVerifyRequest']) =>
+			request<components['schemas']['LoginAuthenticated']>('POST', '/auth/mfa/webauthn/verify', {
+				body,
+				_skipRefresh: true
+			}),
+
+		// Step-up challenge. Same shapes, but authenticated and returning a
+		// step-up token instead of a session.
+		stepupMfaVerify: (body: components['schemas']['MfaCodeVerifyRequest']) =>
+			request<components['schemas']['StepupAuthenticated']>('POST', '/auth/stepup/mfa/verify', {
+				body,
+				_skipRefresh: true
+			}),
+
+		stepupMfaWebauthnOptions: (body: components['schemas']['MfaWebAuthnOptionsRequest']) =>
+			request<components['schemas']['WebAuthnAssertionOptionsResponse']>(
+				'POST',
+				'/auth/stepup/mfa/webauthn/options',
+				{ body, _skipRefresh: true }
+			),
+
+		stepupMfaWebauthnVerify: (body: components['schemas']['MfaWebAuthnVerifyRequest']) =>
+			request<components['schemas']['StepupAuthenticated']>(
+				'POST',
+				'/auth/stepup/mfa/webauthn/verify',
+				{ body, _skipRefresh: true }
+			),
+
+		webauthnCredentials: () =>
+			request<components['schemas']['WebAuthnCredential'][]>('GET', '/auth/mfa/webauthn/credentials'),
+
+		webauthnRegisterOptions: (stepupToken?: string | null) =>
+			request<components['schemas']['WebAuthnRegisterOptionsResponse']>(
+				'POST',
+				'/auth/mfa/webauthn/register/options',
+				{ headers: stepup(stepupToken) }
+			),
+
+		webauthnRegisterVerify: (
+			body: components['schemas']['WebAuthnRegisterVerifyRequest'],
+			stepupToken?: string | null
+		) =>
+			request<components['schemas']['WebAuthnRegisterVerifyResponse']>(
+				'POST',
+				'/auth/mfa/webauthn/register/verify',
+				{ body, headers: stepup(stepupToken) }
+			),
+
+		// Renaming is not a security-relevant change, so it needs no step-up.
+		webauthnCredentialRename: (
+			credentialId: string,
+			body: components['schemas']['WebAuthnCredentialUpdateRequest']
+		) =>
+			request<components['schemas']['WebAuthnCredential']>(
+				'PATCH',
+				`/auth/mfa/webauthn/credentials/${encodeURIComponent(credentialId)}`,
+				{ body }
+			),
+
+		webauthnCredentialDelete: (credentialId: string, stepupToken?: string | null) =>
+			request<void>(
+				'DELETE',
+				`/auth/mfa/webauthn/credentials/${encodeURIComponent(credentialId)}`,
+				{ headers: stepup(stepupToken) }
+			),
 
 		refresh: () => refreshSession(baseUrl),
 
@@ -308,7 +464,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		) =>
 			request<void>('POST', '/auth/password/change', {
 				body,
-				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
+				headers: stepup(stepupToken)
 			}),
 
 		me: () => request<components['schemas']['User']>('GET', '/me'),
@@ -317,14 +473,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			body: components['schemas']['UpdateUsernameRequest'],
 			stepupToken?: string | null
 		) =>
-			request<components['schemas']['LoginFinishResponse']>('PATCH', '/me/username', {
+			request<components['schemas']['LoginAuthenticated']>('PATCH', '/me/username', {
 				body,
-				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
+				headers: stepup(stepupToken)
 			}),
 
 		deleteMe: (stepupToken?: string | null) =>
 			request<void>('DELETE', '/me', {
-				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
+				headers: stepup(stepupToken)
 			}),
 
 		userByUsername: (username: string) =>
