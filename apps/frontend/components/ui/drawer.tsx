@@ -11,15 +11,6 @@ const Drawer = ({
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
   <DrawerPrimitive.Root
     shouldScaleBackground={shouldScaleBackground}
-    // vaul's own keyboard handling writes inline `bottom` and `height` onto the
-    // sheet from window.innerHeight - visualViewport.height. That double-counts
-    // wherever the layout viewport has already shrunk, clamps tall sheets to a
-    // height nothing scrolls, and restores a height it cached on the first
-    // keyboard ever opened and never invalidates. DrawerContent below does the
-    // same job in CSS off --keyboard-inset, so vaul's version is turned off
-    // rather than left to fight it. Radix's scroll lock and vaul's
-    // position-fixed body handling are independent of this flag and stay on.
-    repositionInputs={false}
     {...props}
   />
 );
@@ -56,7 +47,20 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 flex h-auto flex-col overflow-hidden rounded-t-[10px] border bg-card",
+        // `bottom-0!` and `h-auto!` are the whole of vaul's keyboard handling
+        // that we want gone. Its repositionInputs prop looks like the switch
+        // for it, but the same flag also gates usePreventScroll — which on iOS
+        // is what pins window.scrollY at 0 while the sheet is open. That has to
+        // stay on: vaul's other half puts `position: fixed; top: -scrollY` on
+        // the body, and with the window still scrolled the two disagree, so
+        // every fixed element's hit area lands offset from where it is painted
+        // (taps miss) and the scroll restored on close is wrong. So the prop is
+        // left at its default and only the styling is overridden. vaul writes
+        // exactly `height` and `bottom` inline, from onVisualViewportChange and
+        // nowhere else; dragging animates `transform`, and snap points — the
+        // other user of those two — are unused here. The keyboard is handled in
+        // CSS below off --keyboard-inset instead.
+        "fixed inset-x-0 bottom-0! z-50 flex h-auto! flex-col overflow-hidden rounded-t-[10px] border bg-card",
         // The sheet stays pinned to the bottom and pads its content up over the
         // keyboard instead of moving. Shifting `bottom` would leave it short of
         // offscreen when vaul closes it with translate3d(0, 100%, 0).

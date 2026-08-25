@@ -5,7 +5,6 @@ import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import {
   EmojiPicker,
   EmojiPickerSearch,
@@ -46,8 +45,6 @@ export function ReactionPicker({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
-
-  useBodyScrollLock(open);
 
   React.useEffect(() => {
     setOpen(false);
