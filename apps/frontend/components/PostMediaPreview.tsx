@@ -70,7 +70,7 @@ function RemoveButton({
         e.stopPropagation();
         onClick(e);
       }}
-      className="absolute top-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+      className="absolute top-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors"
       aria-label={label}
     >
       <X className="w-3.5 h-3.5" />
@@ -92,7 +92,7 @@ function CropButton({
         e.stopPropagation();
         onClick(e);
       }}
-      className="absolute top-2 right-[46px] z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+      className="absolute top-2 right-[46px] z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors"
       aria-label={label}
     >
       <Crop className="w-3.5 h-3.5" />
@@ -127,7 +127,7 @@ function computeMediaStyle(
  *   - 3 images: left column spans 2 rows, right column has two 16:9 thumbnails
  *   - 4 images: 2×2 grid, all 16:9
  *
- * In `editable` mode a × button is shown on hover for each media item.
+ * In `editable` mode the edit controls are overlaid on each media item.
  */
 export function PostMediaPreview({
   media,
