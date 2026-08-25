@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import { headers } from "next/headers";
 import { Toaster } from "@/components/ui/sonner";
 import { ConditionalSidebar } from "@/components/ConditionalSidebar";
@@ -8,11 +9,23 @@ import { ConfigWatcher } from "@/components/providers/ConfigWatcher";
 import { SetupRedirect } from "./SetupRedirect";
 import { DynamicTitle } from "@/components/DynamicTitle";
 import { ThemeColorMeta } from "@/components/ThemeColorMeta";
+import { KeyboardInset } from "@/components/KeyboardInset";
 import { RuntimeConfigScript } from "@/components/RuntimeConfigScript";
 import { RegisterServiceWorker } from "@/app/register-sw";
 import { getLocale } from "@/i18n/config";
 import { getFontVariableClassName } from "@/app/typography/fonts";
 import "./globals.css";
+
+// interactiveWidget pins what the software keyboard does to the viewport
+// instead of leaving it to each browser's default. resizes-content shrinks
+// the layout viewport itself, so on Chromium a bottom-anchored sheet lands
+// above the keyboard with no JavaScript at all — and dvh follows. iOS ignores
+// the hint, which is what KeyboardInset is for.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+};
 
 export default async function RootLayout({
   children,
@@ -44,6 +57,7 @@ export default async function RootLayout({
         <Providers>
           <DynamicTitle titleKey="meta.title" />
           <ThemeColorMeta />
+          <KeyboardInset />
           <RegisterServiceWorker />
           <AgreementCheckProvider>
             <ConfigWatcher />

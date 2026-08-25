@@ -99,7 +99,10 @@ export function ComposerEmojiPicker({
         <div className="w-full flex flex-col">
           <DrawerTitle className="sr-only">{t("addEmoji")}</DrawerTitle>
           <EmojiPicker
-            className="w-full h-[400px] border-0"
+            // Never taller than what the software keyboard leaves: the
+            // picker's search field is the first thing pushed off otherwise.
+            // The 8rem covers the sheet's handle and safe-area inset.
+            className="w-full h-[min(400px,calc(100dvh-var(--keyboard-inset,0px)-8rem))] border-0"
             columns={8}
             onEmojiSelect={handleEmojiSelect}
           >
