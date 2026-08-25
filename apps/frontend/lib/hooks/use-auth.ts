@@ -4,7 +4,7 @@ import { useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
 import { authAtom, userAtom } from '@/atoms/auth';
-import { upsertAccountAtom, removeAccountAtom } from '@/atoms/accounts';
+import { markAccountActiveAtom, orderedAccountsAtom, removeAccountAtom, upsertAccountAtom } from '@/atoms/accounts';
 import { deleteAccountToken, getDevicePublicKey, loadAccountToken, saveAccountToken } from '@/lib/auth/account-tokens';
 import { createApiClient } from '@/lib/api/client';
 import { getAssertion } from '@/lib/api/webauthn';
@@ -12,6 +12,7 @@ import type { components } from '@/lib/api/api';
 import { computeClientProof, randomBase64Url } from '@/lib/api/scram';
 import { ERROR_CODES } from '@/lib/errors';
 import { getSafeRedirect } from '@/lib/utils/redirect';
+import { useAccountSwitch } from '@/lib/hooks/use-account-switch';
 import { queryKeys } from '@/lib/hooks/use-queries';
 
 const api = createApiClient();
@@ -51,7 +52,10 @@ export function useAuth() {
 	const setAuth = useSetAtom(authAtom);
 	const upsertAccount = useSetAtom(upsertAccountAtom);
 	const removeAccount = useSetAtom(removeAccountAtom);
+	const markAccountActive = useSetAtom(markAccountActiveAtom);
 	const activeUser = useAtomValue(userAtom);
+	const orderedAccounts = useAtomValue(orderedAccountsAtom);
+	const { switchTo } = useAccountSwitch();
 	const queryClient = useQueryClient();
 	const isInitializingRef = useRef(false);
 
@@ -78,6 +82,10 @@ export function useAuth() {
 			queryClient.setQueryData(queryKeys.me, res.data);
 			// User is authenticated
 			setAuth({ status: 'ready', user: res.data, error: null });
+
+			// This load is the account's most recent use, which is what the
+			// switcher orders by.
+			markAccountActive(res.data.id);
 
 			// Sessions that predate account switching — and accounts whose token
 			// was spent by the last switch — get one here rather than at login.
@@ -353,6 +361,14 @@ export function useAuth() {
 		if (userId) {
 			await deleteAccountToken(userId);
 			removeAccount(userId);
+		}
+
+		// Signing out of one account is not signing out of the browser: fall
+		// through to whichever account was used most recently before this one.
+		const next = orderedAccounts.find((account) => account.userId !== userId);
+		if (next) {
+			await switchTo(next);
+			return;
 		}
 
 		setAuth({ status: 'ready', user: null, error: null });

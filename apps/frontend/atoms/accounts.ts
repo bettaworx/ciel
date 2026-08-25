@@ -9,9 +9,19 @@ export type AccountEntry = {
 	displayName: string | null;
 	avatarUrl: string | null;
 	cachedUnreadCount: number;
+	/** Epoch ms of the last page load with this account signed in. Absent on entries added before ordering existed. */
+	lastActiveAt?: number;
 };
 
 export const accountsAtom = atomWithStorage<AccountEntry[]>('ciel:accounts', []);
+
+/**
+ * The switcher's order: most recently used first, so the account you keep
+ * coming back to is the one under your thumb.
+ */
+export const orderedAccountsAtom = atom((get) =>
+	[...get(accountsAtom)].sort((a, b) => (b.lastActiveAt ?? 0) - (a.lastActiveAt ?? 0))
+);
 
 /**
  * Adds an account, or refreshes the profile of one already listed. The switcher
@@ -25,6 +35,17 @@ export const upsertAccountAtom = atom(null, (get, set, account: Omit<AccountEntr
 		return;
 	}
 	set(accountsAtom, [...current, { ...account, cachedUnreadCount: 0 }]);
+});
+
+/**
+ * Stamps an account as the one currently in use. Called on every load of a
+ * signed-in page, which is exactly what "last accessed" means.
+ */
+export const markAccountActiveAtom = atom(null, (get, set, userId: string) => {
+	set(
+		accountsAtom,
+		get(accountsAtom).map((a) => (a.userId === userId ? { ...a, lastActiveAt: Date.now() } : a))
+	);
 });
 
 export const removeAccountAtom = atom(null, (get, set, userId: string) => {

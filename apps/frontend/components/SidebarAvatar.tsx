@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { userAtom } from "@/atoms/auth";
-import { accountsAtom } from "@/atoms/accounts";
+import { orderedAccountsAtom } from "@/atoms/accounts";
 import { sidebarMenuOpenAtom } from "@/atoms/sidebar";
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
@@ -31,7 +31,7 @@ interface SidebarAvatarProps {
  */
 export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate = true }: SidebarAvatarProps) {
   const user = useAtomValue(userAtom);
-  const accounts = useAtomValue(accountsAtom);
+  const accounts = useAtomValue(orderedAccountsAtom);
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const setMenuOpen = useSetAtom(sidebarMenuOpenAtom);
 

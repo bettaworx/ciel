@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Check, Plus, ChevronLeft } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import type { AccountEntry } from "@/atoms/accounts";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,7 +16,6 @@ interface AccountSwitcherContentProps {
 	activeUserId: string;
 	onAccountClick: (account: AccountEntry) => void;
 	onAddAccount: () => void;
-	onBack?: () => void;
 }
 
 export function AccountSwitcherContent({
@@ -24,32 +23,13 @@ export function AccountSwitcherContent({
 	activeUserId,
 	onAccountClick,
 	onAddAccount,
-	onBack,
 }: AccountSwitcherContentProps) {
 	const t = useTranslations();
 
+	// No header and no back button: this is its own sheet, and the footer's
+	// Close is the only way out it needs.
 	return (
 		<div className="w-full">
-			<div className="flex items-center gap-2 p-3">
-				{onBack && (
-					<Button
-						variant="ghost"
-						size="icon"
-						rounded="md"
-						className="h-8 w-8 shrink-0"
-						onClick={onBack}
-						aria-label={t("common.back")}
-					>
-						<ChevronLeft className="h-4 w-4" />
-					</Button>
-				)}
-				{!onBack && (
-					<h2 className="text-sm font-semibold">{t("userMenu.switchAccount")}</h2>
-				)}
-			</div>
-
-			<Separator />
-
 			<div className="p-2 space-y-0.5">
 				{accounts.map((account) => {
 					const isActive = account.userId === activeUserId;
@@ -62,7 +42,9 @@ export function AccountSwitcherContent({
 							rounded="md"
 							className={cn(
 								"w-full justify-start gap-3 h-auto py-2.5 px-2",
-								isActive && "bg-muted/50"
+								// The active row is not clickable, but it is the user's own
+								// account: dimming it reads as "unavailable", not "current".
+								isActive && "bg-muted/50 disabled:opacity-100"
 							)}
 							onClick={() => !isActive && onAccountClick(account)}
 							disabled={isActive}

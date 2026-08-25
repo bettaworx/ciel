@@ -15,6 +15,7 @@ import {
 import { SidebarActionButton } from "@/components/SidebarActionButton";
 import { LogoutConfirmDialog } from "./LogoutConfirmDialog";
 import { DisplayName } from "@/components/users/DisplayName";
+import { UnreadDot } from "./UnreadDot";
 import type { components } from "@/lib/api/api";
 import type { AccountEntry } from "@/atoms/accounts";
 import {
@@ -66,6 +67,10 @@ export function DesktopUserMenu({
   const t = useTranslations();
   const tNav = useTranslations("nav");
 
+  const hasOtherUnread = accounts.some(
+    (account) => account.userId !== user.id && account.cachedUnreadCount > 0,
+  );
+
   const handleLogoutClick = () => {
     onOpenChange(false);
     onLogoutClick();
@@ -77,34 +82,41 @@ export function DesktopUserMenu({
         <DropdownMenuTrigger asChild>
           <SidebarActionButton
             icon={
-              <motion.div
-                initial={false}
-                animate={{
-                  width: isExpanded ? 36 : 48,
-                  height: isExpanded ? 36 : 48,
-                  borderRadius: isExpanded ? "12px" : "16px",
-                }}
-                transition={
-                  canAnimate
-                    ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
-                    : { duration: 0 }
-                }
-                className={cn(
-                  "shrink-0 overflow-hidden",
-                  isExpanded ? "h-9 w-9" : "h-12 w-12",
-                )}
-              >
-                <Avatar className="w-full h-full rounded-none">
-                  <AvatarImage
-                    src={user.avatarUrl ?? undefined}
-                    alt={user.displayName || user.username}
-                    className="object-cover"
-                  />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold rounded-none">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-              </motion.div>
+              // The dot rides on this wrapper, not inside the avatar: the
+              // animated rounding needs its overflow clipped.
+              <span className="relative flex">
+                <motion.div
+                  initial={false}
+                  animate={{
+                    width: isExpanded ? 36 : 48,
+                    height: isExpanded ? 36 : 48,
+                    borderRadius: isExpanded ? "12px" : "16px",
+                  }}
+                  transition={
+                    canAnimate
+                      ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
+                      : { duration: 0 }
+                  }
+                  className={cn(
+                    "shrink-0 overflow-hidden",
+                    isExpanded ? "h-9 w-9" : "h-12 w-12",
+                  )}
+                >
+                  <Avatar className="w-full h-full rounded-none">
+                    <AvatarImage
+                      src={user.avatarUrl ?? undefined}
+                      alt={user.displayName || user.username}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold rounded-none">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </motion.div>
+                {/* Collapsed, the avatar is all there is to mark. Expanded, the
+                    row ends in the "..." and that is where the eye lands. */}
+                {hasOtherUnread && !isExpanded && <UnreadDot className="-right-0.5 -top-0.5" />}
+              </span>
             }
             label={
               user.displayName ? (
@@ -117,7 +129,12 @@ export function DesktopUserMenu({
               )
             }
             subLabel={user.displayName ? `@${user.username}` : undefined}
-            trailingIcon={<MoreHorizontal className="w-4 h-4" />}
+            trailingIcon={
+              <span className="relative flex">
+                <MoreHorizontal className="w-4 h-4" />
+                {hasOtherUnread && <UnreadDot className="-right-1.5 top-0 h-1.5 w-1.5" />}
+              </span>
+            }
             isExpanded={isExpanded}
             canAnimate={canAnimate}
             className={isExpanded ? "w-full min-w-[180px]" : undefined}
@@ -129,8 +146,13 @@ export function DesktopUserMenu({
           <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <Users className="h-4 w-4" />
-                {t("userMenu.switchAccount")}
+                <span className="flex items-center gap-2">
+                  <span className="relative flex">
+                    <Users className="h-4 w-4" />
+                    {hasOtherUnread && <UnreadDot className="-right-1 -top-1 h-1.5 w-1.5" />}
+                  </span>
+                  {t("userMenu.switchAccount")}
+                </span>
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent className="max-h-[300px] overflow-y-auto">
@@ -144,7 +166,9 @@ export function DesktopUserMenu({
                         key={account.userId}
                         onClick={() => !isActive && onAccountClick?.(account)}
                         disabled={isActive}
-                        className="gap-2"
+                        // Not clickable, but it is the user's own account:
+                        // dimming it reads as "unavailable", not "current".
+                        className="gap-2 data-[disabled]:opacity-100"
                       >
                         <Avatar className="h-7 w-7 shrink-0">
                           <AvatarImage
@@ -157,7 +181,11 @@ export function DesktopUserMenu({
                         </Avatar>
                         <div className="flex flex-col flex-1 min-w-0">
                           <span className="text-sm font-semibold truncate">
-                            {account.displayName || `@${account.username}`}
+                            {account.displayName ? (
+                              <DisplayName name={account.displayName} isPrivate={false} />
+                            ) : (
+                              `@${account.username}`
+                            )}
                           </span>
                           {account.displayName && (
                             <span className="text-xs text-muted-foreground truncate">

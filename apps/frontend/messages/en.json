@@ -693,7 +693,8 @@
   },
   "accountSwitcher": {
     "addAccount": "Add account",
-    "active": "Active"
+    "active": "Active",
+    "otherAccountsUnread": "Other accounts have new notifications"
   },
   "common": {
     "back": "Back",

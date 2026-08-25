@@ -22,8 +22,8 @@ export function useUserMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 
-  // 他アカウントの未読件数はメニューを開いている間だけ取りに行く
-  useAccountUnread(isMenuOpen);
+  // 他アカウントの未読件数（バッジ用）をポーリングで取得する
+  useAccountUnread();
 
   const handleMenuOpenChange = (open: boolean) => {
     setIsMenuOpen(open);

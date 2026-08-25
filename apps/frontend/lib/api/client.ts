@@ -319,7 +319,10 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		sessionExchange: (body: components['schemas']['SessionExchangeRequest']) =>
 			request<components['schemas']['SessionExchangeResponse']>('POST', '/auth/session/exchange', {
 				body,
-				credentials: 'omit',
+				// Activating is the switch itself, and 'omit' would throw away the
+				// Set-Cookie that performs it. Reads stay cookie-free: asking about
+				// another account must not involve the active session at all.
+				credentials: body.activate ? 'include' : 'omit',
 				_skipRefresh: true
 			}),
 

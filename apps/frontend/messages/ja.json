@@ -693,7 +693,8 @@
   },
   "accountSwitcher": {
     "addAccount": "アカウントを追加",
-    "active": "アクティブ"
+    "active": "アクティブ",
+    "otherAccountsUnread": "他のアカウントに新しい通知があります"
   },
   "common": {
     "back": "戻る",

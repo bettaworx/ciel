@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { DisplayName } from "@/components/users/DisplayName";
+import { UnreadDot } from "./UnreadDot";
 import { cn } from "@/lib/utils";
 
 interface UserMenuContentProps {
@@ -31,6 +32,8 @@ interface UserMenuContentProps {
   onClose?: () => void;
   isMobile?: boolean;
   onSwitchAccountClick?: () => void;
+  /** Marks the row when another signed-in account has notifications waiting. */
+  hasOtherUnread?: boolean;
 }
 
 export function UserMenuContent({
@@ -44,6 +47,7 @@ export function UserMenuContent({
   onClose,
   isMobile = false,
   onSwitchAccountClick,
+  hasOtherUnread = false,
 }: UserMenuContentProps) {
   const t = useTranslations();
 
@@ -157,7 +161,10 @@ export function UserMenuContent({
               onClick={onSwitchAccountClick}
             >
               <span className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
+                <span className="relative flex">
+                  <Users className="h-4 w-4" />
+                  {hasOtherUnread && <UnreadDot className="-right-1 -top-1 h-1.5 w-1.5" />}
+                </span>
                 {t("userMenu.switchAccount")}
               </span>
               <ChevronRight className="h-4 w-4" />
