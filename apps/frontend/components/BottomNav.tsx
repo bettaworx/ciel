@@ -110,7 +110,7 @@ export function BottomNav() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 h-16 bg-background-1 flex items-center justify-between px-8 z-40 border-t border-border">
+      <div className="fixed bottom-0 left-0 right-0 h-16 bg-background-1 flex items-center justify-between px-4 z-40 border-t border-border">
         {/* アバター（認証済みの場合のみ表示） */}
         <div className="flex items-center">
           <SidebarAvatar />
