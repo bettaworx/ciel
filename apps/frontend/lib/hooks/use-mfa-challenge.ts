@@ -114,8 +114,10 @@ export function useMfaChallenge(
 	}, [stage, runPasskey]);
 
 	/**
-	 * Label key for the shell's primary button. `undefined` keeps the shell's own
-	 * wording, a key overrides it, and `null` means the button has nothing to do.
+	 * Label key for the shell's primary button, or `null` when it has nothing to
+	 * do. The challenge names every one of them rather than falling through to
+	 * the shell: login would otherwise say "log in" where step-up says "next",
+	 * and the two surfaces are meant to read identically.
 	 */
 	const primaryOverride =
 		stage === "choose"
@@ -129,13 +131,8 @@ export function useMfaChallenge(
 					null
 				: stage === "passkey"
 					? "login.wizard.mfa.retry"
-					: undefined;
+					: "setup.next";
 
-	/**
-	 * Same three-valued contract for the shell's back button. Only overridden
-	 * when there is a chooser above to return to; a one-factor account backs out
-	 * to the password, which is the shell's own wording.
-	 */
 	const codeLength = stage === "backup" ? BACKUP_CODE_LENGTH : TOTP_CODE_LENGTH;
 
 	/**
@@ -145,10 +142,42 @@ export function useMfaChallenge(
 	 */
 	const primaryDisabled = stage === "backup" && code.length < codeLength;
 
-	const canChooseAnother = stage !== "choose" && startStage === "choose";
-	const secondaryOverride = canChooseAnother
-		? "login.wizard.mfa.useAnotherWay"
-		: undefined;
+	/**
+	 * The chooser's primary slot is an escape hatch rather than the way forward,
+	 * so it drops the accent colour the real actions carry.
+	 */
+	const primaryIsFallback = stage === "choose";
+
+	const hasChooser = startStage === "choose";
+
+	/**
+	 * Where the left slot leads, or null when there is nowhere above and the
+	 * shell's own back takes over.
+	 *
+	 * With two factors it walks to the chooser, and the chooser offers the backup
+	 * codes. With one there is no chooser to hold that offer, so the left slot
+	 * carries it instead — otherwise a one-factor account could never reach its
+	 * backup codes at all. From the codes it returns wherever it came from.
+	 */
+	const anotherWay = ((): MfaStage | null => {
+		// The chooser is the top of the challenge; above it is the password.
+		if (stage === "choose") return null;
+		if (stage === "backup") {
+			// Back to whatever offered the codes. An account with no factors left
+			// starts here, and then there is nothing above.
+			if (hasChooser) return "choose";
+			return startStage === "backup" ? null : startStage;
+		}
+		if (hasChooser) return "choose";
+		return hasBackup ? "backup" : null;
+	})();
+
+	const secondaryOverride =
+		anotherWay === null
+			? undefined
+			: anotherWay === "backup"
+				? "login.wizard.mfa.useBackup"
+				: "login.wizard.mfa.useAnotherWay";
 
 	const showTotp = () => {
 		setCodeState("");
@@ -174,14 +203,14 @@ export function useMfaChallenge(
 	};
 
 	/**
-	 * Steps back inside the challenge. Returns false when there is nowhere left
-	 * to go, so the shell can fall through to its own back behaviour.
+	 * Steps to whatever the left slot offers. Returns false when there is nothing
+	 * above, so the shell can fall through to its own back behaviour.
 	 */
 	const goBack = () => {
-		if (!canChooseAnother) return false;
+		if (anotherWay === null) return false;
 		setCodeState("");
 		setError(null);
-		setStage("choose");
+		setStage(anotherWay);
 		return true;
 	};
 
@@ -196,6 +225,7 @@ export function useMfaChallenge(
 		fail,
 		passkeyPending,
 		primaryOverride,
+		primaryIsFallback,
 		primaryDisabled,
 		secondaryOverride,
 		showTotp,

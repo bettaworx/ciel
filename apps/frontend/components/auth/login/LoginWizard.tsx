@@ -203,8 +203,7 @@ export function LoginWizard() {
     if (currentStep === "password" || currentStep === "mfa") {
       const isMfa = currentStep === "mfa";
       const primaryLabel = isMfa ? challenge.primaryOverride : "login.title";
-      const primaryIsFallback =
-        typeof primaryLabel === "string" && primaryLabel !== "login.title";
+      const primaryIsFallback = isMfa && challenge.primaryIsFallback;
       const secondaryLabel = (isMfa && challenge.secondaryOverride) || "setup.back";
       return (
         <div className="flex items-center justify-between gap-2">

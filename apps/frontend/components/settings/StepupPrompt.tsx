@@ -46,7 +46,7 @@ export function StepupPrompt({ open, heading, stepup, onDismiss }: StepupPromptP
   // Both footer slots follow the stage: the primary becomes the backup-code
   // fallback or a retry, and back walks to the factor chooser before it leaves.
   const primaryLabel = isMfa ? challenge.primaryOverride : "setup.next";
-  const primaryIsFallback = typeof primaryLabel === "string" && primaryLabel !== "setup.next";
+  const primaryIsFallback = isMfa && challenge.primaryIsFallback;
   const secondaryLabel = (isMfa && challenge.secondaryOverride) || "setup.back";
   const formId = isMfa ? "stepup-prompt-mfa-form" : "login-password-form";
 
