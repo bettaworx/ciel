@@ -144,7 +144,12 @@ export function TotpEnrollDialog({
             <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
               {t("settings.security.mfa.cancel")}
             </Button>
-            <Button type="submit" form={FORM_ID} variant="primary" disabled={busy}>
+            <Button
+              type="submit"
+              form={FORM_ID}
+              variant="primary"
+              disabled={busy || code.trim().length !== TOTP_CODE_LENGTH}
+            >
               {busy ? t("loading") : t("settings.security.mfa.totp.confirm")}
             </Button>
           </>
@@ -191,8 +196,8 @@ export function TotpEnrollDialog({
               id="totp-confirm-code"
               value={code}
               onChange={setCode}
-              // A filled code has nothing left to confirm, so it goes.
-              onComplete={confirm}
+              // No auto-submit here, unlike the login challenge: enrolling is a
+              // deliberate step and the footer is what commits it.
               maxLength={TOTP_CODE_LENGTH}
               pattern="^[0-9]*$"
               inputMode="numeric"

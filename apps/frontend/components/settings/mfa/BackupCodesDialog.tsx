@@ -63,8 +63,11 @@ export function BackupCodesDialog({ codes, onClose }: BackupCodesDialogProps) {
     // characters that are safe here, but the filter keeps a future rule change
     // from putting a path separator in a filename.
     const safe = (value: string) => value.replace(/[^A-Za-z0-9_.-]/g, "");
+    // The host leads: which server these belong to is the thing that
+    // distinguishes one file from another, and hardcoding the product name
+    // there only reads as if it were the host.
     const parts = [safe(host), safe(user?.username ?? "")].filter(Boolean);
-    link.download = ["ciel-backup-codes", ...parts].join("-") + ".txt";
+    link.download = [...parts, "backup-codes"].join("-") + ".txt";
     link.click();
     URL.revokeObjectURL(url);
   };
