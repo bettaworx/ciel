@@ -307,6 +307,7 @@
         "change": "バナーを変更",
         "cancel": "キャンセル",
         "invalidFileType": "画像ファイルを選択してください",
+        "updateError": "バナーの更新に失敗しました",
         "cropTitle": "バナーをトリミング"
       },
       "displayName": {

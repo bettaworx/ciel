@@ -10,8 +10,93 @@ import {
 
 const file = (name: string, type: string) => new File([new Uint8Array(1)], name, { type });
 
+/**
+ * The WASM WebP encoder. Off by default so the canvas assertions below still
+ * describe what the canvas did; a test that wants it sets `impl`.
+ */
+const webpEncoder = vi.hoisted(() => ({
+	impl: null as null | ((data: unknown, options: unknown) => ArrayBuffer),
+	options: null as unknown,
+}));
+
+vi.mock('@jsquash/webp/encode', () => ({
+	default: async (data: unknown, options: unknown) => {
+		webpEncoder.options = options;
+		if (!webpEncoder.impl) throw new Error('wasm unavailable');
+		return webpEncoder.impl(data, options);
+	},
+}));
+
+/** Scripted mediabunny: each Conversion.init() consumes the next attempt. */
+const bunny = vi.hoisted(() => ({
+	attempts: [] as { discarded: { track: { type: string }; reason: string }[]; isValid: boolean }[],
+	bitrateModes: [] as (string | undefined)[],
+	webmCodec: 'vp9' as string | null,
+}));
+
+vi.mock('mediabunny', () => {
+	class Quality {
+		constructor(public options: { bitrate: number; bitrateMode?: string }) {}
+	}
+	class BufferTarget {
+		buffer: ArrayBuffer | null = new ArrayBuffer(8);
+	}
+	return {
+		ALL_FORMATS: [],
+		BlobSource: class {},
+		BufferTarget,
+		Quality,
+		Mp4OutputFormat: class {},
+		WebMOutputFormat: class {
+			getSupportedVideoCodecs() {
+				return ['vp9'];
+			}
+		},
+		Output: class {
+			target: BufferTarget;
+			constructor(options: { target: BufferTarget }) {
+				this.target = options.target;
+			}
+		},
+		Input: class {
+			async getPrimaryVideoTrack() {
+				return {
+					getDisplayWidth: async () => 1920,
+					getDisplayHeight: async () => 1080,
+					computePacketStats: async () => ({ averagePacketRate: 30 }),
+				};
+			}
+			async computeDuration() {
+				return 10;
+			}
+		},
+		getFirstEncodableVideoCodec: async () => bunny.webmCodec,
+		Conversion: {
+			init: async (options: { video: { quality: Quality } }) => {
+				bunny.bitrateModes.push(options.video.quality.options.bitrateMode);
+				const attempt = bunny.attempts.shift() ?? { discarded: [], isValid: true };
+				return {
+					discardedTracks: attempt.discarded,
+					isValid: attempt.isValid,
+					onProgress: undefined,
+					execute: async () => {},
+					cancel: async () => {},
+				};
+			},
+		},
+	};
+});
+
 /** Stands in for the browser encode path, recording what it was asked to do. */
-function stubCanvas(source = { width: 10, height: 10 }) {
+function stubCanvas(
+	source = { width: 10, height: 10 },
+	/**
+	 * What the canvas will actually hand back, whatever it was asked for. Safari
+	 * has no WebP encoder and answers a WebP request with a PNG without saying so;
+	 * null stands for a canvas whose output the server would not take at all.
+	 */
+	answersWith: string | null = null,
+) {
 	const state = { encodes: 0, width: 0, height: 0, quality: 0, smoothing: true };
 	vi.stubGlobal('createImageBitmap', async () => ({ ...source, close() {} }));
 	vi.stubGlobal(
@@ -27,15 +112,22 @@ function stubCanvas(source = { width: 10, height: 10 }) {
 			getContext() {
 				return {
 					drawImage() {},
+					getImageData: (_x: number, _y: number, width: number, height: number) => ({
+						data: new Uint8ClampedArray(width * height * 4),
+						width,
+						height,
+					}),
 					set imageSmoothingEnabled(v: boolean) {
 						state.smoothing = v;
 					},
 				};
 			}
-			async convertToBlob(options: { quality: number }) {
+			async convertToBlob(options: { type?: string; quality: number }) {
 				state.encodes++;
 				state.quality = options.quality;
-				return new Blob([new Uint8Array(4)], { type: 'image/webp' });
+				return new Blob([new Uint8Array(4)], {
+					type: answersWith ?? options.type ?? 'image/webp',
+				});
 			}
 		},
 	);
@@ -336,5 +428,160 @@ describe('quality modes', () => {
 		expect(performance).toBeLessThan(balance!);
 		expect(balance).toBeLessThan(quality!);
 		expect(balance).toBe(Math.round(0.1 * 1920 * 1080 * 30));
+	});
+});
+
+describe('encoder fallbacks', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		webpEncoder.impl = null;
+		webpEncoder.options = null;
+		bunny.attempts = [];
+		bunny.bitrateModes = [];
+		bunny.webmCodec = 'vp9';
+	});
+
+	const png = () => new File([new Uint8Array(4)], 'a.png', { type: 'image/png' });
+
+	it('encodes with the WASM encoder, so the format does not depend on the browser', async () => {
+		stubCanvas();
+		webpEncoder.impl = () => new ArrayBuffer(16);
+
+		const result = await normalizeForUpload(png(), { imageMode: 'balance' });
+
+		expect(result.type).toBe('image/webp');
+		expect(result.name).toBe('a.webp');
+		expect(webpEncoder.options).toEqual({ quality: 82 });
+	});
+
+	it('asks libwebp for lossless at dot-by-dot, which is what "original pixels" means', async () => {
+		stubCanvas();
+		webpEncoder.impl = () => new ArrayBuffer(16);
+
+		await normalizeForUpload(png(), { imageMode: 'dot-by-dot' });
+
+		expect(webpEncoder.options).toEqual({ lossless: 1 });
+	});
+
+	// The iOS regression: Safari has no canvas WebP encoder and returns PNG for a
+	// WebP request. Rejecting that is what made every upload fail there.
+	it('takes what the canvas actually produced when the WASM encoder cannot load', async () => {
+		stubCanvas({ width: 10, height: 10 }, 'image/png');
+
+		const result = await normalizeForUpload(png(), { imageMode: 'balance' });
+
+		expect(result.type).toBe('image/png');
+		expect(result.name).toBe('a.png');
+	});
+
+	it('uploads the original when no encoder produces anything the server takes', async () => {
+		stubCanvas({ width: 10, height: 10 }, 'image/bmp');
+		const original = png();
+
+		const result = await normalizeForUpload(original, {
+			imageMode: 'balance',
+			acceptedTypes: ['image/png'],
+			maxBytes: 1024,
+		});
+
+		expect(result).toBe(original);
+	});
+
+	it('will not fall back to a format the server does not allow', async () => {
+		// Safari's answer to a WebP request, against a server narrowed to WebP only.
+		stubCanvas({ width: 10, height: 10 }, 'image/png');
+		const original = png();
+
+		const result = await normalizeForUpload(original, {
+			imageMode: 'balance',
+			acceptedTypes: ['image/webp', 'image/png'],
+			maxBytes: 1024,
+		});
+		expect(result.type).toBe('image/png');
+
+		// Narrow the server to WebP only and there is nowhere left to go: the
+		// canvas cannot make WebP, and the PNG original is not accepted either.
+		// Better to say so than to upload something that comes back a 415.
+		stubCanvas({ width: 10, height: 10 }, 'image/png');
+		await expect(
+			normalizeForUpload(png(), {
+				imageMode: 'balance',
+				acceptedTypes: ['image/webp'],
+				maxBytes: 1024,
+			}),
+		).rejects.toThrow(/encode_unsupported/);
+	});
+
+	it('refuses rather than uploading something the server would reject', async () => {
+		stubCanvas({ width: 10, height: 10 }, 'image/bmp');
+
+		await expect(
+			normalizeForUpload(png(), {
+				imageMode: 'balance',
+				acceptedTypes: ['image/png'],
+				maxBytes: 1, // the original is larger than this
+			}),
+		).rejects.toThrow(/encode_unsupported/);
+	});
+});
+
+describe('video conversion fallbacks', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		bunny.attempts = [];
+		bunny.bitrateModes = [];
+		bunny.webmCodec = 'vp9';
+	});
+
+	const clip = () => new File([new Uint8Array(4096)], 'clip.mp4', { type: 'video/mp4' });
+
+	// isValid only reports that *some* track survived, so a dropped video track
+	// would otherwise be uploaded as a video with no picture in it.
+	it('refuses a conversion that dropped the video track and kept the audio', async () => {
+		bunny.attempts = [
+			{ discarded: [{ track: { type: 'video' }, reason: 'undecodable_source_codec' }], isValid: true },
+		];
+
+		await expect(normalizeForUpload(clip(), { videoMode: 'balance' })).rejects.toThrow(
+			/video_unsupported/,
+		);
+	});
+
+	it('names the discard reason, which is the only clue a phone can report', async () => {
+		bunny.attempts = [
+			{ discarded: [{ track: { type: 'video' }, reason: 'undecodable_source_codec' }], isValid: true },
+		];
+
+		const error = await normalizeForUpload(clip(), { videoMode: 'balance' }).catch((e) => e);
+
+		expect((error.cause as Error).message).toContain('undecodable_source_codec');
+	});
+
+	it('retries without a constant bitrate when the encoder refuses that config', async () => {
+		bunny.attempts = [
+			{ discarded: [{ track: { type: 'video' }, reason: 'no_encodable_target_codec' }], isValid: true },
+			{ discarded: [], isValid: true },
+		];
+
+		const result = await normalizeForUpload(clip(), { videoMode: 'balance' });
+
+		expect(bunny.bitrateModes).toEqual(['constant', undefined]);
+		expect(result.name).toBe('clip.webm');
+	});
+
+	it('uploads the original when even the retry cannot encode it', async () => {
+		bunny.attempts = [
+			{ discarded: [{ track: { type: 'video' }, reason: 'no_encodable_target_codec' }], isValid: true },
+			{ discarded: [{ track: { type: 'video' }, reason: 'no_encodable_target_codec' }], isValid: true },
+		];
+		const original = clip();
+
+		const result = await normalizeForUpload(original, {
+			videoMode: 'balance',
+			acceptedTypes: ['video/mp4'],
+			maxBytes: 100 * 1024 * 1024,
+		});
+
+		expect(result).toBe(original);
 	});
 });

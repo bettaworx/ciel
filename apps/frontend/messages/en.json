@@ -307,6 +307,7 @@
         "change": "Change Banner",
         "cancel": "Cancel",
         "invalidFileType": "Please select an image file",
+        "updateError": "Failed to update banner",
         "cropTitle": "Crop Banner"
       },
       "displayName": {

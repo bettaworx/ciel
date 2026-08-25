@@ -57,6 +57,12 @@ interface ImageCropDialogProps {
   contentClassName?: string;
   /** Optional class override for dialog overlay. */
   overlayClassName?: string;
+  /**
+   * Longest edge of the cropped result, in pixels. Defaults to 1024. Raise it
+   * when the server's own target is larger than that, or it upscales what it is
+   * given and the difference is visible.
+   */
+  maxOutputSize?: number;
   onCropComplete: (
     file: File,
     crop?: Crop,
@@ -69,9 +75,9 @@ async function getCroppedFile(
   image: HTMLImageElement,
   pixelCrop: PixelCrop,
   originalFile: File,
+  maxSize: number,
 ): Promise<File> {
   const canvas = document.createElement("canvas");
-  const maxSize = 1024;
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
   const naturalW = pixelCrop.width * scaleX;
@@ -168,6 +174,7 @@ export function ImageCropDialog({
   initialAspectId,
   contentClassName,
   overlayClassName,
+  maxOutputSize = 1024,
   onCropComplete,
 }: ImageCropDialogProps) {
   const t = useTranslations("imageCrop");
@@ -231,9 +238,24 @@ export function ImageCropDialog({
     };
   }, [imageSrc]);
 
+  // Only URLs built here may be revoked; imageSrc belongs to the caller.
+  const transformedUrlRef = useRef<string | null>(null);
+  const showTransformed = useCallback((url: string | null) => {
+    if (transformedUrlRef.current) URL.revokeObjectURL(transformedUrlRef.current);
+    transformedUrlRef.current = url;
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (transformedUrlRef.current) URL.revokeObjectURL(transformedUrlRef.current);
+    },
+    [],
+  );
+
   useEffect(() => {
     let cancelled = false;
     if (isIdentity(transform)) {
+      showTransformed(null);
       setDisplaySrc(imageSrc);
       return () => {
         cancelled = true;
@@ -253,9 +275,13 @@ export function ImageCropDialog({
         }
       }
       try {
-        const { dataUrl } = await buildTransformedImage(orig, transform);
-        if (cancelled) return;
-        setDisplaySrc(dataUrl);
+        const { url } = await buildTransformedImage(orig, transform);
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        showTransformed(url);
+        setDisplaySrc(url);
       } finally {
         if (!cancelled) setIsTransforming(false);
       }
@@ -264,7 +290,7 @@ export function ImageCropDialog({
     return () => {
       cancelled = true;
     };
-  }, [transform, imageSrc]);
+  }, [transform, imageSrc, showTransformed]);
 
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -411,6 +437,7 @@ export function ImageCropDialog({
         imgRef.current,
         completedCrop,
         originalFile,
+        maxOutputSize,
       );
       onCropComplete(file, crop, transform, selectedAspectId);
       onOpenChange(false);

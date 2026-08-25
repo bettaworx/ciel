@@ -38,7 +38,9 @@ import {
 } from "./constants";
 import {
   MediaNormalizeError,
+  canUploadUntouched,
   isGifFile,
+  isImageFile,
   isVideoFile,
   normalizeForUpload,
 } from "@/lib/media/normalize";
@@ -53,14 +55,6 @@ import type { QualityMode } from "./MediaQualityPicker";
 const isVideoMode = (mode: QualityMode): mode is VideoQualityMode =>
   mode !== "dot-by-dot";
 
-/**
- * Whether a file already satisfies the server and can be uploaded untouched.
- * The accepted types come from the server's own list; it also bounds dimensions
- * and, for video, codecs, which are left to it to report since a file that trips
- * them is not one anybody uploads by accident.
- */
-const canUploadUntouched = (file: File, maxBytes: number, accepted: string[]) =>
-  accepted.includes(file.type) && file.size <= maxBytes;
 import type { Crop } from "react-image-crop";
 import type { AspectRatioId } from "@/components/shared/image-crop/aspectRatios";
 import type { Transform } from "@/components/shared/image-crop/transforms";
@@ -88,15 +82,6 @@ interface UseComposePostOptions {
    * Content is required for quote posts (empty content = boost).
    */
   referenceId?: string;
-}
-
-/**
- * Anything the browser can decode is accepted; lib/media/normalize.ts converts it
- * to WebP/WebM at upload time. Files the OS reports no MIME type for (e.g. .heic
- * on some platforms) take the image path, where decoding decides.
- */
-function isImageFile(file: File): boolean {
-  return !isVideoFile(file) && (file.type.startsWith("image/") || file.type === "");
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -180,6 +165,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const dragCounterRef = useRef(0);
   const latestImagesRef = useRef<LocalImage[]>([]);
   const latestVideoRef = useRef<LocalVideo | null>(null);
+  /** Aborts an in-flight transcode when the video it belongs to is removed. */
+  const videoConvertRef = useRef<AbortController | null>(null);
 
   // Mutations
   const createPostMutation = useCreatePost();
@@ -583,6 +570,9 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
   const handleRemoveVideo = () => {
     if (video) {
+      // Encoding runs to the end on its own; without this it keeps a phone's
+      // CPU busy for a video nobody is going to post.
+      videoConvertRef.current?.abort();
       URL.revokeObjectURL(video.previewUrl);
       setVideo(null);
     }
@@ -752,7 +742,13 @@ export function useComposePost(options: UseComposePostOptions = {}) {
           }),
         );
       } else {
-        toast.error(t("createPost.conversionError"));
+        // The cause carries what mediabunny actually refused (e.g. the reason a
+        // track was discarded). Without it the toast is the same sentence for
+        // every browser, and a failure that only happens on someone else's
+        // phone cannot be reported.
+        const reason =
+          error.cause instanceof Error ? error.cause.message : error.code;
+        toast.error(`${t("createPost.conversionError")} (${reason})`);
       }
       return;
     }
@@ -806,6 +802,10 @@ export function useComposePost(options: UseComposePostOptions = {}) {
             const normalized = await normalizeForUpload(image.file, {
               imageMode: image.quality,
               limits: mediaLimits,
+              // The last resort when this browser has no usable encoder: send
+              // the original, if the server would have taken it anyway.
+              acceptedTypes: mediaLimits.imageMimeTypes,
+              maxBytes: mediaLimits.maxImageBytes,
             });
             const result = await uploadMediaMutation.mutateAsync(normalized);
             mediaIds.push(result.id);
@@ -827,12 +827,16 @@ export function useComposePost(options: UseComposePostOptions = {}) {
             prev ? { ...prev, converting: true, progress: 0 } : prev,
           );
           let lastPercent = -1;
+          const controller = new AbortController();
+          videoConvertRef.current = controller;
           const converted = await normalizeForUpload(video.file, {
             // Encoding to fit means a long video comes out smaller rather than
             // being transcoded in full and then rejected for being too large.
             maxBytes: mediaLimits.maxVideoBytes,
             videoMode: video.quality,
             limits: mediaLimits,
+            acceptedTypes: mediaLimits.videoMimeTypes,
+            signal: controller.signal,
             onProgress: (progress) => {
               // What mediabunny reports is input fed to the encoder, and the
               // encoder's own queue is flushed after that reads 100% — long
@@ -858,8 +862,12 @@ export function useComposePost(options: UseComposePostOptions = {}) {
           mediaIds.push(result.id);
         } catch (error) {
           setVideo((prev) => (prev ? { ...prev, converting: false } : prev));
-          showUploadError(error, "video");
-          console.error("Video upload failed:", error);
+          // Removing the video mid-transcode aborts it. That is the user's own
+          // doing, so it gets no error about it.
+          if (!(error instanceof DOMException && error.name === "AbortError")) {
+            showUploadError(error, "video");
+            console.error("Video upload failed:", error);
+          }
           setIsUploading(false);
           return;
         }

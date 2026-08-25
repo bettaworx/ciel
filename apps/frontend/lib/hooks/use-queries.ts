@@ -13,6 +13,7 @@ import type { components } from "@/lib/api/api";
 import { ApiHttpError } from "@/lib/api/client";
 import { collectOwnerReplyThreadChunk } from "@/lib/post-thread";
 import { toMediaRequirements } from "@/lib/media/requirements";
+import { normalizeForUpload } from "@/lib/media/normalize";
 import { useSetAtom, useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { ERROR_CODES } from "@/lib/errors";
@@ -925,16 +926,39 @@ export function useUpdateAgreementVersions() {
   });
 }
 
+/**
+ * A face and a header are looked at far more than any single post image, and
+ * the server crops them down to 400x400 / 1500x500 anyway, so they are worth
+ * the largest, least compressed intermediate the server will accept.
+ *
+ * Passing this explicitly also matters for a second reason: without it these two
+ * uploads are the only ones normalized blind by requestForm(), which knows
+ * neither the server's limits nor what to fall back to when the browser has no
+ * WebP encoder.
+ */
+function avatarNormalizeOptions(limits: ReturnType<typeof useMediaLimits>) {
+  return {
+    imageMode: "quality" as const,
+    limits,
+    acceptedTypes: limits.imageMimeTypes,
+    maxBytes: limits.maxImageBytes,
+  };
+}
+
 // Update avatar mutation
 export function useUpdateAvatar() {
   const api = useApi();
   const queryClient = useQueryClient();
   const setAuth = useSetAtom(authAtom);
+  const limits = useMediaLimits();
 
   return useMutation({
     mutationFn: async (file: File) => {
-      const result = await api.updateAvatar(file); // Cookie-based auth
-      if (!result.ok) throw new Error(result.errorText);
+      const normalized = await normalizeForUpload(file, avatarNormalizeOptions(limits));
+      const result = await api.updateAvatar(normalized); // Cookie-based auth
+      if (!result.ok) {
+        throw new ApiHttpError(result.errorText, result.status, result.headers);
+      }
       return result.data;
     },
     onSuccess: async (updatedUser) => {
@@ -954,11 +978,15 @@ export function useUpdateBanner() {
   const api = useApi();
   const queryClient = useQueryClient();
   const setAuth = useSetAtom(authAtom);
+  const limits = useMediaLimits();
 
   return useMutation({
     mutationFn: async (file: File) => {
-      const result = await api.updateBanner(file);
-      if (!result.ok) throw new Error(result.errorText);
+      const normalized = await normalizeForUpload(file, avatarNormalizeOptions(limits));
+      const result = await api.updateBanner(normalized);
+      if (!result.ok) {
+        throw new ApiHttpError(result.errorText, result.status, result.headers);
+      }
       return result.data;
     },
     onSuccess: async (updatedUser) => {

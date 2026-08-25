@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -46,6 +46,31 @@ import {
 import { FollowButton } from "@/components/users/FollowButton";
 import { PageContainer } from "@/components/PageContainer";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
+import { ApiHttpError } from "@/lib/api/client";
+import { MediaNormalizeError, isImageFile } from "@/lib/media/normalize";
+
+/**
+ * A short token naming why a save failed, for the toast.
+ *
+ * The server answers with {code, message} JSON, and its code ("payload_too_large",
+ * "unsupported_media_type", ...) says more than the status alone.
+ */
+function describeSaveFailure(error: unknown): string | null {
+  if (error instanceof MediaNormalizeError) return error.code;
+  if (error instanceof ApiHttpError) {
+    try {
+      const body = JSON.parse(error.message) as { code?: string };
+      if (body.code) return body.code;
+    } catch {
+      // Not JSON — a proxy's own HTML 413, say. The status is all there is.
+    }
+    return `http_${error.status}`;
+  }
+  // fetch reports a connection reset this way, including one from a proxy
+  // rejecting an oversized body before the server ever sees it.
+  if (error instanceof TypeError) return "network";
+  return null;
+}
 import { PageHeader } from "@/components/shared/PageHeader";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
@@ -296,6 +321,13 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   // Crop dialog state
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  /** Swap the crop source, releasing the object URL the old one held. */
+  const replaceCropSrc = useCallback((url: string | null) => {
+    setCropImageSrc((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
+  }, []);
   const [cropAspect, setCropAspect] = useState<number>(1);
   const [cropTitle, setCropTitle] = useState<string>("");
   const [cropTarget, setCropTarget] = useState<"avatar" | "banner" | null>(
@@ -374,7 +406,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     setBannerPreview(null);
     setSelectedBannerFile(null);
     setCropDialogOpen(false);
-    setCropImageSrc(null);
+    replaceCropSrc(null);
     setPendingCropFile(null);
     setCropTarget(null);
     if (avatarFileInputRef.current) avatarFileInputRef.current.value = "";
@@ -384,60 +416,92 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   const handleSave = async () => {
     if (!canSaveProfile) return;
 
-    try {
-      if (selectedAvatarFile)
-        await updateAvatar.mutateAsync(selectedAvatarFile);
-      if (selectedBannerFile)
-        await updateBanner.mutateAsync(selectedBannerFile);
-      await updateProfile.mutateAsync({
+    // Avatar, banner and profile are three requests, and the first two commit on
+    // their own. Naming the step matters: when the banner is rate-limited the
+    // avatar is already saved, and one blanket "failed to update profile"
+    // describes neither what broke nor what went through. The reason is shown
+    // too — it is the only way someone on a phone can report which of
+    // conversion, size, type or rate limit stopped them.
+    const run = async (
+      step: "avatar" | "banner" | "profile",
+      save: () => Promise<unknown>,
+    ) => {
+      try {
+        await save();
+        return true;
+      } catch (error) {
+        const label =
+          step === "avatar"
+            ? t("settings.profile.avatar.updateError")
+            : step === "banner"
+              ? t("settings.profile.banner.updateError")
+              : t("settings.profile.updateError");
+        const reason = describeSaveFailure(error);
+        toast.error(reason ? `${label} (${reason})` : label);
+        console.error(`Profile ${step} update failed:`, error);
+        return false;
+      }
+    };
+
+    if (
+      selectedAvatarFile &&
+      !(await run("avatar", () => updateAvatar.mutateAsync(selectedAvatarFile)))
+    ) {
+      return;
+    }
+    if (
+      selectedBannerFile &&
+      !(await run("banner", () => updateBanner.mutateAsync(selectedBannerFile)))
+    ) {
+      return;
+    }
+    const saved = await run("profile", () =>
+      updateProfile.mutateAsync({
         displayName: normalizedDisplayName,
         bio: normalizedBio,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.user(username),
-      });
-      toast.success(t("settings.profile.updateSuccess"));
-      setIsEditing(false);
-      setAvatarPreview(null);
-      setSelectedAvatarFile(null);
-      setBannerPreview(null);
-      setSelectedBannerFile(null);
-    } catch {
-      toast.error(t("settings.profile.updateError"));
+      }),
+    );
+    if (!saved) return;
+
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.user(username),
+    });
+    toast.success(t("settings.profile.updateSuccess"));
+    setIsEditing(false);
+    setAvatarPreview(null);
+    setSelectedAvatarFile(null);
+    setBannerPreview(null);
+    setSelectedBannerFile(null);
+  };
+
+  const openCropDialog = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    target: "avatar" | "banner",
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    // iOS hands back files with an empty type. Treating that as "not an image"
+    // dropped them with nothing shown at all, which reads as a dead button.
+    if (!isImageFile(file)) {
+      toast.error(t(`settings.profile.${target}.invalidFileType`));
+      return;
     }
+    // An object URL rather than a data URL: base64 of a phone photo is tens of
+    // megabytes of string held in state next to the decoded image itself.
+    replaceCropSrc(URL.createObjectURL(file));
+    setCropAspect(target === "avatar" ? 1 : 3);
+    setCropTitle(t(`settings.profile.${target}.cropTitle`));
+    setCropTarget(target);
+    setPendingCropFile(file);
+    setCropDialogOpen(true);
   };
 
-  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setCropImageSrc(reader.result as string);
-      setCropAspect(1);
-      setCropTitle(t("settings.profile.avatar.cropTitle"));
-      setCropTarget("avatar");
-      setPendingCropFile(file);
-      setCropDialogOpen(true);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) =>
+    openCropDialog(e, "avatar");
 
-  const handleBannerFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setCropImageSrc(reader.result as string);
-      setCropAspect(3);
-      setCropTitle(t("settings.profile.banner.cropTitle"));
-      setCropTarget("banner");
-      setPendingCropFile(file);
-      setCropDialogOpen(true);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
+  const handleBannerFileSelect = (e: React.ChangeEvent<HTMLInputElement>) =>
+    openCropDialog(e, "banner");
 
   const handleCropComplete = (croppedFile: File) => {
     const previewUrl = URL.createObjectURL(croppedFile);
@@ -449,7 +513,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
       setSelectedBannerFile(croppedFile);
     }
     setCropDialogOpen(false);
-    setCropImageSrc(null);
+    replaceCropSrc(null);
     setPendingCropFile(null);
     setCropTarget(null);
   };
@@ -1161,6 +1225,9 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           aspectMode={{ mode: "fixed", aspect: cropAspect }}
           title={cropTitle}
           originalFile={pendingCropFile}
+          // The server's own targets are 400x400 and 1500x500; at the 1024
+          // default a banner arrived as 1024x341 and got upscaled.
+          maxOutputSize={2048}
           onCropComplete={handleCropComplete}
         />
       )}
