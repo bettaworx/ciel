@@ -102,7 +102,7 @@ export function MediaQualityControl({
     return (
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align="start" className="z-[70]">
           {modes.map((mode) => {
             const Row = ICON_FOR[mode];
             return (
@@ -121,7 +121,7 @@ export function MediaQualityControl({
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>{trigger}</DrawerTrigger>
-      <DrawerContent>
+      <DrawerContent className="z-[70]" overlayClassName="z-[65]">
         <DrawerTitle className="sr-only">{title}</DrawerTitle>
         <div className="flex flex-col gap-1 p-2 pb-4">
           {modes.map((mode) => {

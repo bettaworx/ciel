@@ -44,7 +44,6 @@ export function ComposeCard({
   const user = useAtomValue(userAtom);
   const [isExpanded, setIsExpanded] = useState(false);
   const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
-  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const composeCardRef = useRef<HTMLDivElement>(null);
   const hadTypedContentRef = useRef(false);
   const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
@@ -87,44 +86,27 @@ export function ComposeCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExpanded]);
 
-  // Cleanup blur timeout on unmount
+  // Collapse on interaction outside the card rather than on textarea blur:
+  // iOS Safari does not move focus when a button is tapped, so blur collapsed
+  // the card — and unmounted the file inputs — the moment the upload sheet or
+  // the native picker opened, making media impossible to attach.
   useEffect(() => {
-    return () => {
-      if (blurTimeoutRef.current) {
-        clearTimeout(blurTimeoutRef.current);
-      }
-    };
-  }, []);
+    if (!isExpanded) return;
 
-  // Handle blur event - collapse if content is empty
-  const handleBlur = () => {
-    // Clear any existing timeout
-    if (blurTimeoutRef.current) {
-      clearTimeout(blurTimeoutRef.current);
-    }
+    const handlePointerUp = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target || composeCardRef.current?.contains(target)) return;
 
-    // Wait 200ms before checking if we should collapse
-    // This allows clicks on buttons (post, image upload, etc.) to complete
-    blurTimeoutRef.current = setTimeout(() => {
-      // Check if focus moved outside of ComposeCard
-      const composeCard = composeCardRef.current;
-      if (!composeCard) return;
-
-      // If focus is still within ComposeCard, don't collapse
-      if (composeCard.contains(document.activeElement)) {
-        return;
-      }
-
-      // If focus moved to a portaled dropdown/popover (e.g. font picker), don't collapse
+      // Our own UI that portals to the body (format menus, upload sheet, crop
+      // dialog) still counts as part of the card.
       if (
-        document.activeElement?.closest(
-          "[data-radix-popper-content-wrapper]",
+        target.closest(
+          "[data-radix-popper-content-wrapper],[data-vaul-drawer],[data-vaul-overlay],[role='dialog']",
         )
       ) {
         return;
       }
 
-      // Only collapse if content is empty AND no images
       if (
         compose.content.length === 0 &&
         compose.images.length === 0 &&
@@ -132,8 +114,14 @@ export function ComposeCard({
       ) {
         setIsExpanded(false);
       }
-    }, 200);
-  };
+    };
+
+    // pointerup, not pointerdown: collapsing shrinks the card and shifts the
+    // timeline, so it has to happen after the tap's target is settled. And not
+    // click: iOS does not always bubble it up from non-interactive elements.
+    document.addEventListener("pointerup", handlePointerUp, true);
+    return () => document.removeEventListener("pointerup", handlePointerUp, true);
+  }, [isExpanded, compose.content, compose.images, compose.video]);
 
   if (!user) return null;
 
@@ -192,7 +180,6 @@ export function ComposeCard({
           layout="card"
           compose={compose}
           avatar={avatarElement}
-          onBlur={handleBlur}
           placeholder={placeholder}
         />
       )}
