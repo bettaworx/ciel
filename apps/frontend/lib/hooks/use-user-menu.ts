@@ -1,33 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useAtom, useAtomValue } from "jotai";
 import { useRouter } from "next/navigation";
-
-// Atoms
-import { themeAtom, type Theme } from "@/atoms/theme";
+import type { AccountEntry } from "@/atoms/accounts";
 
 // Hooks
 import { useAuth } from "@/lib/hooks/use-auth";
-
-// i18n
-import { LOCALE_STORAGE_KEY, locales, defaultLocale, type Locale } from "@/i18n/constants";
-
-// Utils
-import { setClientLocale } from "@/i18n/client-locale";
-
-// Types
-export type MenuView = 'main' | 'theme' | 'language';
-
-// Get current locale from local storage
-function getCurrentLocale(): Locale {
-  if (typeof window === "undefined") return defaultLocale;
-  const locale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-  if (locale && locales.includes(locale as Locale)) {
-    return locale as Locale;
-  }
-  return defaultLocale;
-}
+import { useAccountSwitch } from "@/lib/hooks/use-account-switch";
+import { useAccountUnread } from "@/lib/hooks/use-account-unread";
 
 /**
  * ユーザーメニューの状態管理とイベントハンドラーを提供するカスタムフック
@@ -36,20 +16,17 @@ function getCurrentLocale(): Locale {
 export function useUserMenu() {
   const router = useRouter();
   const { logout } = useAuth();
+  const { switchTo } = useAccountSwitch();
 
   // 状態管理
-  const [menuView, setMenuView] = useState<MenuView>('main');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
-  const [theme, setTheme] = useAtom(themeAtom);
-  const [locale, setLocale] = useState<Locale>(getCurrentLocale());
 
-  // メニューが開くたびにメイン画面にリセット
+  // 他アカウントの未読件数（バッジ用）をポーリングで取得する
+  useAccountUnread();
+
   const handleMenuOpenChange = (open: boolean) => {
     setIsMenuOpen(open);
-    if (open) {
-      setMenuView('main');
-    }
   };
 
   const handleLogoutClick = () => {
@@ -63,12 +40,6 @@ export function useUserMenu() {
     // Page will be reloaded by logout function
   };
 
-	const handleLanguageChange = (newLocale: Locale) => {
-		setLocale(newLocale);
-		setClientLocale(newLocale);
-		window.dispatchEvent(new Event('ciel:locale-change'));
-	};
-
   const handleUserInfoClick = (username: string) => {
     setIsMenuOpen(false);
     router.push(`/users/${username}`);
@@ -79,30 +50,42 @@ export function useUserMenu() {
     router.push(`/users/${username}`);
   };
 
+  const handleBookmarksClick = () => {
+    setIsMenuOpen(false);
+    router.push("/bookmarks");
+  };
+
   const handleSettingsClick = () => {
     setIsMenuOpen(false);
     router.push("/settings");
   };
 
+  const handleAccountClick = async (account: AccountEntry) => {
+    setIsMenuOpen(false);
+    await switchTo(account);
+  };
+
+  const handleAddAccount = () => {
+    setIsMenuOpen(false);
+    router.push("/login");
+  };
+
   return {
     // 状態
-    menuView,
-    setMenuView,
     isMenuOpen,
     setIsMenuOpen,
     isLogoutOpen,
     setIsLogoutOpen,
-    theme,
-    setTheme,
-    locale,
-    
+
     // イベントハンドラー
     handleMenuOpenChange,
     handleLogoutClick,
     handleLogoutConfirm,
-    handleLanguageChange,
     handleUserInfoClick,
     handleProfileClick,
+    handleBookmarksClick,
     handleSettingsClick,
+    handleAccountClick,
+    handleAddAccount,
   };
 }

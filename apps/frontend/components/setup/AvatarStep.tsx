@@ -9,6 +9,7 @@ import { User, Upload } from "lucide-react";
 import Image from "next/image";
 import { userAtom } from "@/atoms/auth";
 import { generateAvatar, rasterizeSvgToFile } from "@/lib/avatar";
+import { isImageFile } from "@/lib/media/normalize";
 
 interface AvatarStepProps {
   onNext: (file: File | null) => void;
@@ -43,7 +44,8 @@ export function AvatarStep({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    e.target.value = "";
+    if (!file || !isImageFile(file)) return;
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -116,7 +118,7 @@ export function AvatarStep({
             <input
               ref={fileInputRef}
               type="file"
-              accept="file"
+              accept="image/*"
               onChange={handleFileSelect}
               className="hidden"
             />

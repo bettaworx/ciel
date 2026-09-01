@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAtomValue } from "jotai";
@@ -12,6 +13,7 @@ import {
   useUpdateProfile,
   useUpdateAvatar,
   useUpdateBanner,
+  useFollowersYouFollowPreview,
   queryKeys,
 } from "@/lib/hooks/use-queries";
 import type { components } from "@/lib/api/api";
@@ -29,24 +31,55 @@ import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Clipboard,
+  Lock,
+  Ban,
+  VolumeX,
   MoreHorizontal,
   Pencil,
-  Rocket,
+  Repeat2,
   Share,
   User,
   X,
   Save,
   Upload,
 } from "lucide-react";
+import { FollowButton } from "@/components/users/FollowButton";
 import { PageContainer } from "@/components/PageContainer";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
+import { ApiHttpError } from "@/lib/api/client";
+import { MediaNormalizeError, isImageFile } from "@/lib/media/normalize";
+
+/**
+ * A short token naming why a save failed, for the toast.
+ *
+ * The server answers with {code, message} JSON, and its code ("payload_too_large",
+ * "unsupported_media_type", ...) says more than the status alone.
+ */
+function describeSaveFailure(error: unknown): string | null {
+  if (error instanceof MediaNormalizeError) return error.code;
+  if (error instanceof ApiHttpError) {
+    try {
+      const body = JSON.parse(error.message) as { code?: string };
+      if (body.code) return body.code;
+    } catch {
+      // Not JSON — a proxy's own HTML 413, say. The status is all there is.
+    }
+    return `http_${error.status}`;
+  }
+  // fetch reports a connection reset this way, including one from a proxy
+  // rejecting an oversized body before the server ever sees it.
+  if (error instanceof TypeError) return "network";
+  return null;
+}
 import { PageHeader } from "@/components/shared/PageHeader";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { useOwnerThreadTimelineItems } from "@/lib/hooks/use-owner-thread-timeline-items";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
-import { DISPLAY_NAME_ALLOW_LIST, BIO_ALLOW_LIST } from "@/lib/mfm/parse";
+import { DisplayName } from "@/components/users/DisplayName";
+import { BIO_ALLOW_LIST } from "@/lib/mfm/parse";
 import { PostCard } from "@/components/PostCard";
+import { PrivateParentPostCard } from "@/components/PrivateParentPostCard";
 import { DeletedPostCard } from "@/components/DeletedPostCard";
 import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -55,6 +88,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { toast } from "sonner";
+import { useHideUserActions } from "@/lib/hooks/use-hide-user-actions";
+import { profileVisibility } from "@/lib/moderation/visibility";
 
 function ProfileParentPostSkeleton() {
   return (
@@ -85,27 +120,41 @@ type ProfilePostItemProps = {
   post: Post;
   isLast: boolean;
   onUserClick: (username: string) => void;
+  /**
+   * True once the viewer has opened the muted/blocked gate above the tabs. Only
+   * the profile owner's own cards inherit it; a reply parent by some *other*
+   * hidden account still gets its own cushion, since the gate was never about
+   * them.
+   */
+  revealHidden?: boolean;
 };
 
-function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
+function ProfilePostItem({ post, isLast, onUserClick, revealHidden }: ProfilePostItemProps) {
   const t = useTranslations();
   const pureBoost = isPureBoost(post);
   const boostReferenceId = pureBoost ? post.referenceId! : undefined;
   const parentId = pureBoost ? undefined : (post.parentId ?? undefined);
+  // The parent belongs to a private account this viewer does not follow. Asking
+  // for it would only ever 404, so it is not fetched at all and a redacted card
+  // stands in for it. A follower gets parentPrivate false and the real parent.
+  const parentHidden = !pureBoost && Boolean(post.parentPrivate);
   const { data: boostedPost } = usePost(boostReferenceId);
   const {
     data: parentPost,
     isLoading: isParentLoading,
     isFetching: isParentFetching,
-  } = usePost(parentId);
+  } = usePost(parentHidden ? undefined : parentId);
   const showParentSkeleton =
-    Boolean(parentId) && !parentPost && (isParentLoading || isParentFetching);
-  const hasVisibleParent = Boolean(parentPost || showParentSkeleton);
+    Boolean(parentId) &&
+    !parentHidden &&
+    !parentPost &&
+    (isParentLoading || isParentFetching);
+  const hasVisibleParent = Boolean(parentPost || showParentSkeleton || parentHidden);
 
   if (pureBoost) {
     const displayPost = boostedPost ?? post.reference;
     const boostIndicator = {
-      icon: <Rocket className="h-3.5 w-3.5" />,
+      icon: <Repeat2 className="h-3.5 w-3.5" />,
       label: t("postCard.actions.boostedBy", {
         name: post.author.displayName || post.author.username,
       }),
@@ -120,6 +169,7 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
           variant="timeline"
           isLast={isLast}
           indicator={boostIndicator}
+          restricted={post.referenceRestricted}
         />
       );
     }
@@ -129,17 +179,27 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
         onUserClick={onUserClick}
         isLast={isLast}
         indicator={boostIndicator}
+        skipHiddenCushion={revealHidden}
       />
     );
   }
 
   if (!parentId || !hasVisibleParent) {
-    return <PostCard post={post} onUserClick={onUserClick} isLast={isLast} />;
+    return (
+      <PostCard
+        post={post}
+        onUserClick={onUserClick}
+        isLast={isLast}
+        skipHiddenCushion={revealHidden}
+      />
+    );
   }
 
   return (
     <>
-      {parentPost ? (
+      {parentHidden ? (
+        <PrivateParentPostCard threadLine="below" />
+      ) : parentPost ? (
         <PostCard
           post={parentPost}
           onUserClick={onUserClick}
@@ -155,6 +215,7 @@ function ProfilePostItem({ post, isLast, onUserClick }: ProfilePostItemProps) {
         onUserClick={onUserClick}
         isLast={isLast}
         threadLine="above"
+        skipHiddenCushion={revealHidden}
       />
     </>
   );
@@ -177,6 +238,40 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     isLoading: userLoading,
     error: userError,
   } = useUser(username);
+
+  const isFollowing = user?.isFollowing ?? false;
+  const isFollowedBy = user?.isFollowedBy ?? false;
+  const showsFollowsYouBadge = isFollowedBy && !isOwnProfile;
+
+  // A private account's activity is for accepted followers and the owner only.
+  // The server enforces this; the flag exists so the page can say why the tabs
+  // are missing instead of showing three empty ones.
+  const isActivityHidden =
+    Boolean(user?.isPrivate) && !isOwnProfile && !isFollowing;
+  // The viewer muted or blocked this account. Unlike isActivityHidden the server
+  // does return the posts — a profile is somewhere you arrive on purpose — so
+  // this gates them behind one reveal rather than explaining an emptiness.
+  const visibility = profileVisibility(user, isOwnProfile);
+  const hiddenByViewer = visibility.gate !== null;
+  const [profileRevealed, setProfileRevealed] = useState(false);
+  const showHiddenGate = hiddenByViewer && !profileRevealed;
+  const isBlockedByUser = visibility.blockedByOwner;
+  const bioWithheld = visibility.withholdBio;
+  const { actions: hideActions, dialog: hideDialog } = useHideUserActions(
+    username,
+    { isMuted: user?.isMuted, isBlocking: user?.isBlocking },
+  );
+  // Undefined rather than zero is how the API says "withheld", so the presence
+  // of the field is the signal, not its value.
+  const hasFollowCounts =
+    user?.followersCount !== undefined && user?.followingCount !== undefined;
+
+  // "Followers you know" is only meaningful about someone else, while logged in.
+  const { data: knownFollowers } = useFollowersYouFollowPreview(
+    username,
+    !!authUser && !isOwnProfile,
+  );
+  const knownFollowerCount = knownFollowers?.totalCount ?? 0;
   const {
     data: postsData,
     isLoading: postsLoading,
@@ -226,6 +321,13 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   // Crop dialog state
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  /** Swap the crop source, releasing the object URL the old one held. */
+  const replaceCropSrc = useCallback((url: string | null) => {
+    setCropImageSrc((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
+  }, []);
   const [cropAspect, setCropAspect] = useState<number>(1);
   const [cropTitle, setCropTitle] = useState<string>("");
   const [cropTarget, setCropTarget] = useState<"avatar" | "banner" | null>(
@@ -304,7 +406,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     setBannerPreview(null);
     setSelectedBannerFile(null);
     setCropDialogOpen(false);
-    setCropImageSrc(null);
+    replaceCropSrc(null);
     setPendingCropFile(null);
     setCropTarget(null);
     if (avatarFileInputRef.current) avatarFileInputRef.current.value = "";
@@ -314,60 +416,92 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   const handleSave = async () => {
     if (!canSaveProfile) return;
 
-    try {
-      if (selectedAvatarFile)
-        await updateAvatar.mutateAsync(selectedAvatarFile);
-      if (selectedBannerFile)
-        await updateBanner.mutateAsync(selectedBannerFile);
-      await updateProfile.mutateAsync({
+    // Avatar, banner and profile are three requests, and the first two commit on
+    // their own. Naming the step matters: when the banner is rate-limited the
+    // avatar is already saved, and one blanket "failed to update profile"
+    // describes neither what broke nor what went through. The reason is shown
+    // too — it is the only way someone on a phone can report which of
+    // conversion, size, type or rate limit stopped them.
+    const run = async (
+      step: "avatar" | "banner" | "profile",
+      save: () => Promise<unknown>,
+    ) => {
+      try {
+        await save();
+        return true;
+      } catch (error) {
+        const label =
+          step === "avatar"
+            ? t("settings.profile.avatar.updateError")
+            : step === "banner"
+              ? t("settings.profile.banner.updateError")
+              : t("settings.profile.updateError");
+        const reason = describeSaveFailure(error);
+        toast.error(reason ? `${label} (${reason})` : label);
+        console.error(`Profile ${step} update failed:`, error);
+        return false;
+      }
+    };
+
+    if (
+      selectedAvatarFile &&
+      !(await run("avatar", () => updateAvatar.mutateAsync(selectedAvatarFile)))
+    ) {
+      return;
+    }
+    if (
+      selectedBannerFile &&
+      !(await run("banner", () => updateBanner.mutateAsync(selectedBannerFile)))
+    ) {
+      return;
+    }
+    const saved = await run("profile", () =>
+      updateProfile.mutateAsync({
         displayName: normalizedDisplayName,
         bio: normalizedBio,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.user(username),
-      });
-      toast.success(t("settings.profile.updateSuccess"));
-      setIsEditing(false);
-      setAvatarPreview(null);
-      setSelectedAvatarFile(null);
-      setBannerPreview(null);
-      setSelectedBannerFile(null);
-    } catch {
-      toast.error(t("settings.profile.updateError"));
+      }),
+    );
+    if (!saved) return;
+
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.user(username),
+    });
+    toast.success(t("settings.profile.updateSuccess"));
+    setIsEditing(false);
+    setAvatarPreview(null);
+    setSelectedAvatarFile(null);
+    setBannerPreview(null);
+    setSelectedBannerFile(null);
+  };
+
+  const openCropDialog = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    target: "avatar" | "banner",
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    // iOS hands back files with an empty type. Treating that as "not an image"
+    // dropped them with nothing shown at all, which reads as a dead button.
+    if (!isImageFile(file)) {
+      toast.error(t(`settings.profile.${target}.invalidFileType`));
+      return;
     }
+    // An object URL rather than a data URL: base64 of a phone photo is tens of
+    // megabytes of string held in state next to the decoded image itself.
+    replaceCropSrc(URL.createObjectURL(file));
+    setCropAspect(target === "avatar" ? 1 : 3);
+    setCropTitle(t(`settings.profile.${target}.cropTitle`));
+    setCropTarget(target);
+    setPendingCropFile(file);
+    setCropDialogOpen(true);
   };
 
-  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setCropImageSrc(reader.result as string);
-      setCropAspect(1);
-      setCropTitle(t("settings.profile.avatar.cropTitle"));
-      setCropTarget("avatar");
-      setPendingCropFile(file);
-      setCropDialogOpen(true);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) =>
+    openCropDialog(e, "avatar");
 
-  const handleBannerFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setCropImageSrc(reader.result as string);
-      setCropAspect(3);
-      setCropTitle(t("settings.profile.banner.cropTitle"));
-      setCropTarget("banner");
-      setPendingCropFile(file);
-      setCropDialogOpen(true);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
+  const handleBannerFileSelect = (e: React.ChangeEvent<HTMLInputElement>) =>
+    openCropDialog(e, "banner");
 
   const handleCropComplete = (croppedFile: File) => {
     const previewUrl = URL.createObjectURL(croppedFile);
@@ -379,7 +513,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
       setSelectedBannerFile(croppedFile);
     }
     setCropDialogOpen(false);
-    setCropImageSrc(null);
+    replaceCropSrc(null);
     setPendingCropFile(null);
     setCropTarget(null);
   };
@@ -446,9 +580,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
       maxWidth="2xl"
       header={
         <PageHeader>
-          <MfmRenderer
-            text={user.displayName || `@${user.username}`}
-            allowList={DISPLAY_NAME_ALLOW_LIST}
+          <DisplayName
+            name={user.displayName || `@${user.username}`}
+            isPrivate={user.isPrivate}
+            isMuted={user.isMuted}
+            isBlocked={user.isBlocking}
           />
         </PageHeader>
       }
@@ -527,6 +663,16 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                       <Clipboard className="w-4 h-4" />
                       {t("user.copyUserId")}
                     </DropdownMenuItem>
+                    {hideActions.map((action) => (
+                      <DropdownMenuItem
+                        key={action.key}
+                        onSelect={action.run}
+                        className={action.destructive ? "text-destructive focus:text-destructive" : undefined}
+                      >
+                        {action.icon}
+                        {action.label}
+                      </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
@@ -559,11 +705,36 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         <Clipboard className="w-4 h-4" />
                         {t("user.copyUserId")}
                       </Button>
+                      {hideActions.map((action) => (
+                        <Button
+                          key={action.key}
+                          variant="ghost"
+                          className={
+                            action.destructive
+                              ? "w-full justify-start gap-2 text-destructive"
+                              : "w-full justify-start gap-2"
+                          }
+                          onClick={() => {
+                            // Blocking opens its own confirmation; two stacked
+                            // drawers trap the dismiss.
+                            setMenuOpen(false);
+                            action.run();
+                          }}
+                        >
+                          {action.icon}
+                          {action.label}
+                        </Button>
+                      ))}
                     </div>
                   </DrawerContent>
                 </Drawer>
               )}
             </div>
+            {showsFollowsYouBadge && (
+              <div className="absolute top-3 left-3 border-transparent bg-black/50 text-white shadow-none rounded-full text-xs py-1.5 px-3">
+                {t("user.followsYou")}
+              </div>
+            )}
           </div>
 
           <div className="px-3">
@@ -636,8 +807,17 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                   )}
                 </div>
 
-                {/* Right: pencil / cancel + save */}
+                {/* Right: follow (others) / pencil / cancel + save */}
                 <div className="flex items-center gap-2">
+                  <FollowButton
+                    username={username}
+                    isFollowing={isFollowing}
+                    isFollowedBy={isFollowedBy}
+                    isPrivate={user.isPrivate}
+                    followRequestSent={user.followRequestSent}
+                    isBlockedBy={user.isBlockedBy}
+                    isBlocking={user.isBlocking}
+                  />
                   {isOwnProfile && !isEditing && (
                     <Button
                       variant="default"
@@ -679,7 +859,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             </div>
 
             {/* User Info */}
-            <div className="select-text flex flex-col gap-3">
+            <div className="select-text flex flex-col gap-2 pb-3">
               <div className="flex flex-col gap-1">
                 {isEditing ? (
                   <Input
@@ -692,9 +872,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                   />
                 ) : (
                   <h1 className="text-xl font-bold text-foreground">
-                    <MfmRenderer
-                      text={user.displayName || `@${user.username}`}
-                      allowList={DISPLAY_NAME_ALLOW_LIST}
+                    <DisplayName
+                      name={user.displayName || `@${user.username}`}
+                      isPrivate={user.isPrivate}
+                      isMuted={user.isMuted}
+                      isBlocked={user.isBlocking}
                     />
                   </h1>
                 )}
@@ -705,7 +887,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                 )}
               </div>
 
-              <div className="pb-3">
+              <div>
                 {isEditing ? (
                   <Textarea
                     value={editBio}
@@ -718,7 +900,11 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                   />
                 ) : (
                   <>
-                    {user.bio && (
+                    {/* Withheld across a block in either direction, and the
+                        empty-bio placeholder goes with it: the server blanks the
+                        text, so "No bio yet" would be the page inventing a fact
+                        about an account it is not showing. */}
+                    {!bioWithheld && user.bio && (
                       <div className="text-sm text-foreground leading-relaxed">
                         <MfmRenderer
                           text={user.bio}
@@ -726,7 +912,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         />
                       </div>
                     )}
-                    {!user.bio && (
+                    {!bioWithheld && !user.bio && (
                       <p className="text-muted-foreground italic">
                         {t("user.noBio")}
                       </p>
@@ -734,11 +920,129 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                   </>
                 )}
               </div>
+
+              {!isEditing && (
+                <div className="flex flex-col gap-2">
+                  {/* The server omits both counts for a private account the
+                      viewer may not see. Nothing is rendered then — falling back
+                      to 0 would state a number the API deliberately withheld,
+                      and the links lead to lists that are refused anyway. */}
+                  {hasFollowCounts && (
+                    <div className="flex items-center gap-4 text-sm">
+                      <Link
+                        href={`/users/${encodeURIComponent(username)}/following`}
+                        className="text-muted-foreground hover:underline"
+                      >
+                        <span className="font-bold text-foreground">
+                          {user.followingCount}
+                        </span>{" "}
+                        {t("user.followingCount")}
+                      </Link>
+                      <Link
+                        href={`/users/${encodeURIComponent(username)}/followers`}
+                        className="text-muted-foreground hover:underline"
+                      >
+                        <span className="font-bold text-foreground">
+                          {user.followersCount}
+                        </span>{" "}
+                        {t("user.followersCount")}
+                      </Link>
+                    </div>
+                  )}
+
+                  {knownFollowerCount > 0 && knownFollowers && (
+                    <Link
+                      href={`/users/${encodeURIComponent(username)}/followers_you_follow`}
+                      className="flex items-center gap-2 text-sm text-muted-foreground hover:underline"
+                    >
+                      <div className="flex -space-x-2">
+                        {knownFollowers.items.map((known) => (
+                          <Avatar
+                            key={known.id}
+                            className="h-5 w-5 ring-2 ring-card"
+                          >
+                            <AvatarImage
+                              src={known.avatarUrl ?? undefined}
+                              alt={known.displayName || `@${known.username}`}
+                            />
+                            <AvatarFallback className="text-[10px]">
+                              {(known.displayName || known.username)
+                                .charAt(0)
+                                .toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        ))}
+                      </div>
+                      <span className="truncate">
+                        {knownFollowerCount > 1
+                          ? t("user.followedByMany", {
+                              name:
+                                knownFollowers.items[0]?.displayName ||
+                                `@${knownFollowers.items[0]?.username}`,
+                              count: knownFollowerCount - 1,
+                            })
+                          : t("user.followedByOne", {
+                              name:
+                                knownFollowers.items[0]?.displayName ||
+                                `@${knownFollowers.items[0]?.username}`,
+                            })}
+                      </span>
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Posts / Replies / Media Tabs */}
+        {/* A private account still shows its profile above; only the activity
+            below is withheld. The server already returns nothing here, so this
+            is purely to explain the emptiness rather than to enforce it. */}
+        {isBlockedByUser ? (
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            <Ban className="h-8 w-8 text-destructive" />
+            <p className="font-medium text-foreground">
+              {t("user.blockedByUser")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("user.blockedByUserDescription")}
+            </p>
+          </div>
+        ) : isActivityHidden ? (
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            <Lock className="h-8 w-8 text-muted-foreground" />
+            <p className="font-medium text-foreground">
+              {t("user.privatePostsHidden")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("user.privatePostsHiddenDescription")}
+            </p>
+          </div>
+        ) : showHiddenGate ? (
+          /* One gate for the whole tab strip. Opening it shows the posts as
+             normal — cushioning every row underneath would ask the same
+             question again for every scroll. */
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            {visibility.gate === "blocked" ? (
+              <Ban className="h-8 w-8 text-destructive" />
+            ) : (
+              <VolumeX className="h-8 w-8 text-destructive" />
+            )}
+            <p className="font-medium text-foreground">
+              {visibility.gate === "blocked"
+                ? t("user.blockedPostsHidden")
+                : t("user.mutedPostsHidden")}
+            </p>
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-muted-foreground"
+              onClick={() => setProfileRevealed(true)}
+            >
+              {t("postCard.hiddenPost.reveal")}
+            </Button>
+          </div>
+        ) : (
         <Tabs defaultValue="posts">
           <TabsList className="mb-3 w-full">
             <TabsTrigger value="posts">{t("user.posts")}</TabsTrigger>
@@ -778,6 +1082,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         router.push(`/users/${username}`)
                       }
                       isLast={index === postItems.length - 1}
+                      revealHidden={hiddenByViewer}
                     />
                   ) : (
                     <OwnerThreadTimelineItem
@@ -792,6 +1097,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         router.push(`/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`)
                       }
                       isLast={index === postItems.length - 1}
+                      skipHiddenCushion={hiddenByViewer}
                     />
                   ),
                 )}
@@ -837,6 +1143,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         router.push(`/users/${username}`)
                       }
                       isLast={index === replyItems.length - 1}
+                      revealHidden={hiddenByViewer}
                     />
                   ) : (
                     <OwnerThreadTimelineItem
@@ -851,6 +1158,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                         router.push(`/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`)
                       }
                       isLast={index === replyItems.length - 1}
+                      skipHiddenCushion={hiddenByViewer}
                     />
                   ),
                 )}
@@ -893,6 +1201,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                     post={post}
                     onUserClick={(username) => router.push(`/users/${username}`)}
                     isLast={index === media.length - 1}
+                    skipHiddenCushion={hiddenByViewer}
                   />
                 ))}
               </div>
@@ -905,6 +1214,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             />
           </TabsContent>
         </Tabs>
+        )}
       </div>
 
       {cropDialogOpen && cropImageSrc && pendingCropFile && (
@@ -915,9 +1225,13 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           aspectMode={{ mode: "fixed", aspect: cropAspect }}
           title={cropTitle}
           originalFile={pendingCropFile}
+          // The server's own targets are 400x400 and 1500x500; at the 1024
+          // default a banner arrived as 1024x341 and got upscaled.
+          maxOutputSize={2048}
           onCropComplete={handleCropComplete}
         />
       )}
+      {hideDialog}
     </PageContainer>
   );
 }

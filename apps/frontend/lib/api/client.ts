@@ -156,6 +156,11 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		}
 	}
 
+	/** X-Stepup-Token header, or nothing when no token is held. */
+	function stepup(token?: string | null): Record<string, string> | undefined {
+		return token ? { 'x-stepup-token': token } : undefined;
+	}
+
 	async function attemptRefresh(): Promise<boolean> {
 		const result = await refreshSession(baseUrl);
 		return result.ok;
@@ -164,7 +169,19 @@ export function createApiClient(options: ApiClientOptions = {}) {
 	async function request<T>(
 		method: HttpMethod,
 		path: string,
-		init?: { body?: unknown; token?: string | null; headers?: Record<string, string>; _skipRefresh?: boolean }
+		init?: {
+			body?: unknown;
+			token?: string | null;
+			headers?: Record<string, string>;
+			_skipRefresh?: boolean;
+			/**
+			 * Defaults to 'include'. Account-switching calls pass 'omit': the
+			 * backend prefers the ciel_auth cookie over the Authorization header
+			 * (internal/middleware/auth.go), so sending cookies would resolve the
+			 * request as the *active* account instead of the one being asked about.
+			 */
+			credentials?: RequestCredentials;
+		}
 	): Promise<ApiResult<T>> {
 		const url = `${baseUrl}${path}`;
 
@@ -178,7 +195,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
 				method,
 				headers,
 				body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-				credentials: 'include', // Send cookies with requests
+				credentials: init?.credentials ?? 'include', // Send cookies with requests
 			});
 
 			if (!res.ok) {
@@ -224,6 +241,17 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			...(init?.headers ?? {})
 		};
 		// IMPORTANT: do NOT set content-type here; the browser will set the multipart boundary.
+
+		// Trust boundary: every file leaving the browser is normalized into a shape the
+		// backend accepts (WebP / WebM, GIF passthrough). This is the only multipart path
+		// in the client, so no upload can bypass it. Imported lazily to keep mediabunny
+		// out of the initial bundle and off the server.
+		for (const [key, value] of Array.from(init.form.entries())) {
+			if (!(value instanceof File)) continue;
+			const { normalizeForUpload } = await import('@/lib/media/normalize');
+			const normalized = await normalizeForUpload(value);
+			if (normalized !== value) init.form.set(key, normalized);
+		}
 
 		try {
 			const res = await fetch(url, {
@@ -281,11 +309,150 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		loginFinish: (body: components['schemas']['LoginFinishRequest']) =>
 			request<components['schemas']['LoginFinishResponse']>('POST', '/auth/login/finish', { body }),
 
+		// --- Account switching -----------------------------------------------
+		// The account token is minted for the *current* session (cookie auth) and
+		// then only ever presented with a signature from the device key it is
+		// bound to, so the stored copy is useless anywhere else.
+		sessionToken: (body: components['schemas']['SessionTokenRequest']) =>
+			request<components['schemas']['SessionTokenResponse']>('POST', '/auth/session/token', { body }),
+
+		sessionExchange: (body: components['schemas']['SessionExchangeRequest']) =>
+			request<components['schemas']['SessionExchangeResponse']>('POST', '/auth/session/exchange', {
+				body,
+				// Activating is the switch itself, and 'omit' would throw away the
+				// Set-Cookie that performs it. Reads stay cookie-free: asking about
+				// another account must not involve the active session at all.
+				credentials: body.activate ? 'include' : 'omit',
+				_skipRefresh: true
+			}),
+
+		/** Unread count for an account other than the active one. */
+		unreadNotificationCountAs: (accessToken: string) =>
+			request<components['schemas']['UnreadCount']>('GET', '/notifications/unread-count', {
+				headers: { authorization: `Bearer ${accessToken}` },
+				credentials: 'omit',
+				_skipRefresh: true
+			}),
+
 		stepupStart: (body: components['schemas']['StepupStartRequest']) =>
 			request<components['schemas']['StepupStartResponse']>('POST', '/auth/stepup/start', { body }),
 
 		stepupFinish: (body: components['schemas']['StepupFinishRequest']) =>
 			request<components['schemas']['StepupFinishResponse']>('POST', '/auth/stepup/finish', { body }),
+
+		// --- MFA -------------------------------------------------------------
+		// Enrollment endpoints take a step-up token. It is reusable inside its
+		// 5-minute window (see requireMfaStepup on the backend), so the settings
+		// screen mints one and drives the whole session with it.
+		mfaStatus: () => request<components['schemas']['MfaStatus']>('GET', '/auth/mfa'),
+
+		totpSetup: (stepupToken?: string | null) =>
+			request<components['schemas']['TotpSetupResponse']>('POST', '/auth/mfa/totp/setup', {
+				headers: stepup(stepupToken)
+			}),
+
+		totpConfirm: (
+			body: components['schemas']['TotpConfirmRequest'],
+			stepupToken?: string | null
+		) =>
+			request<components['schemas']['TotpConfirmResponse']>('POST', '/auth/mfa/totp/confirm', {
+				body,
+				headers: stepup(stepupToken)
+			}),
+
+		totpDisable: (stepupToken?: string | null) =>
+			request<void>('DELETE', '/auth/mfa/totp', { headers: stepup(stepupToken) }),
+
+		mfaDisable: (stepupToken?: string | null) =>
+			request<void>('POST', '/auth/mfa/disable', { headers: stepup(stepupToken) }),
+
+		backupCodesRegenerate: (stepupToken?: string | null) =>
+			request<components['schemas']['BackupCodesRegenerateResponse']>(
+				'POST',
+				'/auth/mfa/backup-codes/regenerate',
+				{ headers: stepup(stepupToken) }
+			),
+
+		// Login-time challenge. A wrong code is a plain 401 and must NOT be read
+		// as an expired session, so the refresh-and-retry path is skipped.
+		mfaVerify: (body: components['schemas']['MfaCodeVerifyRequest']) =>
+			request<components['schemas']['LoginAuthenticated']>('POST', '/auth/mfa/verify', {
+				body,
+				_skipRefresh: true
+			}),
+
+		mfaWebauthnOptions: (body: components['schemas']['MfaWebAuthnOptionsRequest']) =>
+			request<components['schemas']['WebAuthnAssertionOptionsResponse']>(
+				'POST',
+				'/auth/mfa/webauthn/options',
+				{ body, _skipRefresh: true }
+			),
+
+		mfaWebauthnVerify: (body: components['schemas']['MfaWebAuthnVerifyRequest']) =>
+			request<components['schemas']['LoginAuthenticated']>('POST', '/auth/mfa/webauthn/verify', {
+				body,
+				_skipRefresh: true
+			}),
+
+		// Step-up challenge. Same shapes, but authenticated and returning a
+		// step-up token instead of a session.
+		stepupMfaVerify: (body: components['schemas']['MfaCodeVerifyRequest']) =>
+			request<components['schemas']['StepupAuthenticated']>('POST', '/auth/stepup/mfa/verify', {
+				body,
+				_skipRefresh: true
+			}),
+
+		stepupMfaWebauthnOptions: (body: components['schemas']['MfaWebAuthnOptionsRequest']) =>
+			request<components['schemas']['WebAuthnAssertionOptionsResponse']>(
+				'POST',
+				'/auth/stepup/mfa/webauthn/options',
+				{ body, _skipRefresh: true }
+			),
+
+		stepupMfaWebauthnVerify: (body: components['schemas']['MfaWebAuthnVerifyRequest']) =>
+			request<components['schemas']['StepupAuthenticated']>(
+				'POST',
+				'/auth/stepup/mfa/webauthn/verify',
+				{ body, _skipRefresh: true }
+			),
+
+		webauthnCredentials: () =>
+			request<components['schemas']['WebAuthnCredential'][]>('GET', '/auth/mfa/webauthn/credentials'),
+
+		webauthnRegisterOptions: (stepupToken?: string | null) =>
+			request<components['schemas']['WebAuthnRegisterOptionsResponse']>(
+				'POST',
+				'/auth/mfa/webauthn/register/options',
+				{ headers: stepup(stepupToken) }
+			),
+
+		webauthnRegisterVerify: (
+			body: components['schemas']['WebAuthnRegisterVerifyRequest'],
+			stepupToken?: string | null
+		) =>
+			request<components['schemas']['WebAuthnRegisterVerifyResponse']>(
+				'POST',
+				'/auth/mfa/webauthn/register/verify',
+				{ body, headers: stepup(stepupToken) }
+			),
+
+		// Renaming is not a security-relevant change, so it needs no step-up.
+		webauthnCredentialRename: (
+			credentialId: string,
+			body: components['schemas']['WebAuthnCredentialUpdateRequest']
+		) =>
+			request<components['schemas']['WebAuthnCredential']>(
+				'PATCH',
+				`/auth/mfa/webauthn/credentials/${encodeURIComponent(credentialId)}`,
+				{ body }
+			),
+
+		webauthnCredentialDelete: (credentialId: string, stepupToken?: string | null) =>
+			request<void>(
+				'DELETE',
+				`/auth/mfa/webauthn/credentials/${encodeURIComponent(credentialId)}`,
+				{ headers: stepup(stepupToken) }
+			),
 
 		refresh: () => refreshSession(baseUrl),
 
@@ -297,18 +464,82 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		) =>
 			request<void>('POST', '/auth/password/change', {
 				body,
-				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
+				headers: stepup(stepupToken)
 			}),
 
 		me: () => request<components['schemas']['User']>('GET', '/me'),
 
+		updateUsername: (
+			body: components['schemas']['UpdateUsernameRequest'],
+			stepupToken?: string | null
+		) =>
+			request<components['schemas']['LoginAuthenticated']>('PATCH', '/me/username', {
+				body,
+				headers: stepup(stepupToken)
+			}),
+
 		deleteMe: (stepupToken?: string | null) =>
 			request<void>('DELETE', '/me', {
-				headers: stepupToken ? { 'x-stepup-token': stepupToken } : undefined
+				headers: stepup(stepupToken)
 			}),
 
 		userByUsername: (username: string) =>
 			request<components['schemas']['User']>('GET', `/users/${encodeURIComponent(username)}`),
+
+		followUser: (username: string) =>
+			request<components['schemas']['User']>('POST', `/users/${encodeURIComponent(username)}/follow`),
+
+		unfollowUser: (username: string) =>
+			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/follow`),
+
+		muteUser: (username: string) =>
+			request<components['schemas']['User']>('POST', `/users/${encodeURIComponent(username)}/mute`),
+
+		unmuteUser: (username: string) =>
+			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/mute`),
+
+		blockUser: (username: string) =>
+			request<components['schemas']['User']>('POST', `/users/${encodeURIComponent(username)}/block`),
+
+		unblockUser: (username: string) =>
+			request<components['schemas']['User']>('DELETE', `/users/${encodeURIComponent(username)}/block`),
+
+		// The settings lists. A blocked account is gone from search and every
+		// other list, so /me/blocks is the only way back to it.
+		hiddenList: (kind: 'mutes' | 'blocks', params?: { limit?: number; cursor?: string | null }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['UsersPage']>('GET', `/me/${kind}${suffix}`);
+		},
+
+		// Following a private account creates one of these instead of a follow.
+		followRequests: (params?: { limit?: number; cursor?: string | null }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['FollowRequestsPage']>('GET', `/me/follow-requests${suffix}`);
+		},
+
+		acceptFollowRequest: (username: string) =>
+			request<components['schemas']['User']>('POST', `/me/follow-requests/${encodeURIComponent(username)}/accept`),
+
+		rejectFollowRequest: (username: string) =>
+			request<components['schemas']['User']>('POST', `/me/follow-requests/${encodeURIComponent(username)}/reject`),
+
+		followList: (
+			username: string,
+			tab: 'followers' | 'following' | 'followers_you_follow',
+			params?: { limit?: number; cursor?: string | null }
+		) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['UsersPage']>('GET', `/users/${encodeURIComponent(username)}/${tab}${suffix}`);
+		},
 
 		userPosts: (
 			username: string,
@@ -329,7 +560,10 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		uploadMedia: (file: File) => {
 			const form = new FormData();
-			form.set('file', file, file.name);
+			// No filename argument: passing one makes FormData construct a *new* File,
+			// which drops the mark normalizeForUpload puts on its output and costs a
+			// second full conversion. The name travels on the File either way.
+			form.set('file', file);
 			return requestForm<components['schemas']['Media']>('POST', '/media', { form });
 		},
 
@@ -363,6 +597,34 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			return request<components['schemas']['TimelinePage']>('GET', `/timeline${suffix}`);
 		},
 
+		homeTimeline: (params?: { limit?: number; cursor?: string | null }) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['TimelinePage']>('GET', `/timeline/home${suffix}`);
+		},
+
+		// Search is offset-paged rather than cursor-paged: user results come back
+		// in relevance order, which no cursor can express, and post search keeps
+		// the same shape. An offset window shifts as posts are indexed, so
+		// callers have to dedupe what they accumulate.
+		searchPosts: (params: { q: string; limit?: number; offset?: number }) => {
+			const qs = new URLSearchParams();
+			qs.set('q', params.q);
+			if (params.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params.offset !== undefined) qs.set('offset', String(params.offset));
+			return request<components['schemas']['PostSearchPage']>('GET', `/search/posts?${qs.toString()}`);
+		},
+
+		searchUsers: (params: { q: string; limit?: number; offset?: number }) => {
+			const qs = new URLSearchParams();
+			qs.set('q', params.q);
+			if (params.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params.offset !== undefined) qs.set('offset', String(params.offset));
+			return request<components['schemas']['UserSearchPage']>('GET', `/search/users?${qs.toString()}`);
+		},
+
 		listReplies: (
 			postId: components['schemas']['PostId'],
 			params?: { limit?: number; cursor?: string | null }
@@ -373,6 +635,32 @@ export function createApiClient(options: ApiClientOptions = {}) {
 			const suffix = qs.size ? `?${qs.toString()}` : '';
 			return request<components['schemas']['TimelinePage']>('GET', `/posts/${postId}/replies${suffix}`);
 		},
+
+		notifications: (params?: {
+			limit?: number;
+			cursor?: string | null;
+			types?: readonly components['schemas']['NotificationType'][];
+			/** IANA zone the server draws the day boundary between groups in. */
+			tz?: string;
+		}) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			if (params?.tz) qs.set('tz', params.tz);
+			// Repeated `type` params: ?type=mention&type=reply
+			for (const type of params?.types ?? []) qs.append('type', type);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['NotificationsPage']>('GET', `/notifications${suffix}`);
+		},
+
+		unreadNotificationCount: () =>
+			request<components['schemas']['UnreadCount']>('GET', '/notifications/unread-count'),
+
+		/** Omit `ids` to mark every unread notification as read. */
+		markNotificationsRead: (ids?: readonly string[]) =>
+			request<components['schemas']['UnreadCount']>('POST', '/notifications/read', {
+				body: { ids: ids ? [...ids] : null },
+			}),
 
 		listCustomEmojis: (params?: { limit?: number; offset?: number }) => {
 			const qs = new URLSearchParams();
@@ -408,6 +696,39 @@ export function createApiClient(options: ApiClientOptions = {}) {
 				`/posts/${postId}/reactions?${qs.toString()}`
 			);
 		},
+
+		bookmarkLists: () =>
+			request<components['schemas']['BookmarkListsResponse']>('GET', '/bookmarks/lists'),
+
+		createBookmarkList: (body: components['schemas']['CreateBookmarkListRequest']) =>
+			request<components['schemas']['BookmarkList']>('POST', '/bookmarks/lists', { body }),
+
+		updateBookmarkList: (
+			listId: components['schemas']['BookmarkListId'],
+			body: components['schemas']['UpdateBookmarkListRequest']
+		) => request<components['schemas']['BookmarkList']>('PATCH', `/bookmarks/lists/${listId}`, { body }),
+
+		deleteBookmarkList: (listId: components['schemas']['BookmarkListId']) =>
+			request<void>('DELETE', `/bookmarks/lists/${listId}`),
+
+		bookmarkListPosts: (
+			listId: components['schemas']['BookmarkListId'],
+			params?: { limit?: number; cursor?: string | null }
+		) => {
+			const qs = new URLSearchParams();
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+			if (params?.cursor) qs.set('cursor', params.cursor);
+			const suffix = qs.size ? `?${qs.toString()}` : '';
+			return request<components['schemas']['UserPostsPage']>(
+				'GET',
+				`/bookmarks/lists/${listId}/posts${suffix}`
+			);
+		},
+
+		setPostBookmarks: (
+			postId: components['schemas']['PostId'],
+			body: components['schemas']['SetPostBookmarksRequest']
+		) => request<components['schemas']['PostBookmarks']>('PUT', `/posts/${postId}/bookmarks`, { body }),
 
 		adminRoles: () => request<components['schemas']['RoleList']>('GET', '/admin/roles'),
 
@@ -455,15 +776,24 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		updateProfile: (body: components['schemas']['UpdateProfileRequest']) =>
 			request<components['schemas']['User']>('PATCH', '/me/profile', { body }),
 
+		updatePrivacy: (body: components['schemas']['UpdatePrivacyRequest']) =>
+			request<components['schemas']['User']>('PATCH', '/me/privacy', { body }),
+
 		updateAvatar: (file: File) => {
 			const form = new FormData();
-			form.set('file', file, file.name);
+			// No filename argument: passing one makes FormData construct a *new* File,
+			// which drops the mark normalizeForUpload puts on its output and costs a
+			// second full conversion. The name travels on the File either way.
+			form.set('file', file);
 			return requestForm<components['schemas']['User']>('POST', '/me/avatar', { form });
 		},
 
 		updateBanner: (file: File) => {
 			const form = new FormData();
-			form.set('file', file, file.name);
+			// No filename argument: passing one makes FormData construct a *new* File,
+			// which drops the mark normalizeForUpload puts on its output and costs a
+			// second full conversion. The name travels on the File either way.
+			form.set('file', file);
 			return requestForm<components['schemas']['User']>('POST', '/me/banner', { form });
 		},
 
@@ -694,6 +1024,11 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
 		adminDeleteUserBio: (userId: components['schemas']['UserId']) =>
 			request<void>('DELETE', `/admin/users/${userId}/bio`),
+
+		adminUpdateUserPrivacy: (
+			userId: components['schemas']['UserId'],
+			body: components['schemas']['UpdatePrivacyRequest'],
+		) => request<components['schemas']['User']>('PATCH', `/admin/users/${userId}/privacy`, { body }),
 
 		// Admin - Agreement Documents
 		adminListAgreementDocuments: (params?: {

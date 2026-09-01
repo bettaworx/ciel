@@ -13,6 +13,7 @@
     --color-background-1: var(--background-1);
     --color-foreground: var(--foreground);
     --color-card: var(--card);
+    --color-card-hover: var(--card-hover);
     --color-card-foreground: var(--card-foreground);
     --color-popover: var(--popover);
     --color-popover-foreground: var(--popover-foreground);
@@ -27,6 +28,10 @@
     --color-accent-foreground: var(--accent-foreground);
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
@@ -156,6 +161,9 @@
     --background-1: oklch(1 0 0);
     --foreground: oklch(0.25 0 0);
     --card: oklch(1 0 0);
+    /* カード面のリスト行ホバー。テーマごとに数値が違うのは、card との明度差を
+       同じだけ知覚させるため（単一の alpha では片方のテーマで潰れる）。 */
+    --card-hover: oklch(0.95 0 0);
     --card-foreground: oklch(0.25 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.25 0 0);
@@ -169,6 +177,11 @@
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
     --destructive-foreground: oklch(1 0 0);
+    /* destructive と明度を揃えた意味色 */
+    --success: oklch(0.577 0.155 152);
+    --success-foreground: oklch(1 0 0);
+    --warning: oklch(0.68 0.16 75);
+    --warning-foreground: oklch(0.25 0 0);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
@@ -255,6 +268,7 @@ html[lang="th"] {
     --background: oklch(0.145 0 0); /* メイン背景（最も暗い） */
     --background-1: oklch(0.18 0 0); /* 第2背景（backgroundより明るい） */
     --card: oklch(0.205 0 0); /* カード背景 */
+    --card-hover: oklch(0.26 0 0); /* カード面のリスト行ホバー */
     --popover: oklch(0.205 0 0); /* ポップオーバー背景 */
 
     /* テキスト色 */
@@ -275,6 +289,10 @@ html[lang="th"] {
     /* 状態色 */
     --destructive: oklch(0.6 0.19 25); /* 破壊的操作（赤系） */
     --destructive-foreground: oklch(0.985 0 0); /* 破壊的操作上のテキスト */
+    --success: oklch(0.68 0.14 152); /* 成功（緑系） */
+    --success-foreground: oklch(0.985 0 0); /* 成功上のテキスト */
+    --warning: oklch(0.78 0.14 75); /* 警告（アンバー系） */
+    --warning-foreground: oklch(0.205 0 0); /* 警告上のテキスト */
 
     /* ボーダー・入力・リング */
     --border: oklch(1 0 0 / 10%); /* ボーダー（薄い白） */
@@ -330,6 +348,37 @@ html[lang="th"] {
     .toaster {
         --offset-top: 1rem;
         --offset-bottom: 1rem;
+    }
+
+    /* Unread notification highlight, shared by the list and the realtime toast.
+       Applied as a background *image* so it layers over whatever background the
+       element already has (the card) instead of replacing it.
+
+       Mixed in srgb, not oklch: mixing toward `transparent` in a polar space
+       drags the hue/chroma out and leaves a washed-out grey.
+
+       The strength is per theme — the same alpha reads much weaker over a dark
+       card than over a white one. */
+    .notification-unread-tint {
+        --notification-tint-strength: 12%;
+        background-image: linear-gradient(
+            color-mix(in srgb, var(--c-1) var(--notification-tint-strength), transparent),
+            color-mix(in srgb, var(--c-1) var(--notification-tint-strength), transparent)
+        );
+    }
+
+    .dark .notification-unread-tint {
+        --notification-tint-strength: 20%;
+    }
+
+    /* Snappier toast enter/exit. Sonner's own 400ms transition lives on
+       `[data-sonner-toast]` in a stylesheet it injects at runtime, so these
+       selectors have to out-specify it rather than rely on source order.
+       Only the animation speed changes — how long a toast stays is unaffected. */
+    [data-sonner-toaster] [data-sonner-toast],
+    [data-sonner-toaster]
+        [data-sonner-toast][data-removed="true"][data-front="false"][data-swipe-out="false"][data-expanded="false"] {
+        transition-duration: 150ms;
     }
 
     /* Custom spinner animation - 2x faster than default */

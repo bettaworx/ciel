@@ -59,7 +59,7 @@ func DecodeCursor(cursor *string) (*TimelineCursor, error) { return decodeCursor
 // ListFromRedis exposes the Redis timeline paging logic for unit tests.
 // This does not perform DB fallback.
 func (s *TimelineService) ListFromRedis(ctx context.Context, limit int, cursor *TimelineCursor) (postIDs []uuid.UUID, next *TimelineCursor, ok bool) {
-	return s.listFromRedis(ctx, limit, cursor)
+	return s.listFromRedis(ctx, timelineKeyGlobal(), limit, cursor)
 }
 
 func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams, userID *api.UserId) (api.TimelinePage, error) {
@@ -81,35 +81,25 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 
 	// Prefer Redis if configured.
 	if s.cache != nil {
-		postIDs, next, okRedis := s.listFromRedis(ctx, limit, cursor)
-		if okRedis {
-			posts, err := s.fetchPosts(ctx, postIDs)
+		postIDs, next, okRedis := s.listFromRedis(ctx, timelineKeyGlobal(), limit, cursor)
+		// next is only non-nil when the ZSET filled a whole page, and that is the
+		// only state in which it can be trusted. The global key is written by post
+		// creation alone, so a Redis restart leaves it holding some arbitrary tail
+		// of the feed — reading "the cache ran out" as "the feed ended" is what
+		// stopped infinite scroll at a fixed point, and left the timeline blank
+		// outright on a cold cache. Anything short falls through to the database,
+		// which returns the real cursor.
+		if okRedis && next != nil {
+			posts, err := s.fetchPosts(ctx, timelineKeyGlobal(), postIDs, userID)
 			if err != nil {
 				return api.TimelinePage{}, err
 			}
-			if err := s.attachMediaToPosts(ctx, posts); err != nil {
+			posts, err = s.hydratePosts(ctx, posts, userID)
+			if err != nil {
 				return api.TimelinePage{}, err
 			}
-			if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
-				return api.TimelinePage{}, err
-			}
-			if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
-				return api.TimelinePage{}, err
-			}
-			if s.posts != nil {
-				if err := s.posts.attachBoostCountsToPosts(ctx, posts); err != nil {
-					return api.TimelinePage{}, err
-				}
-				if err := s.posts.attachReferencesToPosts(ctx, posts, userID); err != nil {
-					return api.TimelinePage{}, err
-				}
-			}
-			page := api.TimelinePage{Items: posts}
-			if next != nil {
-				nc := encodeCursor(*next)
-				page.NextCursor = &nc
-			}
-			return page, nil
+			nc := encodeCursor(*next)
+			return api.TimelinePage{Items: posts, NextCursor: &nc}, nil
 		}
 	}
 
@@ -124,7 +114,18 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 			cID = uuid.NullUUID{UUID: uid, Valid: true}
 		}
 	}
-	rows, err := s.store.Q.ListTimelinePosts(ctx, sqlc.ListTimelinePostsParams{CursorTime: cTime, CursorID: cID, Limit: int32(limit)})
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
+	rows, err := s.store.Q.ListTimelinePosts(ctx, sqlc.ListTimelinePostsParams{
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
+		CursorTime: cTime,
+		CursorID:   cID,
+		Limit:      int32(limit),
+	})
 	if err != nil {
 		return api.TimelinePage{}, err
 	}
@@ -133,22 +134,14 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	for _, row := range rows {
 		items = append(items, mapTimelineRow(row))
 	}
-	if err := s.attachMediaToPosts(ctx, items); err != nil {
+	items, err = s.hydratePosts(ctx, items, userID)
+	if err != nil {
 		return api.TimelinePage{}, err
 	}
-	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
-		return api.TimelinePage{}, err
-	}
-	if err := s.attachReplyCountsToPosts(ctx, items); err != nil {
-		return api.TimelinePage{}, err
-	}
-	if s.posts != nil {
-		if err := s.posts.attachBoostCountsToPosts(ctx, items); err != nil {
-			return api.TimelinePage{}, err
-		}
-		if err := s.posts.attachReferencesToPosts(ctx, items, userID); err != nil {
-			return api.TimelinePage{}, err
-		}
+
+	// Rebuild the cache on a first-page miss, so the next read can use it.
+	if cursor == nil {
+		s.warmGlobalTimeline(ctx)
 	}
 
 	var nextCursor *string
@@ -158,6 +151,234 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 		nextCursor = &n
 	}
 	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
+}
+
+// hydratePosts fills in everything a timeline row needs beyond the post itself,
+// then drops the rows this viewer should not be handed. Every feed goes through
+// here so the shapes stay identical.
+//
+// It returns the kept posts rather than filtering in place: the drop has to
+// happen after the references are attached — a pure boost is only recognisable
+// as a hidden author's post once its reference is loaded — and a caller that
+// forgot to apply it would silently serve a muted account's posts.
+func (s *TimelineService) hydratePosts(ctx context.Context, posts []api.Post, userID *api.UserId) ([]api.Post, error) {
+	ctx, scope, err := EnsureViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.attachMediaToPosts(ctx, posts); err != nil {
+		return nil, err
+	}
+	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
+		return nil, err
+	}
+	if err := s.attachReplyCountsToPosts(ctx, posts); err != nil {
+		return nil, err
+	}
+	if s.posts == nil {
+		return scope.Filter(posts, SurfaceFeed), nil
+	}
+	if err := s.posts.attachBoostCountsToPosts(ctx, posts); err != nil {
+		return nil, err
+	}
+	if err := s.posts.attachReferencesToPosts(ctx, posts, userID); err != nil {
+		return nil, err
+	}
+	return scope.Filter(posts, SurfaceFeed), nil
+}
+
+// GetHome returns the timeline of posts by the viewer and everyone they follow.
+//
+// Unlike the global timeline this cannot trust an empty Redis result. A per-user
+// ZSET is always partial — it is capped, it expires, and it is dropped outright
+// on follow/unfollow — so "Redis returned nothing" and "the timeline is empty"
+// are different things. The cache is therefore only used when it can fill the
+// whole page; anything else falls through to the database, which is the source
+// of truth.
+func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHomeParams, userID api.UserId) (api.TimelinePage, error) {
+	if s.store == nil {
+		return api.TimelinePage{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	limit := 30
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	if limit < 1 || limit > 100 {
+		return api.TimelinePage{}, NewError(http.StatusBadRequest, "invalid_request", "limit must be 1..100")
+	}
+
+	cursor, err := decodeCursor(params.Cursor)
+	if err != nil {
+		return api.TimelinePage{}, NewError(http.StatusBadRequest, "invalid_request", "invalid cursor")
+	}
+
+	key := timelineKeyHome(userID)
+	if s.cache != nil {
+		// next is only set when the page came back full, which is exactly the
+		// condition under which the cache is trustworthy here.
+		postIDs, next, okRedis := s.listFromRedis(ctx, key, limit, cursor)
+		if okRedis && next != nil {
+			posts, err := s.fetchPosts(ctx, key, postIDs, &userID)
+			if err != nil {
+				return api.TimelinePage{}, err
+			}
+			// A post dropped by fetchPosts (deleted since being cached) would
+			// leave a short page, so only serve it when nothing was lost.
+			if len(posts) == limit {
+				posts, err = s.hydratePosts(ctx, posts, &userID)
+				if err != nil {
+					return api.TimelinePage{}, err
+				}
+				nc := encodeCursor(*next)
+				return api.TimelinePage{Items: posts, NextCursor: &nc}, nil
+			}
+		}
+	}
+
+	var cTime sql.NullTime
+	var cID uuid.NullUUID
+	if cursor != nil {
+		cTime = sql.NullTime{Time: time.UnixMilli(cursor.Score).UTC(), Valid: true}
+		if uid, err := uuid.Parse(cursor.ID); err == nil {
+			cID = uuid.NullUUID{UUID: uid, Valid: true}
+		}
+	}
+	homeScope, err := LoadViewerScope(ctx, s.store, &userID)
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
+	rows, err := s.store.Q.ListHomeTimelinePosts(ctx, sqlc.ListHomeTimelinePostsParams{
+		ViewerID:   userID,
+		HiddenIds:  homeScope.HiddenIDs(),
+		CursorTime: cTime,
+		CursorID:   cID,
+		Limit:      int32(limit),
+	})
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
+
+	items := make([]api.Post, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, mapHomeTimelineRow(row))
+	}
+	items, err = s.hydratePosts(ctx, items, &userID)
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
+
+	// Rebuild the cache on a first-page miss, so the next read can use it.
+	if cursor == nil {
+		s.warmHomeTimeline(ctx, userID)
+	}
+
+	var nextCursor *string
+	if len(rows) == limit {
+		last := rows[len(rows)-1]
+		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String()})
+		nextCursor = &n
+	}
+	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
+}
+
+// warmHomeTimeline repopulates a user's home ZSET from the database. Errors are
+// ignored; a cold cache only costs a database query on the next read.
+func (s *TimelineService) warmHomeTimeline(ctx context.Context, userID uuid.UUID) {
+	if s.cache == nil {
+		return
+	}
+	scope, err := LoadViewerScope(ctx, s.store, &userID)
+	if err != nil {
+		return
+	}
+	rows, err := s.store.Q.ListHomeTimelinePostIDs(ctx, sqlc.ListHomeTimelinePostIDsParams{
+		ViewerID:  userID,
+		HiddenIds: scope.HiddenIDs(),
+		Limit:     homeTimelineMaxEntries,
+	})
+	if err != nil || len(rows) == 0 {
+		return
+	}
+	members := make([]cache.Z, 0, len(rows))
+	for _, row := range rows {
+		members = append(members, cache.Z{Score: float64(row.CreatedAt.UnixMilli()), Member: row.ID.String()})
+	}
+	key := timelineKeyHome(userID)
+	if err := s.cache.ZAdd(ctx, key, members...); err != nil {
+		return
+	}
+	_ = s.cache.Expire(ctx, key, homeTimelineTTL)
+}
+
+// warmGlobalTimeline repopulates the shared global ZSET from the database, so a
+// Redis restart costs one cold page rather than leaving every later page to fall
+// through. Errors are ignored for the same reason as warmHomeTimeline.
+//
+// No TTL: the rank trim already bounds the key, and expiring it would only buy
+// more database fallbacks.
+//
+// ponytail: every concurrent request on a cold cache runs its own warm, same as
+// warmHomeTimeline. Take a SetNX lock if that ever shows up in load.
+func (s *TimelineService) warmGlobalTimeline(ctx context.Context) {
+	if s.cache == nil || s.store == nil {
+		return
+	}
+	rows, err := s.store.Q.ListGlobalTimelinePostIDs(ctx, globalTimelineMaxEntries)
+	if err != nil || len(rows) == 0 {
+		return
+	}
+	members := make([]cache.Z, 0, len(rows))
+	for _, row := range rows {
+		members = append(members, cache.Z{Score: float64(row.CreatedAt.UnixMilli()), Member: row.ID.String()})
+	}
+	key := timelineKeyGlobal()
+	if err := s.cache.ZAdd(ctx, key, members...); err != nil {
+		return
+	}
+	_ = s.cache.ZRemRangeByRank(ctx, key, 0, -(globalTimelineMaxEntries + 1))
+}
+
+func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
+	return api.Post{
+		Id:          row.ID,
+		Content:     row.Content,
+		Media:       []api.Media{},
+		Reactions:   []api.ReactionCount{},
+		Mentions:    []api.MentionUser{},
+		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
+		RootId:      nullUUIDToPostIDPtr(row.RootID),
+		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		ParentPrivate: &row.ParentPrivate,
+		ParentHidden:  &row.ParentHidden,
+		CreatedAt:   row.CreatedAt,
+		DeletedAt:   nil,
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
+	}
+}
+
+// attachViewerStateToPosts mirrors PostsService: the per-viewer fields are the
+// same set wherever posts are read. The bookmarks service is reached through
+// PostsService rather than injected again, since a timeline without one has no
+// post hydration either.
+// The hidden-author flags have to be stamped here even though the feed queries
+// already filter, because a Redis cache hit never runs those queries: it
+// rebuilds its rows from GetPostsByIDs, which carries only the hard
+// can_view_user gate. Without this a muted author's posts stay in the timeline
+// for as long as the ZSET holds their ids.
+func (s *TimelineService) attachViewerStateToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+		return err
+	}
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return err
+	}
+	scope.StampAuthorFlags(posts)
+	var bookmarks *BookmarksService
+	if s.posts != nil {
+		bookmarks = s.posts.bookmarks
+	}
+	return attachBookmarkListIDs(ctx, bookmarks, posts, userID)
 }
 
 func (s *TimelineService) attachReactionsToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
@@ -183,8 +404,7 @@ func (s *TimelineService) attachReactionsToPosts(ctx context.Context, posts []ap
 	return nil
 }
 
-func (s *TimelineService) listFromRedis(ctx context.Context, limit int, cursor *timelineCursor) (postIDs []uuid.UUID, next *timelineCursor, ok bool) {
-	key := timelineKeyGlobal()
+func (s *TimelineService) listFromRedis(ctx context.Context, key string, limit int, cursor *timelineCursor) (postIDs []uuid.UUID, next *timelineCursor, ok bool) {
 	max := "+inf"
 	if cursor != nil {
 		max = strconv.FormatInt(cursor.Score, 10)
@@ -241,11 +461,23 @@ func (s *TimelineService) listFromRedis(ctx context.Context, limit int, cursor *
 	return ids, nil, true
 }
 
-func (s *TimelineService) fetchPosts(ctx context.Context, ids []uuid.UUID) ([]api.Post, error) {
+func (s *TimelineService) fetchPosts(ctx context.Context, key string, ids []uuid.UUID, userID *api.UserId) ([]api.Post, error) {
 	if len(ids) == 0 {
 		return []api.Post{}, nil
 	}
-	rows, err := s.store.Q.GetPostsByIDs(ctx, ids)
+	// The ZSETs hold ids only, so this re-read is what applies the privacy gate
+	// to a cache hit. A post whose author just went private drops out here on the
+	// very next request, without anything having to expire.
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
+		Ids:          ids,
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -257,9 +489,17 @@ func (s *TimelineService) fetchPosts(ctx context.Context, ids []uuid.UUID) ([]ap
 		found[row.ID] = struct{}{}
 	}
 
-	// Remove missing (likely deleted) from cache.
-	if s.cache != nil && len(found) != len(ids) {
-		key := timelineKeyGlobal()
+	// Remove missing (likely deleted) from cache. Deleted posts are never
+	// removed from the per-user ZSETs on write, so this is how they get cleaned.
+	//
+	// Never do this to the global ZSET. A row can now also be missing because
+	// this particular viewer may not see its author, and evicting on that would
+	// let one stranger's request strip a private user's posts out of a shared
+	// timeline for everybody, permanently. Per-user home ZSETs are already
+	// treated as lossy — capped, expiring, dropped on follow changes, and only
+	// trusted when they fill a whole page — so an over-eager eviction there
+	// costs nothing but a database fallback.
+	if s.cache != nil && key != timelineKeyGlobal() && len(found) != len(ids) {
 		missing := make([]interface{}, 0)
 		for _, id := range ids {
 			if _, ok := found[id]; !ok {
@@ -388,9 +628,11 @@ func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		ParentPrivate: &row.ParentPrivate,
+		ParentHidden:  &row.ParentHidden,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
@@ -404,8 +646,10 @@ func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
 		RootId:      nullUUIDToPostIDPtr(row.RootID),
 		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		ParentPrivate: &row.ParentPrivate,
+		ParentHidden:  &row.ParentHidden,
 		CreatedAt:   row.CreatedAt,
 		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}),
+		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }

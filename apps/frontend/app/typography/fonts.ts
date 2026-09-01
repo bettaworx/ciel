@@ -1,5 +1,5 @@
 import {
-  BIZ_UDPGothic,
+  BIZ_UDGothic,
   BIZ_UDPMincho,
   Manrope,
   Noto_Naskh_Arabic,
@@ -24,7 +24,7 @@ const manrope = Manrope({
   display: "swap",
 });
 
-const bizUdpGothic = BIZ_UDPGothic({
+const bizUdGothic = BIZ_UDGothic({
   variable: "--font-sans-japanese",
   weight: ["400", "700"],
   display: "swap",
@@ -131,7 +131,7 @@ const notoSerifThai = Noto_Serif_Thai({
 
 export const fontFaces = {
   sansLatin: manrope,
-  sansJapanese: bizUdpGothic,
+  sansJapanese: bizUdGothic,
   sansChineseSimplified: notoSansSc,
   sansChineseTraditional: notoSansTc,
   sansKorean: notoSansKr,

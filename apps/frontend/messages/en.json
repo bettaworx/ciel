@@ -13,202 +13,162 @@
   "profile": "Profile",
   "settings": {
     "title": "Settings",
-    "backToSettings": "Back to settings",
     "categories": {
       "profile": "Profile",
       "general": "General",
-      "appearance": "Appearance",
       "account": "Account",
-      "security": "Security"
+      "appearance": "Appearance",
+      "security": "Security",
+      "mutes": "Mutes and blocks",
+      "privacy": "Privacy",
+      "about": "About"
+    },
+    "about": {
+      "title": "About",
+      "server": "About this server",
+      "app": "About this app"
     },
     "general": {
       "title": "General",
       "language": {
-        "title": "Language",
-        "description": "Choose your display language",
-        "placeholder": "Select language"
+        "title": "Language"
       }
     },
     "appearance": {
       "title": "Appearance",
       "theme": {
         "title": "Theme",
-        "description": "Choose your app theme",
         "light": "Light",
         "dark": "Dark",
-        "system": "System",
-        "systemDescription": "Follow system settings"
+        "system": "System"
       },
       "mfm": {
         "title": "MFM (Text Decoration)",
-        "description": "Control text decoration and animation display in posts and profiles",
         "enabled": {
-          "title": "Enable MFM",
-          "description": "When disabled, only emoji will be displayed"
+          "title": "Enable MFM"
         },
         "mention": {
-          "title": "Mentions",
-          "description": "Display @user mentions"
+          "title": "Mentions"
         },
         "hashtag": {
-          "title": "Hashtags",
-          "description": "Display #tag hashtags"
+          "title": "Hashtags"
         },
         "url": {
-          "title": "URLs",
-          "description": "Auto-link URL display"
+          "title": "URLs"
         },
         "link": {
-          "title": "Links",
-          "description": "Display text links"
+          "title": "Links"
         },
         "emojiCode": {
-          "title": "Custom Emoji",
-          "description": "Display :name: custom emoji"
+          "title": "Custom Emoji"
         },
         "bold": {
-          "title": "Bold",
-          "description": "Display bold text"
+          "title": "Bold"
         },
         "italic": {
-          "title": "Italic",
-          "description": "Display italic text"
+          "title": "Italic"
         },
         "strike": {
-          "title": "Strikethrough",
-          "description": "Display strikethrough text"
+          "title": "Strikethrough"
         },
         "small": {
-          "title": "Small Text",
-          "description": "Display shrunk text"
+          "title": "Small Text"
         },
         "quote": {
-          "title": "Quote",
-          "description": "Display quote blocks"
+          "title": "Quote"
         },
         "center": {
-          "title": "Center Align",
-          "description": "Display centered text"
+          "title": "Center Align"
         },
         "ruby": {
-          "title": "Ruby (Reading Aid)",
-          "description": "Display reading annotations above text"
+          "title": "Ruby (Reading Aid)"
         },
         "code": {
           "title": "Code",
-          "description": "Display code elements",
           "inline": {
-            "title": "Inline",
-            "description": "Display inline code"
+            "title": "Inline"
           },
           "block": {
-            "title": "Block",
-            "description": "Display code blocks"
+            "title": "Block"
           }
         },
         "flip": {
-          "title": "Flip",
-          "description": "Horizontal/vertical text flipping"
+          "title": "Flip"
         },
         "font": {
           "title": "Font",
-          "description": "Font family changes",
           "serif": {
-            "title": "Serif",
-            "description": "Display serif font"
+            "title": "Serif"
           },
           "monospace": {
-            "title": "Monospace",
-            "description": "Display monospace font"
+            "title": "Monospace"
           },
           "cursive": {
-            "title": "Cursive",
-            "description": "Display cursive font"
+            "title": "Cursive"
           },
           "fantasy": {
-            "title": "Fantasy",
-            "description": "Display fantasy font"
+            "title": "Fantasy"
           }
         },
         "blur": {
-          "title": "Blur",
-          "description": "Text blur effect"
+          "title": "Blur"
         },
         "search": {
-          "title": "Search Box",
-          "description": "Display search blocks"
+          "title": "Search Box"
         },
         "bg": {
-          "title": "Background Color",
-          "description": "Display text background color"
+          "title": "Background Color"
         },
         "fg": {
-          "title": "Text Color",
-          "description": "Display text color changes"
+          "title": "Text Color"
         },
         "border": {
-          "title": "Border",
-          "description": "Display borders around text"
+          "title": "Border"
         },
         "rotate": {
-          "title": "Rotate",
-          "description": "Display rotated text"
+          "title": "Rotate"
         },
         "position": {
-          "title": "Position Shift",
-          "description": "Display shifted text position"
+          "title": "Position Shift"
         },
         "scale": {
-          "title": "Scale",
-          "description": "Display scaled text"
+          "title": "Scale"
         },
         "expand": {
           "title": "Size Expansion",
-          "description": "Display enlarged text sizes",
           "allowLargerThanX2": {
-            "title": "Allow x3/x4",
-            "description": "When disabled, capped at x2"
+            "title": "Allow x3/x4"
           }
         },
         "animation": {
           "title": "Animations",
-          "description": "Text animation effects",
           "jelly": {
-            "title": "Jelly",
-            "description": "Bouncy jelly animation"
+            "title": "Jelly"
           },
           "tada": {
-            "title": "TaDa",
-            "description": "Attention-grabbing TaDa animation"
+            "title": "TaDa"
           },
           "jump": {
-            "title": "Jump",
-            "description": "Jumping animation"
+            "title": "Jump"
           },
           "bounce": {
-            "title": "Bounce",
-            "description": "Drop and bounce animation"
+            "title": "Bounce"
           },
           "spin": {
-            "title": "Spin",
-            "description": "Spinning animation"
+            "title": "Spin"
           },
           "shake": {
-            "title": "Shake",
-            "description": "Shaking animation"
+            "title": "Shake"
           },
           "twitch": {
-            "title": "Twitch",
-            "description": "Twitching animation"
+            "title": "Twitch"
           }
         },
         "rainbow": {
-          "title": "Rainbow",
-          "description": "Rainbow color animation"
+          "title": "Rainbow"
         },
         "sparkle": {
-          "title": "Sparkle",
-          "description": "Sparkling animation"
+          "title": "Sparkle"
         }
       }
     },
@@ -216,11 +176,114 @@
       "ja": "日本語",
       "en": "English"
     },
-    "account": {
-      "title": "Account"
-    },
     "security": {
-      "title": "Security"
+      "title": "Security",
+      "password": {
+        "title": "Change password",
+        "newPassword": "New password",
+        "confirmPassword": "Confirm new password",
+        "mismatch": "Passwords do not match",
+        "submit": "Change password",
+        "doneTitle": "Password changed",
+        "doneDescription": "Every other device has been signed out. This device stays signed in.",
+        "updateError": "Could not change your password"
+      },
+      "mfa": {
+        "title": "Two-factor authentication",
+        "description": "Asking for a second factor on top of your password keeps your account safe even if the password leaks.",
+        "cancel": "Cancel",
+        "confirmRemove": "Remove",
+        "removed": "Removed",
+        "removeTitle": "Remove this method?",
+        "removeDescription": "This method will stop working. Your other methods stay available.",
+        "removeLastDescription": "This is your last method. Removing it turns two-factor authentication off and discards your backup codes.",
+        "totp": {
+          "title": "One-time password",
+          "configure": "Set up",
+          "reconfigure": "Set up again",
+          "remove": "Remove",
+          "enabled": "Enabled",
+          "enabledToast": "One-time passwords are on",
+          "enrollTitle": "Set up one-time passwords",
+          "enrollDescription": "Scan the QR code with your authenticator app, then enter the 6-digit code it shows.",
+          "manualEntry": "Can't scan? Enter this key into the app by hand.",
+          "copySecret": "Copy secret key",
+          "secretCopied": "Secret key copied",
+          "codeLabel": "Code from your authenticator app",
+          "confirm": "Turn on",
+          "invalidCode": "That code is not correct",
+          "alreadyEnabled": "One-time passwords are already set up",
+          "unavailable": "This server does not have one-time passwords available",
+          "enabledAt": "Set up {date}",
+          "resetTitle": "Set up one-time passwords again?",
+          "resetDescription": "Your current setup is turned off first. You will need to scan a new QR code.",
+          "confirmReset": "Set up again"
+        },
+        "securityKeys": {
+          "title": "Security keys",
+          "add": "Add a key",
+          "added": "Security key added",
+          "addFailed": "Could not add that security key",
+          "alreadyRegistered": "This security key is already registered",
+          "rename": "Rename",
+          "saveName": "Save",
+          "remove": "Remove",
+          "addedAt": "Added {date}",
+          "lastUsedAt": "Last used {date}",
+          "unsupported": "This browser does not support security keys.",
+          "defaultName": "Security key",
+          "nameTitle": "Name this security key",
+          "nameDescription": "A name that says which device it is makes it easy to tell apart later.",
+          "nameLabel": "Name",
+          "nameLater": "Later"
+        },
+        "backupCodes": {
+          "title": "Backup codes",
+          "dialogTitle": "Backup codes",
+          "dialogDescription": "Single-use codes for when neither your authenticator app nor your security key is at hand. This is the only time they are shown.",
+          "copy": "Copy",
+          "copied": "Backup codes copied",
+          "download": "Download",
+          "acknowledge": "I saved these somewhere safe",
+          "done": "Close",
+          "remaining": "{count} left",
+          "regenerate": "Regenerate",
+          "regenerateTitle": "Regenerate backup codes?",
+          "regenerateDescription": "Every current backup code stops working and is replaced by a new set.",
+          "regenerateConfirm": "Regenerate"
+        }
+      }
+    },
+    "account": {
+      "title": "Account",
+      "username": {
+        "title": "Change username",
+        "newLabel": "New username",
+        "placeholder": "New username",
+        "submit": "Change username",
+        "taken": "That username is already taken",
+        "doneTitle": "Username changed",
+        "doneDescription": "Your new username is @{username}.",
+        "updateError": "Could not change your username"
+      },
+      "delete": {
+        "title": "Delete account",
+        "warning": "This cannot be undone. Your posts, media and follow relationships will all be deleted.",
+        "confirmTitle": "Delete your account?",
+        "confirmDescription": "Deleting your account permanently removes all of your data, including your posts, uploaded media and follow relationships.",
+        "typeUsernamePrompt": "Type {username} to confirm",
+        "submit": "Delete permanently",
+        "goodbyeTitle": "Thank you",
+        "goodbyeDescription": "Your account has been deleted. Thank you for being here.",
+        "goHome": "Go to home",
+        "error": "Could not delete your account"
+      }
+    },
+    "reauth": {
+      "heading": "Enter your password",
+      "description": "Confirm it's you before continuing",
+      "failed": "We could not verify that password",
+      "expired": "That confirmation expired. Please enter your password again."
     },
     "profile": {
       "title": "Profile",
@@ -244,6 +307,7 @@
         "change": "Change Banner",
         "cancel": "Cancel",
         "invalidFileType": "Please select an image file",
+        "updateError": "Failed to update banner",
         "cropTitle": "Crop Banner"
       },
       "displayName": {
@@ -261,6 +325,31 @@
       "updateSuccess": "Profile updated successfully",
       "updateError": "Failed to update profile",
       "unsavedChanges": "You have unsaved changes"
+    },
+    "mutes": {
+      "title": "Mutes and blocks",
+      "muted": "Muted",
+      "blocked": "Blocked",
+      "noMuted": "You haven't muted anyone",
+      "noBlocked": "You haven't blocked anyone"
+    },
+    "privacy": {
+      "title": "Privacy",
+      "sections": {
+        "visibility": "Privacy",
+        "moderation": "Moderation"
+      },
+      "hiddenAccounts": {
+        "title": "Mutes and blocks",
+        "description": "Review the users you have muted or blocked, and undo them.",
+        "open": "Open list"
+      },
+      "privateAccount": {
+        "title": "Make account private",
+        "enabled": "Your account is now private",
+        "disabled": "Your account is now public",
+        "error": "Could not change your privacy setting"
+      }
     }
   },
   "loading": "Loading...",
@@ -274,6 +363,24 @@
     "noMedia": "No media yet",
     "notFound": "User not found",
     "noBio": "No bio yet",
+    "follow": "Follow",
+    "followBack": "Follow back",
+    "followsYou": "Follows you",
+    "following": "Following",
+    "mutualFollow": "Mutual",
+    "unfollow": "Unfollow",
+    "unfollowConfirmTitle": "Unfollow this user?",
+    "unfollowConfirmDescription": "Posts from @{username} will no longer appear in your timeline.",
+    "unfollowConfirmCancel": "Cancel",
+    "followError": "Could not update follow",
+    "followingCount": "Following",
+    "followersCount": "Followers",
+    "followersYouFollow": "Followers you know",
+    "followedByOne": "Followed by {name}",
+    "followedByMany": "Followed by {name} and {count} others",
+    "noFollowing": "Not following anyone yet",
+    "noFollowers": "No followers yet",
+    "noFollowersYouFollow": "None of the people you follow follow them",
     "editProfile": "Edit",
     "shareProfile": "Share profile",
     "shareSuccess": "Profile URL copied",
@@ -283,7 +390,34 @@
     "copyIdSuccess": "User ID copied",
     "copyIdError": "Failed to copy user ID",
     "unknown": "Unknown User",
-    "unknownUsername": "unknown"
+    "unknownUsername": "unknown",
+    "privateAccount": "Private account",
+    "privatePostsHidden": "This account is private",
+    "privatePostsHiddenDescription": "Only approved followers can see these posts.",
+    "requestFollow": "Request to follow",
+    "followRequested": "Requested",
+    "cancelFollowRequest": "Cancel request",
+    "mutedAccount": "Muted user",
+    "blockedAccount": "Blocked user",
+    "muteUser": "Mute",
+    "unmuteUser": "Unmute",
+    "blockUser": "Block",
+    "unblockUser": "Unblock",
+    "muteError": "Failed to update mute",
+    "blockError": "Failed to update block",
+    "blockConfirmTitle": "Block this user?",
+    "blockConfirmDescription": "Blocking @{username} removes any follow between you in both directions, and they will no longer be able to see your posts or reply, boost or react to them. Unblocking does not restore the follows.",
+    "mutedPostsHidden": "You've muted this user",
+    "blockedPostsHidden": "You've blocked this user",
+    "blockedByUser": "You have been blocked",
+    "blockedByUserDescription": "You cannot view this user's posts.",
+    "muteConfirmTitle": "Mute this user?",
+    "muteConfirmDescription": "Muting @{username} removes them from your timelines, user search and reaction lists, and stops their notifications. They are not told, and you can undo it at any time.",
+    "hideConfirmCancel": "Cancel",
+    "unmuteConfirmTitle": "Unmute this user?",
+    "unmuteConfirmDescription": "Unmuting @{username} brings their posts back to your timelines and search results, and lets their notifications through again.",
+    "unblockConfirmTitle": "Unblock this user?",
+    "unblockConfirmDescription": "Unblocking @{username} lets them see your posts and reply or react to them again. The follows the block removed are not restored."
   },
   "login": {
     "title": "Login",
@@ -302,6 +436,27 @@
         "title": "Enter Password",
         "description": "Enter your password",
         "welcomeBack": "Welcome back"
+      },
+      "mfa": {
+        "heading": "Verify it's you",
+        "codeLabel": "Code from your authenticator app",
+        "backupLabel": "Backup code",
+        "useBackup": "Use a backup code",
+        "useCode": "Use your authenticator app",
+        "useSecurityKey": "Use a security key",
+        "failed": "That code is not correct",
+        "webauthnFailed": "Could not verify with that security key",
+        "method": {
+          "totp": "Authenticator",
+          "webauthn": "Security key",
+          "backup_code": "Backup code"
+        },
+        "chooseDescription": "Choose how to verify.",
+        "useAnotherWay": "Use another way",
+        "retry": "Retry",
+        "backupHeading": "Backup code",
+        "totpDescription": "Enter the code from your authenticator app.",
+        "passkeyPending": "Waiting for your security key…"
       }
     }
   },
@@ -401,18 +556,52 @@
       "settingsGeneral": "General",
       "settingsProfile": "Profile",
       "settingsAppearance": "Appearance",
-      "settingsAccount": "Account",
       "settingsSecurity": "Security",
+      "settingsSecurityPassword": "Change password",
+      "settingsAccount": "Account",
+      "settingsAccountUsername": "Change username",
+      "settingsAccountDelete": "Delete account",
       "setup": "Setup Profile",
       "adminSetup": "Server Setup",
-      "postDetail": "Post"
+      "postDetail": "Post",
+      "search": "Search",
+      "bookmarks": "Bookmarks",
+      "settingsMutes": "Mutes and blocks",
+      "settingsPrivacy": "Privacy",
+      "settingsAbout": "About",
+      "settingsAboutServer": "About this server",
+      "settingsAboutApp": "About this app",
+      "settingsAboutLicenses": "Licenses",
+      "settingsSecurityMfa": "Two-factor authentication"
     }
   },
   "timeline": {
     "title": "Timeline",
     "noPosts": "No posts yet",
+    "noHomePosts": "No posts from anyone you follow yet",
     "loadMore": "Load More",
-    "showThread": "View thread"
+    "showThread": "View thread",
+    "scope": {
+      "home": "Home",
+      "global": "Global"
+    }
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search posts and users",
+    "clear": "Clear search",
+    "tabs": {
+      "posts": "Posts",
+      "users": "Users"
+    },
+    "prompt": "Type something to search for",
+    "noPosts": "No posts match",
+    "noUsers": "No users match",
+    "unavailable": "Search is not available on this server",
+    "history": {
+      "label": "Search history",
+      "remove": "Remove \"{query}\" from history"
+    }
   },
   "createPost": {
     "title": "Create Post",
@@ -461,7 +650,20 @@
     "dropMedia": "Drop files here",
     "rateLimited": "Upload rate limit reached. Please wait and try again",
     "rateLimitedWithRetry": "Upload rate limit reached. Please try again in {seconds} seconds",
-    "uploadNetworkError": "Upload failed. The file may be too large or the connection was interrupted"
+    "uploadNetworkError": "Upload failed. The file may be too large or the connection was interrupted",
+    "conversionError": "Failed to convert media. Please try a different file",
+    "videoTooLong": "Video is too long (maximum {maxDuration} seconds)",
+    "converting": "Converting video",
+    "convertingPercent": "Converting {percent}%",
+    "conversionComplete": "Conversion complete",
+    "videoCannotFit": "This video cannot be compressed under {maxSize}MB",
+    "qualityImageTitle": "Image quality",
+    "qualityVideoTitle": "Video quality",
+    "qualityDotByDot": "Dotted",
+    "qualityPerformance": "Performance first",
+    "qualityBalance": "Balanced",
+    "qualityHigh": "Quality first",
+    "qualityNone": "As is"
   },
   "lightbox": {
     "title": "Image viewer",
@@ -487,9 +689,13 @@
   },
   "userMenu": {
     "viewProfile": "Profile",
-    "theme": "Theme",
-    "language": "Language",
+    "switchAccount": "Switch account",
     "closeMenu": "Close menu"
+  },
+  "accountSwitcher": {
+    "addAccount": "Add account",
+    "active": "Active",
+    "otherAccountsUnread": "Other accounts have new notifications"
   },
   "common": {
     "back": "Back",
@@ -501,7 +707,10 @@
     "pinSidebar": "Pin sidebar",
     "unpinSidebar": "Unpin sidebar",
     "serverInfo": "About this server",
-    "versionInfo": "App information"
+    "versionInfo": "App information",
+    "notifications": "Notifications",
+    "search": "Search",
+    "bookmarks": "Bookmarks"
   },
   "videoPlayer": {
     "play": "Play",
@@ -509,7 +718,9 @@
     "mute": "Mute",
     "unmute": "Unmute",
     "fullscreen": "Fullscreen",
-    "exitFullscreen": "Exit fullscreen"
+    "exitFullscreen": "Exit fullscreen",
+    "doubleSpeed": "2×",
+    "seekSeconds": "{seconds}s"
   },
   "reactions": {
     "label": "{emoji} {count} reactions",
@@ -578,9 +789,9 @@
   "postCard": {
     "openDetail": "Open post details",
     "justNow": "just now",
-    "minutesAgo": "{count}m ago",
-    "hoursAgo": "{count}h ago",
-    "daysAgo": "{count}d ago",
+    "minutesAgo": "{count}m",
+    "hoursAgo": "{count}h",
+    "daysAgo": "{count}d",
     "addReaction": "Add reaction",
     "removeReaction": "Remove reaction",
     "viewProfile": "View {name}'s profile",
@@ -608,7 +819,11 @@
       "boostError": "Failed to boost",
       "undoBoost": "Undo boost",
       "undoBoostSuccess": "Boost removed",
-      "undoBoostError": "Failed to undo boost"
+      "undoBoostError": "Failed to undo boost",
+      "bookmark": "Bookmark",
+      "bookmarkError": "Could not save the bookmark",
+      "bookmarkLoginRequired": "Log in to bookmark posts",
+      "boostDisabledPrivate": "Private accounts cannot be boosted or quoted"
     },
     "deleteConfirmTitle": "Delete this post?",
     "deleteConfirmDescription": "This action cannot be undone. The post will be removed from the timeline.",
@@ -629,6 +844,19 @@
       "username": "User",
       "initials": "U",
       "label": "Deleted"
+    },
+    "privatePost": {
+      "username": "Private User",
+      "label": "(Private)"
+    },
+    "hiddenPost": {
+      "muted": "You've muted this user",
+      "blocked": "You've blocked this user",
+      "reveal": "Show"
+    },
+    "restrictedPost": {
+      "username": "Restricted post",
+      "label": "This post has a restricted audience"
     }
   },
   "adminSetup": {
@@ -795,7 +1023,8 @@
         "displayName": "Display Name",
         "roles": "Roles",
         "createdAt": "Created",
-        "actions": "Actions"
+        "actions": "Actions",
+        "private": "Private"
       },
       "roles": {
         "user": "User",
@@ -803,7 +1032,12 @@
       },
       "loadingRoles": "Loading...",
       "noResults": "No users found",
-      "viewDetails": "View Details"
+      "viewDetails": "View Details",
+      "privacy": {
+        "enabled": "Account set to private",
+        "disabled": "Account set to public",
+        "error": "Could not change the account's privacy"
+      }
     },
     "posts": {
       "title": "Post Management",
@@ -1209,16 +1443,6 @@
       "filter": "Filter"
     }
   },
-  "videoPlayer": {
-    "play": "Play",
-    "pause": "Pause",
-    "mute": "Mute",
-    "unmute": "Unmute",
-    "fullscreen": "Fullscreen",
-    "exitFullscreen": "Exit fullscreen",
-    "doubleSpeed": "2×",
-    "seekSeconds": "{seconds}s"
-  },
   "imageCrop": {
     "apply": "Apply",
     "cancel": "Cancel",
@@ -1280,5 +1504,66 @@
       "mediumDark": "Medium-Dark",
       "dark": "Dark"
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet",
+    "markAllRead": "Mark all as read",
+    "unreadCount": "{count} unread",
+    "tabs": {
+      "all": "All",
+      "mentions": "Mentions"
+    },
+    "types": {
+      "reaction": "{name} reacted to your post",
+      "reply": "{name} replied to you",
+      "mention": "{name} mentioned you",
+      "boost": "{name} boosted your post",
+      "quote": "{name} quoted your post",
+      "follow": "{name} followed you",
+      "follow_request": "{name} requested to follow you"
+    },
+    "grouped": {
+      "reaction": "{count} users reacted to your post",
+      "reply": "{name} and {count} others replied to you",
+      "mention": "{name} and {count} others mentioned you",
+      "boost": "{name} and {count} others boosted your post",
+      "quote": "{name} and {count} others quoted your post",
+      "follow": "{count} users followed you",
+      "follow_request": "{count} users requested to follow you"
+    }
+  },
+  "bookmarks": {
+    "title": "Bookmarks",
+    "defaultListName": "Bookmarks",
+    "createList": "Create list",
+    "editList": "Edit list",
+    "deleteList": "Delete list",
+    "deleteConfirm": "Delete \"{name}\". The {count} posts saved here will be removed from the list. The posts themselves are kept.",
+    "listActions": "List actions",
+    "listName": "List name",
+    "listNamePlaceholder": "Enter a list name",
+    "listIcon": "Icon",
+    "create": "Create",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "empty": "No lists yet",
+    "emptyDescription": "Create a list to collect the posts you want to come back to.",
+    "emptyList": "Nothing saved in this list yet",
+    "noLists": "No lists yet",
+    "postCount": "{count}",
+    "createError": "Could not create the list",
+    "updateError": "Could not update the list",
+    "deleteError": "Could not delete the list"
+  },
+  "followRequests": {
+    "title": "Follow requests",
+    "empty": "No follow requests",
+    "accept": "Accept",
+    "reject": "Decline",
+    "accepted": "Follow request accepted",
+    "rejected": "Follow request declined",
+    "error": "Could not respond to the follow request"
   }
 }

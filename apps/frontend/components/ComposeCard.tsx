@@ -1,23 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { User as UserIcon } from "lucide-react";
 import { useAtomValue } from "jotai";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
 import { PostComposerContent } from "./post-composer/PostComposerContent";
 import { useComposerPlaceholder } from "./post-composer/useComposerPlaceholder";
-
-import { useUserMenu } from "@/lib/hooks/use-user-menu";
-import { UserMenuContent } from "@/components/auth/UserMenuContent";
-import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
 
 interface ComposeCardProps {
   /**
@@ -49,34 +41,13 @@ export function ComposeCard({
   contentPrefix,
 }: ComposeCardProps = {}) {
   const t = useTranslations();
-  const tNav = useTranslations("nav");
   const user = useAtomValue(userAtom);
   const [isExpanded, setIsExpanded] = useState(false);
   const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
-  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const composeCardRef = useRef<HTMLDivElement>(null);
   const hadTypedContentRef = useRef(false);
   const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
   const placeholder = placeholderOverride ?? generatedPlaceholder;
-
-  // User menu state
-  const {
-    menuView,
-    setMenuView,
-    isMenuOpen,
-    isLogoutOpen,
-    setIsLogoutOpen,
-    theme,
-    setTheme,
-    locale,
-    handleMenuOpenChange,
-    handleLogoutClick,
-    handleLogoutConfirm,
-    handleLanguageChange,
-    handleUserInfoClick,
-    handleProfileClick,
-    handleSettingsClick,
-  } = useUserMenu();
 
   // Use shared composition logic
   const compose = useComposePost({
@@ -115,47 +86,27 @@ export function ComposeCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExpanded]);
 
-  // Cleanup blur timeout on unmount
+  // Collapse on interaction outside the card rather than on textarea blur:
+  // iOS Safari does not move focus when a button is tapped, so blur collapsed
+  // the card — and unmounted the file inputs — the moment the upload sheet or
+  // the native picker opened, making media impossible to attach.
   useEffect(() => {
-    return () => {
-      if (blurTimeoutRef.current) {
-        clearTimeout(blurTimeoutRef.current);
-      }
-    };
-  }, []);
+    if (!isExpanded) return;
 
-  // Handle blur event - collapse if content is empty
-  const handleBlur = () => {
-    // Clear any existing timeout
-    if (blurTimeoutRef.current) {
-      clearTimeout(blurTimeoutRef.current);
-    }
+    const handlePointerUp = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target || composeCardRef.current?.contains(target)) return;
 
-    // Wait 200ms before checking if we should collapse
-    // This allows clicks on buttons (post, image upload, etc.) to complete
-    blurTimeoutRef.current = setTimeout(() => {
-      // Check if focus moved outside of ComposeCard
-      const composeCard = composeCardRef.current;
-      if (!composeCard) return;
-
-      // If user menu is open, don't collapse
-      if (isMenuOpen) return;
-
-      // If focus is still within ComposeCard, don't collapse
-      if (composeCard.contains(document.activeElement)) {
-        return;
-      }
-
-      // If focus moved to a portaled dropdown/popover (e.g. font picker), don't collapse
+      // Our own UI that portals to the body (format menus, upload sheet, crop
+      // dialog) still counts as part of the card.
       if (
-        document.activeElement?.closest(
-          "[data-radix-popper-content-wrapper]",
+        target.closest(
+          "[data-radix-popper-content-wrapper],[data-vaul-drawer],[data-vaul-overlay],[role='dialog']",
         )
       ) {
         return;
       }
 
-      // Only collapse if content is empty AND no images
       if (
         compose.content.length === 0 &&
         compose.images.length === 0 &&
@@ -163,104 +114,75 @@ export function ComposeCard({
       ) {
         setIsExpanded(false);
       }
-    }, 200);
-  };
+    };
+
+    // pointerup, not pointerdown: collapsing shrinks the card and shifts the
+    // timeline, so it has to happen after the tap's target is settled. And not
+    // click: iOS does not always bubble it up from non-interactive elements.
+    document.addEventListener("pointerup", handlePointerUp, true);
+    return () => document.removeEventListener("pointerup", handlePointerUp, true);
+  }, [isExpanded, compose.content, compose.images, compose.video]);
 
   if (!user) return null;
 
-  const initials = (user.displayName?.[0] || user.username[0]).toUpperCase();
-
-  // Avatar wrapped in Popover for user menu
   const avatarElement = (
-    <Popover open={isMenuOpen} onOpenChange={handleMenuOpenChange}>
-      <PopoverTrigger asChild>
+    <Link
+      href={`/users/${user.username}`}
+      onMouseDown={(e) => {
+        // Prevent focus change when clicking avatar
+        e.preventDefault();
+      }}
+      className="h-11 w-11 sm:h-12 sm:w-12 shrink-0 rounded-full hover:opacity-80 transition-opacity"
+      aria-label={t("profile")}
+    >
+      <Avatar className="h-11 w-11 sm:h-12 sm:w-12">
+        <AvatarImage src={user?.avatarUrl ?? undefined} alt={user.username} />
+        <AvatarFallback>
+          <UserIcon className="h-6 w-6" />
+        </AvatarFallback>
+      </Avatar>
+    </Link>
+  );
+
+  return (
+    <div
+      ref={composeCardRef}
+      className="bg-card rounded-xl sm:rounded-2xl p-3 relative"
+      onDragOver={compose.handleDragOver}
+      onDragEnter={compose.handleDragEnter}
+      onDragLeave={compose.handleDragLeave}
+      onDrop={compose.handleDrop}
+    >
+      {/* Collapsed State */}
+      {!isExpanded && (
         <button
-          onMouseDown={(e) => {
-            // Prevent focus change when clicking avatar
-            e.preventDefault();
-          }}
-          className="h-11 w-11 sm:h-12 sm:w-12 shrink-0 rounded-full hover:opacity-80 transition-opacity"
-          aria-label={tNav("openUserMenu")}
+          onClick={() => setIsExpanded(true)}
+          className="w-full flex items-start gap-3 text-left group"
+          aria-label={t("createPost.title")}
         >
-          <Avatar className="h-11 w-11 sm:h-12 sm:w-12">
+          <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
             <AvatarImage src={user?.avatarUrl ?? undefined} alt={user.username} />
             <AvatarFallback>
               <UserIcon className="h-6 w-6" />
             </AvatarFallback>
           </Avatar>
+          <div className="flex-1 h-11 sm:h-12 rounded-lg bg-transparent transition-colors flex items-start">
+            <span className="mt-2.25 md:mt-2 text-base md:text-lg text-muted-foreground">
+              {placeholder}
+            </span>
+          </div>
         </button>
-      </PopoverTrigger>
+      )}
 
-      <PopoverContent className="p-0 w-64" side="left" align="start">
-        <UserMenuContent
-          user={user}
-          initials={initials}
-          currentView={menuView}
-          onViewChange={setMenuView}
-          theme={theme}
-          onThemeChange={setTheme}
-          locale={locale}
-          onLanguageChange={handleLanguageChange}
-          onProfileClick={() => handleProfileClick(user.username)}
-          onSettingsClick={handleSettingsClick}
-          onLogoutClick={handleLogoutClick}
-          onUserInfoClick={() => handleUserInfoClick(user.username)}
-          onClose={() => handleMenuOpenChange(false)}
-          isMobile={false}
+      {/* Expanded State */}
+      {isExpanded && (
+        <PostComposerContent
+          layout="card"
+          compose={compose}
+          avatar={avatarElement}
+          placeholder={placeholder}
         />
-      </PopoverContent>
-    </Popover>
-  );
-
-  return (
-    <>
-      <div
-        ref={composeCardRef}
-        className="bg-card rounded-xl sm:rounded-2xl p-3 relative"
-        onDragOver={compose.handleDragOver}
-        onDragEnter={compose.handleDragEnter}
-        onDragLeave={compose.handleDragLeave}
-        onDrop={compose.handleDrop}
-      >
-        {/* Collapsed State */}
-        {!isExpanded && (
-          <button
-            onClick={() => setIsExpanded(true)}
-            className="w-full flex items-start gap-3 text-left group"
-            aria-label={t("createPost.title")}
-          >
-            <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
-              <AvatarImage src={user?.avatarUrl ?? undefined} alt={user.username} />
-              <AvatarFallback>
-                <UserIcon className="h-6 w-6" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 h-11 sm:h-12 rounded-lg bg-transparent transition-colors flex items-start">
-              <span className="mt-2.25 md:mt-2 text-base md:text-lg text-muted-foreground">
-                {placeholder}
-              </span>
-            </div>
-          </button>
-        )}
-
-        {/* Expanded State */}
-        {isExpanded && (
-          <PostComposerContent
-            layout="card"
-            compose={compose}
-            avatar={avatarElement}
-            onBlur={handleBlur}
-            placeholder={placeholder}
-          />
-        )}
-      </div>
-
-      {/* Logout Confirmation Dialog */}
-      <LogoutConfirmDialog
-        open={isLogoutOpen}
-        onOpenChange={setIsLogoutOpen}
-        onConfirm={handleLogoutConfirm}
-      />
-    </>
+      )}
+    </div>
   );
 }

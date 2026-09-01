@@ -17,6 +17,7 @@ import (
 	"backend/internal/realtime"
 	"backend/internal/repository"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -28,15 +29,24 @@ type InviteServiceInterface interface {
 }
 
 type AuthService struct {
-	store          *repository.Store
-	sessions       auth.LoginSessionStore
-	stepupSessions auth.StepupSessionStore
-	tokens         *auth.TokenManager
-	loginTTL       time.Duration
-	now            func() time.Time
-	configMgr      *config.Manager
-	inviteSvc      InviteServiceInterface
-	publisher      realtime.Publisher
+	store            *repository.Store
+	sessions         auth.LoginSessionStore
+	stepupSessions   auth.StepupSessionStore
+	tokens           *auth.TokenManager
+	loginTTL         time.Duration
+	now              func() time.Time
+	configMgr        *config.Manager
+	inviteSvc        InviteServiceInterface
+	publisher        realtime.Publisher
+	search           *SearchService
+	reactions        *ReactionsService
+	secretBox        *auth.SecretBox
+	mfaSessions      auth.MfaSessionStore
+	totpSetup        auth.TotpSetupStore
+	webauthn         *webauthn.WebAuthn
+	webauthnSessions auth.WebAuthnSessionStore
+	attempts         auth.AttemptLimiter
+	totpIssuer       string
 }
 
 func NewAuthService(store *repository.Store, tokens *auth.TokenManager) *AuthService {
@@ -102,6 +112,18 @@ func (s *AuthService) SetInviteService(inviteSvc InviteServiceInterface) {
 // SetPublisher sets the realtime event publisher.
 func (s *AuthService) SetPublisher(publisher realtime.Publisher) {
 	s.publisher = publisher
+}
+
+// SetSearchService wires the search index so new and deleted accounts show up
+// in, and disappear from, user search.
+func (s *AuthService) SetSearchService(search *SearchService) {
+	s.search = search
+}
+
+// SetReactionsService wires reaction cleanup into account deletion: the reaction
+// counters are denormalised and no cascade reaches them.
+func (s *AuthService) SetReactionsService(reactions *ReactionsService) {
+	s.reactions = reactions
 }
 
 // validateRegistrationInput validates username and password from registration request
@@ -273,6 +295,12 @@ func (s *AuthService) createUserTransaction(
 			return err
 		}
 
+		// Everyone starts with one bookmark list. Its name is left NULL so the
+		// client can label it in the reader's own language.
+		if err := q.CreateDefaultBookmarkList(ctx, u.ID); err != nil {
+			return err
+		}
+
 		// Record invite code usage within the same transaction
 		if inviteCodeID != uuid.Nil {
 			_, err = q.RecordInviteCodeUse(ctx, sqlc.RecordInviteCodeUseParams{
@@ -338,8 +366,9 @@ func (s *AuthService) Register(ctx context.Context, req api.RegisterRequest) (ap
 			slog.Warn("failed to publish user_registered event", "error", err)
 		}
 	}
+	s.search.ReindexUser(ctx, created.ID)
 
-	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt), nil
+	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt, created.IsPrivate), nil
 }
 
 func (s *AuthService) LoginStart(ctx context.Context, req api.LoginStartRequest) (api.LoginStartResponse, error) {
@@ -466,22 +495,56 @@ func (s *AuthService) LoginFinish(ctx context.Context, req api.LoginFinishReques
 		return api.LoginFinishResponse{}, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid proof")
 	}
 
-	token, expiresIn, err := s.tokens.Issue(auth.User{ID: row.UserID, Username: row.Username})
+	// Two-factor check: if the account has any second factor enrolled,
+	// issue a short-lived MFA session instead of tokens.
+	methods, err := s.ListMFAMethods(ctx, row.UserID)
 	if err != nil {
 		return api.LoginFinishResponse{}, "", err
 	}
+	if len(methods) > 0 {
+		mfaToken, expiresIn, err := s.issueMfaSession(row.UserID, row.Username, auth.MfaPurposeLogin, methods)
+		if err != nil {
+			return api.LoginFinishResponse{}, "", err
+		}
+		resp, err := toLoginFinishResponse(api.LoginMfaRequired{
+			Status:           api.LoginMfaRequiredStatusMfaRequired,
+			MfaToken:         mfaToken,
+			ExpiresInSeconds: expiresIn,
+			Methods:          methods,
+		})
+		if err != nil {
+			return api.LoginFinishResponse{}, "", err
+		}
+		return resp, "", nil
+	}
 
-	rawRefreshToken, err := s.issueRefreshToken(ctx, row.UserID)
+	login, _, refresh, err := s.completeLogin(ctx, row.UserID, row.Username)
 	if err != nil {
 		return api.LoginFinishResponse{}, "", err
 	}
+	resp, err := toLoginFinishResponseFromAuthenticated(login)
+	if err != nil {
+		return api.LoginFinishResponse{}, "", err
+	}
+	return resp, refresh, nil
+}
 
-	return api.LoginFinishResponse{
-		AccessToken:      token,
-		TokenType:        api.LoginFinishResponseTokenType("Bearer"),
-		ExpiresInSeconds: expiresIn,
-		User:             mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt),
-	}, rawRefreshToken, nil
+// toLoginFinishResponse wraps a LoginMfaRequired variant into the union type.
+func toLoginFinishResponse(v api.LoginMfaRequired) (api.LoginFinishResponse, error) {
+	var out api.LoginFinishResponse
+	if err := out.FromLoginMfaRequired(v); err != nil {
+		return api.LoginFinishResponse{}, err
+	}
+	return out, nil
+}
+
+// toLoginFinishResponseFromAuthenticated wraps a LoginAuthenticated into the union type.
+func toLoginFinishResponseFromAuthenticated(v api.LoginAuthenticated) (api.LoginFinishResponse, error) {
+	var out api.LoginFinishResponse
+	if err := out.FromLoginAuthenticated(v); err != nil {
+		return api.LoginFinishResponse{}, err
+	}
+	return out, nil
 }
 
 // RefreshSession validates a raw refresh token, rotates it, and issues a new access token.
@@ -630,19 +693,46 @@ func (s *AuthService) StepUpFinish(ctx context.Context, user auth.User, req api.
 		return api.StepupFinishResponse{}, NewError(http.StatusUnauthorized, "unauthorized", "invalid proof")
 	}
 
+	// Two-factor check for step-up as well.
+	methods, err := s.ListMFAMethods(ctx, user.ID)
+	if err != nil {
+		auditStepup(ctx, "auth.stepup.finish", "failure", user, "internal")
+		return api.StepupFinishResponse{}, err
+	}
+	if len(methods) > 0 {
+		mfaToken, expiresIn, err := s.issueMfaSession(user.ID, row.Username, auth.MfaPurposeStepup, methods)
+		if err != nil {
+			return api.StepupFinishResponse{}, err
+		}
+		var out api.StepupFinishResponse
+		if err := out.FromStepupMfaRequired(api.StepupMfaRequired{
+			Status:           api.StepupMfaRequiredStatusMfaRequired,
+			MfaToken:         mfaToken,
+			ExpiresInSeconds: expiresIn,
+			Methods:          methods,
+		}); err != nil {
+			return api.StepupFinishResponse{}, err
+		}
+		return out, nil
+	}
+
 	token, expiresIn, err := s.tokens.IssueStepup(auth.User{ID: row.UserID, Username: row.Username})
 	if err != nil {
 		auditStepup(ctx, "auth.stepup.finish", "failure", user, "internal")
 		return api.StepupFinishResponse{}, err
 	}
 
-	resp := api.StepupFinishResponse{
+	var out api.StepupFinishResponse
+	if err := out.FromStepupAuthenticated(api.StepupAuthenticated{
+		Status:           api.StepupAuthenticatedStatusAuthenticated,
 		StepupToken:      token,
-		TokenType:        api.StepupFinishResponseTokenType("Stepup"),
+		TokenType:        api.Stepup,
 		ExpiresInSeconds: expiresIn,
+	}); err != nil {
+		return api.StepupFinishResponse{}, err
 	}
 	auditStepup(ctx, "auth.stepup.finish", "success", user, "")
-	return resp, nil
+	return out, nil
 }
 
 func (s *AuthService) ChangePassword(ctx context.Context, user auth.User, req api.PasswordChangeRequest) error {
@@ -708,7 +798,28 @@ func (s *AuthService) DeleteAccount(ctx context.Context, user auth.User) error {
 		slog.Warn("failed to revoke refresh tokens before account deletion", "error", err, "user_id", user.ID.String())
 	}
 
-	return s.store.Q.DeleteUserByID(ctx, user.ID)
+	// The reactions have to go first and in the same transaction: post_reaction_counts
+	// is a denormalised counter with no key back to the user, so once the cascade
+	// removes the events there is nothing left to subtract and the post keeps
+	// showing a reaction nobody made.
+	var reactedPosts []uuid.UUID
+	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		if s.reactions != nil {
+			var err error
+			reactedPosts, err = s.reactions.PurgeUserReactions(ctx, q, user.ID)
+			if err != nil {
+				return err
+			}
+		}
+		return q.DeleteUserByID(ctx, user.ID)
+	}); err != nil {
+		return err
+	}
+	if s.reactions != nil {
+		s.reactions.InvalidatePostCounts(ctx, reactedPosts)
+	}
+	s.search.RemoveUser(ctx, user.ID)
+	return nil
 }
 
 func auditStepup(ctx context.Context, event, outcome string, user auth.User, reason string) {

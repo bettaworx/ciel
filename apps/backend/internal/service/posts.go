@@ -31,10 +31,13 @@ const (
 )
 
 type PostsService struct {
-	store     *repository.Store
-	cache     cache.Cache
-	publisher realtime.Publisher
-	reactions *ReactionsService
+	store         *repository.Store
+	cache         cache.Cache
+	publisher     realtime.Publisher
+	reactions     *ReactionsService
+	notifications *NotificationsService
+	search        *SearchService
+	bookmarks     *BookmarksService
 }
 
 func NewPostsService(store *repository.Store, cache cache.Cache, publisher realtime.Publisher) *PostsService {
@@ -43,6 +46,21 @@ func NewPostsService(store *repository.Store, cache cache.Cache, publisher realt
 
 func (s *PostsService) SetReactionsService(reactions *ReactionsService) {
 	s.reactions = reactions
+}
+
+func (s *PostsService) SetNotificationsService(notifications *NotificationsService) {
+	s.notifications = notifications
+}
+
+func (s *PostsService) SetSearchService(search *SearchService) {
+	s.search = search
+}
+
+// SetBookmarksService injects the bookmarks service. It has to be a setter:
+// BookmarksService takes PostsService in its constructor to hydrate list pages,
+// so the dependency only closes in one direction at build time.
+func (s *PostsService) SetBookmarksService(bookmarks *BookmarksService) {
+	s.bookmarks = bookmarks
 }
 
 func (s *PostsService) Create(ctx context.Context, user auth.User, req api.CreatePostRequest) (api.Post, error) {
@@ -86,21 +104,43 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		}
 	}
 
+	// Read once, before the transaction. The guards below used to be a round trip
+	// each, asked one author at a time.
+	scope, err := LoadViewerScope(ctx, s.store, &user.ID)
+	if err != nil {
+		return api.Post{}, err
+	}
+
 	var created sqlc.CreatePostRow
+	var createdNotifications []CreatedNotification
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
 		var parentID, rootID, referenceID uuid.NullUUID
+		var parentAuthorID, referenceAuthorID uuid.UUID
+		var mentionedIDs []uuid.UUID
+		createdNotifications = nil
 		if req.ParentId != nil {
-			parent, err := q.GetPostThreadInfoByID(ctx, *req.ParentId)
+			parent, err := q.GetPostThreadInfoByID(ctx, sqlc.GetPostThreadInfoByIDParams{
+				ID:       *req.ParentId,
+				ViewerID: uuid.NullUUID{UUID: user.ID, Valid: true},
+			})
 			if err != nil {
 				if err == sql.ErrNoRows {
 					return NewError(http.StatusNotFound, "not_found", "parent post not found")
 				}
 				return err
 			}
-			if parent.DeletedAt.Valid {
+			// A post the caller cannot see is reported as missing, so replying
+			// cannot be used to confirm that a private post exists.
+			if parent.DeletedAt.Valid || !parent.CanView {
 				return NewError(http.StatusNotFound, "not_found", "parent post not found")
 			}
+			// can_view_user lets the blocker keep reading — that is what the
+			// reveal cushion needs — so the refusal to interact is separate.
+			if !scope.CanInteractWith(parent.UserID) {
+				return NewError(http.StatusForbidden, "blocked", "cannot reply to this post")
+			}
 			parentID = uuid.NullUUID{UUID: parent.ID, Valid: true}
+			parentAuthorID = parent.UserID
 			if parent.RootID.Valid {
 				rootID = parent.RootID
 			} else {
@@ -109,7 +149,10 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		}
 
 		if req.ReferenceId != nil {
-			ref, err := q.GetPostThreadInfoByID(ctx, *req.ReferenceId)
+			ref, err := q.GetPostThreadInfoByID(ctx, sqlc.GetPostThreadInfoByIDParams{
+				ID:       *req.ReferenceId,
+				ViewerID: uuid.NullUUID{UUID: user.ID, Valid: true},
+			})
 			if err != nil {
 				if err == sql.ErrNoRows {
 					if !autoDetectedReference {
@@ -118,12 +161,27 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 				} else {
 					return err
 				}
-			} else if ref.DeletedAt.Valid {
+			} else if ref.DeletedAt.Valid || !ref.CanView {
 				if !autoDetectedReference {
 					return NewError(http.StatusNotFound, "not_found", "referenced post not found")
 				}
+			} else if ref.AuthorIsPrivate {
+				// Boosting and quoting both republish the post to an audience the
+				// author never approved, so both are refused even for accepted
+				// followers who can otherwise see and reply to it. A link that
+				// happened to parse as a reference is just left unlinked.
+				if !autoDetectedReference {
+					return NewError(http.StatusForbidden, "private_account", "this post cannot be boosted or quoted")
+				}
+			} else if !scope.CanInteractWith(ref.UserID) {
+				// Same reasoning as the reply guard above. An auto-detected link
+				// is left unlinked rather than failing the post.
+				if !autoDetectedReference {
+					return NewError(http.StatusForbidden, "blocked", "this post cannot be boosted or quoted")
+				}
 			} else {
 				referenceID = uuid.NullUUID{UUID: ref.ID, Valid: true}
+				referenceAuthorID = ref.UserID
 			}
 		}
 
@@ -169,6 +227,17 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 				}); err != nil {
 					return err
 				}
+				mentionedIDs = append(mentionedIDs, u.ID)
+			}
+		}
+
+		for _, target := range PostNotifyTargets(created.ID, user.ID, parentAuthorID, referenceAuthorID, mentionedIDs) {
+			id, err := Notify(ctx, q, target)
+			if err != nil {
+				return err
+			}
+			if id != uuid.Nil {
+				createdNotifications = append(createdNotifications, CreatedNotification{ID: id, UserID: target.UserID})
 			}
 		}
 		return nil
@@ -176,7 +245,12 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		return api.Post{}, err
 	}
 
-	row, err := s.store.Q.GetPostWithAuthorByID(ctx, created.ID)
+	// The author is the viewer here, so a private user can still read back the
+	// post they just made.
+	row, err := s.store.Q.GetPostWithAuthorByID(ctx, sqlc.GetPostWithAuthorByIDParams{
+		ID:       created.ID,
+		ViewerID: uuid.NullUUID{UUID: user.ID, Valid: true},
+	})
 	if err != nil {
 		return api.Post{}, err
 	}
@@ -194,7 +268,7 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 	if err := s.attachBoostCountsToPosts(ctx, posts); err != nil {
 		return api.Post{}, err
 	}
-	if err := s.attachReferencesToPosts(ctx, posts, nil); err != nil {
+	if err := s.attachReferencesToPosts(ctx, posts, &user.ID); err != nil {
 		return api.Post{}, err
 	}
 	post = posts[0]
@@ -203,9 +277,13 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		key := timelineKeyGlobal()
 		score := float64(post.CreatedAt.UnixMilli())
 		_ = s.cache.ZAdd(ctx, key, cache.Z{Score: score, Member: post.Id.String()})
+		_ = s.cache.ZRemRangeByRank(ctx, key, 0, -(globalTimelineMaxEntries + 1))
+		s.fanOutToHomeTimelines(ctx, user.ID, post.Id, score)
 	}
 
-	s.publish(ctx, realtime.Event{Type: realtime.EventPostCreated, Post: &post})
+	s.publishScoped(ctx, user.ID, realtime.Event{Type: realtime.EventPostCreated, Post: &post})
+	s.notifications.Publish(ctx, s.publisher, createdNotifications)
+	s.search.ReindexPost(ctx, post.Id)
 	return post, nil
 }
 
@@ -213,7 +291,10 @@ func (s *PostsService) Get(ctx context.Context, postID api.PostId, userID *api.U
 	if s.store == nil {
 		return api.Post{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
-	row, err := s.store.Q.GetPostWithAuthorByID(ctx, postID)
+	row, err := s.store.Q.GetPostWithAuthorByID(ctx, sqlc.GetPostWithAuthorByIDParams{
+		ID:       postID,
+		ViewerID: nullUUIDFromPtr(userID),
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return api.Post{}, NewError(http.StatusNotFound, "not_found", "post not found")
@@ -228,7 +309,7 @@ func (s *PostsService) Get(ctx context.Context, postID api.PostId, userID *api.U
 		return api.Post{}, err
 	}
 	posts := []api.Post{post}
-	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
 		return api.Post{}, err
 	}
 	if err := s.attachMentionsToPosts(ctx, posts); err != nil {
@@ -251,7 +332,7 @@ func (s *PostsService) GetContext(ctx context.Context, postID api.PostId, userID
 		return api.PostContext{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
 
-	post, err := s.getVisiblePost(ctx, postID)
+	post, err := s.getVisiblePost(ctx, postID, userID)
 	if err != nil {
 		return api.PostContext{}, err
 	}
@@ -264,7 +345,7 @@ func (s *PostsService) GetContext(ctx context.Context, postID api.PostId, userID
 		relatedIDs = append(relatedIDs, uuid.UUID(*post.RootId))
 	}
 
-	relatedByID, err := s.getVisiblePostsByIDs(ctx, relatedIDs)
+	relatedByID, err := s.getVisiblePostsByIDs(ctx, relatedIDs, userID)
 	if err != nil {
 		return api.PostContext{}, err
 	}
@@ -325,7 +406,7 @@ func (s *PostsService) GetThread(ctx context.Context, postID api.PostId, params 
 		return api.ThreadPage{}, NewError(http.StatusBadRequest, "invalid_request", "childLimit must be 1..30")
 	}
 
-	root, err := s.getVisiblePost(ctx, postID)
+	root, err := s.getVisiblePost(ctx, postID, userID)
 	if err != nil {
 		return api.ThreadPage{}, err
 	}
@@ -337,7 +418,7 @@ func (s *PostsService) GetThread(ctx context.Context, postID api.PostId, params 
 
 	anchor := root
 	if anchorID != postID {
-		anchor, err = s.getVisiblePost(ctx, anchorID)
+		anchor, err = s.getVisiblePost(ctx, anchorID, userID)
 		if err != nil {
 			return api.ThreadPage{}, err
 		}
@@ -375,6 +456,7 @@ func (s *PostsService) GetThread(ctx context.Context, postID api.PostId, params 
 	for level := 1; level <= depth && len(parentIDs) > 0; level++ {
 		queryParams := sqlc.ListThreadChildrenPageParams{
 			ParentIds:    parentIDs,
+			ViewerID:     nullUUIDFromPtr(userID),
 			LimitPlusOne: int32(childLimit + 1),
 		}
 		if level == 1 && cursor != nil {
@@ -450,8 +532,14 @@ func (s *PostsService) GetThread(ctx context.Context, postID api.PostId, params 
 	}, nil
 }
 
-func (s *PostsService) getVisiblePost(ctx context.Context, postID api.PostId) (api.Post, error) {
-	row, err := s.store.Q.GetPostWithAuthorByID(ctx, postID)
+// getVisiblePost now lives up to its name: the query hides posts whose author is
+// private to this viewer, and a hidden author is reported as not found so the
+// response cannot distinguish "private" from "never existed".
+func (s *PostsService) getVisiblePost(ctx context.Context, postID api.PostId, userID *api.UserId) (api.Post, error) {
+	row, err := s.store.Q.GetPostWithAuthorByID(ctx, sqlc.GetPostWithAuthorByIDParams{
+		ID:       postID,
+		ViewerID: nullUUIDFromPtr(userID),
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return api.Post{}, NewError(http.StatusNotFound, "not_found", "post not found")
@@ -464,12 +552,21 @@ func (s *PostsService) getVisiblePost(ctx context.Context, postID api.PostId) (a
 	return mapPostRow(row), nil
 }
 
-func (s *PostsService) getVisiblePostsByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]api.Post, error) {
+func (s *PostsService) getVisiblePostsByIDs(ctx context.Context, ids []uuid.UUID, userID *api.UserId) (map[uuid.UUID]api.Post, error) {
 	result := make(map[uuid.UUID]api.Post, len(ids))
 	if len(ids) == 0 {
 		return result, nil
 	}
-	rows, err := s.store.Q.GetPostsByIDs(ctx, ids)
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
+		Ids:          ids,
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -479,11 +576,49 @@ func (s *PostsService) getVisiblePostsByIDs(ctx context.Context, ids []uuid.UUID
 	return result, nil
 }
 
+// GetHydratedPostsByIDs returns fully hydrated posts (media, reactions, mentions,
+// counts, reference) keyed by post ID. Deleted posts are omitted. Used by
+// NotificationsService to embed posts without an N+1 per notification.
+func (s *PostsService) GetHydratedPostsByIDs(ctx context.Context, ids []uuid.UUID, userID *api.UserId, surface Surface) (map[uuid.UUID]api.Post, error) {
+	result := make(map[uuid.UUID]api.Post, len(ids))
+	if s.store == nil || len(ids) == 0 {
+		return result, nil
+	}
+	ctx, scope, err := EnsureViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
+		Ids:          ids,
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	posts := make([]api.Post, 0, len(rows))
+	for _, row := range rows {
+		posts = append(posts, mapPostsByIDsRow(row))
+	}
+	if err := s.attachPostDetails(ctx, posts, userID); err != nil {
+		return nil, err
+	}
+	// Filtered here rather than by the caller. Callers walk their own ordering
+	// and skip ids the map does not hold, so dropping an entry is all it takes —
+	// and it means a new caller cannot forget, which is what went wrong three
+	// times before this argument existed.
+	for _, post := range scope.Filter(posts, surface) {
+		result[post.Id] = post
+	}
+	return result, nil
+}
+
 func (s *PostsService) attachPostDetails(ctx context.Context, posts []api.Post, userID *api.UserId) error {
 	if err := s.attachMediaToPosts(ctx, posts); err != nil {
 		return err
 	}
-	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
 		return err
 	}
 	if err := s.attachMentionsToPosts(ctx, posts); err != nil {
@@ -551,8 +686,15 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 		excludeForeignReplies = sql.NullBool{Bool: true, Valid: true}
 	}
 
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return api.UserPostsPage{}, err
+	}
 	rows, err := s.store.Q.ListPostsByUsername(ctx, sqlc.ListPostsByUsernameParams{
 		Username:              uname,
+		ViewerID:              nullUUIDFromPtr(userID),
+		HiddenIds:             scope.HiddenIDs(),
+		BlockedByIds:          scope.BlockedByIDs(),
 		MediaType:             mediaType,
 		OnlyReplies:           onlyReplies,
 		ExcludeForeignReplies: excludeForeignReplies,
@@ -571,7 +713,7 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 	if err := s.attachMediaToPosts(ctx, items); err != nil {
 		return api.UserPostsPage{}, err
 	}
-	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, items, userID); err != nil {
 		return api.UserPostsPage{}, err
 	}
 	if err := s.attachMentionsToPosts(ctx, items); err != nil {
@@ -603,6 +745,25 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 		nextCursor = &n
 	}
 	return api.UserPostsPage{Items: items, NextCursor: nextCursor}, nil
+}
+
+// attachViewerStateToPosts fills the fields of a page of posts that depend on
+// who is reading: reactions with the caller's own marked, the caller's bookmark
+// lists, and whether the author is muted or blocked. Every read path funnels
+// through here, so a new viewer-scoped field only has to be wired in one place.
+//
+// The one exception is the timeline, which has its own copy for the reason given
+// on TimelineService.attachViewerStateToPosts.
+func (s *PostsService) attachViewerStateToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
+	if err := s.attachReactionsToPosts(ctx, posts, userID); err != nil {
+		return err
+	}
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return err
+	}
+	scope.StampAuthorFlags(posts)
+	return attachBookmarkListIDs(ctx, s.bookmarks, posts, userID)
 }
 
 func (s *PostsService) attachReactionsToPosts(ctx context.Context, posts []api.Post, userID *api.UserId) error {
@@ -774,6 +935,7 @@ func (s *PostsService) Delete(ctx context.Context, user auth.User, postID api.Po
 	}
 	pid := postID
 	s.publish(ctx, realtime.Event{Type: realtime.EventPostDeleted, PostId: &pid})
+	s.search.ReindexPost(ctx, postID)
 	return nil
 }
 
@@ -851,14 +1013,17 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 		return api.TimelinePage{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
 
-	parent, err := s.store.Q.GetPostThreadInfoByID(ctx, parentID)
+	parent, err := s.store.Q.GetPostThreadInfoByID(ctx, sqlc.GetPostThreadInfoByIDParams{
+		ID:       parentID,
+		ViewerID: nullUUIDFromPtr(userID),
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return api.TimelinePage{}, NewError(http.StatusNotFound, "not_found", "post not found")
 		}
 		return api.TimelinePage{}, err
 	}
-	if parent.DeletedAt.Valid {
+	if parent.DeletedAt.Valid || !parent.CanView {
 		return api.TimelinePage{}, NewError(http.StatusNotFound, "not_found", "post not found")
 	}
 
@@ -886,8 +1051,14 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 		}
 	}
 
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return api.TimelinePage{}, err
+	}
 	rows, err := s.store.Q.ListRepliesByParentID(ctx, sqlc.ListRepliesByParentIDParams{
-		ParentID:   uuid.NullUUID{UUID: parentID, Valid: true},
+		ParentID:     uuid.NullUUID{UUID: parentID, Valid: true},
+		ViewerID:     nullUUIDFromPtr(userID),
+		BlockedByIds: scope.BlockedByIDs(),
 		CursorTime: cTime,
 		CursorID:   cID,
 		Limit:      int32(limit),
@@ -903,7 +1074,7 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 	if err := s.attachMediaToPosts(ctx, items); err != nil {
 		return api.TimelinePage{}, err
 	}
-	if err := s.attachReactionsToPosts(ctx, items, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, items, userID); err != nil {
 		return api.TimelinePage{}, err
 	}
 	if err := s.attachMentionsToPosts(ctx, items); err != nil {
@@ -930,15 +1101,124 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 
 func timelineKeyGlobal() string { return "timeline:global" }
 
+// timelineKeyHome is the per-user home timeline ZSET, written by fan-out on
+// post creation. Unlike the global key this one is always partial, so an empty
+// result never means "the timeline is empty" — see TimelineService.GetHome.
+func timelineKeyHome(userID uuid.UUID) string { return "timeline:home:" + userID.String() }
+
 // TimelineKeyGlobal returns the Redis key used for the global timeline.
 // Primarily used by tests living outside this package.
 func TimelineKeyGlobal() string { return timelineKeyGlobal() }
+
+// TimelineKeyHome returns the Redis key used for a user's home timeline.
+// Primarily used by tests living outside this package.
+func TimelineKeyHome(userID uuid.UUID) string { return timelineKeyHome(userID) }
+
+// homeTimelineMaxEntries caps each per-user ZSET. Deep pagination falls back to
+// the database, so this only bounds how much of the feed stays hot.
+const homeTimelineMaxEntries = 800
+
+// globalTimelineMaxEntries caps the shared global ZSET, which until now grew
+// without bound. Capping is only safe because TimelineService.Get falls back to
+// the database as soon as the cache cannot fill a whole page.
+const globalTimelineMaxEntries = 800
+
+// homeTimelineTTL lets the timelines of dormant users expire instead of
+// accumulating in Redis forever.
+const homeTimelineTTL = 7 * 24 * time.Hour
+
+// maxFanoutFollowers caps how many followers a single post is pushed to.
+//
+// ponytail: synchronous fan-out on the request path, truncated at this many
+// followers. Anyone past the cap still gets the post from the database path,
+// just without the cache. Move to a queue if this shows up in post latency.
+const maxFanoutFollowers = 5000
+
+// fanOutToHomeTimelines pushes a new post into the author's own home timeline
+// and those of their followers.
+//
+// Every error is ignored: the database query is the source of truth for the
+// home timeline, so a cold or stale cache costs speed, never correctness.
+func (s *PostsService) fanOutToHomeTimelines(ctx context.Context, authorID uuid.UUID, postID uuid.UUID, score float64) {
+	if s.cache == nil || s.store == nil {
+		return
+	}
+	followerIDs, err := s.store.Q.ListFollowerIDs(ctx, sqlc.ListFollowerIDsParams{
+		FolloweeID: authorID,
+		Limit:      maxFanoutFollowers,
+	})
+	if err != nil {
+		return
+	}
+	member := postID.String()
+	for _, uid := range append(followerIDs, authorID) {
+		key := timelineKeyHome(uid)
+		if err := s.cache.ZAdd(ctx, key, cache.Z{Score: score, Member: member}); err != nil {
+			continue
+		}
+		_ = s.cache.ZRemRangeByRank(ctx, key, 0, -(homeTimelineMaxEntries + 1))
+		_ = s.cache.Expire(ctx, key, homeTimelineTTL)
+	}
+}
 
 func (s *PostsService) publish(ctx context.Context, event realtime.Event) {
 	if s.publisher == nil {
 		return
 	}
 	_ = s.publisher.Publish(ctx, event)
+}
+
+func (s *PostsService) publishScoped(ctx context.Context, authorID uuid.UUID, event realtime.Event) {
+	publishScoped(ctx, s.store, s.publisher, authorID, event)
+}
+
+// publishScoped broadcasts normally for a public author, but for a private one
+// sends the event to that author's accepted followers individually.
+//
+// This exists because the hub fans an untargeted event out to every open
+// connection, including unauthenticated ones (realtime/hub.go): a private user's
+// activity would otherwise be pushed live to the whole server no matter how well
+// the database queries are gated. Only events carrying a TargetUserId are
+// restricted.
+//
+// It is one function shared by posts and reactions rather than a method on each,
+// so the two cannot drift apart — a divergence here is a privacy leak.
+//
+// Errors are swallowed like the rest of the realtime path: a missed live update
+// is a refresh away, and the database stays the source of truth. The one thing
+// that must never happen is falling back to a public broadcast on error.
+func publishScoped(ctx context.Context, store *repository.Store, publisher realtime.Publisher, authorID uuid.UUID, event realtime.Event) {
+	if publisher == nil || store == nil {
+		return
+	}
+	private, err := store.Q.IsUserPrivate(ctx, authorID)
+	if err != nil {
+		// Unknown privacy state: stay silent rather than risk broadcasting a
+		// private user's activity to everyone.
+		return
+	}
+	if !private {
+		_ = publisher.Publish(ctx, event)
+		return
+	}
+	followerIDs, err := store.Q.ListFollowerIDs(ctx, sqlc.ListFollowerIDsParams{
+		FolloweeID: authorID,
+		Limit:      maxFanoutFollowers,
+	})
+	if err != nil {
+		return
+	}
+	recipients := make([]api.UserId, 0, len(followerIDs)+1)
+	for _, id := range followerIDs {
+		recipients = append(recipients, api.UserId(id))
+	}
+	recipients = append(recipients, api.UserId(authorID))
+	// One event carrying every recipient, not one event each. Publish marshals,
+	// signs and pushes to Redis per call, so the loop this replaces cost a full
+	// round trip per follower — up to maxFanoutFollowers of them for a single
+	// post, and again for every reaction on it.
+	event.TargetUserIds = recipients
+	_ = publisher.Publish(ctx, event)
 }
 
 func isUniqueViolation(err error) bool {
@@ -992,7 +1272,19 @@ func (s *PostsService) attachReferencesToPosts(ctx context.Context, posts []api.
 		return nil
 	}
 
-	refRows, err := s.store.Q.GetPostsByIDs(ctx, refIDs)
+	// Quoted and boosted posts go through the same gate as anything else, so a
+	// boost made while the author was public collapses to a bare boost once they
+	// go private, rather than carrying their post to a stranger's timeline.
+	scope, err := LoadViewerScope(ctx, s.store, userID)
+	if err != nil {
+		return err
+	}
+	refRows, err := s.store.Q.GetPostsByIDs(ctx, sqlc.GetPostsByIDsParams{
+		Ids:          refIDs,
+		ViewerID:     nullUUIDFromPtr(userID),
+		HiddenIds:    scope.HiddenIDs(),
+		BlockedByIds: scope.BlockedByIDs(),
+	})
 	if err != nil {
 		return err
 	}
@@ -1006,7 +1298,7 @@ func (s *PostsService) attachReferencesToPosts(ctx context.Context, posts []api.
 	if err := s.attachMediaToPosts(ctx, refPosts); err != nil {
 		return err
 	}
-	if err := s.attachReactionsToPosts(ctx, refPosts, userID); err != nil {
+	if err := s.attachViewerStateToPosts(ctx, refPosts, userID); err != nil {
 		return err
 	}
 	if err := s.attachMentionsToPosts(ctx, refPosts); err != nil {
@@ -1019,12 +1311,38 @@ func (s *PostsService) attachReferencesToPosts(ctx context.Context, posts []api.
 		return err
 	}
 
+	// A reference that did not come back is either deleted or unreadable, and
+	// GetPostsByIDs cannot tell the two apart: it applies can_view_user and drops
+	// both cases identically. Ask whether the rows still exist, so the client can
+	// say "the audience is restricted" rather than claiming the post was deleted.
+	restricted := map[uuid.UUID]struct{}{}
+	missing := make([]uuid.UUID, 0)
+	for _, rid := range refIDs {
+		if _, ok := refMap[rid]; !ok {
+			missing = append(missing, rid)
+		}
+	}
+	if len(missing) > 0 {
+		alive, err := s.store.Q.ListExistingPostIDs(ctx, missing)
+		if err != nil {
+			return err
+		}
+		for _, id := range alive {
+			restricted[id] = struct{}{}
+		}
+	}
+
 	for i, p := range posts {
 		if p.ReferenceId != nil {
 			rid := uuid.UUID(*p.ReferenceId)
 			if ri, ok := refMap[rid]; ok {
 				ref := refPosts[ri]
 				posts[i].Reference = &ref
+				continue
+			}
+			if _, ok := restricted[rid]; ok {
+				flag := true
+				posts[i].ReferenceRestricted = &flag
 			}
 		}
 	}

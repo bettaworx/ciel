@@ -9,8 +9,10 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { useApi } from '@/lib/api/use-api';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, ExternalLink, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
 import { Spinner } from '@/components/ui/spinner';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -25,6 +27,27 @@ export default function UsersPage() {
 	const tEmpty = useTranslations('admin.empty.users');
 	const tCommon = useTranslations('admin.common');
 	const api = useApi();
+
+	const queryClient = useQueryClient();
+
+	// Forcing an account private runs the same service call the user's own
+	// switch does, so moderation and self-service cannot drift apart. The change
+	// is reversible and destroys nothing: releasing the account restores its
+	// history and accepts the follow requests it collected meanwhile.
+	const setPrivacy = useMutation({
+		mutationFn: async ({ userId, isPrivate }: { userId: string; isPrivate: boolean }) => {
+			const res = await api.adminUpdateUserPrivacy(userId, { isPrivate });
+			if (!res.ok) throw new Error(res.errorText);
+			return res.data;
+		},
+		onSuccess: (_data, variables) => {
+			queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+			toast.success(
+				variables.isPrivate ? t('privacy.enabled') : t('privacy.disabled'),
+			);
+		},
+		onError: () => toast.error(t('privacy.error')),
+	});
 
 	const [search, setSearch] = useState('');
 	const [sort, setSort] = useState<SortOption>('created_desc');
@@ -159,6 +182,7 @@ export default function UsersPage() {
 										<th className="pb-3">{t('table.username')}</th>
 										<th className="pb-3">{t('table.displayName')}</th>
 										<th className="pb-3">{t('table.roles')}</th>
+										<th className="pb-3">{t('table.private')}</th>
 										<th className="pb-3">{t('table.createdAt')}</th>
 										<th className="pb-3">{t('table.actions')}</th>
 									</tr>
@@ -210,6 +234,16 @@ export default function UsersPage() {
 														<span className="text-xs text-muted-foreground">-</span>
 													)}
 												</div>
+											</td>
+											<td className="py-4">
+												<Switch
+													checked={user.isPrivate ?? false}
+													disabled={setPrivacy.isPending}
+													onCheckedChange={(isPrivate) =>
+														setPrivacy.mutate({ userId: user.id, isPrivate })
+													}
+													aria-label={t('table.private')}
+												/>
 											</td>
 											<td className="py-4 text-sm text-muted-foreground">
 												{format(new Date(user.createdAt), 'yyyy-MM-dd HH:mm')}

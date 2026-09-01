@@ -67,6 +67,25 @@ export const BIO_ALLOW_LIST: MfmAllowList = {
 };
 
 /**
+ * Preset allow-list for the post excerpt on a notification row.
+ *
+ * The excerpt is a clamped, small strip of text, so anything that claims its own
+ * line or changes the box size is excluded: block elements (center, quote, code
+ * blocks, block math, search) and the fn decorations that scale, move, rotate or
+ * animate. `blur` stays so spoilered text is not revealed in a notification.
+ */
+export const NOTIFICATION_EXCERPT_ALLOW_LIST: MfmAllowList = {
+  nodeTypes: new Set([
+    "text", "plain", "bold", "italic", "strike", "small",
+    "inlineCode", "mathInline",
+    "url", "link", "fn",
+    "unicodeEmoji", "emojiCode",
+    "mention", "hashtag",
+  ]),
+  fnNames: new Set(["flip", "font", "fg", "bg", "blur"]),
+};
+
+/**
  * Builds an MfmAllowList from user MFM settings.
  * Each setting key maps to one or more node types / fn names.
  */
@@ -215,6 +234,15 @@ function extractPlainAndEmoji(nodes: MfmNode[]): MfmNode[] {
 export function parseMfmToPlaintext(text: string): MfmNode[] {
   const parsed = mfm.parse(text);
   return extractPlainAndEmoji(parsed);
+}
+
+/**
+ * Parse MFM text and return just its visible characters, with all syntax
+ * markers removed. For places that need a bare string rather than nodes —
+ * `alt`, `aria-label`, avatar initials.
+ */
+export function mfmToPlainText(text: string): string {
+  return extractPlainText(mfm.parse(text));
 }
 
 function extractVisibleContent(nodes: MfmNode[]): MfmNode[] {

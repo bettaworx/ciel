@@ -23,12 +23,17 @@ tags:
 - name: Setup
 - name: Admin
 - name: Users
+- name: Follows
+- name: Blocks
 - name: Posts
 - name: Timeline
+- name: Search
 - name: Reactions
+- name: Bookmarks
 - name: Media
 - name: Reports
 - name: Emojis
+- name: Notifications
 components:
   securitySchemes:
     bearerAuth:
@@ -67,6 +72,8 @@ paths:
     $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1display-name
   /admin/users/{userId}/bio:
     $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1bio
+  /admin/users/{userId}/privacy:
+    $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1privacy
   /admin/agreements/documents:
     $ref: ./paths/admin/agreements.yml#/~1admin~1agreements~1documents
   /admin/agreements/documents/{documentId}:
@@ -103,6 +110,12 @@ paths:
     $ref: ./paths/admin/moderation.yml#/~1admin~1users~1{userId}~1moderation-logs
   /admin/users/{userId}/note:
     $ref: ./paths/admin/moderation.yml#/~1admin~1users~1{userId}~1note
+  /notifications:
+    $ref: ./paths/notifications.yml#/~1notifications
+  /notifications/unread-count:
+    $ref: ./paths/notifications.yml#/~1notifications~1unread-count
+  /notifications/read:
+    $ref: ./paths/notifications.yml#/~1notifications~1read
   /reports:
     $ref: ./paths/reports.yml#/~1reports
   /admin/reports:
@@ -133,8 +146,44 @@ paths:
     $ref: ./paths/auth.yml#/~1auth~1logout
   /auth/refresh:
     $ref: ./paths/auth.yml#/~1auth~1refresh
+  /auth/session/token:
+    $ref: ./paths/auth.yml#/~1auth~1session~1token
+  /auth/session/exchange:
+    $ref: ./paths/auth.yml#/~1auth~1session~1exchange
   /auth/password/change:
     $ref: ./paths/auth.yml#/~1auth~1password~1change
+  /auth/mfa:
+    $ref: ./paths/auth.yml#/~1auth~1mfa
+  /auth/mfa/totp/setup:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1totp~1setup
+  /auth/mfa/totp/confirm:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1totp~1confirm
+  /auth/mfa/totp:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1totp
+  /auth/mfa/backup-codes/regenerate:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1backup-codes~1regenerate
+  /auth/mfa/disable:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1disable
+  /auth/mfa/verify:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1verify
+  /auth/mfa/webauthn/options:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1webauthn~1options
+  /auth/mfa/webauthn/verify:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1webauthn~1verify
+  /auth/mfa/webauthn/credentials:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1webauthn~1credentials
+  /auth/mfa/webauthn/register/options:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1webauthn~1register~1options
+  /auth/mfa/webauthn/register/verify:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1webauthn~1register~1verify
+  /auth/mfa/webauthn/credentials/{credentialId}:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1webauthn~1credentials~1{credentialId}
+  /auth/stepup/mfa/verify:
+    $ref: ./paths/auth.yml#/~1auth~1stepup~1mfa~1verify
+  /auth/stepup/mfa/webauthn/options:
+    $ref: ./paths/auth.yml#/~1auth~1stepup~1mfa~1webauthn~1options
+  /auth/stepup/mfa/webauthn/verify:
+    $ref: ./paths/auth.yml#/~1auth~1stepup~1mfa~1webauthn~1verify
   /admin/roles:
     $ref: ./paths/admin/roles.yml#/~1admin~1roles
   /admin/roles/{roleId}:
@@ -151,6 +200,8 @@ paths:
     $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1permissions
   /admin/users/{userId}/ban:
     $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1ban
+  /admin/users/{userId}/mfa:
+    $ref: ./paths/admin/users.yml#/~1admin~1users~1{userId}~1mfa
   /admin/settings:
     $ref: ./paths/admin/settings.yml#/~1admin~1settings
   /admin/settings/signup:
@@ -179,10 +230,34 @@ paths:
     $ref: ./paths/users.yml#/~1me~1banner
   /me/agreements:
     $ref: ./paths/users.yml#/~1me~1agreements
+  /me/privacy:
+    $ref: ./paths/users.yml#/~1me~1privacy
+  /me/mutes:
+    $ref: ./paths/blocks.yml#/~1me~1mutes
+  /me/blocks:
+    $ref: ./paths/blocks.yml#/~1me~1blocks
+  /me/follow-requests:
+    $ref: ./paths/follows.yml#/~1me~1follow-requests
+  /me/follow-requests/{username}/accept:
+    $ref: ./paths/follows.yml#/~1me~1follow-requests~1{username}~1accept
+  /me/follow-requests/{username}/reject:
+    $ref: ./paths/follows.yml#/~1me~1follow-requests~1{username}~1reject
   /users/{username}:
     $ref: ./paths/users.yml#/~1users~1{username}
   /users/{username}/posts:
     $ref: ./paths/users.yml#/~1users~1{username}~1posts
+  /users/{username}/follow:
+    $ref: ./paths/follows.yml#/~1users~1{username}~1follow
+  /users/{username}/followers:
+    $ref: ./paths/follows.yml#/~1users~1{username}~1followers
+  /users/{username}/following:
+    $ref: ./paths/follows.yml#/~1users~1{username}~1following
+  /users/{username}/followers_you_follow:
+    $ref: ./paths/follows.yml#/~1users~1{username}~1followers_you_follow
+  /users/{username}/mute:
+    $ref: ./paths/blocks.yml#/~1users~1{username}~1mute
+  /users/{username}/block:
+    $ref: ./paths/blocks.yml#/~1users~1{username}~1block
   /posts:
     $ref: ./paths/posts.yml#/~1posts
   /media:
@@ -197,10 +272,24 @@ paths:
     $ref: ./paths/posts.yml#/~1posts~1{postId}~1replies
   /timeline:
     $ref: ./paths/timeline.yml#/~1timeline
+  /timeline/home:
+    $ref: ./paths/timeline.yml#/~1timeline~1home
+  /search/posts:
+    $ref: ./paths/search.yml#/~1search~1posts
+  /search/users:
+    $ref: ./paths/search.yml#/~1search~1users
   /posts/{postId}/reactions:
     $ref: ./paths/reactions.yml#/~1posts~1{postId}~1reactions
   /posts/{postId}/reactions/users:
     $ref: ./paths/reactions.yml#/~1posts~1{postId}~1reactions~1users
+  /bookmarks/lists:
+    $ref: ./paths/bookmarks.yml#/~1bookmarks~1lists
+  /bookmarks/lists/{listId}:
+    $ref: ./paths/bookmarks.yml#/~1bookmarks~1lists~1{listId}
+  /bookmarks/lists/{listId}/posts:
+    $ref: ./paths/bookmarks.yml#/~1bookmarks~1lists~1{listId}~1posts
+  /posts/{postId}/bookmarks:
+    $ref: ./paths/bookmarks.yml#/~1posts~1{postId}~1bookmarks
   /emojis:
     $ref: ./paths/emojis.yml#/~1emojis
   /emojis/{shortcode}:

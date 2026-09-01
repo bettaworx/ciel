@@ -20,7 +20,10 @@ CREATE TABLE IF NOT EXISTS users (
   terms_version INT NOT NULL DEFAULT 0,
   privacy_version INT NOT NULL DEFAULT 0,
   terms_accepted_at TIMESTAMPTZ,
-  privacy_accepted_at TIMESTAMPTZ
+  privacy_accepted_at TIMESTAMPTZ,
+  -- Private accounts: activity is visible only to accepted followers. Nothing
+  -- is withheld at write time, so flipping back to false restores the history.
+  is_private BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS auth_credentials (
@@ -31,6 +34,45 @@ CREATE TABLE IF NOT EXISTS auth_credentials (
   server_key BYTEA NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Two-factor authentication factors
+CREATE TABLE IF NOT EXISTS auth_totp (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  secret_enc BYTEA NOT NULL,
+  enabled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_used_step BIGINT
+);
+
+CREATE TABLE IF NOT EXISTS auth_backup_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  used_at TIMESTAMPTZ,
+  UNIQUE (user_id, code_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_backup_codes_user_unused
+  ON auth_backup_codes (user_id) WHERE used_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS auth_webauthn_credentials (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  credential_id BYTEA NOT NULL UNIQUE,
+  public_key BYTEA NOT NULL,
+  attestation_type TEXT NOT NULL DEFAULT '',
+  aaguid BYTEA,
+  sign_count BIGINT NOT NULL DEFAULT 0,
+  transports TEXT[] NOT NULL DEFAULT '{}',
+  name TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_used_at TIMESTAMPTZ,
+  backup_eligible BOOLEAN NOT NULL DEFAULT false,
+  backup_state BOOLEAN NOT NULL DEFAULT false
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_webauthn_credentials_user
+  ON auth_webauthn_credentials (user_id);
 
 CREATE TYPE permission_effect AS ENUM ('allow', 'deny');
 
@@ -333,7 +375,10 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   token_hash  BYTEA       NOT NULL UNIQUE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   expires_at  TIMESTAMPTZ NOT NULL,
-  revoked_at  TIMESTAMPTZ
+  revoked_at  TIMESTAMPTZ,
+  -- NULL: ordinary cookie refresh token. NOT NULL: device-bound account token
+  -- (SPKI public key), only usable with a matching signature.
+  device_public_key BYTEA
 );
 
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id
@@ -341,6 +386,209 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id
 
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires
   ON refresh_tokens (expires_at) WHERE revoked_at IS NULL;
+
+-- Notifications delivered to a user (reaction, mention, reply, boost, ...)
+CREATE TABLE IF NOT EXISTS notifications (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type          TEXT        NOT NULL,
+  actor_user_id UUID        REFERENCES users(id) ON DELETE CASCADE,
+  post_id       UUID        REFERENCES posts(id) ON DELETE CASCADE,
+  subtype       TEXT        NOT NULL DEFAULT '',
+  data          JSONB       NOT NULL DEFAULT '{}',
+  read_at       TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+  ON notifications (user_id, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_unread
+  ON notifications (user_id) WHERE read_at IS NULL;
+
+-- One notification per (recipient, type, actor, post, subtype): re-reacting after
+-- an undo must not stack up duplicates.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_dedupe
+  ON notifications (user_id, type, actor_user_id, post_id, subtype)
+  WHERE actor_user_id IS NOT NULL AND post_id IS NOT NULL;
+
+-- idx_notifications_dedupe only covers rows with a post. Follow notifications
+-- carry no post, so without this pair they would stack up on re-follow.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_dedupe_no_post
+  ON notifications (user_id, type, actor_user_id, subtype)
+  WHERE actor_user_id IS NOT NULL AND post_id IS NULL;
+
+-- Follow relationships. Following a public user is instant; following a private
+-- user inserts a row with accepted_at NULL, which is a pending follow request
+-- and must never be treated as a follow.
+CREATE TABLE IF NOT EXISTS follows (
+  follower_id UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  followee_id UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  accepted_at TIMESTAMPTZ,
+  PRIMARY KEY (follower_id, followee_id),
+  CONSTRAINT follows_no_self CHECK (follower_id <> followee_id)
+);
+
+-- The pending-request inbox. Partial, because pending rows are the rare case.
+CREATE INDEX IF NOT EXISTS idx_follows_pending
+  ON follows (followee_id, created_at DESC)
+  WHERE accepted_at IS NULL;
+
+-- The primary key already serves "who does X follow" lookups and the
+-- isFollowing check. These two cover the paginated list endpoints.
+CREATE INDEX IF NOT EXISTS idx_follows_followee_created
+  ON follows (followee_id, created_at DESC, follower_id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_follows_follower_created
+  ON follows (follower_id, created_at DESC, followee_id DESC);
+
+-- Bookmark lists. Every user gets one default list; the rest they create.
+-- name is NULL on the default list because the server has no locale: the client
+-- substitutes its own translated label when it sees NULL. Renaming it stores a
+-- real name, and is_default still guards it from deletion.
+CREATE TABLE IF NOT EXISTS bookmark_lists (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name       TEXT,
+  icon       TEXT        NOT NULL DEFAULT '🔖',
+  is_default BOOLEAN     NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT bookmark_lists_name_length CHECK (name IS NULL OR char_length(name) BETWEEN 1 AND 50)
+);
+
+-- One default list per user. Also the inference target for ON CONFLICT.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bookmark_lists_user_default
+  ON bookmark_lists (user_id) WHERE is_default;
+
+CREATE INDEX IF NOT EXISTS idx_bookmark_lists_user_created
+  ON bookmark_lists (user_id, created_at, id);
+
+-- user_id is denormalised off bookmark_lists so "which of my lists hold this
+-- post" is one index hit per timeline page instead of a join.
+CREATE TABLE IF NOT EXISTS bookmarks (
+  list_id    UUID        NOT NULL REFERENCES bookmark_lists(id) ON DELETE CASCADE,
+  post_id    UUID        NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (list_id, post_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bookmarks_list_created
+  ON bookmarks (list_id, created_at DESC, post_id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_bookmarks_user_post
+  ON bookmarks (user_id, post_id);
+
+-- Personal mutes and blocks.
+--
+-- Named account_* rather than user_*: user_mutes is already taken by admin
+-- moderation, which silences an account for everyone. These two are one
+-- viewer's opinion about one other account and share nothing with it.
+
+-- A mute hides an account from the muter's feeds. It is a preference, not a
+-- denial: the muted account is never told, keeps every ability it had, and its
+-- posts stay readable behind the one-tap reveal.
+CREATE TABLE IF NOT EXISTS account_mutes (
+  muter_id   UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  muted_id   UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (muter_id, muted_id),
+  CONSTRAINT account_mutes_no_self CHECK (muter_id <> muted_id)
+);
+
+-- A block does everything a mute does, and additionally cuts the blocked
+-- account off: it can no longer see, follow, reply to, boost, quote or react to
+-- the blocker.
+CREATE TABLE IF NOT EXISTS account_blocks (
+  blocker_id UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_id UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (blocker_id, blocked_id),
+  CONSTRAINT account_blocks_no_self CHECK (blocker_id <> blocked_id)
+);
+
+-- The primary keys already answer "did viewer hide author", which is the check
+-- on every feed row. These two cover the paginated settings lists, in the same
+-- shape as idx_follows_*_created.
+CREATE INDEX IF NOT EXISTS idx_account_mutes_muter_created
+  ON account_mutes (muter_id, created_at DESC, muted_id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_account_blocks_blocker_created
+  ON account_blocks (blocker_id, created_at DESC, blocked_id DESC);
+
+-- The reverse direction. can_view_user asks "did the author block the viewer"
+-- for every row it gates, and the primary key is the wrong way round for it.
+CREATE INDEX IF NOT EXISTS idx_account_blocks_blocked
+  ON account_blocks (blocked_id, blocker_id);
+
+-- ============================================================================
+-- FUNCTIONS
+-- ============================================================================
+
+-- can_view_user is the single definition of "may viewer see author's activity".
+-- It exists as a SQL function because sqlc has no way to share a predicate and
+-- roughly twenty queries need this one: a copy in each would drift, and a drift
+-- here is a privacy leak.
+--
+-- A NULL viewer (anonymous) fails both the self check and the EXISTS, so
+-- unauthenticated requests get the strictest answer.
+--
+-- ponytail: this looks users up by primary key once per row. Almost every user
+-- is public, so LIMITed queries stop early and it stays cheap. If a query does
+-- show up slow, inline the predicate against the users row it already joins.
+--
+-- The block check sits outside the private-account disjunction, as an AND: a
+-- block is a refusal, not a visibility level, so neither a public account nor an
+-- already accepted follower gets past it. Reversing that nesting would let a
+-- blocked follower keep reading, which is the whole thing being prevented.
+CREATE OR REPLACE FUNCTION can_view_user(viewer uuid, author uuid)
+RETURNS boolean LANGUAGE sql STABLE PARALLEL SAFE AS $$
+  SELECT (
+        NOT u.is_private
+      -- IS NOT DISTINCT FROM, not =: with an anonymous (NULL) viewer, `u.id =
+      -- viewer` is NULL, and false OR NULL OR false is NULL rather than false.
+      -- A NULL filters correctly in a WHERE clause but breaks the callers that
+      -- scan this into a Go bool, so the function is kept strictly boolean.
+      OR u.id IS NOT DISTINCT FROM viewer
+      OR EXISTS (
+           SELECT 1 FROM follows f
+           WHERE f.follower_id = viewer
+             AND f.followee_id = u.id
+             AND f.accepted_at IS NOT NULL
+         )
+    )
+    -- Same NULL reasoning: b.blocked_id = viewer matches nothing when viewer is
+    -- NULL, so NOT EXISTS is true and the result stays strictly boolean.
+    AND NOT EXISTS (
+      SELECT 1 FROM account_blocks b
+      WHERE b.blocker_id = u.id AND b.blocked_id = viewer
+    )
+  FROM users u WHERE u.id = author
+$$;
+
+-- is_hidden_by is the other half of the visibility story, and deliberately not
+-- part of can_view_user: it says the viewer chose not to see this account,
+-- which is a weaker thing than being refused.
+--
+-- Rows it matches are dropped from feeds but stay readable everywhere the
+-- viewer asked for them on purpose — a profile, a quoted post, a reply's parent
+-- — because the reveal button has to have something to reveal. Putting this in
+-- can_view_user would make those places return nothing and break the cushion.
+--
+-- Both mutes and blocks feed it: a block hides the blocked account from the
+-- blocker exactly like a mute does, on top of cutting the other side off.
+CREATE OR REPLACE FUNCTION is_hidden_by(viewer uuid, author uuid)
+RETURNS boolean LANGUAGE sql STABLE PARALLEL SAFE AS $$
+  SELECT EXISTS (
+           SELECT 1 FROM account_mutes m
+           WHERE m.muter_id = viewer AND m.muted_id = author
+         )
+      OR EXISTS (
+           SELECT 1 FROM account_blocks b
+           WHERE b.blocker_id = viewer AND b.blocked_id = author
+         )
+$$;
 
 -- ============================================================================
 -- INITIAL DATA
@@ -383,6 +631,7 @@ INSERT INTO permissions (id, name, description) VALUES
   -- User management
   ('admin:users:read', 'Admin users read', 'Read user information and search users'),
   ('admin:users:write', 'Admin users write', 'Modify user information and manage user notes'),
+  ('admin_users_mfa_reset', 'Admin users MFA reset', 'Reset all MFA factors for a user'),
   
   -- Invite management
   ('admin:invites:read', 'Admin invites read', 'View invite codes and settings'),

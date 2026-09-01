@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { MfmFn } from "@/components/mfm/MfmFn";
 import { MfmMention } from "@/components/mfm/MfmMention";
+import { MfmHashtag } from "@/components/mfm/MfmHashtag";
 import { Twemoji } from "@/components/Twemoji";
 import { CustomEmoji } from "@/components/CustomEmoji";
 
@@ -170,9 +171,9 @@ export function MfmNode({ node }: MfmNodeProps) {
       return <MfmMention node={node} />;
     }
 
-    // --- Hashtag (stub) ---
+    // --- Hashtag ---
     case "hashtag": {
-      return <span className="mfm-hashtag">#{node.props.hashtag}</span>;
+      return <MfmHashtag node={node} />;
     }
 
     // --- Search (with Google search link) ---

@@ -50,7 +50,7 @@ export function buildAdminEmojiCreateFormData(
   if (category) form.set("category", category);
   if (license) form.set("license", license);
 
-  form.set("image", values.imageFile, values.imageFile.name);
+  form.set("image", values.imageFile);
   return form;
 }
 
@@ -75,7 +75,7 @@ export function buildAdminEmojiUpdateFormData(
   form.set("setLicense", "true");
 
   if (values.imageFile) {
-    form.set("image", values.imageFile, values.imageFile.name);
+    form.set("image", values.imageFile);
   }
 
   return form;

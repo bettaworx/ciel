@@ -47,6 +47,31 @@ components:
           - $ref: ./common.yml#/components/schemas/PostId
           nullable: true
           description: ID of the post this post replies to. Null for root posts or when the parent has been hard-deleted (e.g., parent author deleted their account).
+        parentPrivate:
+          type: boolean
+          description: >-
+            True when this post replies to a post the caller may not see because
+            its author is private. Clients render a redacted parent card rather
+            than dropping the parent silently. False for an accepted follower,
+            who receives the real parent, and false once the account goes public.
+        parentHidden:
+          type: boolean
+          description: >-
+            True when this post replies to an account the caller has muted or
+            blocked. Timelines omit these posts entirely — a reply to a hidden
+            account is half of a conversation with them, and showing it would put
+            them back in the feed through everyone who talks to them. The profile
+            tabs and a post's own page keep the reply and cushion the parent
+            instead, since those are reached on purpose.
+        referenceRestricted:
+          type: boolean
+          description: >-
+            True when referenceId points at a post that still exists but the
+            caller may not read — its author is private, or has blocked the
+            caller. Distinguishes that from a reference the caller cannot load
+            because it was deleted, which is the other reason `reference` comes
+            back null. Clients say the audience is restricted rather than showing
+            a deleted-post card, which would state something untrue.
         rootId:
           allOf:
           - $ref: ./common.yml#/components/schemas/PostId
@@ -62,6 +87,14 @@ components:
           - $ref: '#/components/schemas/Post'
           nullable: true
           description: The referenced (boosted/quoted) post data (one level deep). Null when the referenced post has been deleted or for non-boost posts.
+        bookmarkListIds:
+          type: array
+          description: |
+            The authenticated caller's bookmark lists that hold this post. Empty
+            for anonymous callers. Carrying the ids rather than a plain boolean
+            lets the bookmark menu render its checkboxes without a second fetch.
+          items:
+            $ref: ./bookmark.yml#/components/schemas/BookmarkListId
         createdAt:
           type: string
           format: date-time

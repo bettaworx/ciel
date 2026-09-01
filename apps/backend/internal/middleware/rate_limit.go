@@ -57,9 +57,13 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		{routeKey: "auth_login_finish", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "auth_stepup_start", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "auth_stepup_finish", limit: 10, window: 1 * time.Minute, subject: subjectIP},
-		// Media upload: per-user, low frequency + daily cap.
-		{routeKey: "media_upload", limit: 10, window: 10 * time.Minute, subject: subjectUser},
-		{routeKey: "media_upload", limit: 50, window: 24 * time.Hour, subject: subjectUser},
+		// Account switching: one request per listed account when the menu opens,
+		// so the cap has to clear a handful of accounts a few times a minute.
+		{routeKey: "auth_session_exchange", limit: 60, window: 1 * time.Minute, subject: subjectIP},
+		// Media upload: per-user, per-file. A post can carry four images, so the
+		// window has to hold several full posts, not several files.
+		{routeKey: "media_upload", limit: 40, window: 10 * time.Minute, subject: subjectUser},
+		{routeKey: "media_upload", limit: 200, window: 24 * time.Hour, subject: subjectUser},
 		// Avatar upload: per-user, modest limits.
 		{routeKey: "avatar_upload", limit: 5, window: 10 * time.Minute, subject: subjectUser},
 		{routeKey: "avatar_upload", limit: 20, window: 24 * time.Hour, subject: subjectUser},
@@ -76,6 +80,10 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		{routeKey: "users_posts_get", limit: 120, window: 1 * time.Minute, subject: subjectIP},
 		// Public media delivery (GET /media/*): very loose, per-IP.
 		{routeKey: "media_get", limit: 600, window: 1 * time.Minute, subject: subjectIP},
+		// Search: per-user, since the routes require authentication. Each hit
+		// costs a search-engine query plus a hydration round trip, so this is
+		// tighter than a timeline read.
+		{routeKey: "search", limit: 60, window: 1 * time.Minute, subject: subjectUser},
 	}
 
 	return func(next http.Handler) http.Handler {
@@ -220,6 +228,8 @@ func classifyAuthRoute(method, path string) string {
 		return "auth_stepup_start"
 	case "/api/v1/auth/stepup/finish":
 		return "auth_stepup_finish"
+	case "/api/v1/auth/session/exchange":
+		return "auth_session_exchange"
 	default:
 		return ""
 	}
@@ -284,6 +294,15 @@ func classifyTimelineRoute(method, path string) string {
 	return ""
 }
 
+// classifySearchRoute classifies search routes. Both post and user search hit
+// the same engine, so they share one budget.
+func classifySearchRoute(method, path string) string {
+	if method == http.MethodGet && strings.HasPrefix(path, "/api/v1/search/") {
+		return "search"
+	}
+	return ""
+}
+
 // classifyRoute maps request paths to stable route keys for rate limiting / access control.
 // This is intentionally simple prefix matching so it works in global chi middlewares.
 func classifyRoute(r *http.Request) string {
@@ -309,6 +328,9 @@ func classifyRoute(r *http.Request) string {
 		return route
 	}
 	if route := classifyTimelineRoute(method, path); route != "" {
+		return route
+	}
+	if route := classifySearchRoute(method, path); route != "" {
 		return route
 	}
 

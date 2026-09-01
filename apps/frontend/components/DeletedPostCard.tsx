@@ -2,15 +2,14 @@
 
 import { useCallback, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import {
   Copy,
+  EyeOff,
   MoreHorizontal,
   RotateCcw,
   Trash2,
@@ -31,12 +30,19 @@ import {
   PostCardIndicatorRow,
   type PostCardIndicator,
 } from "@/components/PostCardIndicatorRow";
+import { PostPlaceholderCard } from "@/components/PostPlaceholderCard";
 
 type DeletedPostCardProps = {
   referenceId: string;
   variant?: "embedded" | "timeline";
   isLast?: boolean;
   indicator?: PostCardIndicator;
+  /**
+   * The post still exists; this viewer just may not read it, because its author
+   * is private or has blocked them. Same card, different words: telling someone
+   * a post was deleted when it was not is the one thing this card must not do.
+   */
+  restricted?: boolean;
 };
 
 export function DeletedPostCard({
@@ -44,6 +50,7 @@ export function DeletedPostCard({
   variant = "embedded",
   isLast = false,
   indicator,
+  restricted = false,
 }: DeletedPostCardProps) {
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
@@ -52,6 +59,10 @@ export function DeletedPostCard({
   const auth = useAtomValue(authAtom);
   const deletePost = useDeletePost();
   const [indicatorMenuOpen, setIndicatorMenuOpen] = useState(false);
+  const PlaceholderIcon = restricted ? EyeOff : Trash2;
+  const placeholderLabel = restricted
+    ? t("restrictedPost.label")
+    : t("deletedPost.label");
   const canUndoBoost =
     indicator?.actorUserId != null &&
     indicator.actorUserId === auth.user?.id;
@@ -74,7 +85,15 @@ export function DeletedPostCard({
     }
   }, [indicator?.sourcePostId, deletePost, t]);
 
-  const menuNode = (isDesktop ? (
+  // Copying the id of a post the viewer is not allowed to read hands them the
+  // one thing the restriction was meant to withhold, so a restricted card offers
+  // no menu at all — unless the boost is the viewer's own, where the menu is the
+  // only way to take it back and would otherwise strand them with a boost they
+  // cannot undo.
+  const showMenu = !restricted || canUndoBoost;
+  const showCopyPostId = !restricted;
+
+  const menuNode = !showMenu ? undefined : (isDesktop ? (
     <DropdownMenu open={indicatorMenuOpen} onOpenChange={setIndicatorMenuOpen}>
       <DropdownMenuTrigger asChild>
         <Button
@@ -87,10 +106,12 @@ export function DeletedPostCard({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={handleCopyPostId}>
-          <Copy className="h-4 w-4" />
-          {t("actions.copyPostIdFull")}
-        </DropdownMenuItem>
+        {showCopyPostId && (
+          <DropdownMenuItem onSelect={handleCopyPostId}>
+            <Copy className="h-4 w-4" />
+            {t("actions.copyPostIdFull")}
+          </DropdownMenuItem>
+        )}
         {canUndoBoost && (
           <DropdownMenuItem onSelect={handleUndoBoost}>
             <RotateCcw className="h-4 w-4" />
@@ -113,14 +134,16 @@ export function DeletedPostCard({
       </DrawerTrigger>
       <DrawerContent>
         <div className="flex flex-col gap-2 p-2 pb-4">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={handleCopyPostId}
-          >
-            <Copy className="h-4 w-4" />
-            {t("actions.copyPostIdFull")}
-          </Button>
+          {showCopyPostId && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={handleCopyPostId}
+            >
+              <Copy className="h-4 w-4" />
+              {t("actions.copyPostIdFull")}
+            </Button>
+          )}
           {canUndoBoost && (
             <Button
               variant="ghost"
@@ -144,47 +167,17 @@ export function DeletedPostCard({
     />
   );
 
-  const displayName = t("deletedPost.username");
-
   return (
-    <article
-      className={cn(
-        "relative text-card-foreground p-3 transition-colors",
-        !isLast && !isEmbedded && "border-b border-border",
-        isEmbedded && "border border-border rounded-xl overflow-hidden",
-      )}
-    >
-      {indicatorNode}
-
-      {isEmbedded ? (
-        <div className="flex flex-col items-center justify-center py-4">
-          <Trash2 className="h-8 w-8 text-muted-foreground" />
-          <span className="mt-1.5 text-sm text-muted-foreground">
-            {t("deletedPost.label")}
-          </span>
-        </div>
-      ) : (
-        <div className="flex items-start gap-3">
-          <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
-            <AvatarImage src="/assets/Default-Avatar.png" alt={displayName} />
-            <AvatarFallback>{t("deletedPost.initials")}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0 flex flex-col">
-            <div className="flex max-w-full min-w-0 items-center gap-1.5 overflow-hidden">
-              <span className="block max-w-full min-w-0 truncate overflow-hidden whitespace-nowrap text-left font-semibold text-foreground text-sm sm:text-base">
-                {displayName}
-              </span>
-              {!indicator && menuNode}
-            </div>
-            <div className="flex flex-col items-center justify-center py-6">
-              <Trash2 className="h-8 w-8 text-muted-foreground" />
-              <span className="mt-1.5 text-sm text-muted-foreground">
-                {t("deletedPost.label")}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-    </article>
+    <PostPlaceholderCard
+      icon={PlaceholderIcon}
+      label={placeholderLabel}
+      indicator={indicatorNode}
+      // Without an indicator strip there is nowhere else for the menu to live,
+      // so it moves onto the row itself. With one, PostCardIndicatorRow already
+      // renders it and a second copy would be two menus on one card.
+      action={!indicator ? menuNode : undefined}
+      isLast={isLast}
+      embedded={isEmbedded}
+    />
   );
 }

@@ -1,51 +1,29 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PageContainer } from "@/components/PageContainer";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { DynamicTitle } from "@/components/DynamicTitle";
+import { ServerInfoContent } from "@/components/about/ServerInfoContent";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { useServerInfo } from "@/lib/hooks/use-queries";
 
 export default function AboutPage() {
   const t = useTranslations("about");
-  const { data: serverInfo } = useServerInfo();
 
   return (
-    <PageContainer
-      maxWidth="2xl"
-      header={<PageHeader>{t("title")}</PageHeader>}
-    >
+    // pt-0: ServerInfoContent leads with a PageHeader, which brings its own
+    // top inset — the same deal PageContainer's `header` prop makes.
+    <PageContainer maxWidth="2xl" className="pt-0">
       <DynamicTitle title={t("title")} />
       <div className="flex flex-col gap-3">
-        {/* Card: server icon + name */}
-        <div className="bg-card rounded-2xl p-8 flex flex-col items-center">
-          <div className="mb-6">
-            {serverInfo?.serverIconUrl ? (
-              <Image
-                src={serverInfo.serverIconUrl}
-                alt="Server icon"
-                width={128}
-                height={128}
-                unoptimized
-                className="rounded-2xl object-cover"
-              />
-            ) : (
-              <div className="w-32 h-32 bg-primary rounded-2xl" />
-            )}
-          </div>
-          <h1 className="text-2xl font-bold text-center">
-            {serverInfo?.serverName ?? "Ciel"}
-          </h1>
-        </div>
+        <ServerInfoContent />
 
         <Separator />
 
-        {/* Navigation panel */}
+        {/* Navigation panel. Settings has its own category index for this, so
+            it lives here rather than in the shared component. */}
         <div className="bg-card rounded-2xl flex flex-col overflow-hidden">
           <Button variant="list_row" size="list" asChild>
             <Link href="/version">

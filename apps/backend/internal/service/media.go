@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/binary"
@@ -29,41 +28,90 @@ import (
 	"github.com/google/uuid"
 )
 
-// expectedMimeByExt maps file extensions to their expected MIME types
+// expectedMimeByExt maps file extensions to their expected MIME types.
+// See config.MediaConfig.IsExtensionAllowed for what is on the list and why.
 var expectedMimeByExt = map[string]string{
 	// Images
+	".webp": "image/webp",
 	".png":  "image/png",
 	".jpg":  "image/jpeg",
 	".jpeg": "image/jpeg",
-	".webp": "image/webp",
 	".gif":  "image/gif",
 	// Videos
-	".mp4":  "video/mp4",
 	".webm": "video/webm",
-	".mov":  "video/quicktime",
-	".avi":  "video/x-msvideo",
-	".mkv":  "video/x-matroska",
-	".m4v":  "video/x-m4v",
-	".3gp":  "video/3gpp",
-	".ogv":  "video/ogg",
+	".mp4":  "video/mp4",
 }
 
 // allowedMIMESniff contains MIME types allowed after content sniffing
 var allowedMIMESniff = map[string]struct{}{
 	// Images
+	"image/webp": {},
 	"image/png":  {},
 	"image/jpeg": {},
-	"image/webp": {},
 	"image/gif":  {},
 	// Videos
-	"video/mp4":        {},
-	"video/webm":       {},
-	"video/quicktime":  {},
-	"video/x-msvideo":  {},
-	"video/x-matroska": {},
-	"video/x-m4v":      {},
-	"video/3gpp":       {},
-	"video/ogg":        {},
+	"video/webm": {},
+	"video/mp4":  {},
+}
+
+// allowedImageFormats are the decoder-reported formats accepted for image
+// uploads. Defence in depth: a file that survived MIME sniffing but decodes as
+// something else — a PNG named .webp, say — is still rejected.
+var allowedImageFormats = map[string]struct{}{
+	"webp": {},
+	"png":  {},
+	"jpeg": {},
+	"gif":  {},
+}
+
+// isVideoExt reports whether the extension names one of the accepted video
+// containers, independent of any per-server configuration.
+func isVideoExt(ext string) bool {
+	_, ok := allowedVideoCodecs[strings.ToLower(ext)]
+	return ok
+}
+
+// MaxVideoFrameRate bounds frames per second. Combined with the duration limit
+// this bounds the total frame count, and so the work one upload can demand.
+//
+// ponytail: a constant rather than config, because it is a safety bound and not
+// a taste. Move it into MediaConfig if a deployment ever needs to raise it.
+const MaxVideoFrameRate = 60
+
+// parseFrameRate reads ffprobe's "num/den" rational. An unreadable or zero
+// denominator reports 0, leaving the judgement to the other checks.
+func parseFrameRate(v string) float64 {
+	num, den, ok := strings.Cut(v, "/")
+	if !ok {
+		return 0
+	}
+	n, err1 := strconv.ParseFloat(num, 64)
+	d, err2 := strconv.ParseFloat(den, 64)
+	if err1 != nil || err2 != nil || d == 0 {
+		return 0
+	}
+	return n / d
+}
+
+// allowedVideoCodecs lists the codecs permitted inside each accepted container.
+// Anything else — including a codec that is merely muxable but that the
+// frontend never emits — is rejected.
+var allowedVideoCodecs = map[string]map[string]struct{}{
+	".webm": {"vp8": {}, "vp9": {}, "av1": {}},
+	".mp4":  {"h264": {}, "hevc": {}, "av1": {}},
+}
+
+// allowedAudioCodecs mirrors allowedVideoCodecs for audio streams.
+var allowedAudioCodecs = map[string]map[string]struct{}{
+	".webm": {"opus": {}, "vorbis": {}},
+	".mp4":  {"aac": {}, "opus": {}},
+}
+
+// expectedContainerName maps an extension to the ffprobe format_name token that
+// must be present, so a renamed container cannot slip through.
+var expectedContainerName = map[string]string{
+	".webm": "webm",
+	".mp4":  "mp4",
 }
 
 type MediaService struct {
@@ -124,7 +172,9 @@ func (s *MediaService) uploadFromRequest(w http.ResponseWriter, r *http.Request,
 	// the per-type size check runs later once the media type is known).
 	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.MaxRequestBytes())
 
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
+	// 1 MiB in memory, the rest to the multipart reader's own temp files. There is
+	// no point buffering more: every path copies to a temp file of its own next.
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
@@ -177,13 +227,14 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 	isPublic, err := s.store.Q.IsMediaPublic(r.Context(), sqlc.IsMediaPublicParams{
 		MediaID:           id,
 		ServerIconMediaID: serverIconMediaID,
+		ViewerID:          viewerFromRequest(r),
 	})
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	if !isPublic.Valid || !isPublic.Bool {
+	if !isPublic.IsPublic.Valid || !isPublic.IsPublic.Bool {
 		// Media not public - require authentication and ownership
 		user, ok := auth.UserFromContext(r.Context())
 		if !ok {
@@ -238,7 +289,7 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 
 	// Set Content-Type and caching headers
 	w.Header().Set("Content-Type", mimeForExt(ext))
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Cache-Control", mediaCacheControl(isPublic.IsRestricted))
 
 	// Use http.ServeContent for Range Request support (efficient seeking)
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
@@ -266,6 +317,8 @@ func (s *MediaService) serveEmojiImageFromMediaRoute(w http.ResponseWriter, r *h
 
 	filename := "image." + ext
 	w.Header().Set("Content-Type", mimeForExt(ext))
+	// Custom emojis are server assets with no owning account, so account privacy
+	// never applies and the long immutable cache stands.
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
 }
@@ -310,13 +363,14 @@ func (s *MediaService) ServeVideo(w http.ResponseWriter, r *http.Request) {
 	isPublic, err := s.store.Q.IsMediaPublic(r.Context(), sqlc.IsMediaPublicParams{
 		MediaID:           id,
 		ServerIconMediaID: serverIconMediaID,
+		ViewerID:          viewerFromRequest(r),
 	})
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	if !isPublic.Valid || !isPublic.Bool {
+	if !isPublic.IsPublic.Valid || !isPublic.IsPublic.Bool {
 		user, ok := auth.UserFromContext(r.Context())
 		if !ok {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -346,7 +400,7 @@ func (s *MediaService) ServeVideo(w http.ResponseWriter, r *http.Request) {
 
 	// Set Content-Type and caching headers
 	w.Header().Set("Content-Type", mimeForExt(row.Ext))
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Cache-Control", mediaCacheControl(isPublic.IsRestricted))
 
 	// Use http.ServeContent for Range Request support (essential for video seeking)
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
@@ -392,13 +446,14 @@ func (s *MediaService) ServeThumbnail(w http.ResponseWriter, r *http.Request) {
 	isPublic, err := s.store.Q.IsMediaPublic(r.Context(), sqlc.IsMediaPublicParams{
 		MediaID:           id,
 		ServerIconMediaID: serverIconMediaID,
+		ViewerID:          viewerFromRequest(r),
 	})
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	if !isPublic.Valid || !isPublic.Bool {
+	if !isPublic.IsPublic.Valid || !isPublic.IsPublic.Bool {
 		user, ok := auth.UserFromContext(r.Context())
 		if !ok {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -428,7 +483,7 @@ func (s *MediaService) ServeThumbnail(w http.ResponseWriter, r *http.Request) {
 
 	// Set Content-Type and caching headers
 	w.Header().Set("Content-Type", "image/webp")
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Cache-Control", mediaCacheControl(isPublic.IsRestricted))
 
 	// Use http.ServeContent for consistency
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
@@ -469,6 +524,35 @@ func (s *MediaService) requireEncoding() error {
 }
 
 // mimeForExt returns the Content-Type for a stored image extension.
+// viewerFromRequest reads the optional authenticated user off the request.
+// Media routes are reachable anonymously, and an absent user simply means the
+// privacy gate answers with its strictest result.
+func viewerFromRequest(r *http.Request) uuid.NullUUID {
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		return uuid.NullUUID{}
+	}
+	return uuid.NullUUID{UUID: user.ID, Valid: true}
+}
+
+// mediaCacheControl keeps the year-long immutable cache for ordinary media and
+// withholds it from anything owned by a private account.
+//
+// Without this, going private would leave images being served out of browser and
+// CDN caches for up to a year afterwards, which is exactly the delayed-effect
+// case this feature must not have. no-store also keeps Cloudflare from holding a
+// shared copy that would be handed to users who cannot see the post.
+//
+// Known limit: a copy already cached by someone who fetched it while the account
+// was public stays in that browser until it is evicted. Nothing short of
+// rotating the media URL can reach it, and no new request will succeed.
+func mediaCacheControl(restricted bool) string {
+	if restricted {
+		return "private, no-store"
+	}
+	return "public, max-age=31536000, immutable"
+}
+
 func mimeForExt(ext string) string {
 	ext = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(ext)), ".")
 	switch ext {
@@ -540,16 +624,11 @@ func (s *MediaService) uploadImagePassthrough(ctx context.Context, user auth.Use
 	}
 
 	// Write upload to temporary file with content validation (MIME sniffing).
-	inPath, totalSize, err := s.writeUploadToTemp(src, ext, declaredCT)
+	inPath, _, err := s.writeUploadToTemp(src, header, ext, declaredCT, s.cfg.MaxUploadBytes())
 	if err != nil {
 		return api.Media{}, err
 	}
 	defer func() { _ = os.Remove(inPath) }()
-
-	// Verify file size.
-	if totalSize > s.cfg.MaxUploadBytes() {
-		return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
-	}
 
 	// Full image validation using Go decoders (replaces ffprobe).
 	info, err := validateImageFile(inPath, s.cfg)
@@ -623,21 +702,19 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 	}
 
 	// Write upload to temporary file with content validation (MIME sniffing).
-	inPath, totalSize, err := s.writeUploadToTemp(src, ext, declaredCT)
+	inPath, _, err := s.writeUploadToTemp(src, header, ext, declaredCT, s.cfg.MaxUploadBytesForType("video"))
 	if err != nil {
 		return api.Media{}, err
 	}
 	defer func() { _ = os.Remove(inPath) }()
 
-	// Verify file size (use video-specific limit)
-	if totalSize > s.cfg.MaxUploadBytesForType("video") {
-		return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "video file too large")
-	}
-
 	// Validate video file (streams, duration, dimensions)
-	videoInfo, err := s.validateVideoFile(ctx, inPath)
+	videoInfo, err := s.validateVideoFile(ctx, inPath, ext)
 	if err != nil {
-		return api.Media{}, err
+		// These are all "this file is not acceptable", so say so rather than
+		// letting the handler report an internal error.
+		slog.Info("video rejected", "error", err, "ext", ext)
+		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", err.Error())
 	}
 
 	// Check duration limit
@@ -667,15 +744,14 @@ func (s *MediaService) uploadVideo(ctx context.Context, user auth.User, src mult
 			return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "video conversion failed")
 		}
 	} else {
-		// Passthrough: remux with stream-copy (no re-encoding, near-zero CPU).
-		// Try MP4 container first; fall back to the original extension if the
-		// codec is incompatible with MP4 (e.g. VP8/VP9 in webm).
-		storeExt = "mp4"
+		// Passthrough: remux with stream-copy (no re-encoding, near-zero CPU),
+		// keeping the container the client sent. Forcing MP4 here used to produce
+		// files holding VP9 and Opus — ffmpeg muxes them happily, but Safari
+		// cannot play the result and the .mp4 extension hides that.
+		storeExt = strings.TrimPrefix(strings.ToLower(ext), ".")
 		videoPath := filepath.Join(outDir, "video."+storeExt)
-		if err := s.remuxVideo(ctx, inPath, videoPath); err != nil {
-			// MP4 remux failed — save in original container format.
-			storeExt = strings.TrimPrefix(strings.ToLower(ext), ".")
-			videoPath = filepath.Join(outDir, "video."+storeExt)
+		if err := s.remuxVideo(ctx, inPath, videoPath, storeExt); err != nil {
+			// Remux failed — store the already-validated original as-is.
 			if cpErr := copyFile(inPath, videoPath); cpErr != nil {
 				cleanupOut()
 				return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "video processing failed")
@@ -804,16 +880,11 @@ func (s *MediaService) uploadImageWithOptions(ctx context.Context, user auth.Use
 	}
 
 	// Write upload to temporary file with content validation
-	inPath, totalSize, err := s.writeUploadToTemp(src, ext, declaredCT)
+	inPath, _, err := s.writeUploadToTemp(src, header, ext, declaredCT, s.cfg.MaxUploadBytes())
 	if err != nil {
 		return api.Media{}, err
 	}
 	defer func() { _ = os.Remove(inPath) }()
-
-	// Verify file size
-	if totalSize > s.cfg.MaxUploadBytes() {
-		return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
-	}
 
 	// Validate image using pure Go decoders (replaces ffprobe-based validation).
 	if _, err := validateImageFile(inPath, s.cfg); err != nil {
@@ -846,7 +917,15 @@ func (s *MediaService) validateUploadMetadata(header *multipart.FileHeader) (fil
 }
 
 // writeUploadToTemp writes uploaded file to a temporary location while validating content
-func (s *MediaService) writeUploadToTemp(src multipart.File, ext, declaredCT string) (string, int64, error) {
+func (s *MediaService) writeUploadToTemp(src multipart.File, header *multipart.FileHeader, ext, declaredCT string, maxBytes int64) (string, int64, error) {
+	// The multipart reader knows the size up front, and MaxBytesReader is set to
+	// the largest limit across every media type — so without this an image would
+	// be written to disk in full before being turned away for being over a limit
+	// six times smaller.
+	if header != nil && header.Size > maxBytes {
+		return "", 0, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
+	}
+
 	inTmp, err := os.CreateTemp("", "ciel-upload-*")
 	if err != nil {
 		return "", 0, err
@@ -881,7 +960,9 @@ func (s *MediaService) writeUploadToTemp(src multipart.File, ext, declaredCT str
 		return "", 0, err
 	}
 
-	written, err := io.Copy(inTmp, src)
+	// One byte past the limit is enough to know it is over, and stops a lying
+	// Content-Length from writing an unbounded file.
+	written, err := io.Copy(inTmp, io.LimitReader(src, maxBytes-int64(n)+1))
 	if err != nil {
 		_ = inTmp.Close()
 		_ = os.Remove(inPath)
@@ -895,6 +976,10 @@ func (s *MediaService) writeUploadToTemp(src multipart.File, ext, declaredCT str
 
 	// written does not include the first n bytes
 	totalSize := int64(n) + written
+	if totalSize > maxBytes {
+		_ = os.Remove(inPath)
+		return "", 0, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
+	}
 	return inPath, totalSize, nil
 }
 
@@ -905,9 +990,14 @@ func validateMIMEType(buf []byte, ext, declaredCT string) error {
 	// Validate sniffed MIME type
 	sniff := http.DetectContentType(buf)
 	if _, ok := allowedMIMESniff[sniff]; !ok {
-		return NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "unsupported mime type")
-	}
-	if expectedMime != "" && sniff != expectedMime {
+		// Go's sniffer only recognises MP4 whose ftyp box lists an "mp4*" brand,
+		// so perfectly good files come back as octet-stream. For video that is
+		// not worth rejecting on: ffprobe checks the container and every codec
+		// straight after, which is a far stronger test than four magic bytes.
+		if !(sniff == "application/octet-stream" && isVideoExt(ext)) {
+			return NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "unsupported mime type")
+		}
+	} else if expectedMime != "" && sniff != expectedMime {
 		return NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "file extension and content-type mismatch")
 	}
 
@@ -950,15 +1040,7 @@ func (s *MediaService) convertToServerIconStatic(ctx context.Context, inPath, ou
 		outPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		msg = strings.ReplaceAll(msg, inPath, "<input>")
-		msg = strings.ReplaceAll(msg, outPath, "<output>")
-
-		slog.Error("ffmpeg server icon conversion failed", "error", err, "stderr", msg)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("server icon conversion failed")
 	}
 	return nil
@@ -994,14 +1076,7 @@ func (s *MediaService) convertToServerIconAnimated(ctx context.Context, inPath, 
 		outPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		// Log full command for debugging
-		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
-		slog.Error("ffmpeg server icon animated conversion failed", "error", err, "stderr", msg, "command", cmdStr)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("server icon animated conversion failed")
 	}
 	return nil
@@ -1032,15 +1107,7 @@ func (s *MediaService) extractFirstFrameStatic(ctx context.Context, inPath, outP
 		outPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		msg = strings.ReplaceAll(msg, inPath, "<input>")
-		msg = strings.ReplaceAll(msg, outPath, "<output>")
-
-		slog.Error("ffmpeg first frame extraction failed", "error", err, "stderr", msg)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("failed to extract first frame")
 	}
 	return nil
@@ -1139,16 +1206,11 @@ func (s *MediaService) convertAndSaveImage(ctx context.Context, user auth.User, 
 // uploadServerIconWithBothVersions handles GIF uploads by creating both animated and static versions
 func (s *MediaService) uploadServerIconWithBothVersions(ctx context.Context, user auth.User, src multipart.File, header *multipart.FileHeader, declaredCT, ext string) (api.Media, error) {
 	// Write upload to temporary file with content validation
-	inPath, totalSize, err := s.writeUploadToTemp(src, ext, declaredCT)
+	inPath, _, err := s.writeUploadToTemp(src, header, ext, declaredCT, s.cfg.MaxUploadBytes())
 	if err != nil {
 		return api.Media{}, err
 	}
 	defer func() { _ = os.Remove(inPath) }()
-
-	// Verify file size
-	if totalSize > s.cfg.MaxUploadBytes() {
-		return api.Media{}, NewError(http.StatusRequestEntityTooLarge, "payload_too_large", "file too large")
-	}
 
 	// Validate image using pure Go decoders (replaces ffprobe-based validation).
 	if _, err := validateImageFile(inPath, s.cfg); err != nil {
@@ -1243,16 +1305,14 @@ func (s *MediaService) probeDimensions(ctx context.Context, path string) (int, i
 			return w, h, nil
 		}
 	}
-	cmd := exec.CommandContext(ctx, s.ffprobePath,
+	out, err := s.runFFprobe(ctx,
 		"-v", "error",
 		"-select_streams", "v:0",
 		"-show_entries", "stream=width,height",
 		"-of", "csv=s=x:p=0",
 		path,
 	)
-	out, err := cmd.Output()
 	if err != nil {
-		slog.Error("ffprobe failed", "error", err, "path", path)
 		return 0, 0, err
 	}
 	line := strings.TrimSpace(string(out))
@@ -1394,16 +1454,7 @@ func (s *MediaService) convertToWebPAvatar(ctx context.Context, inPath, outPath 
 		outPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		msg = strings.ReplaceAll(msg, inPath, "<input>")
-		msg = strings.ReplaceAll(msg, outPath, "<output>")
-
-		// SECURITY: Log detailed error server-side, return generic error to client
-		slog.Error("ffmpeg conversion failed", "error", err, "stderr", msg)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("media conversion failed")
 	}
 	return nil
@@ -1441,13 +1492,7 @@ func (s *MediaService) convertToWebPAvatarAnimated(ctx context.Context, inPath, 
 		outPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
-		slog.Error("ffmpeg animated avatar conversion failed", "error", err, "stderr", msg, "command", cmdStr)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("animated avatar conversion failed")
 	}
 	return nil
@@ -1473,14 +1518,7 @@ func (s *MediaService) convertToWebPBanner(ctx context.Context, inPath, outPath 
 		outPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		msg = strings.ReplaceAll(msg, inPath, "<input>")
-		msg = strings.ReplaceAll(msg, outPath, "<output>")
-		slog.Error("ffmpeg banner conversion failed", "error", err, "stderr", msg)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("banner conversion failed")
 	}
 	return nil
@@ -1511,13 +1549,7 @@ func (s *MediaService) convertToWebPBannerAnimated(ctx context.Context, inPath, 
 		outPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
-		slog.Error("ffmpeg animated banner conversion failed", "error", err, "stderr", msg, "command", cmdStr)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("animated banner conversion failed")
 	}
 	return nil
@@ -1550,18 +1582,7 @@ func (s *MediaService) convertToWebP(ctx context.Context, inPath, outPath string
 		outPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	// Capture stderr for diagnostics.
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		// Best-effort sanitize: avoid leaking local temp paths.
-		msg = strings.ReplaceAll(msg, inPath, "<input>")
-		msg = strings.ReplaceAll(msg, outPath, "<output>")
-
-		// SECURITY: Log detailed error server-side, return generic error to client
-		slog.Error("ffmpeg conversion failed", "error", err, "stderr", msg)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("media conversion failed")
 	}
 	return nil
@@ -1597,14 +1618,7 @@ func (s *MediaService) convertToAnimatedWebP(ctx context.Context, inPath, outPat
 		outPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		// Log full command for debugging
-		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
-		slog.Error("ffmpeg animated GIF conversion failed", "error", err, "stderr", msg, "command", cmdStr)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("animated media conversion failed")
 	}
 	return nil
@@ -1619,61 +1633,95 @@ type videoInfo struct {
 	HasAudio bool
 }
 
-// validateVideoFile validates a video file using ffprobe, checking streams, duration, and dimensions
-func (s *MediaService) validateVideoFile(ctx context.Context, inPath string) (*videoInfo, error) {
+// validateVideoFile validates a video file using ffprobe.
+//
+// SECURITY: beyond dimensions and duration, this pins the container and the
+// codecs inside it to what the frontend normalizer emits (see allowedVideoCodecs).
+// Without a codec check, any codec ffmpeg can mux — including ones no browser can
+// play, and ones with a history of decoder CVEs — would be accepted purely because
+// the file was named .webm.
+func (s *MediaService) validateVideoFile(ctx context.Context, inPath, ext string) (*videoInfo, error) {
 	// Use ffprobe to get video metadata in JSON format
 	args := []string{
 		"-v", "error",
-		"-show_entries", "stream=width,height,duration,codec_type",
-		"-show_entries", "format=duration",
+		"-show_entries", "stream=codec_type,codec_name,width,height,duration,avg_frame_rate",
+		"-show_entries", "format=format_name,duration",
 		"-of", "json",
 		inPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffprobePath, args...)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		slog.Error("ffprobe validation failed", "error", err, "stderr", msg)
+	stdout, err := s.runFFprobe(ctx, args...)
+	if err != nil {
 		return nil, fmt.Errorf("video validation failed")
 	}
 
 	// Parse ffprobe JSON output
 	var probeResult struct {
 		Streams []struct {
-			CodecType string `json:"codec_type"`
-			Width     int    `json:"width"`
-			Height    int    `json:"height"`
-			Duration  string `json:"duration"`
+			CodecType    string `json:"codec_type"`
+			CodecName    string `json:"codec_name"`
+			Width        int    `json:"width"`
+			Height       int    `json:"height"`
+			Duration     string `json:"duration"`
+			AvgFrameRate string `json:"avg_frame_rate"`
 		} `json:"streams"`
 		Format struct {
-			Duration string `json:"duration"`
+			FormatName string `json:"format_name"`
+			Duration   string `json:"duration"`
 		} `json:"format"`
 	}
 
-	if err := json.Unmarshal(stdout.Bytes(), &probeResult); err != nil {
+	if err := json.Unmarshal(stdout, &probeResult); err != nil {
 		return nil, fmt.Errorf("failed to parse ffprobe output")
+	}
+
+	ext = strings.ToLower(ext)
+	videoCodecs, ok := allowedVideoCodecs[ext]
+	if !ok {
+		return nil, fmt.Errorf("unsupported video container: %s", ext)
+	}
+	audioCodecs := allowedAudioCodecs[ext]
+
+	// The declared extension must match what ffprobe actually demuxed.
+	if want := expectedContainerName[ext]; !strings.Contains(probeResult.Format.FormatName, want) {
+		return nil, fmt.Errorf("file is a %s container, not %s", probeResult.Format.FormatName, want)
 	}
 
 	// Extract video info
 	info := &videoInfo{}
+	videoStreams, audioStreams := 0, 0
 
 	for _, stream := range probeResult.Streams {
 		switch stream.CodecType {
 		case "video":
+			videoStreams++
+			if _, ok := videoCodecs[stream.CodecName]; !ok {
+				return nil, fmt.Errorf("%s video is not allowed in a%s file", stream.CodecName, ext)
+			}
+			if fps := parseFrameRate(stream.AvgFrameRate); fps > MaxVideoFrameRate {
+				return nil, fmt.Errorf("frame rate %.0f exceeds the maximum of %d", fps, MaxVideoFrameRate)
+			}
 			info.HasVideo = true
 			info.Width = stream.Width
 			info.Height = stream.Height
 		case "audio":
+			audioStreams++
+			if _, ok := audioCodecs[stream.CodecName]; !ok {
+				return nil, fmt.Errorf("%s audio is not allowed in a%s file", stream.CodecName, ext)
+			}
 			info.HasAudio = true
+		default:
+			// Subtitles, attachments, data and cover-art streams are never emitted
+			// by the normalizer and can carry arbitrary payloads.
+			return nil, fmt.Errorf("disallowed stream type: %s", stream.CodecType)
 		}
 	}
 
-	if !info.HasVideo {
-		return nil, fmt.Errorf("no video stream found")
+	if videoStreams != 1 {
+		return nil, fmt.Errorf("expected exactly one video stream, got %d", videoStreams)
+	}
+	if audioStreams > 1 {
+		return nil, fmt.Errorf("expected at most one audio stream, got %d", audioStreams)
 	}
 
 	// Parse duration (try stream duration first, fall back to format duration)
@@ -1691,6 +1739,11 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath string) (*v
 		}
 	}
 
+	// A file with no readable duration is malformed, not a zero-length video.
+	if info.Duration <= 0 {
+		return nil, fmt.Errorf("invalid or missing video duration")
+	}
+
 	// Validate dimensions
 	if info.Width <= 0 || info.Height <= 0 {
 		return nil, fmt.Errorf("invalid video dimensions: %dx%d", info.Width, info.Height)
@@ -1704,7 +1757,48 @@ func (s *MediaService) validateVideoFile(ctx context.Context, inPath string) (*v
 		return nil, fmt.Errorf("video pixel count exceeds maximum: %d", totalPixels)
 	}
 
+	// The header only describes the first frame. VP8, VP9 and AV1 can all change
+	// resolution part-way through a stream, so a file can declare 320x240 and
+	// switch to something enormous later — passing every check above, then being
+	// stream-copied to storage and decoded for a thumbnail.
+	if err := s.checkConstantResolution(ctx, inPath, info.Width, info.Height); err != nil {
+		return nil, err
+	}
+
 	return info, nil
+}
+
+// checkConstantResolution rejects a video whose frames are not all the size the
+// stream header declares.
+//
+// Decoding keyframes only keeps this far cheaper than a full scan, and it is
+// where a resolution change is signalled in practice. Nothing legitimate posted
+// to a feed changes size mid-stream — the browser normalizer certainly does not
+// — so any variation is refused rather than accommodated.
+func (s *MediaService) checkConstantResolution(ctx context.Context, path string, width, height int) error {
+	out, err := s.runFFprobe(ctx,
+		"-v", "error",
+		"-select_streams", "v:0",
+		"-skip_frame", "nokey",
+		"-show_entries", "frame=width,height",
+		"-of", "csv=p=0",
+		path,
+	)
+	if err != nil {
+		return fmt.Errorf("video frame scan failed")
+	}
+
+	want := fmt.Sprintf("%d,%d", width, height)
+	for _, line := range strings.Split(string(out), "\n") {
+		// ffprobe pads CSV rows with a trailing separator for absent fields.
+		got := strings.TrimRight(strings.TrimSpace(line), ",")
+		if got == "" || got == want {
+			continue
+		}
+		return fmt.Errorf("video changes resolution mid-stream (%s then %s)", want, got)
+	}
+
+	return nil
 }
 
 // convertToMP4 converts a video to MP4 (H.264 + AAC) with resizing if needed
@@ -1753,40 +1847,31 @@ func (s *MediaService) convertToMP4(ctx context.Context, inPath, outPath string,
 
 	args = append(args, outPath)
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
-		slog.Error("ffmpeg video conversion failed", "error", err, "stderr", msg, "command", cmdStr)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return 0, 0, fmt.Errorf("video conversion failed")
 	}
 
 	return outputWidth, outputHeight, nil
 }
 
-// remuxVideo re-wraps the input video into an MP4 container using stream-copy
-// (no re-encoding). This strips metadata and ensures a browser-friendly
-// container with near-zero CPU cost.
-func (s *MediaService) remuxVideo(ctx context.Context, inPath, outPath string) error {
+// remuxVideo re-wraps the input video into a fresh container of the same kind
+// using stream-copy (no re-encoding). This strips metadata at near-zero CPU
+// cost. The container is kept as-is so codecs never end up in a container that
+// cannot carry them for every browser.
+func (s *MediaService) remuxVideo(ctx context.Context, inPath, outPath, ext string) error {
 	args := []string{
 		"-i", inPath,
 		"-c", "copy", // Stream-copy all tracks (no re-encoding)
-		"-movflags", "+faststart", // Enable progressive playback
 		"-map_metadata", "-1", // Strip metadata
 		"-map_chapters", "-1", // Strip chapters
-		outPath,
 	}
+	if ext == "mp4" {
+		// Muxer-private option: the matroska muxer rejects it outright.
+		args = append(args, "-movflags", "+faststart") // Enable progressive playback
+	}
+	args = append(args, outPath)
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		slog.Warn("ffmpeg remux failed (codec may be incompatible with MP4 container)", "error", err, "stderr", msg)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("remux failed")
 	}
 
@@ -1825,14 +1910,7 @@ func (s *MediaService) generateThumbnail(ctx context.Context, videoPath, thumbna
 		thumbnailPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		cmdStr := s.ffmpegPath + " " + strings.Join(args, " ")
-		slog.Error("ffmpeg thumbnail generation failed", "error", err, "stderr", msg, "command", cmdStr)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("thumbnail generation failed")
 	}
 
@@ -1859,16 +1937,12 @@ func (s *MediaService) UploadEmojiImage(ctx context.Context, src multipart.File,
 		return 0, 0, NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "video files are not allowed for emoji")
 	}
 
-	inPath, totalSize, err := s.writeUploadToTemp(src, ext, declaredCT)
+	const maxEmojiBytes = int64(15) << 20
+	inPath, _, err := s.writeUploadToTemp(src, header, ext, declaredCT, maxEmojiBytes)
 	if err != nil {
 		return 0, 0, err
 	}
 	defer func() { _ = os.Remove(inPath) }()
-
-	maxBytes := int64(15) << 20 // 15 MiB
-	if totalSize > maxBytes {
-		return 0, 0, NewError(http.StatusRequestEntityTooLarge, "file_too_large", "emoji image must be 15 MiB or smaller")
-	}
 
 	info, err := validateImageFile(inPath, s.cfg)
 	if err != nil {
@@ -1951,14 +2025,7 @@ func (s *MediaService) convertToWebPEmoji(ctx context.Context, inPath, outPath s
 		outPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.ffmpegPath, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		msg = strings.ReplaceAll(msg, inPath, "<input>")
-		msg = strings.ReplaceAll(msg, outPath, "<output>")
-		slog.Error("ffmpeg emoji conversion failed", "error", err, "stderr", msg)
+	if err := s.runFFmpeg(ctx, args...); err != nil {
 		return fmt.Errorf("emoji image conversion failed")
 	}
 	return nil

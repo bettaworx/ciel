@@ -33,8 +33,8 @@ import { MediaUploadOverflowMenu } from "./MediaUploadOverflowMenu";
 import { ComposerEmojiPicker } from "./ComposerEmojiPicker";
 import { insertCenterDecoration } from "./centerDecoration";
 import {
-  ACCEPTED_IMAGE_TYPES,
-  ACCEPTED_VIDEO_TYPES,
+  ACCEPTED_IMAGE_ACCEPT,
+  ACCEPTED_VIDEO_ACCEPT,
 } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
 import { useComposerPlaceholder } from "./useComposerPlaceholder";
@@ -58,8 +58,6 @@ interface PostComposerContentProps {
   onClose?: () => void;
   /** (dialog only) Whether the close button should be disabled */
   closeDisabled?: boolean;
-  /** (card only) Called when the textarea loses focus */
-  onBlur?: () => void;
   /** Reuse a parent-selected placeholder so collapsed and expanded card states match. */
   placeholder?: string;
   /** Override the submit button label (defaults to createPost.post). */
@@ -113,7 +111,6 @@ export function PostComposerContent({
   avatar,
   onClose,
   closeDisabled,
-  onBlur,
   placeholder: placeholderOverride,
   submitLabel,
   submittingLabel,
@@ -169,6 +166,7 @@ export function PostComposerContent({
     handleCropOpen,
     handleCropDialogOpenChange,
     handleCropComplete,
+    handleQualityChange,
     handlePost,
     // Mutations
     createPostMutation,
@@ -281,7 +279,7 @@ export function PostComposerContent({
     <div className="flex items-center gap-1">
       <MediaUploadButton
         inputRef={imageFileInputRef}
-        accept={ACCEPTED_IMAGE_TYPES.join(",")}
+        accept={ACCEPTED_IMAGE_ACCEPT}
         multiple
         disabled={isImageUploadDisabled}
         onChange={handleImageSelect}
@@ -292,7 +290,7 @@ export function PostComposerContent({
       />
       <MediaUploadButton
         inputRef={videoFileInputRef}
-        accept={ACCEPTED_VIDEO_TYPES.join(",")}
+        accept={ACCEPTED_VIDEO_ACCEPT}
         disabled={isVideoUploadDisabled}
         onChange={handleImageSelect}
         icon={VideoIcon}
@@ -444,7 +442,6 @@ export function PostComposerContent({
         onChange={handleContentChange}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
-        onBlur={onBlur}
         placeholder={placeholder}
         className={`flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0`}
         maxLength={maxContentLength}
@@ -476,6 +473,7 @@ export function PostComposerContent({
           editable
           onRemove={handleRemoveMedia}
           onCrop={handleCropOpen}
+          onQualityChange={handleQualityChange}
         />
       </div>
     ) : null;

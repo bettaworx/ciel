@@ -21,18 +21,29 @@ import (
 )
 
 type ReactionsService struct {
-	store     *repository.Store
-	cache     cache.Cache
-	publisher realtime.Publisher
+	store         *repository.Store
+	cache         cache.Cache
+	publisher     realtime.Publisher
+	notifications *NotificationsService
 }
 
 func NewReactionsService(store *repository.Store, cache cache.Cache, publisher realtime.Publisher) *ReactionsService {
 	return &ReactionsService{store: store, cache: cache, publisher: publisher}
 }
 
+func (s *ReactionsService) SetNotificationsService(notifications *NotificationsService) {
+	s.notifications = notifications
+}
+
 func (s *ReactionsService) List(ctx context.Context, postID api.PostId, userID *api.UserId) (api.ReactionCounts, error) {
 	if s.store == nil {
 		return api.ReactionCounts{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+	// Ahead of the cache lookup on purpose: the cached blob is keyed by post
+	// alone, so serving it first would hand a stranger the reaction counts on a
+	// private user's post without ever checking whether they may see it.
+	if err := s.ensurePostVisible(ctx, postID, userID); err != nil {
+		return api.ReactionCounts{}, err
 	}
 	if counts, ok := s.getReactionCache(ctx, postID); ok {
 		if userID == nil {
@@ -46,9 +57,6 @@ func (s *ReactionsService) List(ctx context.Context, postID api.PostId, userID *
 			}
 			return counts, nil
 		}
-	}
-	if err := s.ensurePostVisible(ctx, postID); err != nil {
-		return api.ReactionCounts{}, err
 	}
 	counts, err := s.buildCounts(ctx, postID, userID)
 	if err != nil {
@@ -141,7 +149,7 @@ type ReactionUsersCursor struct {
 	ID    string `json:"i"`
 }
 
-func (s *ReactionsService) ListUsers(ctx context.Context, postID api.PostId, emoji api.Emoji, limit int, cursor *string) (api.ReactionUsersPage, error) {
+func (s *ReactionsService) ListUsers(ctx context.Context, postID api.PostId, emoji api.Emoji, limit int, cursor *string, userID *api.UserId) (api.ReactionUsersPage, error) {
 	if s.store == nil {
 		return api.ReactionUsersPage{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
@@ -152,7 +160,7 @@ func (s *ReactionsService) ListUsers(ctx context.Context, postID api.PostId, emo
 	if em == "" {
 		return api.ReactionUsersPage{}, NewError(http.StatusBadRequest, "invalid_request", "emoji required")
 	}
-	if err := s.ensurePostVisible(ctx, postID); err != nil {
+	if err := s.ensurePostVisible(ctx, postID, userID); err != nil {
 		return api.ReactionUsersPage{}, err
 	}
 
@@ -174,6 +182,7 @@ func (s *ReactionsService) ListUsers(ctx context.Context, postID api.PostId, emo
 	rows, err := s.store.Q.ListReactionUsers(ctx, sqlc.ListReactionUsersParams{
 		PostID:     postID,
 		Emoji:      em,
+		ViewerID:   nullUUIDFromPtr(userID),
 		CursorTime: cursorTime,
 		CursorID:   cursorID,
 		Limit:      int32(limit),
@@ -199,6 +208,7 @@ func (s *ReactionsService) ListUsers(ctx context.Context, postID api.PostId, emo
 			0,
 			sql.NullTime{},
 			sql.NullTime{},
+			row.IsPrivate,
 		))
 	}
 
@@ -217,12 +227,17 @@ func (s *ReactionsService) ListUsers(ctx context.Context, postID api.PostId, emo
 	}, nil
 }
 
-func (s *ReactionsService) ensurePostVisible(ctx context.Context, postID api.PostId) error {
+func (s *ReactionsService) ensurePostVisible(ctx context.Context, postID api.PostId, userID *api.UserId) error {
 	if s.store == nil {
 		return NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
-	// Ensure post exists and not deleted.
-	row, err := s.store.Q.GetPostWithAuthorByID(ctx, postID)
+	// Ensure the post exists, is not deleted, and its author is visible to the
+	// viewer. All three come back as the same 404 so the response cannot be used
+	// to probe whether a private post exists.
+	row, err := s.store.Q.GetPostWithAuthorByID(ctx, sqlc.GetPostWithAuthorByIDParams{
+		ID:       postID,
+		ViewerID: nullUUIDFromPtr(userID),
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return NewError(http.StatusNotFound, "not_found", "post not found")
@@ -278,7 +293,10 @@ func (s *ReactionsService) Add(ctx context.Context, user auth.User, postID api.P
 	if emoji == "" {
 		return api.ReactionCounts{}, NewError(http.StatusBadRequest, "invalid_request", "emoji required")
 	}
-	row, err := s.store.Q.GetPostWithAuthorByID(ctx, postID)
+	row, err := s.store.Q.GetPostWithAuthorByID(ctx, sqlc.GetPostWithAuthorByIDParams{
+		ID:       postID,
+		ViewerID: uuid.NullUUID{UUID: user.ID, Valid: true},
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return api.ReactionCounts{}, NewError(http.StatusNotFound, "not_found", "post not found")
@@ -288,8 +306,22 @@ func (s *ReactionsService) Add(ctx context.Context, user auth.User, postID api.P
 	if row.DeletedAt.Valid {
 		return api.ReactionCounts{}, NewError(http.StatusNotFound, "not_found", "post not found")
 	}
+	// The blocked direction is already covered: GetPostWithAuthorByID applies
+	// can_view_user, so an author who blocked the caller returns no row at all.
+	// This is the other direction, which can_view_user deliberately leaves open
+	// so the blocker can still read behind the reveal cushion. Reading is not
+	// reacting: a reaction is addressed to the author, who cannot see it.
+	scope, err := LoadViewerScope(ctx, s.store, &user.ID)
+	if err != nil {
+		return api.ReactionCounts{}, err
+	}
+	if !scope.CanInteractWith(row.UserID) {
+		return api.ReactionCounts{}, NewError(http.StatusForbidden, "blocked", "cannot react to this post")
+	}
 
+	var createdNotifications []CreatedNotification
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		createdNotifications = nil
 		if _, err := q.AddReactionEvent(ctx, sqlc.AddReactionEventParams{UserID: user.ID, PostID: postID, Emoji: emoji}); err != nil {
 			if err == sql.ErrNoRows {
 				// ON CONFLICT DO NOTHING -> no row
@@ -300,11 +332,24 @@ func (s *ReactionsService) Add(ctx context.Context, user auth.User, postID api.P
 		if _, err := q.IncrementReactionCount(ctx, sqlc.IncrementReactionCountParams{PostID: postID, Emoji: emoji}); err != nil {
 			return err
 		}
+		id, err := Notify(ctx, q, NotifyParams{
+			UserID:  row.UserID,
+			Type:    api.Reaction,
+			ActorID: user.ID,
+			PostID:  postID,
+			Subtype: emoji,
+		})
+		if err != nil {
+			return err
+		}
+		if id != uuid.Nil {
+			createdNotifications = append(createdNotifications, CreatedNotification{ID: id, UserID: row.UserID})
+		}
 		return nil
 	}); err != nil {
 		return api.ReactionCounts{}, err
 	}
-	if err := s.ensurePostVisible(ctx, postID); err != nil {
+	if err := s.ensurePostVisible(ctx, postID, &user.ID); err != nil {
 		return api.ReactionCounts{}, err
 	}
 	counts, err := s.buildCounts(ctx, postID, &user.ID)
@@ -313,7 +358,8 @@ func (s *ReactionsService) Add(ctx context.Context, user auth.User, postID api.P
 	}
 	s.setReactionCache(ctx, anonymizeReactionCounts(counts))
 	s.setUserReactionCache(ctx, user.ID, postID, selfReactionEmojis(counts))
-	s.publish(ctx, counts)
+	s.publish(ctx, row.UserID, counts)
+	s.notifications.Publish(ctx, s.publisher, createdNotifications)
 	return counts, nil
 }
 
@@ -326,11 +372,33 @@ func (s *ReactionsService) Remove(ctx context.Context, user auth.User, postID ap
 		return api.ReactionCounts{}, NewError(http.StatusBadRequest, "invalid_request", "emoji required")
 	}
 
+	// Needed to find the notification this reaction produced.
+	row, err := s.store.Q.GetPostWithAuthorByID(ctx, sqlc.GetPostWithAuthorByIDParams{
+		ID:       postID,
+		ViewerID: uuid.NullUUID{UUID: user.ID, Valid: true},
+	})
+	if err != nil && err != sql.ErrNoRows {
+		return api.ReactionCounts{}, err
+	}
+	postAuthorID := row.UserID
+
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
 		if _, err := q.RemoveReactionEvent(ctx, sqlc.RemoveReactionEventParams{UserID: user.ID, PostID: postID, Emoji: em}); err != nil {
 			if err == sql.ErrNoRows {
 				return NewError(http.StatusNotFound, "not_found", "reaction not found")
 			}
+			return err
+		}
+
+		// Drop the notification too, otherwise the dedupe index would stop the
+		// recipient ever hearing about this same reaction again.
+		if err := Unnotify(ctx, q, NotifyParams{
+			UserID:  postAuthorID,
+			Type:    api.Reaction,
+			ActorID: user.ID,
+			PostID:  postID,
+			Subtype: em,
+		}); err != nil {
 			return err
 		}
 		count, err := q.DecrementReactionCount(ctx, sqlc.DecrementReactionCountParams{PostID: postID, Emoji: em})
@@ -351,7 +419,7 @@ func (s *ReactionsService) Remove(ctx context.Context, user auth.User, postID ap
 		return api.ReactionCounts{}, err
 	}
 
-	if err := s.ensurePostVisible(ctx, postID); err != nil {
+	if err := s.ensurePostVisible(ctx, postID, &user.ID); err != nil {
 		return api.ReactionCounts{}, err
 	}
 	counts, err := s.buildCounts(ctx, postID, &user.ID)
@@ -360,16 +428,59 @@ func (s *ReactionsService) Remove(ctx context.Context, user auth.User, postID ap
 	}
 	s.setReactionCache(ctx, anonymizeReactionCounts(counts))
 	s.setUserReactionCache(ctx, user.ID, postID, selfReactionEmojis(counts))
-	s.publish(ctx, counts)
+	s.publish(ctx, row.UserID, counts)
 	return counts, nil
 }
 
-func (s *ReactionsService) publish(ctx context.Context, counts api.ReactionCounts) {
+// PurgeUserReactions removes every reaction this user made and settles the
+// denormalised counters, returning the posts whose totals changed. It has to run
+// before the user row goes away: the cascade would take the events with nothing
+// left to subtract from post_reaction_counts, leaving a reaction nobody made.
+func (s *ReactionsService) PurgeUserReactions(ctx context.Context, q *sqlc.Queries, userID uuid.UUID) ([]uuid.UUID, error) {
+	postIDs, err := q.DeleteUserReactionEvents(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(postIDs) == 0 {
+		return nil, nil
+	}
+	unique := make([]uuid.UUID, 0, len(postIDs))
+	seen := make(map[uuid.UUID]struct{}, len(postIDs))
+	for _, postID := range postIDs {
+		if _, ok := seen[postID]; ok {
+			continue
+		}
+		seen[postID] = struct{}{}
+		unique = append(unique, postID)
+	}
+	if err := q.DeleteZeroReactionCounts(ctx, unique); err != nil {
+		return nil, err
+	}
+	return unique, nil
+}
+
+// InvalidatePostCounts drops the cached count blobs so the next read rebuilds
+// them from the database. Call it after the transaction commits.
+func (s *ReactionsService) InvalidatePostCounts(ctx context.Context, postIDs []uuid.UUID) {
+	if s.cache == nil || len(postIDs) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(postIDs))
+	for _, postID := range postIDs {
+		keys = append(keys, reactionCacheKey(api.PostId(postID)))
+	}
+	_ = s.cache.Delete(ctx, keys...)
+}
+
+// publish announces the new counts. postAuthorID scopes delivery: the event
+// carries a post id, so broadcasting it for a private author's post would tell
+// every connected client that the post exists and how it is being reacted to.
+func (s *ReactionsService) publish(ctx context.Context, postAuthorID uuid.UUID, counts api.ReactionCounts) {
 	if s.publisher == nil {
 		return
 	}
 	anonymized := anonymizeReactionCounts(counts)
-	_ = s.publisher.Publish(ctx, realtime.Event{Type: realtime.EventReactionUpdated, ReactionCounts: &anonymized})
+	publishScoped(ctx, s.store, s.publisher, postAuthorID, realtime.Event{Type: realtime.EventReactionUpdated, ReactionCounts: &anonymized})
 }
 
 func encodeReactionUsersCursor(c ReactionUsersCursor) string {

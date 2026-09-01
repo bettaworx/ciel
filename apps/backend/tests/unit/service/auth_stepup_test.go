@@ -151,6 +151,10 @@ func TestAuthService_StepUpFinish_AuditSuccess(t *testing.T) {
 		sqlmock.NewRows([]string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash", "salt", "iterations", "stored_key", "server_key"}).
 			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
 	)
+	// MFA check after successful proof verification: no factors enrolled.
+	mock.ExpectQuery(`EXISTS\(SELECT 1 FROM auth_totp`).WithArgs(userID).WillReturnRows(
+		sqlmock.NewRows([]string{"has_totp", "has_webauthn", "backup_codes_remaining"}).AddRow(false, false, 0),
+	)
 
 	startResp, err := svc.StepUpStart(context.Background(), user, api.StepupStartRequest{ClientNonce: "cnonce"})
 	if err != nil {

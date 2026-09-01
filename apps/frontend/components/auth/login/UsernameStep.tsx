@@ -117,9 +117,6 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
             <h2 className="text-2xl font-bold">
               {t("login.wizard.username.title")}
             </h2>
-            <p className="text-muted-foreground text-sm">
-              {t("login.wizard.username.description")}
-            </p>
           </div>
 
           <div className="space-y-4">

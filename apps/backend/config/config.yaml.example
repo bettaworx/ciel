@@ -47,30 +47,25 @@ media:
   max_upload_size: 15
   
   # Allowed file extensions (without leading dot)
-  # Known image formats: png, jpg, jpeg, webp, gif
-  # Known video formats: mp4, webm, mov, avi, mkv, m4v, 3gp, ogv
-  # Only formats listed here will be accepted for upload
+  # Only the formats the frontend normalizer emits are accepted: still images are
+  # re-encoded to WebP and videos to WebM (or MP4 on browsers without a VP8/VP9/AV1
+  # encoder); GIF is passed through. This list can narrow that set but never widen
+  # it — see MediaConfig.IsExtensionAllowed.
   allowed_extensions:
+    - webp
     - png
     - jpg
     - jpeg
-    - webp
     - gif
-    - mp4
     - webm
-    - mov
-    - avi
-    - mkv
-    - m4v
-    - 3gp
-    - ogv
+    - mp4
   
   # Input validation limits (DoS prevention)
   # These limits prevent memory exhaustion from extremely large images
   # Images exceeding these limits are rejected before processing
   max_input_width: 16384       # Maximum input width (16K resolution)
   max_input_height: 16384      # Maximum input height (16K resolution)
-  max_input_pixels: 100000000  # Maximum total pixels (~100 megapixels)
+  max_input_pixels: 50000000   # Maximum total pixels (~50 megapixels, well past 8K)
   
   # Media encoding settings
   # Controls which media types use FFmpeg for encoding/processing

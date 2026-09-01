@@ -17,6 +17,8 @@ type OwnerThreadTimelineItemProps = {
   isLast: boolean;
   onUserClick: (username: string) => void;
   onShowThread: () => void;
+  /** Passed through to every card: this whole thread is by one author. */
+  skipHiddenCushion?: boolean;
 };
 
 function getReplyThreadLine(
@@ -36,6 +38,7 @@ export function OwnerThreadTimelineItem({
   isLast,
   onUserClick,
   onShowThread,
+  skipHiddenCushion,
 }: OwnerThreadTimelineItemProps) {
   const t = useTranslations();
   const hasRowsAfterRoot = isMerged || replies.length > 0;
@@ -47,6 +50,7 @@ export function OwnerThreadTimelineItem({
         onUserClick={onUserClick}
         isLast={!hasRowsAfterRoot && isLast}
         threadLine={hasRowsAfterRoot ? "below" : "none"}
+        skipHiddenCushion={skipHiddenCushion}
       />
       {isMerged && (
         <PostTreeActionButton
@@ -67,6 +71,7 @@ export function OwnerThreadTimelineItem({
             onUserClick={onUserClick}
             isLast={!hasNext && isLast}
             threadLine={getReplyThreadLine(hasPrevious, hasNext)}
+            skipHiddenCushion={skipHiddenCushion}
           />
         );
       })}

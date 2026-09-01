@@ -3,19 +3,38 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import {
+  stepHeadingClass,
+  type StepPresentation,
+} from "@/components/auth/step-presentation";
 import { UserProfileDisplay } from "./UserProfileDisplay";
 
 interface PasswordStepProps {
   username: string;
   onSubmit: (password: string) => void;
   loading?: boolean;
+  /**
+   * 見出し。未指定ならログイン時の「おかえりなさい」。
+   * 再認証（step-up）ではここを操作名に差し替える。
+   */
+  heading?: string;
+  /**
+   * "wizard" is the full-screen step: a large left-aligned heading with the
+   * profile beside it. "sheet" is the bottom-sheet card: a dialog-sized heading
+   * centred over a stacked profile.
+   */
+  presentation?: StepPresentation;
 }
 
 export function PasswordStep({
   username,
   onSubmit,
   loading = false,
+  heading,
+  presentation = "wizard",
 }: PasswordStepProps) {
+  const isSheet = presentation === "sheet";
   const t = useTranslations();
   const [password, setPassword] = useState("");
 
@@ -33,7 +52,11 @@ export function PasswordStep({
         onSubmit={handleSubmit}
         className="flex flex-col h-full min-h-0"
       >
-        <Input
+        {/* Password-manager hint only — never seen. A plain input rather than
+            <Input>, whose w-full survives tailwind-merge alongside sr-only and
+            stretches this to the full page width, forcing a horizontal
+            scrollbar. */}
+        <input
           type="text"
           value={username}
           readOnly
@@ -45,14 +68,22 @@ export function PasswordStep({
 
         <div className="flex-1 flex flex-col justify-center">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold">
-              {t("login.wizard.password.welcomeBack")}
+            <h2
+              className={cn(
+                stepHeadingClass(presentation),
+                isSheet && "text-center",
+              )}
+            >
+              {heading ?? t("login.wizard.password.welcomeBack")}
             </h2>
           </div>
 
           <div className="space-y-6">
             {/* User profile display */}
-            <UserProfileDisplay username={username} />
+            <UserProfileDisplay
+              username={username}
+              layout={isSheet ? "stacked" : "inline"}
+            />
 
             {/* Password input */}
             <Input

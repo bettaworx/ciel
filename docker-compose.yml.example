@@ -17,6 +17,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      meilisearch:
+        condition: service_healthy
     environment:
       ENV: ${ENV:-development}
       DISABLE_DOTENV: ${DISABLE_DOTENV:-1}
@@ -24,9 +26,15 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       TRUST_PROXY: ${TRUST_PROXY:-true}
       STEPUP_TOKEN_TTL_SECONDS: ${STEPUP_TOKEN_TTL_SECONDS:-300}
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:-}
+      WEBAUTHN_RP_DISPLAY_NAME: ${WEBAUTHN_RP_DISPLAY_NAME:-Ciel}
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      SEARCH_PROVIDER: ${SEARCH_PROVIDER:-meilisearch}
+      MEILISEARCH_HOST: ${MEILISEARCH_HOST:-http://meilisearch:7700}
+      MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY:-${MEILI_MASTER_KEY:?MEILI_MASTER_KEY must be set}}
+      SEARCH_BACKFILL: ${SEARCH_BACKFILL:-}
       MEDIA_DIR: ${MEDIA_DIR:-/var/lib/ciel/media}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:6137}
       REALTIME_SIGNING_SECRET: ${REALTIME_SIGNING_SECRET:?REALTIME_SIGNING_SECRET must be set}
@@ -129,7 +137,31 @@ services:
       timeout: 3s
       retries: 20
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.53
+    container_name: ciel-meilisearch
+    restart: unless-stopped
+    networks:
+      - ciel-net
+    environment:
+      # SECURITY CRITICAL: Set a strong MEILI_MASTER_KEY in .env file!
+      # Generate with: openssl rand -base64 32
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY must be set in .env file}
+      MEILI_ENV: ${MEILI_ENV:-production}
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      # SECURITY: Bind to localhost only to prevent external access
+      - "127.0.0.1:${MEILI_PORT:-7700}:7700"
+    volumes:
+      - meili_data:/meili_data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:7700/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
 volumes:
   db_data:
   media_data:
   redis_data:
+  meili_data:
