@@ -82,6 +82,11 @@ const nextConfig: NextConfig = {
         destination: "/icon",
         permanent: false,
       },
+      {
+        source: "/.well-known/change-password",
+        destination: "/settings/security",
+        permanent: false,
+      },
     ];
   },
 
