@@ -74,9 +74,9 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
-    "@storybook/addon-themes": "10.5.8",
-    "@storybook/nextjs": "10.5.8",
-    "@storybook/react": "10.5.8",
+    "@storybook/addon-themes": "10.6.0",
+    "@storybook/nextjs": "10.6.0",
+    "@storybook/react": "10.6.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/hammerjs": "^2.0.46",
     "@types/node": "^25",
@@ -92,7 +92,7 @@
     "license-checker-rseidelsohn": "^5.0.1",
     "openapi-typescript": "^7.10.1",
     "postcss": "^8.5.26",
-    "storybook": "10.5.8",
+    "storybook": "10.6.0",
     "tailwindcss": "^4.1.18",
     "typescript": "^6.0.2",
     "vitest": "^4.0.18"
