@@ -13,7 +13,9 @@ export function getSafeRedirect(url: string | null, fallback: string = "/"): str
   try {
     const parsed = new URL(url, window.location.origin);
     if (parsed.origin !== window.location.origin) return fallback;
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    // A same-origin URL can still yield a `//evil.com` pathname, which becomes a
+    // protocol-relative redirect once assigned to location.href. Collapse it.
+    return `${parsed.pathname.replace(/^\/+/, "/")}${parsed.search}${parsed.hash}`;
   } catch {
     return fallback;
   }

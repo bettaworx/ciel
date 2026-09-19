@@ -23,6 +23,7 @@ describe("getSafeRedirect", () => {
       String.raw`\\evil.com`,
       "/%2f%2fevil.com",
       "  //evil.com",
+      `${ORIGIN}//evil.com`,
     ];
     for (const bad of hostile) {
       expect(new URL(getSafeRedirect(bad), ORIGIN).origin).toBe(ORIGIN);
