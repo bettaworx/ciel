@@ -65,12 +65,8 @@ describe("dataset catalog", () => {
   it("returns collections by category", () => {
     const catalog = createDatasetCatalog([externalCollection, appCollection]);
 
-    expect(getDatasetCollections(catalog, ["greet"])).toEqual([
-      externalCollection,
-    ]);
-    expect(getDatasetCollections(catalog, ["notify"])).toEqual([
-      appCollection,
-    ]);
+    expect(getDatasetCollections(catalog, ["greet"])).toEqual([externalCollection]);
+    expect(getDatasetCollections(catalog, ["notify"])).toEqual([appCollection]);
   });
 
   it("expands datasets for selected categories", () => {
