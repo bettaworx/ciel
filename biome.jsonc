@@ -6,7 +6,20 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!lib/api/api.d.ts", "!next-env.d.ts", "!public", "!storybook-static"]
+    // vcs.useIgnoreFile はルートの .gitignore しか読まない。apps/frontend/.gitignore
+    // にしか書かれていないビルド成果物・生成物はここで明示的に外す。
+    "includes": [
+      "**",
+      "!**/.next",
+      "!**/dist",
+      "!**/coverage",
+      "!**/storybook-static",
+      "!apps/frontend/next-env.d.ts",
+      // openapi-typescript の生成物
+      "!apps/frontend/lib/api/api.d.ts",
+      // gen:licenses の生成物
+      "!apps/frontend/public/licenses.json"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -15,7 +28,7 @@
     "lineWidth": 100
   },
   "css": {
-    // globals.css は Tailwind v4 の @theme / @apply を使う
+    // apps/frontend/app/globals.css は Tailwind v4 の @theme / @apply を使う
     "parser": { "tailwindDirectives": true }
   },
   "javascript": {

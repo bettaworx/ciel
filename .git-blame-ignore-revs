@@ -6,3 +6,7 @@
 # 🎨 style(frontend): apply Biome formatter to the whole app
 # Biome 導入時の一括フォーマット。ロジック変更なし。
 7a3774776c769cb467dd7f9de7ac6624a1232100
+
+# 🎨 style: apply Biome formatter to kotodoki, scripts and sw.js
+# Biome の対象をリポジトリ全体に広げた際の一括フォーマット。ロジック変更なし。
+c943cd55800110db8fcf8ced4dd055b0e62197f5

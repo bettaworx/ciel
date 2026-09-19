@@ -8,6 +8,9 @@
     "build": "concurrently -n frontend,backend -c cyan,green \"pnpm run build:frontend\" \"pnpm run build:backend \"",
     "run": "concurrently -n frontend,backend -c cyan,green \"pnpm run run:frontend\" \"pnpm run run:backend\"",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "lint:ci": "biome ci .",
     "gen:openapi": "cd apps/backend && go generate ./internal/api",
     "gen:openapi:ts": "pnpm -C apps/frontend run gen:openapi",
     "gen:sqlc": "cd apps/backend && go generate ./internal/db/sqlc",
@@ -31,6 +34,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.28.0",
   "devDependencies": {
+    "@biomejs/biome": "2.5.14",
     "concurrently": "^10.0.1",
     "dotenv-cli": "^11.0.0"
   }

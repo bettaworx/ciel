@@ -356,10 +356,12 @@ pnpm -C apps/frontend dev
 pnpm -C apps/frontend build
 
 # Linting / Formatting
-pnpm -C apps/frontend lint       # Biome: lint + 書式チェック
-pnpm -C apps/frontend lint:fix   # 自動修正つき
+pnpm run lint       # Biome: lint + 書式チェック（リポジトリ全体）
+pnpm run lint:fix   # 自動修正つき
 
-# 設定は apps/frontend/biome.jsonc。ESLint / Prettier は使っていない。
+# Biome はモノレポ全体を 1 設定で見る。設定はリポジトリルートの biome.jsonc。
+# ESLint / Prettier は使っていない。フロントだけ見たいときは:
+#   pnpm exec biome check apps/frontend
 # 初回のみ、一括フォーマットのコミットを blame から外しておくと読みやすい:
 #   git config blame.ignoreRevsFile .git-blame-ignore-revs
 

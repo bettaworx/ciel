@@ -39,8 +39,8 @@ jobs:
           working-directory: apps/backend
           args: --path-prefix=apps/backend
 
-  lint-frontend:
-    name: Frontend (Biome) Lint
+  lint-js:
+    name: JS/TS (Biome) Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -56,4 +56,3 @@ jobs:
 
       - name: Biome (lint + format check)
         run: pnpm run lint:ci
-        working-directory: apps/frontend

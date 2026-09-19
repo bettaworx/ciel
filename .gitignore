@@ -114,3 +114,6 @@ apps/backend/internal/db/sqlc/*.go
 !apps/backend/internal/db/sqlc/generate.go
 .claude/settings.local.json
 idea
+
+# Claude Code が作る一時 worktree（リポジトリ全体の複製）
+.claude/worktrees/
