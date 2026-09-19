@@ -40,7 +40,7 @@ jobs:
           args: --path-prefix=apps/backend
 
   lint-frontend:
-    name: Frontend (TypeScript) Lint
+    name: Frontend (Biome) Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -54,5 +54,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm run lint
+      - name: Biome (lint + format check)
+        run: pnpm run lint:ci
         working-directory: apps/frontend

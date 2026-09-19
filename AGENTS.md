@@ -84,7 +84,7 @@ pnpm install              # Install all dependencies
 ```bash
 pnpm -C apps/frontend dev           # Start dev server (port 3000)
 pnpm -C apps/frontend build         # Production build
-pnpm -C apps/frontend lint          # ESLint
+pnpm -C apps/frontend lint          # Biome (lint + format check)
 pnpm -C apps/frontend gen:openapi   # Generate API types
 pnpm -C apps/frontend storybook     # Storybook dev server (port 6006)
 pnpm -C apps/frontend build-storybook # Storybook static build

@@ -355,8 +355,13 @@ pnpm -C apps/frontend dev
 # Production build
 pnpm -C apps/frontend build
 
-# Linting
-pnpm -C apps/frontend lint
+# Linting / Formatting
+pnpm -C apps/frontend lint       # Biome: lint + 書式チェック
+pnpm -C apps/frontend lint:fix   # 自動修正つき
+
+# 設定は apps/frontend/biome.jsonc。ESLint / Prettier は使っていない。
+# 初回のみ、一括フォーマットのコミットを blame から外しておくと読みやすい:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 # Regenerate API types from OpenAPI spec
 pnpm -C apps/frontend gen:openapi

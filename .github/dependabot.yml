@@ -22,8 +22,7 @@ updates:
       next:
         patterns:
           - "next"
-          - "next-*"
-          - "eslint-config-next"
+          - "next-*"
       radix-ui:
         patterns:
           - "@radix-ui/*"
