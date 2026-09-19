@@ -1,35 +1,20 @@
 /**
- * Validates that a redirect URL is safe (same-origin or relative path).
- * Prevents open redirect vulnerabilities (CWE-601).
- *
- * @param url - The URL to validate
- * @returns true if the URL is safe to redirect to
- */
-export function isValidRedirect(url: string | null): boolean {
-  if (!url) return false;
-
-  // Allow relative paths (but not protocol-relative URLs like //evil.com)
-  if (url.startsWith("/") && !url.startsWith("//")) {
-    return true;
-  }
-
-  // For absolute URLs, check if they're same-origin
-  try {
-    const redirectUrl = new URL(url, window.location.origin);
-    return redirectUrl.origin === window.location.origin;
-  } catch {
-    // Invalid URL
-    return false;
-  }
-}
-
-/**
- * Returns a safe redirect URL, defaulting to fallback if invalid.
+ * Returns a safe redirect target, defaulting to fallback if the URL is not
+ * same-origin. Prevents open redirects (CWE-601): the result is rebuilt from
+ * the parsed URL, so only a path/query/hash of our own origin can escape.
  *
  * @param url - The URL to validate
  * @param fallback - The fallback URL if validation fails (default: '/')
- * @returns A safe redirect URL
+ * @returns A safe same-origin path
  */
 export function getSafeRedirect(url: string | null, fallback: string = "/"): string {
-  return isValidRedirect(url) ? url! : fallback;
+  if (!url) return fallback;
+
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.origin !== window.location.origin) return fallback;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
 }
