@@ -36,11 +36,7 @@ const MAX_VERTICAL_PX = 160;
 const FLICK_VELOCITY = 0.5;
 
 /** Distance a drag must cover on this axis before it commits. */
-export function commitDistance(
-  extent: number,
-  ratio: number,
-  ceiling: number,
-): number {
+export function commitDistance(extent: number, ratio: number, ceiling: number): number {
   return Math.min(extent * ratio, ceiling);
 }
 
@@ -76,8 +72,7 @@ export function resolveSwipe({
   // Either direction dismisses. As on the horizontal axis, a flick only counts
   // when it agrees with the travel, so dragging one way and flicking back
   // cancels instead of committing.
-  const flicked =
-    Math.abs(vy) > FLICK_VELOCITY && Math.sign(vy) === Math.sign(dy);
+  const flicked = Math.abs(vy) > FLICK_VELOCITY && Math.sign(vy) === Math.sign(dy);
   const needed = commitDistance(height, VERTICAL_RATIO, MAX_VERTICAL_PX);
   return Math.abs(dy) > needed || flicked ? "dismiss" : "none";
 }

@@ -23,10 +23,7 @@ type NotificationBadgeProps = {
  * Not built on ui/badge: that is a bordered pill sized for inline labels, which
  * does not sit well as a small count over an icon.
  */
-export function NotificationBadge({
-  variant = "count",
-  className,
-}: NotificationBadgeProps) {
+export function NotificationBadge({ variant = "count", className }: NotificationBadgeProps) {
   const t = useTranslations("notifications");
   const { data } = useUnreadNotificationCount();
   const count = data?.count ?? 0;

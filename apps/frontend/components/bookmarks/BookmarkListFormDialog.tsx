@@ -23,11 +23,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   EmojiPicker,
   EmojiPickerSearch,
@@ -90,8 +86,7 @@ export function BookmarkListFormDialog({
   }, [open, list, t]);
 
   const trimmed = name.trim();
-  const canSubmit =
-    trimmed.length > 0 && trimmed.length <= MAX_NAME_LENGTH && !isPending;
+  const canSubmit = trimmed.length > 0 && trimmed.length <= MAX_NAME_LENGTH && !isPending;
 
   const handleEmojiSelect = React.useCallback(({ emoji }: EmojiSelectEvent) => {
     setIcon(emoji);
@@ -219,9 +214,7 @@ export function BookmarkListFormDialog({
             <DrawerDescription className="sr-only">{title}</DrawerDescription>
           </DrawerHeader>
           {fields}
-          <DrawerFooter className="flex-row justify-end px-0">
-            {actions}
-          </DrawerFooter>
+          <DrawerFooter className="flex-row justify-end px-0">{actions}</DrawerFooter>
         </form>
       </DrawerContent>
     </Drawer>

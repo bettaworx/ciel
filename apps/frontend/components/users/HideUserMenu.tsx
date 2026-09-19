@@ -29,13 +29,7 @@ type User = components["schemas"]["User"];
  * Renders nothing when logged out or pointed at yourself — useHideUserActions
  * returns no actions in either case.
  */
-export function HideUserMenu({
-  user,
-  className,
-}: {
-  user: User;
-  className?: string;
-}) {
+export function HideUserMenu({ user, className }: { user: User; className?: string }) {
   const t = useTranslations();
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const [open, setOpen] = useState(false);
@@ -79,9 +73,7 @@ export function HideUserMenu({
                 key={action.key}
                 onSelect={action.run}
                 className={
-                  action.destructive
-                    ? "text-destructive focus:text-destructive"
-                    : undefined
+                  action.destructive ? "text-destructive focus:text-destructive" : undefined
                 }
               >
                 {action.icon}

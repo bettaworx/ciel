@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 
 export default function AdminConfigPage() {
   const t = useTranslations("admin.config");
-  
+
   const { data: serverInfo, isLoading: loadingInfo } = useServerInfo();
   const { data: settings, isLoading: loadingSettings } = useAdminSettings();
 

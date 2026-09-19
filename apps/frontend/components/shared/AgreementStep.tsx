@@ -11,12 +11,7 @@ interface AgreementStepProps {
   onCheckedChange: (checked: boolean) => void;
 }
 
-export function AgreementStep({
-  type,
-  content,
-  checked,
-  onCheckedChange,
-}: AgreementStepProps) {
+export function AgreementStep({ type, content, checked, onCheckedChange }: AgreementStepProps) {
   const t = useTranslations(`signup.wizard.${type}`);
 
   return (
@@ -31,11 +26,7 @@ export function AgreementStep({
       </div>
 
       <div className="flex-none flex items-center space-x-3">
-        <Checkbox
-          id={`${type}-checkbox`}
-          checked={checked}
-          onCheckedChange={onCheckedChange}
-        />
+        <Checkbox id={`${type}-checkbox`} checked={checked} onCheckedChange={onCheckedChange} />
         <label
           htmlFor={`${type}-checkbox`}
           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"

@@ -13,10 +13,7 @@ export default function SearchPage({ searchParams }: PageProps) {
   return (
     <>
       <DynamicTitle titleKey="meta.pages.search" />
-      <SearchContent
-        query={resolvedSearch.q ?? ""}
-        tab={resolveSearchTab(resolvedSearch.type)}
-      />
+      <SearchContent query={resolvedSearch.q ?? ""} tab={resolveSearchTab(resolvedSearch.type)} />
     </>
   );
 }

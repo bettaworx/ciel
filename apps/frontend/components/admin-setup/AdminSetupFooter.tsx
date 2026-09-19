@@ -16,7 +16,7 @@ import type { AdminSetupStep } from "@/lib/config/admin-setup-steps";
 
 interface AdminSetupFooterProps {
   currentStep: AdminSetupStep;
-  profileSubStep?: 'display-name' | 'avatar' | 'bio';
+  profileSubStep?: "display-name" | "avatar" | "bio";
   isLoading: boolean;
   loadingProfile?: boolean;
   loadingAvatar?: boolean;
@@ -44,17 +44,17 @@ export function AdminSetupFooter({
   const t = useTranslations();
   const [isPending, startTransition] = useTransition();
 
-	const handleLocaleChange = (locale: Locale) => {
-		if (onChangeLocale) {
-			onChangeLocale(locale);
-			return;
-		}
+  const handleLocaleChange = (locale: Locale) => {
+    if (onChangeLocale) {
+      onChangeLocale(locale);
+      return;
+    }
 
-		startTransition(() => {
-			setClientLocale(locale);
-			window.dispatchEvent(new Event('ciel:locale-change'));
-		});
-	};
+    startTransition(() => {
+      setClientLocale(locale);
+      window.dispatchEvent(new Event("ciel:locale-change"));
+    });
+  };
 
   // Welcome step - show language selector and start button
   if (currentStep === "welcome") {
@@ -103,18 +103,17 @@ export function AdminSetupFooter({
 
   // Special handling for admin-profile step with sub-steps
   if (currentStep === "admin-profile" && profileSubStep) {
-    const loading = profileSubStep === 'avatar' ? loadingAvatar : loadingProfile;
-    const formId = 
-      profileSubStep === 'display-name' 
-        ? 'setup-display-name-form'
-        : profileSubStep === 'avatar'
-          ? 'setup-avatar-form'
-          : 'setup-bio-form';
-    
-    const nextLabel = profileSubStep === 'bio' ? t("setup.complete") : t("setup.next");
-    const nextLoadingLabel = profileSubStep === 'avatar' 
-      ? t("setup.avatar.uploading") 
-      : t("setup.saving");
+    const loading = profileSubStep === "avatar" ? loadingAvatar : loadingProfile;
+    const formId =
+      profileSubStep === "display-name"
+        ? "setup-display-name-form"
+        : profileSubStep === "avatar"
+          ? "setup-avatar-form"
+          : "setup-bio-form";
+
+    const nextLabel = profileSubStep === "bio" ? t("setup.complete") : t("setup.next");
+    const nextLoadingLabel =
+      profileSubStep === "avatar" ? t("setup.avatar.uploading") : t("setup.saving");
 
     return (
       <div className="flex items-center justify-between gap-2">

@@ -10,11 +10,7 @@ interface CompleteStepProps {
   inviteOnly: boolean;
 }
 
-export function CompleteStep({
-  adminUsername,
-  serverName,
-  inviteOnly,
-}: CompleteStepProps) {
+export function CompleteStep({ adminUsername, serverName, inviteOnly }: CompleteStepProps) {
   const t = useTranslations("adminSetup");
   const _router = useRouter();
 

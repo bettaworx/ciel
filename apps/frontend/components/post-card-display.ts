@@ -52,8 +52,6 @@ export const POST_CARD_DISPLAY_CONFIGS = {
   },
 } as const satisfies Record<PostCardVariant, PostCardDisplayConfig>;
 
-export function getPostCardDisplayConfig(
-  variant: PostCardVariant,
-): PostCardDisplayConfig {
+export function getPostCardDisplayConfig(variant: PostCardVariant): PostCardDisplayConfig {
   return POST_CARD_DISPLAY_CONFIGS[variant];
 }

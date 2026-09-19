@@ -32,9 +32,7 @@ export function getAdminEmojiFormDefaults(
   };
 }
 
-export function buildAdminEmojiCreateFormData(
-  values: AdminEmojiFormValues,
-): FormData {
+export function buildAdminEmojiCreateFormData(values: AdminEmojiFormValues): FormData {
   if (!values.imageFile) {
     throw new Error("image file is required");
   }
@@ -54,9 +52,7 @@ export function buildAdminEmojiCreateFormData(
   return form;
 }
 
-export function buildAdminEmojiUpdateFormData(
-  values: AdminEmojiFormValues,
-): FormData {
+export function buildAdminEmojiUpdateFormData(values: AdminEmojiFormValues): FormData {
   const form = new FormData();
   const shortcode = values.shortcode.trim();
   const name = trimOptional(values.name);

@@ -5,12 +5,7 @@ import { useTranslations } from "next-intl";
 import { Check, FileUp, Gauge, Grid2x2, Scale, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,9 +46,7 @@ const MODE_KEY: Record<QualityMode, string> = {
 
 /** Trailing tick marking the mode currently in effect. */
 function SelectedMark({ selected }: { selected: boolean }) {
-  return (
-    <Check className={cn("ml-auto h-4 w-4", !selected && "invisible")} />
-  );
+  return <Check className={cn("ml-auto h-4 w-4", !selected && "invisible")} />;
 }
 
 interface MediaQualityControlProps {

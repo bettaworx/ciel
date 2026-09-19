@@ -27,18 +27,17 @@ export function AccountCard() {
       <div className="flex items-center gap-3">
         <Avatar className="h-12 w-12">
           <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName || user.username} />
-          <AvatarFallback className="bg-primary text-primary-foreground">
-            {initials}
-          </AvatarFallback>
+          <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="font-semibold truncate">
-            <DisplayName name={user.displayName || `@${user.username}`} isPrivate={user.isPrivate} />
+            <DisplayName
+              name={user.displayName || `@${user.username}`}
+              isPrivate={user.isPrivate}
+            />
           </div>
           {user.displayName && (
-            <div className="text-sm text-muted-foreground truncate">
-              @{user.username}
-            </div>
+            <div className="text-sm text-muted-foreground truncate">@{user.username}</div>
           )}
         </div>
       </div>

@@ -69,7 +69,10 @@ export function MediaUploadButton({
         onClick={() => inputRef.current?.click()}
         disabled={disabled}
         aria-label={ariaLabel}
-        className={cn("text-muted-foreground hover:text-foreground transition-colors duration-160 ease", className)}
+        className={cn(
+          "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+          className,
+        )}
       >
         <Icon className={iconClassName} />
       </Button>

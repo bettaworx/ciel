@@ -182,17 +182,13 @@ export function TotpEnrollDialog({
               </code>
               <Button type="button" variant="secondary" size="icon" onClick={copySecret}>
                 <Copy />
-                <span className="sr-only">
-                  {t("settings.security.mfa.totp.copySecret")}
-                </span>
+                <span className="sr-only">{t("settings.security.mfa.totp.copySecret")}</span>
               </Button>
             </div>
           </div>
 
           <div className="flex flex-col items-center gap-2">
-            <Label htmlFor="totp-confirm-code">
-              {t("settings.security.mfa.totp.codeLabel")}
-            </Label>
+            <Label htmlFor="totp-confirm-code">{t("settings.security.mfa.totp.codeLabel")}</Label>
             <InputOTP
               id="totp-confirm-code"
               value={code}
@@ -214,7 +210,6 @@ export function TotpEnrollDialog({
             </InputOTP>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
-
         </form>
       )}
     </ResponsiveDialog>

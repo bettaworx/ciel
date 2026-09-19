@@ -3,10 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { Languages } from "lucide-react";
-import {
-  SettingsRowGroup,
-  SettingsSelectRow,
-} from "@/components/settings/SettingsRow";
+import { SettingsRowGroup, SettingsSelectRow } from "@/components/settings/SettingsRow";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { LOCALE_STORAGE_KEY, locales, defaultLocale, type Locale } from "@/i18n/constants";
 import { setClientLocale } from "@/i18n/client-locale";
@@ -26,19 +23,17 @@ export function GeneralSettingsContent() {
   const [isPending, startTransition] = useTransition();
   const [locale, setLocale] = useState<Locale>(getCurrentLocale());
 
-	const handleLanguageChange = (newLocale: Locale) => {
-		setLocale(newLocale);
-		startTransition(() => {
-			setClientLocale(newLocale);
-			window.dispatchEvent(new Event('ciel:locale-change'));
-		});
-	};
+  const handleLanguageChange = (newLocale: Locale) => {
+    setLocale(newLocale);
+    startTransition(() => {
+      setClientLocale(newLocale);
+      window.dispatchEvent(new Event("ciel:locale-change"));
+    });
+  };
 
   return (
     <>
-      <PageHeader backHref="/settings">
-        {t("settings.general.title")}
-      </PageHeader>
+      <PageHeader backHref="/settings">{t("settings.general.title")}</PageHeader>
       <div className="space-y-3">
         <SettingsRowGroup>
           <SettingsSelectRow

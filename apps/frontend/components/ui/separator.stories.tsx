@@ -21,9 +21,7 @@ export const Horizontal: Story = {
     <div className="w-full max-w-sm">
       <div className="space-y-1">
         <h4 className="text-sm font-medium leading-none">Ciel SNS</h4>
-        <p className="text-sm text-muted-foreground">
-          A minimal social networking service.
-        </p>
+        <p className="text-sm text-muted-foreground">A minimal social networking service.</p>
       </div>
       <Separator className="my-4" />
       <div className="text-sm text-muted-foreground">Content below separator</div>

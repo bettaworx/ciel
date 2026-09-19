@@ -11,11 +11,7 @@ import { useApi } from "@/lib/api/use-api";
 import { usePostContext, usePostThread } from "@/lib/hooks/use-queries";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/shared/PageHeader";
-import {
-  PostCard,
-  PostTreeActionButton,
-  type PostCardThreadLine,
-} from "@/components/PostCard";
+import { PostCard, PostTreeActionButton, type PostCardThreadLine } from "@/components/PostCard";
 import { PrivateParentPostCard } from "@/components/PrivateParentPostCard";
 import { ComposeCard } from "@/components/ComposeCard";
 import { Spinner } from "@/components/ui/spinner";
@@ -38,10 +34,7 @@ const ROOT_THREAD_DEPTH = 1;
 const NESTED_THREAD_DEPTH = 5;
 const THREAD_CHILD_LIMIT = 5;
 
-function getThreadLine(
-  hasPrevious: boolean,
-  hasNext: boolean,
-): PostCardThreadLine {
+function getThreadLine(hasPrevious: boolean, hasNext: boolean): PostCardThreadLine {
   if (hasPrevious && hasNext) return "both";
   if (hasPrevious) return "above";
   if (hasNext) return "below";
@@ -67,9 +60,7 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
     fetchPostThreadSlice,
   } = usePostThread(post ? postId : undefined, threadQueryParams);
   const [threadPage, setThreadPage] = useState<ThreadPage | null>(null);
-  const [loadingThreadParentId, setLoadingThreadParentId] = useState<
-    string | null
-  >(null);
+  const [loadingThreadParentId, setLoadingThreadParentId] = useState<string | null>(null);
   const [ancestors, setAncestors] = useState<Post[]>([]);
   const [isLoadingAncestors, setIsLoadingAncestors] = useState(false);
   const detailPostRef = useRef<HTMLDivElement>(null);
@@ -93,9 +84,7 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
   const hasMoreAncestors = !!topAncestor?.parentId;
 
   const handleLoadMoreAncestors = useCallback(async () => {
-    const startParentId = ancestors.length > 0
-      ? ancestors[0].parentId
-      : parentPost?.parentId;
+    const startParentId = ancestors.length > 0 ? ancestors[0].parentId : parentPost?.parentId;
     if (!startParentId || isLoadingAncestors) return;
 
     const epoch = ++loadAncestorsEpochRef.current;
@@ -141,14 +130,10 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
   );
   const rootChildren = useMemo(
     () =>
-      post
-        ? threadPage?.children.find((children) => children.parentId === post.id)
-        : undefined,
+      post ? threadPage?.children.find((children) => children.parentId === post.id) : undefined,
     [post, threadPage],
   );
-  const hasMoreRootChildren = Boolean(
-    rootChildren?.hasMore && rootChildren.nextCursor,
-  );
+  const hasMoreRootChildren = Boolean(rootChildren?.hasMore && rootChildren.nextCursor);
 
   const handleLoadMoreThread = useCallback(
     async (parentPost: Post) => {
@@ -165,9 +150,7 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
       try {
         const chunk = await fetchPostThreadSlice(postId, {
           anchorNodeId: parentPost.id,
-          cursor: isDirectChildContinuation
-            ? currentChildren?.nextCursor
-            : undefined,
+          cursor: isDirectChildContinuation ? currentChildren?.nextCursor : undefined,
           depth: isDirectChildContinuation ? 1 : NESTED_THREAD_DEPTH,
           childLimit: THREAD_CHILD_LIMIT,
         });
@@ -179,13 +162,7 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
         setLoadingThreadParentId(null);
       }
     },
-    [
-      fetchPostThreadSlice,
-      loadingThreadParentId,
-      postId,
-      t,
-      threadPage,
-    ],
+    [fetchPostThreadSlice, loadingThreadParentId, postId, t, threadPage],
   );
   useEffect(() => {
     if (!expandAncestors || !hasMoreAncestors || hasAutoExpandedRef.current) return;
@@ -195,17 +172,12 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
 
   const handleThreadPostDeleted = useCallback((deletedPostId: string) => {
     setThreadPage((currentPage) =>
-      currentPage
-        ? removePostFromThreadPage(currentPage, deletedPostId)
-        : currentPage,
+      currentPage ? removePostFromThreadPage(currentPage, deletedPostId) : currentPage,
     );
   }, []);
 
   return (
-    <PageContainer
-      maxWidth="2xl"
-      header={<PageHeader>{t("meta.pages.postDetail")}</PageHeader>}
-    >
+    <PageContainer maxWidth="2xl" header={<PageHeader>{t("meta.pages.postDetail")}</PageHeader>}>
       {isLoading && (
         <div className="flex items-center justify-center py-12">
           <Spinner variant="theme" label={t("loading")} />
@@ -272,7 +244,11 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
                 post={post}
                 isLast
                 variant="detail"
-                threadLine={parentPost || parentHidden || ancestors.length > 0 || hasMoreAncestors ? "above" : "none"}
+                threadLine={
+                  parentPost || parentHidden || ancestors.length > 0 || hasMoreAncestors
+                    ? "above"
+                    : "none"
+                }
                 onUserClick={(username) => router.push(`/users/${username}`)}
                 onDeleteSuccess={() => router.back()}
               />
@@ -287,35 +263,29 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
             />
           )}
 
-          {threadRows.length === 0 &&
-            isThreadLoading &&
-            post.replyCount > 0 && (
-              <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-                <div className="flex items-center justify-center py-6">
-                  <Spinner variant="theme" label={t("loading")} />
-                </div>
+          {threadRows.length === 0 && isThreadLoading && post.replyCount > 0 && (
+            <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-center py-6">
+                <Spinner variant="theme" label={t("loading")} />
               </div>
-            )}
+            </div>
+          )}
 
           {(threadRows.length > 0 || hasMoreRootChildren) && (
             <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
               {threadRows.map((row, index) => {
                 const hasLoadButton = row.canLoadChildren;
                 const nextRow = threadRows[index + 1];
-                const hasRowsAfter =
-                  Boolean(nextRow) || hasMoreRootChildren;
+                const hasRowsAfter = Boolean(nextRow) || hasMoreRootChildren;
                 const isDirectReplyToCurrentPost = row.parentId === post.id;
                 const nextRowIsChild = nextRow?.parentId === row.post.id;
-                const isLoadingContinuation =
-                  loadingThreadParentId === row.post.id;
+                const isLoadingContinuation = loadingThreadParentId === row.post.id;
 
                 return (
                   <Fragment key={row.post.id}>
                     <PostCard
                       post={row.post}
-                      onUserClick={(username) =>
-                        router.push(`/users/${username}`)
-                      }
+                      onUserClick={(username) => router.push(`/users/${username}`)}
                       onDeleteSuccess={() => handleThreadPostDeleted(row.post.id)}
                       isLast={!hasRowsAfter && !hasLoadButton}
                       threadLine={getThreadLine(

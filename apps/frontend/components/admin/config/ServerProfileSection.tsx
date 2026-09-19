@@ -164,10 +164,7 @@ export function ServerProfileSection({ serverInfo }: ServerProfileSectionProps) 
         {/* Save Button */}
         {hasChanges && (
           <div className="flex justify-end">
-            <Button
-              onClick={handleSave}
-              disabled={updateProfileMutation.isPending}
-            >
+            <Button onClick={handleSave} disabled={updateProfileMutation.isPending}>
               {updateProfileMutation.isPending ? t("saving") : t("save")}
             </Button>
           </div>

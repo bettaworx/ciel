@@ -13,21 +13,11 @@ import {
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  useCreatePost,
-  useUploadMedia,
-  useMediaLimits,
-  queryKeys,
-} from "@/lib/hooks/use-queries";
+import { useCreatePost, useUploadMedia, useMediaLimits, queryKeys } from "@/lib/hooks/use-queries";
 import { ApiHttpError } from "@/lib/api/client";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import type { components } from "@/lib/api/api";
-import type {
-  LocalImage,
-  LocalVideo,
-  PreviewMediaItem,
-  TextSelectionRange,
-} from "./types";
+import type { LocalImage, LocalVideo, PreviewMediaItem, TextSelectionRange } from "./types";
 import {
   MAX_IMAGES,
   MAX_VIDEOS,
@@ -44,16 +34,12 @@ import {
   isVideoFile,
   normalizeForUpload,
 } from "@/lib/media/normalize";
-import {
-  loadQualityMode,
-  saveQualityMode,
-} from "@/lib/media/quality-preference";
+import { loadQualityMode, saveQualityMode } from "@/lib/media/quality-preference";
 import type { VideoQualityMode } from "@/lib/media/normalize";
 import type { QualityMode } from "./MediaQualityPicker";
 
 /** Dot-by-dot keeps original pixels, which only means something for a still. */
-const isVideoMode = (mode: QualityMode): mode is VideoQualityMode =>
-  mode !== "dot-by-dot";
+const isVideoMode = (mode: QualityMode): mode is VideoQualityMode => mode !== "dot-by-dot";
 
 import type { Crop } from "react-image-crop";
 import type { AspectRatioId } from "@/components/shared/image-crop/aspectRatios";
@@ -183,21 +169,15 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const hasMedia = hasImages || hasVideo;
   const isContentValid = contentLength <= maxContentLength;
   const isDropDisabled =
-    (hasVideo || images.length >= MAX_IMAGES) ||
-    createPostMutation.isPending ||
-    isUploading;
+    hasVideo || images.length >= MAX_IMAGES || createPostMutation.isPending || isUploading;
   /** Image upload is disabled when a video is attached or max images reached */
   const isImageUploadDisabled =
-    hasVideo || images.length >= MAX_IMAGES ||
-    createPostMutation.isPending ||
-    isUploading;
+    hasVideo || images.length >= MAX_IMAGES || createPostMutation.isPending || isUploading;
   /** Video upload is disabled when images are attached or a video is already attached */
   const isVideoUploadDisabled =
-    hasImages || hasVideo ||
-    createPostMutation.isPending ||
-    isUploading;
+    hasImages || hasVideo || createPostMutation.isPending || isUploading;
   const canPost =
-    (referenceId ? hasContent : (hasContent || hasMedia)) &&
+    (referenceId ? hasContent : hasContent || hasMedia) &&
     isContentValid &&
     !createPostMutation.isPending &&
     !isUploading &&
@@ -275,7 +255,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   // Auto-resize textarea based on content
   useEffect(() => {
     if (!autoResize) return;
-    
+
     const textarea = textareaRef.current;
     if (!textarea) return;
 
@@ -296,9 +276,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       return;
     }
     saveQualityMode("image", quality);
-    setImages((prev) =>
-      prev.map((img) => (img.localId === localId ? { ...img, quality } : img)),
-    );
+    setImages((prev) => prev.map((img) => (img.localId === localId ? { ...img, quality } : img)));
   };
 
   // Process files (validation and preview generation)
@@ -354,9 +332,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         const meta = await getVideoMetadata(previewUrl);
         // Some containers report Infinity/NaN until fully buffered; the server
         // re-checks the duration anyway, so only reject on a known-bad value.
-        tooLong =
-          Number.isFinite(meta.duration) &&
-          meta.duration > mediaLimits.maxVideoDurationSec;
+        tooLong = Number.isFinite(meta.duration) && meta.duration > mediaLimits.maxVideoDurationSec;
       } catch {
         // Unreadable metadata is left to the server to judge.
       }
@@ -416,9 +392,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       for (const file of imageFiles) {
         // GIFs are uploaded as-is, so the server limit applies directly. Everything
         // else is re-encoded to WebP first, so only the raw import is guarded here.
-        const rawCap = isGifFile(file)
-          ? mediaLimits.maxImageBytes
-          : MAX_RAW_IMAGE_BYTES;
+        const rawCap = isGifFile(file) ? mediaLimits.maxImageBytes : MAX_RAW_IMAGE_BYTES;
         if (file.size > rawCap) {
           toast.error(t("createPost.fileTooLarge"));
           continue;
@@ -518,10 +492,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
           const selected = value.slice(selectionStart, selectionEnd);
           const url = pastedText.trim();
           const linkSyntax = `[${selected}](${url})`;
-          const newValue =
-            value.slice(0, selectionStart) +
-            linkSyntax +
-            value.slice(selectionEnd);
+          const newValue = value.slice(0, selectionStart) + linkSyntax + value.slice(selectionEnd);
           setContent(newValue);
           // Select the display text inside []
           const cursorStart = selectionStart + 1;
@@ -615,12 +586,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   };
 
   const handleCropComplete = useCallback(
-    async (
-      croppedFile: File,
-      crop?: Crop,
-      transform?: Transform,
-      aspectId?: AspectRatioId,
-    ) => {
+    async (croppedFile: File, crop?: Crop, transform?: Transform, aspectId?: AspectRatioId) => {
       if (!pendingCropImageId) return;
 
       const croppedPreviewUrl = URL.createObjectURL(croppedFile);
@@ -746,8 +712,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         // track was discarded). Without it the toast is the same sentence for
         // every browser, and a failure that only happens on someone else's
         // phone cannot be reported.
-        const reason =
-          error.cause instanceof Error ? error.cause.message : error.code;
+        const reason = error.cause instanceof Error ? error.cause.message : error.code;
         toast.error(`${t("createPost.conversionError")} (${reason})`);
       }
       return;
@@ -777,11 +742,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       toast.error(t("createPost.uploadNetworkError"));
       return;
     }
-    toast.error(
-      kind === "video"
-        ? t("createPost.videoUploadError")
-        : t("createPost.uploadError"),
-    );
+    toast.error(kind === "video" ? t("createPost.videoUploadError") : t("createPost.uploadError"));
   };
 
   const handlePost = async () => {
@@ -823,9 +784,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         try {
           // Converting here rather than on attach keeps the cost off anyone who
           // changes their mind, and the ring on the preview reports progress.
-          setVideo((prev) =>
-            prev ? { ...prev, converting: true, progress: 0 } : prev,
-          );
+          setVideo((prev) => (prev ? { ...prev, converting: true, progress: 0 } : prev));
           let lastPercent = -1;
           const controller = new AbortController();
           videoConvertRef.current = controller;
@@ -853,9 +812,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
           // Keep the converted file, so a failure further along does not mean
           // paying for the transcode twice. The indicator stays up through the
           // upload, showing its finished state.
-          setVideo((prev) =>
-            prev ? { ...prev, file: converted, progress: 1 } : prev,
-          );
+          setVideo((prev) => (prev ? { ...prev, file: converted, progress: 1 } : prev));
 
           const result = await uploadMediaMutation.mutateAsync(converted);
           setVideo((prev) => (prev ? { ...prev, converting: false } : prev));
@@ -945,7 +902,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   };
 
   const pendingCropImage = pendingCropImageId
-    ? images.find((img) => img.localId === pendingCropImageId) ?? null
+    ? (images.find((img) => img.localId === pendingCropImageId) ?? null)
     : null;
 
   return {

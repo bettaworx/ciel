@@ -19,10 +19,7 @@ type Expiration = "never" | "7d" | "30d" | "custom";
 /**
  * Helper function to calculate expiration date based on option
  */
-function calculateExpiresAt(
-  expiration: Expiration,
-  customDate?: string,
-): string | null {
+function calculateExpiresAt(expiration: Expiration, customDate?: string): string | null {
   if (expiration === "never") return null;
 
   if (expiration === "custom" && customDate) {
@@ -97,18 +94,12 @@ export default function NewInvitePage() {
           {/* Header */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.push("/admin/invite")}
-              >
+              <Button variant="ghost" size="icon" onClick={() => router.push("/admin/invite")}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
               <h1 className="text-2xl font-bold">{t("createTitle")}</h1>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {t("createDescription")}
-            </p>
+            <p className="text-sm text-muted-foreground">{t("createDescription")}</p>
           </div>
 
           {!createdCode ? (
@@ -126,16 +117,12 @@ export default function NewInvitePage() {
                   placeholder={t("form.customCodePlaceholder")}
                   maxLength={32}
                 />
-                <p className="text-sm text-muted-foreground">
-                  {t("form.customCodeHint")}
-                </p>
+                <p className="text-sm text-muted-foreground">{t("form.customCodeHint")}</p>
               </div>
 
               {/* Usage Limit */}
               <div className="flex flex-col gap-4">
-                <Label className="text-base font-medium">
-                  {t("form.usageLimit")}
-                </Label>
+                <Label className="text-base font-medium">{t("form.usageLimit")}</Label>
                 <RadioGroup
                   value={usageLimit}
                   onValueChange={(v) => setUsageLimit(v as UsageLimit)}
@@ -143,32 +130,19 @@ export default function NewInvitePage() {
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="unlimited" id="unlimited" />
-                    <Label
-                      htmlFor="unlimited"
-                      className="font-normal cursor-pointer"
-                    >
+                    <Label htmlFor="unlimited" className="font-normal cursor-pointer">
                       {t("form.unlimited")}
                     </Label>
                   </div>
                   <div className="flex items-start space-x-2">
-                    <RadioGroupItem
-                      value="limited"
-                      id="limited"
-                      className="mt-2"
-                    />
+                    <RadioGroupItem value="limited" id="limited" className="mt-2" />
                     <div className="flex-1 space-y-2">
-                      <Label
-                        htmlFor="limited"
-                        className="font-normal cursor-pointer"
-                      >
+                      <Label htmlFor="limited" className="font-normal cursor-pointer">
                         {t("form.limited")}
                       </Label>
                       {usageLimit === "limited" && (
                         <div className="space-y-1">
-                          <Label
-                            htmlFor="max-uses"
-                            className="text-sm text-muted-foreground"
-                          >
+                          <Label htmlFor="max-uses" className="text-sm text-muted-foreground">
                             {t("form.maxUses")}
                           </Label>
                           <Input
@@ -189,9 +163,7 @@ export default function NewInvitePage() {
 
               {/* Expiration */}
               <div className="flex flex-col gap-4">
-                <Label className="text-base font-medium">
-                  {t("form.expiration")}
-                </Label>
+                <Label className="text-base font-medium">{t("form.expiration")}</Label>
                 <RadioGroup
                   value={expiration}
                   onValueChange={(v) => setExpiration(v as Expiration)}
@@ -199,10 +171,7 @@ export default function NewInvitePage() {
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="never" id="never" />
-                    <Label
-                      htmlFor="never"
-                      className="font-normal cursor-pointer"
-                    >
+                    <Label htmlFor="never" className="font-normal cursor-pointer">
                       {t("form.never")}
                     </Label>
                   </div>
@@ -219,24 +188,14 @@ export default function NewInvitePage() {
                     </Label>
                   </div>
                   <div className="flex items-start space-x-2">
-                    <RadioGroupItem
-                      value="custom"
-                      id="custom"
-                      className="mt-2"
-                    />
+                    <RadioGroupItem value="custom" id="custom" className="mt-2" />
                     <div className="flex-1 space-y-2">
-                      <Label
-                        htmlFor="custom"
-                        className="font-normal cursor-pointer"
-                      >
+                      <Label htmlFor="custom" className="font-normal cursor-pointer">
                         {t("form.customDate")}
                       </Label>
                       {expiration === "custom" && (
                         <div className="space-y-1">
-                          <Label
-                            htmlFor="custom-date"
-                            className="text-sm text-muted-foreground"
-                          >
+                          <Label htmlFor="custom-date" className="text-sm text-muted-foreground">
                             {t("form.selectDate")}
                           </Label>
                           <Input
@@ -275,9 +234,7 @@ export default function NewInvitePage() {
                 disabled={createInviteMutation.isPending}
                 className="w-full"
               >
-                {createInviteMutation.isPending
-                  ? t("actions.creating")
-                  : t("actions.create")}
+                {createInviteMutation.isPending ? t("actions.creating") : t("actions.create")}
               </Button>
             </div>
           ) : (
@@ -285,9 +242,7 @@ export default function NewInvitePage() {
               {/* Display created code */}
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-base font-medium">
-                    {t("fields.code")}
-                  </Label>
+                  <Label className="text-base font-medium">{t("fields.code")}</Label>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 px-4 py-3 bg-muted rounded-lg font-mono text-lg font-bold tracking-wider">
                       {createdCode}
@@ -299,26 +254,16 @@ export default function NewInvitePage() {
                       onClick={handleCopyCode}
                       title={t("actions.copy")}
                     >
-                      {copied ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
+                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </Button>
                   </div>
                 </div>
 
-                <p className="text-sm text-muted-foreground">
-                  {t("messages.createdSuccess")}
-                </p>
+                <p className="text-sm text-muted-foreground">{t("messages.createdSuccess")}</p>
               </div>
 
               {/* Back to List Button */}
-              <Button
-                type="button"
-                onClick={() => router.push("/admin/invite")}
-                className="w-full"
-              >
+              <Button type="button" onClick={() => router.push("/admin/invite")} className="w-full">
                 {t("actions.backToList")}
               </Button>
             </div>

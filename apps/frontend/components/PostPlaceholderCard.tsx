@@ -2,10 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import {
-  ThreadConnectorLine,
-  type PostCardThreadLine,
-} from "@/components/PostCard";
+import { ThreadConnectorLine, type PostCardThreadLine } from "@/components/PostCard";
 import { cn } from "@/lib/utils";
 
 export type PostPlaceholderCardProps = {
@@ -76,14 +73,10 @@ export function PostPlaceholderCard({
           <Icon
             className={cn(
               "h-4 w-4 shrink-0",
-              tone === "destructive"
-                ? "text-destructive"
-                : "text-muted-foreground",
+              tone === "destructive" ? "text-destructive" : "text-muted-foreground",
             )}
           />
-          <span className="min-w-0 truncate text-sm text-muted-foreground">
-            {label}
-          </span>
+          <span className="min-w-0 truncate text-sm text-muted-foreground">{label}</span>
         </div>
         {action && <div className="flex shrink-0 items-center">{action}</div>}
       </div>

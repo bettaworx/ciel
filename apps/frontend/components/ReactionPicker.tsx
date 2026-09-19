@@ -12,17 +12,8 @@ import {
   EmojiPickerFooter,
   type EmojiSelectEvent,
 } from "@/components/ui/emoji-picker";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 
 interface ReactionPickerProps {
@@ -35,10 +26,7 @@ interface ReactionPickerProps {
  * デスクトップ: Popover表示
  * モバイル: Drawer表示
  */
-export function ReactionPicker({
-  onEmojiSelect,
-  disabled,
-}: ReactionPickerProps) {
+export function ReactionPicker({ onEmojiSelect, disabled }: ReactionPickerProps) {
   const t = useTranslations("postCard");
   const [open, setOpen] = React.useState(false);
   const isDesktop = useMediaQuery("(min-width: 640px)");
@@ -113,10 +101,7 @@ export function ReactionPicker({
             columns={8}
             onEmojiSelect={handleEmojiSelect}
           >
-            <EmojiPickerSearch
-              className="w-full"
-              placeholder={t("searchEmoji")}
-            />
+            <EmojiPickerSearch className="w-full" placeholder={t("searchEmoji")} />
             <EmojiPickerContent className="w-full" />
             <EmojiPickerFooter className="w-full" />
           </EmojiPicker>

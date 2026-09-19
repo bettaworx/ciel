@@ -26,10 +26,7 @@ interface CreatePostDialogProps {
  * - Ctrl/Cmd + Enter to post
  * - Responsive layout (600px desktop, full-width mobile with margins)
  */
-export function CreatePostDialog({
-  open,
-  onOpenChange,
-}: CreatePostDialogProps) {
+export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) {
   const t = useTranslations();
   const user = useAtomValue(userAtom);
 

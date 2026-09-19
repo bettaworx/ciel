@@ -23,9 +23,7 @@ export function DynamicTitle({ title, titleKey }: DynamicTitleProps) {
     const serverName = serverInfo?.serverName;
     if (!serverName) return;
 
-    const resolvedTitle = titleKey
-      ? t(titleKey, { serverName })
-      : title;
+    const resolvedTitle = titleKey ? t(titleKey, { serverName }) : title;
     if (!resolvedTitle) return;
 
     document.title = `${resolvedTitle} / ${serverName}`;

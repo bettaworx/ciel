@@ -17,7 +17,7 @@ import { UnreadDot } from "./UnreadDot";
 import type { components } from "@/lib/api/api";
 import type { AccountEntry } from "@/atoms/accounts";
 
-type User = components['schemas']['User'];
+type User = components["schemas"]["User"];
 
 interface MobileUserMenuProps {
   user: User;
@@ -72,7 +72,10 @@ export function MobileUserMenu({
             aria-label={t("nav.openUserMenu")}
           >
             <Avatar className="w-10 h-10 rounded-xl">
-              <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName || user.username} />
+              <AvatarImage
+                src={user.avatarUrl ?? undefined}
+                alt={user.displayName || user.username}
+              />
               <AvatarFallback className="bg-primary text-primary-foreground text-base font-semibold">
                 {initials}
               </AvatarFallback>

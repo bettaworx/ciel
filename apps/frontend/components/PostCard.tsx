@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -90,14 +83,8 @@ import { DeletedPostCard } from "@/components/DeletedPostCard";
 import { Lightbox } from "@/components/Lightbox";
 import { PostMediaPreview } from "@/components/PostMediaPreview";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
-import {
-  getPostCardDisplayConfig,
-  type PostCardVariant,
-} from "@/components/post-card-display";
-import {
-  PostCardIndicatorRow,
-  type PostCardIndicator,
-} from "@/components/PostCardIndicatorRow";
+import { getPostCardDisplayConfig, type PostCardVariant } from "@/components/post-card-display";
+import { PostCardIndicatorRow, type PostCardIndicator } from "@/components/PostCardIndicatorRow";
 
 type Post = components["schemas"]["Post"];
 
@@ -131,15 +118,9 @@ export function ThreadConnectorLine({
       aria-hidden
       className={cn(
         "absolute left-8 sm:left-9 -translate-x-1/2",
-        variant === "solid"
-          ? "w-0.5 bg-border"
-          : "w-0 border-l border-dashed border-border",
-        anchor === "avatar" &&
-          (position === "above"
-            ? "top-0 h-2"
-            : "top-14 sm:top-16 bottom-0"),
-        anchor === "center" &&
-          (position === "above" ? "top-0 bottom-1/2" : "top-1/2 bottom-0"),
+        variant === "solid" ? "w-0.5 bg-border" : "w-0 border-l border-dashed border-border",
+        anchor === "avatar" && (position === "above" ? "top-0 h-2" : "top-14 sm:top-16 bottom-0"),
+        anchor === "center" && (position === "above" ? "top-0 bottom-1/2" : "top-1/2 bottom-0"),
       )}
     />
   );
@@ -190,12 +171,7 @@ export function PostTreeActionButton({
   const showAboveLine = threadLine === "above" || threadLine === "both";
   const showBelowLine = threadLine === "below" || threadLine === "both";
   const showThreadDot = showAboveLine || showBelowLine;
-  const {
-    className: buttonClassName,
-    variant,
-    size,
-    ...restButtonProps
-  } = buttonProps ?? {};
+  const { className: buttonClassName, variant, size, ...restButtonProps } = buttonProps ?? {};
   return (
     <article
       className={cn(
@@ -207,10 +183,7 @@ export function PostTreeActionButton({
       )}
     >
       <div className="flex items-center gap-3">
-        <div
-          aria-hidden
-          className="flex h-6 w-10 shrink-0 items-center justify-center sm:w-12"
-        >
+        <div aria-hidden className="flex h-6 w-10 shrink-0 items-center justify-center sm:w-12">
           {showThreadDot && (
             <span className="flex flex-col gap-0.5">
               <span className="h-0.5 w-0.5 bg-border" />
@@ -255,10 +228,7 @@ export function PostCard({
   const tCreatePost = useTranslations("createPost");
   const tReactions = useTranslations("reactions");
   const tUser = useTranslations("user");
-  const { reactions, toggleReaction, isPending } = useReactions(
-    post.id,
-    post.reactions,
-  );
+  const { reactions, toggleReaction, isPending } = useReactions(post.id, post.reactions);
   const auth = useAtomValue(authAtom);
   const api = useApi();
   const queryClient = useQueryClient();
@@ -273,17 +243,15 @@ export function PostCard({
   const [reactionDialogOpen, setReactionDialogOpen] = useState(false);
   const [replyDialogOpen, setReplyDialogOpen] = useState(false);
   const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
-  const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(
-    null,
-  );
+  const [reactionDialogEmoji, setReactionDialogEmoji] = useState<string | null>(null);
   const [indicatorMenuOpen, setIndicatorMenuOpen] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [revealHidden, setRevealHidden] = useState(false);
-  const { actions: hideActions, dialog: hideDialog } = useHideUserActions(
-    post.author?.username,
-    { isMuted: post.author?.isMuted, isBlocking: post.author?.isBlocking },
-  );
+  const { actions: hideActions, dialog: hideDialog } = useHideUserActions(post.author?.username, {
+    isMuted: post.author?.isMuted,
+    isBlocking: post.author?.isBlocking,
+  });
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [isContentOverflowing, setIsContentOverflowing] = useState(false);
   const [isCompactOverflowing, setIsCompactOverflowing] = useState(false);
@@ -320,11 +288,7 @@ export function PostCard({
   // line passing through the content area would be visually misleading.
   const showBelowLine = wantsBelowLine && !verticalIdentity;
 
-  if (
-    process.env.NODE_ENV !== "production" &&
-    wantsBelowLine &&
-    verticalIdentity
-  ) {
+  if (process.env.NODE_ENV !== "production" && wantsBelowLine && verticalIdentity) {
     console.warn(
       'PostCard: threadLine "below"/"both" is not supported with variant="detail" — the line below the avatar will be omitted.',
     );
@@ -407,9 +371,7 @@ export function PostCard({
       toggleReaction(emoji, {
         onError: (error) => {
           const errorMessage =
-            error.message === "loginRequired"
-              ? tReactions("loginRequired")
-              : tReactions("error");
+            error.message === "loginRequired" ? tReactions("loginRequired") : tReactions("error");
           toast.error(errorMessage);
         },
       });
@@ -477,32 +439,37 @@ export function PostCard({
     setIndicatorMenuOpen(false);
   }, [indicator?.actorUserId, t]);
 
-  const handleShare = useCallback(async (e: React.MouseEvent) => {
-    const postUrl = `${window.location.origin}/posts/${post.id}`;
-    if (canNativeShare && e.shiftKey) {
+  const handleShare = useCallback(
+    async (e: React.MouseEvent) => {
+      const postUrl = `${window.location.origin}/posts/${post.id}`;
+      if (canNativeShare && e.shiftKey) {
+        try {
+          await navigator.clipboard.writeText(postUrl);
+          toast.success(t("actions.shareSuccess"));
+        } catch {
+          toast.error(t("actions.shareError"));
+        }
+        return;
+      }
       try {
-        await navigator.clipboard.writeText(postUrl);
-        toast.success(t("actions.shareSuccess"));
-      } catch {
+        if (canNativeShare) {
+          await navigator.share({
+            title:
+              post.author?.displayName ||
+              (post.author?.username ? `@${post.author.username}` : undefined),
+            url: postUrl,
+          });
+        } else {
+          await navigator.clipboard.writeText(postUrl);
+          toast.success(t("actions.shareSuccess"));
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         toast.error(t("actions.shareError"));
       }
-      return;
-    }
-    try {
-      if (canNativeShare) {
-        await navigator.share({
-          title: post.author?.displayName || (post.author?.username ? `@${post.author.username}` : undefined),
-          url: postUrl,
-        });
-      } else {
-        await navigator.clipboard.writeText(postUrl);
-        toast.success(t("actions.shareSuccess"));
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      toast.error(t("actions.shareError"));
-    }
-  }, [post.id, post.author?.displayName, post.author?.username, t, canNativeShare]);
+    },
+    [post.id, post.author?.displayName, post.author?.username, t, canNativeShare],
+  );
 
   const handleOpenDelete = useCallback(() => {
     setMenuOpen(false);
@@ -577,9 +544,7 @@ export function PostCard({
   const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
   const fullTimestamp = formatFullTimestamp(createdAt, locale);
   const timestampText =
-    timestampFormat === "full"
-      ? fullTimestamp
-      : formatTimeAgo(createdAt, locale);
+    timestampFormat === "full" ? fullTimestamp : formatTimeAgo(createdAt, locale);
   const hasAuthorId = Boolean(post.author?.id);
   const shouldCollapseContent = shouldCollapsePostContent({
     collapseContent,
@@ -623,14 +588,11 @@ export function PostCard({
    */
   const [hiddenMediaIndex, setHiddenMediaIndex] = useState<number | null>(null);
 
-  const handleLightboxOpen = useCallback(
-    (index: number, source: HTMLElement | null) => {
-      lightboxSourceRef.current = source;
-      setLightboxIndex(index);
-      setLightboxOpen(true);
-    },
-    [],
-  );
+  const handleLightboxOpen = useCallback((index: number, source: HTMLElement | null) => {
+    lightboxSourceRef.current = source;
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  }, []);
 
   // Resolved from the clicked wrapper's siblings rather than a ref on the media
   // container: `mediaNode` is placed in two mutually exclusive branches, and a
@@ -735,18 +697,12 @@ export function PostCard({
       rounded="none"
       className="ml-auto h-auto p-0 text-xs font-normal text-muted-foreground shrink-0"
     >
-      <Link
-        href={detailHref}
-        aria-label={fullTimestamp}
-      >
+      <Link href={detailHref} aria-label={fullTimestamp}>
         {timestampText}
       </Link>
     </Button>
   ) : (
-    <span
-      className="ml-auto text-muted-foreground text-xs shrink-0"
-      aria-label={fullTimestamp}
-    >
+    <span className="ml-auto text-muted-foreground text-xs shrink-0" aria-label={fullTimestamp}>
       {timestampText}
     </span>
   );
@@ -757,7 +713,10 @@ export function PostCard({
         <Button
           variant="ghost"
           size="sm"
-          className={cn(!verticalIdentity && "-my-4", "h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease")}
+          className={cn(
+            !verticalIdentity && "-my-4",
+            "h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+          )}
           aria-label={t("actions.more")}
         >
           <MoreHorizontal className="h-5 w-5" />
@@ -788,10 +747,7 @@ export function PostCard({
                   {t("actions.copyText")}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem
-                onSelect={handleCopyUserId}
-                disabled={!hasAuthorId}
-              >
+              <DropdownMenuItem onSelect={handleCopyUserId} disabled={!hasAuthorId}>
                 <User className="h-4 w-4" />
                 {t("actions.copyUserId")}
               </DropdownMenuItem>
@@ -829,7 +785,10 @@ export function PostCard({
         <Button
           variant="ghost"
           size="sm"
-          className={cn(!verticalIdentity && "-my-4", "h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease")}
+          className={cn(
+            !verticalIdentity && "-my-4",
+            "h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+          )}
           aria-label={t("actions.more")}
         >
           <MoreHorizontal className="h-5 w-5" />
@@ -853,10 +812,7 @@ export function PostCard({
           )}
           <Drawer nested>
             <DrawerTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-2"
-              >
+              <Button variant="ghost" className="w-full justify-start gap-2">
                 <Copy className="h-4 w-4" />
                 {t("actions.copy")}
                 <ChevronRight className="ml-auto h-4 w-4" />
@@ -898,10 +854,7 @@ export function PostCard({
             <Button
               key={action.key}
               variant="ghost"
-              className={cn(
-                "w-full justify-start gap-2",
-                action.destructive && "text-destructive",
-              )}
+              className={cn("w-full justify-start gap-2", action.destructive && "text-destructive")}
               onClick={() => {
                 // The drawer has to close first: blocking opens a confirmation
                 // of its own, and two stacked drawers trap the dismiss.
@@ -930,118 +883,114 @@ export function PostCard({
 
   const standaloneTimestampNode = (
     <div className="mb-2 text-left">
-      <span
-        className="text-muted-foreground text-xs"
-        aria-label={fullTimestamp}
-      >
+      <span className="text-muted-foreground text-xs" aria-label={fullTimestamp}>
         {timestampText}
       </span>
     </div>
   );
 
-  const indicatorMoreMenuNode = indicator?.sourcePostId && (isDesktop ? (
-    <DropdownMenu open={indicatorMenuOpen} onOpenChange={setIndicatorMenuOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-my-4 h-8 w-8 p-0 transition-colors duration-160 ease"
-          aria-label={t("actions.more")}
-        >
-          <MoreHorizontal className="h-5 w-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Copy className="h-4 w-4" />
-            {t("actions.copy")}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem
-                onSelect={handleCopyBoostUserId}
-                disabled={!indicator?.actorUserId}
-              >
-                <User className="h-4 w-4" />
-                {t("actions.copyUserId")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={handleCopyBoostPostId}>
-                <MessageCircle className="h-4 w-4" />
-                {t("actions.copyPostId")}
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
-        {canUndoBoost && (
-          <DropdownMenuItem onSelect={handleUndoBoost}>
-            <RotateCcw className="h-4 w-4" />
-            {t("actions.undoBoost")}
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  ) : (
-    <Drawer open={indicatorMenuOpen} onOpenChange={setIndicatorMenuOpen}>
-      <DrawerTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-my-4 h-8 w-8 p-0 transition-colors duration-160 ease"
-          aria-label={t("actions.more")}
-        >
-          <MoreHorizontal className="h-5 w-5" />
-        </Button>
-      </DrawerTrigger>
-      <DrawerContent>
-        <div className="flex flex-col gap-2 p-2 pb-4">
-          <Drawer nested>
-            <DrawerTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-2"
-              >
-                <Copy className="h-4 w-4" />
-                {t("actions.copy")}
-                <ChevronRight className="ml-auto h-4 w-4" />
-              </Button>
-            </DrawerTrigger>
-            <DrawerContent>
-              <div className="flex flex-col gap-2 p-2 pb-4">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start gap-2"
-                  onClick={handleCopyBoostUserId}
+  const indicatorMoreMenuNode =
+    indicator?.sourcePostId &&
+    (isDesktop ? (
+      <DropdownMenu open={indicatorMenuOpen} onOpenChange={setIndicatorMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-my-4 h-8 w-8 p-0 transition-colors duration-160 ease"
+            aria-label={t("actions.more")}
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Copy className="h-4 w-4" />
+              {t("actions.copy")}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem
+                  onSelect={handleCopyBoostUserId}
                   disabled={!indicator?.actorUserId}
                 >
                   <User className="h-4 w-4" />
                   {t("actions.copyUserId")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start gap-2"
-                  onClick={handleCopyBoostPostId}
-                >
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleCopyBoostPostId}>
                   <MessageCircle className="h-4 w-4" />
                   {t("actions.copyPostId")}
-                </Button>
-              </div>
-            </DrawerContent>
-          </Drawer>
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
           {canUndoBoost && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2"
-              onClick={handleUndoBoost}
-            >
+            <DropdownMenuItem onSelect={handleUndoBoost}>
               <RotateCcw className="h-4 w-4" />
               {t("actions.undoBoost")}
-            </Button>
+            </DropdownMenuItem>
           )}
-        </div>
-      </DrawerContent>
-    </Drawer>
-  ));
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : (
+      <Drawer open={indicatorMenuOpen} onOpenChange={setIndicatorMenuOpen}>
+        <DrawerTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-my-4 h-8 w-8 p-0 transition-colors duration-160 ease"
+            aria-label={t("actions.more")}
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </Button>
+        </DrawerTrigger>
+        <DrawerContent>
+          <div className="flex flex-col gap-2 p-2 pb-4">
+            <Drawer nested>
+              <DrawerTrigger asChild>
+                <Button variant="ghost" className="w-full justify-start gap-2">
+                  <Copy className="h-4 w-4" />
+                  {t("actions.copy")}
+                  <ChevronRight className="ml-auto h-4 w-4" />
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent>
+                <div className="flex flex-col gap-2 p-2 pb-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={handleCopyBoostUserId}
+                    disabled={!indicator?.actorUserId}
+                  >
+                    <User className="h-4 w-4" />
+                    {t("actions.copyUserId")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={handleCopyBoostPostId}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    {t("actions.copyPostId")}
+                  </Button>
+                </div>
+              </DrawerContent>
+            </Drawer>
+            {canUndoBoost && (
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2"
+                onClick={handleUndoBoost}
+              >
+                <RotateCcw className="h-4 w-4" />
+                {t("actions.undoBoost")}
+              </Button>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
+    ));
 
   const indicatorNode = indicator && (
     <PostCardIndicatorRow
@@ -1053,12 +1002,7 @@ export function PostCard({
 
   const bodyNode = post.content && (
     <>
-      <div
-        className={cn(
-          "relative",
-          verticalIdentity && "mt-3 mb-1 sm:mb-1.5",
-        )}
-      >
+      <div className={cn("relative", verticalIdentity && "mt-3 mb-1 sm:mb-1.5")}>
         {linkToDetail && (
           <Link
             href={detailHref}
@@ -1095,35 +1039,25 @@ export function PostCard({
     </>
   );
 
-  const referenceNode = !isEmbedded && (post.reference ? (
-    <div
-      className={cn(
-        verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
-      )}
-    >
-      <PostCard post={post.reference} variant="embedded" isLast onUserClick={onUserClick} />
-    </div>
-  ) : post.referenceId ? (
-    <div
-      className={cn(
-        verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3",
-      )}
-    >
-      <DeletedPostCard
-        referenceId={post.referenceId}
-        variant="embedded"
-        isLast
-        restricted={post.referenceRestricted}
-      />
-    </div>
-  ) : null);
+  const referenceNode =
+    !isEmbedded &&
+    (post.reference ? (
+      <div className={cn(verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3")}>
+        <PostCard post={post.reference} variant="embedded" isLast onUserClick={onUserClick} />
+      </div>
+    ) : post.referenceId ? (
+      <div className={cn(verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3")}>
+        <DeletedPostCard
+          referenceId={post.referenceId}
+          variant="embedded"
+          isLast
+          restricted={post.referenceRestricted}
+        />
+      </div>
+    ) : null);
 
   const mediaNode = (ogpUrl || previewMedia.length > 0) && (
-    <div
-      className={cn(
-        verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : !isEmbedded && "mb-2 sm:mb-3",
-      )}
-    >
+    <div className={cn(verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : !isEmbedded && "mb-2 sm:mb-3")}>
       {/* OGP Link Preview – only when no media is attached */}
       {ogpUrl && <OgpCard url={ogpUrl} />}
 
@@ -1154,7 +1088,7 @@ export function PostCard({
           className={cn(
             "flex items-center flex-wrap gap-1.5",
             verticalIdentity && "mt-1 sm:mt-1.5 ",
-            (hasReactions) && "mb-2 sm:mb-3",
+            hasReactions && "mb-2 sm:mb-3",
           )}
         >
           {reactions.map((reaction) => (
@@ -1190,9 +1124,7 @@ export function PostCard({
             onClick={() => setReplyDialogOpen(true)}
           >
             <MessageCircle className="h-5 w-5" />
-            {post.replyCount > 0 && (
-              <span className="text-xs tabular-nums">{post.replyCount}</span>
-            )}
+            {post.replyCount > 0 && <span className="text-xs tabular-nums">{post.replyCount}</span>}
           </Button>
 
           {/* Boost */}
@@ -1234,11 +1166,21 @@ export function PostCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onSelect={() => { setBoostMenuOpen(false); handleBoost(); }}>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setBoostMenuOpen(false);
+                    handleBoost();
+                  }}
+                >
                   <Repeat2 className="h-4 w-4" />
                   {t("actions.boost")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => { setBoostMenuOpen(false); setQuoteDialogOpen(true); }}>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setBoostMenuOpen(false);
+                    setQuoteDialogOpen(true);
+                  }}
+                >
                   <Quote className="h-4 w-4" />
                   {t("actions.quote")}
                 </DropdownMenuItem>
@@ -1267,7 +1209,10 @@ export function PostCard({
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-2"
-                    onClick={() => { setBoostMenuOpen(false); handleBoost(); }}
+                    onClick={() => {
+                      setBoostMenuOpen(false);
+                      handleBoost();
+                    }}
                   >
                     <Repeat2 className="h-4 w-4" />
                     {t("actions.boost")}
@@ -1275,7 +1220,10 @@ export function PostCard({
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-2"
-                    onClick={() => { setBoostMenuOpen(false); setQuoteDialogOpen(true); }}
+                    onClick={() => {
+                      setBoostMenuOpen(false);
+                      setQuoteDialogOpen(true);
+                    }}
                   >
                     <Quote className="h-4 w-4" />
                     {t("actions.quote")}
@@ -1286,10 +1234,7 @@ export function PostCard({
           )}
 
           {/* Reaction Picker */}
-          <ReactionPicker
-            onEmojiSelect={handleToggleReaction}
-            disabled={isPending}
-          />
+          <ReactionPicker onEmojiSelect={handleToggleReaction} disabled={isPending} />
         </div>
         <div className="flex items-center gap-1.5">
           <BookmarkButton postId={post.id} initialListIds={post.bookmarkListIds} />
@@ -1300,7 +1245,11 @@ export function PostCard({
             aria-label={!canNativeShare || shiftHeld ? t("actions.copyLink") : t("actions.share")}
             onClick={handleShare}
           >
-            {!canNativeShare || shiftHeld ? <Link2 className="h-5 w-5" /> : <Share className="h-5 w-5" />}
+            {!canNativeShare || shiftHeld ? (
+              <Link2 className="h-5 w-5" />
+            ) : (
+              <Share className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </div>
@@ -1413,9 +1362,7 @@ export function PostCard({
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>{t("deleteConfirmTitle")}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("deleteConfirmDescription")}
-              </AlertDialogDescription>
+              <AlertDialogDescription>{t("deleteConfirmDescription")}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={deletePost.isPending}>
@@ -1426,9 +1373,7 @@ export function PostCard({
                 disabled={deletePost.isPending}
                 variant="destructive"
               >
-                {deletePost.isPending
-                  ? t("deleteDeleting")
-                  : t("deleteConfirm")}
+                {deletePost.isPending ? t("deleteDeleting") : t("deleteConfirm")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1438,9 +1383,7 @@ export function PostCard({
           <DrawerContent>
             <DrawerHeader>
               <DrawerTitle>{t("deleteConfirmTitle")}</DrawerTitle>
-              <DrawerDescription>
-                {t("deleteConfirmDescription")}
-              </DrawerDescription>
+              <DrawerDescription>{t("deleteConfirmDescription")}</DrawerDescription>
             </DrawerHeader>
             <DrawerFooter>
               <Button
@@ -1448,9 +1391,7 @@ export function PostCard({
                 onClick={handleConfirmDelete}
                 disabled={deletePost.isPending}
               >
-                {deletePost.isPending
-                  ? t("deleteDeleting")
-                  : t("deleteConfirm")}
+                {deletePost.isPending ? t("deleteDeleting") : t("deleteConfirm")}
               </Button>
               <Button
                 variant="outline"

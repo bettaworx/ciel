@@ -91,20 +91,12 @@ export function MfaChallengeStep({
         : null;
 
   return (
-    <form
-      id={formId}
-      onSubmit={handleSubmit}
-      className="flex flex-1 flex-col justify-center gap-6"
-    >
+    <form id={formId} onSubmit={handleSubmit} className="flex flex-1 flex-col justify-center gap-6">
       <div className={cn("flex flex-col gap-2", isSheet && "text-center")}>
         <h2 className={stepHeadingClass(presentation)}>
           {t(isBackup ? "login.wizard.mfa.backupHeading" : "login.wizard.mfa.heading")}
         </h2>
-        {description && (
-          <p className={stepDescriptionClass(presentation)}>
-            {description}
-          </p>
-        )}
+        {description && <p className={stepDescriptionClass(presentation)}>{description}</p>}
       </div>
 
       {stage === "choose" && (
@@ -159,9 +151,7 @@ export function MfaChallengeStep({
           {/* The heading and its description already say what this is; the label
               is here so the input has an accessible name. */}
           <Label htmlFor="mfa-code" className="sr-only">
-            {isBackup
-              ? t("login.wizard.mfa.backupLabel")
-              : t("login.wizard.mfa.codeLabel")}
+            {isBackup ? t("login.wizard.mfa.backupLabel") : t("login.wizard.mfa.codeLabel")}
           </Label>
           <InputOTP
             id="mfa-code"

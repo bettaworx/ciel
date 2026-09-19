@@ -30,33 +30,25 @@ export const Default: Story = {
       </Button>
       <Button
         variant="outline"
-        onClick={() =>
-          toast.success("Success", { description: "Operation completed." })
-        }
+        onClick={() => toast.success("Success", { description: "Operation completed." })}
       >
         Success
       </Button>
       <Button
         variant="outline"
-        onClick={() =>
-          toast.error("Error", { description: "Something went wrong." })
-        }
+        onClick={() => toast.error("Error", { description: "Something went wrong." })}
       >
         Error
       </Button>
       <Button
         variant="outline"
-        onClick={() =>
-          toast.info("Heads up", { description: "Something worth knowing." })
-        }
+        onClick={() => toast.info("Heads up", { description: "Something worth knowing." })}
       >
         Info
       </Button>
       <Button
         variant="outline"
-        onClick={() =>
-          toast.warning("Careful", { description: "This needs attention." })
-        }
+        onClick={() => toast.warning("Careful", { description: "This needs attention." })}
       >
         Warning
       </Button>
@@ -88,10 +80,7 @@ export const Default: Story = {
 
 export const ToastTest: Story = {
   render: () => (
-    <Button
-      variant="outline"
-      onClick={() => toast("Test notification")}
-    >
+    <Button variant="outline" onClick={() => toast("Test notification")}>
       Trigger Toast
     </Button>
   ),

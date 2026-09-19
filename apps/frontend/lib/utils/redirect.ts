@@ -9,7 +9,7 @@ export function isValidRedirect(url: string | null): boolean {
   if (!url) return false;
 
   // Allow relative paths (but not protocol-relative URLs like //evil.com)
-  if (url.startsWith('/') && !url.startsWith('//')) {
+  if (url.startsWith("/") && !url.startsWith("//")) {
     return true;
   }
 
@@ -30,9 +30,6 @@ export function isValidRedirect(url: string | null): boolean {
  * @param fallback - The fallback URL if validation fails (default: '/')
  * @returns A safe redirect URL
  */
-export function getSafeRedirect(
-  url: string | null,
-  fallback: string = '/'
-): string {
+export function getSafeRedirect(url: string | null, fallback: string = "/"): string {
   return isValidRedirect(url) ? url! : fallback;
 }

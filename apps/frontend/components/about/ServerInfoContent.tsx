@@ -31,9 +31,7 @@ export function ServerInfoContent({ backHref }: { backHref?: string }) {
             <div className="w-32 h-32 bg-primary rounded-2xl" />
           )}
         </div>
-        <h1 className="text-2xl font-bold text-center">
-          {serverInfo?.serverName ?? "Ciel"}
-        </h1>
+        <h1 className="text-2xl font-bold text-center">{serverInfo?.serverName ?? "Ciel"}</h1>
       </div>
     </>
   );

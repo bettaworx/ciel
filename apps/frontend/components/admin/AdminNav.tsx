@@ -41,9 +41,7 @@ export function AdminNav() {
       <div className="flex items-center justify-center space-x-6 overflow-x-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = item.exact
-            ? pathname === item.href
-            : pathname.startsWith(item.href);
+          const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
           return (
             <Link
@@ -58,9 +56,7 @@ export function AdminNav() {
               title={t(item.label)}
             >
               <Icon className="h-4 w-4" />
-              {isActive && (
-                <span className="whitespace-nowrap">{t(item.label)}</span>
-              )}
+              {isActive && <span className="whitespace-nowrap">{t(item.label)}</span>}
             </Link>
           );
         })}

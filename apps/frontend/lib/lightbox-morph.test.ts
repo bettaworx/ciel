@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  boxGeometry,
-  containRect,
-  containsPoint,
-  type Rect,
-} from "./lightbox-morph";
+import { boxGeometry, containRect, containsPoint, type Rect } from "./lightbox-morph";
 
 const BOX: Rect = { x: 8, y: 8, width: 984, height: 584 };
 
@@ -83,8 +78,8 @@ describe("containsPoint", () => {
 
   it("includes the edges", () => {
     expect(containsPoint(painted, painted.x, painted.y)).toBe(true);
-    expect(
-      containsPoint(painted, painted.x + painted.width, painted.y + painted.height),
-    ).toBe(true);
+    expect(containsPoint(painted, painted.x + painted.width, painted.y + painted.height)).toBe(
+      true,
+    );
   });
 });

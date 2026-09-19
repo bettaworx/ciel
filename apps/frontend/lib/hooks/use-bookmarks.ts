@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { useApi } from "@/lib/api/use-api";
@@ -122,12 +117,9 @@ export function usePostBookmarks(postId: string, initialListIds?: string[]) {
   const api = useApi();
   const queryClient = useQueryClient();
   const auth = useAtomValue(authAtom);
-  const currentUserId = auth.status === "ready" ? auth.user?.id ?? null : null;
+  const currentUserId = auth.status === "ready" ? (auth.user?.id ?? null) : null;
   const isAuthenticated = currentUserId !== null;
-  const key = useMemo(
-    () => postBookmarksKey(postId, currentUserId),
-    [postId, currentUserId],
-  );
+  const key = useMemo(() => postBookmarksKey(postId, currentUserId), [postId, currentUserId]);
 
   // No initialData: "undefined" is what marks the entry as never seeded, and it
   // is the only signal that survives the component unmounting. With an initial
@@ -185,9 +177,7 @@ export function usePostBookmarks(postId: string, initialListIds?: string[]) {
     setLists,
     toggleList: (listId: string, options?: SetListsOptions) =>
       setLists(
-        current.includes(listId)
-          ? current.filter((id) => id !== listId)
-          : [...current, listId],
+        current.includes(listId) ? current.filter((id) => id !== listId) : [...current, listId],
         options,
       ),
   };

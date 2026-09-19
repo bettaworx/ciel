@@ -14,10 +14,7 @@ interface ReactionUserButtonProps {
   className?: string;
 }
 
-export function ReactionUserButton({
-  user,
-  className,
-}: ReactionUserButtonProps) {
+export function ReactionUserButton({ user, className }: ReactionUserButtonProps) {
   const displayName = user.displayName || `@${user.username}`;
   const initials = displayName
     .split(" ")

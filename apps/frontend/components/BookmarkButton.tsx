@@ -16,12 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { BookmarkListFormDialog } from "@/components/bookmarks/BookmarkListFormDialog";
 
 interface BookmarkButtonProps {
@@ -44,8 +39,10 @@ export function BookmarkButton({ postId, initialListIds }: BookmarkButtonProps) 
   const [formOpen, setFormOpen] = React.useState(false);
   const openFormOnCloseRef = React.useRef(false);
 
-  const { listIds, isBookmarked, isPending, setLists, toggleList } =
-    usePostBookmarks(postId, initialListIds);
+  const { listIds, isBookmarked, isPending, setLists, toggleList } = usePostBookmarks(
+    postId,
+    initialListIds,
+  );
   // Only ask for the lists once the menu has been opened: most cards on a
   // timeline are never bookmarked into anything.
   const { data: lists, isLoading } = useBookmarkLists(open || formOpen);
@@ -130,9 +127,7 @@ export function BookmarkButton({ postId, initialListIds }: BookmarkButtonProps) 
                       <span className="grow truncate">
                         {list.name ?? tBookmarks("defaultListName")}
                       </span>
-                      <Check
-                        className={cn("h-4 w-4 shrink-0", !checked && "invisible")}
-                      />
+                      <Check className={cn("h-4 w-4 shrink-0", !checked && "invisible")} />
                     </DropdownMenuItem>
                   );
                 })
@@ -158,9 +153,7 @@ export function BookmarkButton({ postId, initialListIds }: BookmarkButtonProps) 
       <Drawer open={open} onOpenChange={setOpen}>
         <DrawerTrigger asChild>{trigger}</DrawerTrigger>
         <DrawerContent>
-          <DrawerTitle className="px-4 pt-4 text-base">
-            {t("actions.bookmark")}
-          </DrawerTitle>
+          <DrawerTitle className="px-4 pt-4 text-base">{t("actions.bookmark")}</DrawerTitle>
           <div className="flex flex-col gap-1 p-2 pb-4">
             {lists?.length
               ? lists.map((list) => {
@@ -176,9 +169,7 @@ export function BookmarkButton({ postId, initialListIds }: BookmarkButtonProps) 
                       <span className="grow truncate text-left">
                         {list.name ?? tBookmarks("defaultListName")}
                       </span>
-                      <Check
-                        className={cn("h-4 w-4 shrink-0", !checked && "invisible")}
-                      />
+                      <Check className={cn("h-4 w-4 shrink-0", !checked && "invisible")} />
                     </Button>
                   );
                 })

@@ -39,11 +39,7 @@ interface UseReactionUsersArgs {
   enabled?: boolean;
 }
 
-export function useReactionUsers({
-  postId,
-  emoji,
-  enabled = true,
-}: UseReactionUsersArgs) {
+export function useReactionUsers({ postId, emoji, enabled = true }: UseReactionUsersArgs) {
   const api = useApi();
   return useInfiniteQuery<
     ReactionUsersPage,

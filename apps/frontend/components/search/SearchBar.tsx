@@ -7,11 +7,7 @@ import { useAtom } from "jotai";
 import { Clock, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { searchHistoryAtom } from "@/atoms/search-history";
-import {
-  filterSearchHistory,
-  pushSearchHistory,
-  removeSearchHistory,
-} from "@/lib/search-history";
+import { filterSearchHistory, pushSearchHistory, removeSearchHistory } from "@/lib/search-history";
 import { searchUrl, type SearchTab } from "@/lib/search-tabs";
 import { cn } from "@/lib/utils";
 
@@ -49,10 +45,7 @@ export function SearchBar({ query, tab }: SearchBarProps) {
     setInput(query);
   }, [query]);
 
-  const suggestions = useMemo(
-    () => filterSearchHistory(history, input),
-    [history, input],
-  );
+  const suggestions = useMemo(() => filterSearchHistory(history, input), [history, input]);
   const isOpen = isFocused && suggestions.length > 0;
 
   const submit = (raw: string) => {
@@ -180,10 +173,7 @@ export function SearchBar({ query, tab }: SearchBarProps) {
                 index === activeIndex ? "bg-card-hover" : "bg-transparent",
               )}
             >
-              <Clock
-                className="h-4 w-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
+              <Clock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <span className="truncate">{entry}</span>
               <button
                 type="button"

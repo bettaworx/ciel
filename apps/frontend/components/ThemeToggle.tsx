@@ -5,7 +5,7 @@ import { useAtom } from "jotai";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { themeAtom, } from "@/atoms/theme";
+import { themeAtom } from "@/atoms/theme";
 
 export function ThemeToggle() {
   const t = useTranslations();
@@ -50,11 +50,7 @@ export function ThemeToggle() {
       aria-label={t("theme.toggle")}
       title={theme === "dark" ? t("theme.light") : t("theme.dark")}
     >
-      {theme === "dark" ? (
-        <Sun className="h-5 w-5" />
-      ) : (
-        <Moon className="h-5 w-5" />
-      )}
+      {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
     </Button>
   );
 }

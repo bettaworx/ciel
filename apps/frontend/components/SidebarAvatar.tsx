@@ -29,7 +29,11 @@ interface SidebarAvatarProps {
  * サイドバー用のアバターコンポーネント
  * Avatar component for sidebar with menu functionality
  */
-export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate = true }: SidebarAvatarProps) {
+export function SidebarAvatar({
+  isExpanded = false,
+  isPinned = false,
+  canAnimate = true,
+}: SidebarAvatarProps) {
   const user = useAtomValue(userAtom);
   const accounts = useAtomValue(orderedAccountsAtom);
   const isDesktop = useMediaQuery("(min-width: 640px)");

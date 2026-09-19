@@ -1,121 +1,117 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 import {
-	MAX_HISTORY_SUGGESTIONS,
-	MAX_SEARCH_HISTORY,
-	filterSearchHistory,
-	isSearchHistory,
-	pushSearchHistory,
-	removeSearchHistory,
-} from '@/lib/search-history';
+  MAX_HISTORY_SUGGESTIONS,
+  MAX_SEARCH_HISTORY,
+  filterSearchHistory,
+  isSearchHistory,
+  pushSearchHistory,
+  removeSearchHistory,
+} from "@/lib/search-history";
 
-describe('pushSearchHistory', () => {
-	it('puts the newest search first', () => {
-		expect(pushSearchHistory(['older'], 'newer')).toEqual(['newer', 'older']);
-	});
+describe("pushSearchHistory", () => {
+  it("puts the newest search first", () => {
+    expect(pushSearchHistory(["older"], "newer")).toEqual(["newer", "older"]);
+  });
 
-	it('promotes a repeated search instead of duplicating it', () => {
-		expect(pushSearchHistory(['a', 'b', 'c'], 'c')).toEqual(['c', 'a', 'b']);
-	});
+  it("promotes a repeated search instead of duplicating it", () => {
+    expect(pushSearchHistory(["a", "b", "c"], "c")).toEqual(["c", "a", "b"]);
+  });
 
-	it('trims the query before storing it', () => {
-		expect(pushSearchHistory([], '  spaced  ')).toEqual(['spaced']);
-	});
+  it("trims the query before storing it", () => {
+    expect(pushSearchHistory([], "  spaced  ")).toEqual(["spaced"]);
+  });
 
-	it('ignores a blank query', () => {
-		expect(pushSearchHistory(['a'], '   ')).toEqual(['a']);
-	});
+  it("ignores a blank query", () => {
+    expect(pushSearchHistory(["a"], "   ")).toEqual(["a"]);
+  });
 
-	it('caps the stored history', () => {
-		const full = Array.from({ length: MAX_SEARCH_HISTORY }, (_, i) => `q${i}`);
-		const result = pushSearchHistory(full, 'newest');
+  it("caps the stored history", () => {
+    const full = Array.from({ length: MAX_SEARCH_HISTORY }, (_, i) => `q${i}`);
+    const result = pushSearchHistory(full, "newest");
 
-		expect(result).toHaveLength(MAX_SEARCH_HISTORY);
-		expect(result[0]).toBe('newest');
-		// The oldest entry is the one that falls off the end.
-		expect(result).not.toContain(`q${MAX_SEARCH_HISTORY - 1}`);
-	});
+    expect(result).toHaveLength(MAX_SEARCH_HISTORY);
+    expect(result[0]).toBe("newest");
+    // The oldest entry is the one that falls off the end.
+    expect(result).not.toContain(`q${MAX_SEARCH_HISTORY - 1}`);
+  });
 
-	it('does not mutate the input', () => {
-		const history = ['a'];
-		pushSearchHistory(history, 'b');
-		expect(history).toEqual(['a']);
-	});
+  it("does not mutate the input", () => {
+    const history = ["a"];
+    pushSearchHistory(history, "b");
+    expect(history).toEqual(["a"]);
+  });
 });
 
-describe('removeSearchHistory', () => {
-	it('drops the named entry and keeps the order of the rest', () => {
-		expect(removeSearchHistory(['a', 'b', 'c'], 'b')).toEqual(['a', 'c']);
-	});
+describe("removeSearchHistory", () => {
+  it("drops the named entry and keeps the order of the rest", () => {
+    expect(removeSearchHistory(["a", "b", "c"], "b")).toEqual(["a", "c"]);
+  });
 
-	it('leaves the list alone when the entry is not there', () => {
-		expect(removeSearchHistory(['a', 'b'], 'z')).toEqual(['a', 'b']);
-	});
+  it("leaves the list alone when the entry is not there", () => {
+    expect(removeSearchHistory(["a", "b"], "z")).toEqual(["a", "b"]);
+  });
 
-	it('matches exactly, so a similar entry survives', () => {
-		expect(removeSearchHistory(['cat', 'cats'], 'cat')).toEqual(['cats']);
-	});
+  it("matches exactly, so a similar entry survives", () => {
+    expect(removeSearchHistory(["cat", "cats"], "cat")).toEqual(["cats"]);
+  });
 
-	it('does not mutate the input', () => {
-		const history = ['a', 'b'];
-		removeSearchHistory(history, 'a');
-		expect(history).toEqual(['a', 'b']);
-	});
+  it("does not mutate the input", () => {
+    const history = ["a", "b"];
+    removeSearchHistory(history, "a");
+    expect(history).toEqual(["a", "b"]);
+  });
 });
 
-describe('filterSearchHistory', () => {
-	const history = ['cats', 'Cat food', 'dogs', 'catalogue', 'concat', 'birds'];
+describe("filterSearchHistory", () => {
+  const history = ["cats", "Cat food", "dogs", "catalogue", "concat", "birds"];
 
-	it('offers the most recent entries when nothing is typed', () => {
-		expect(filterSearchHistory(history, '')).toEqual([
-			'cats',
-			'Cat food',
-			'dogs',
-			'catalogue',
-			'concat',
-		]);
-	});
+  it("offers the most recent entries when nothing is typed", () => {
+    expect(filterSearchHistory(history, "")).toEqual([
+      "cats",
+      "Cat food",
+      "dogs",
+      "catalogue",
+      "concat",
+    ]);
+  });
 
-	it('treats whitespace as nothing typed', () => {
-		expect(filterSearchHistory(history, '   ')).toHaveLength(
-			MAX_HISTORY_SUGGESTIONS,
-		);
-	});
+  it("treats whitespace as nothing typed", () => {
+    expect(filterSearchHistory(history, "   ")).toHaveLength(MAX_HISTORY_SUGGESTIONS);
+  });
 
-	it('matches anywhere in the entry, ignoring case', () => {
-		expect(filterSearchHistory(history, 'cat')).toEqual([
-			'cats',
-			'Cat food',
-			'catalogue',
-			'concat',
-		]);
-	});
+  it("matches anywhere in the entry, ignoring case", () => {
+    expect(filterSearchHistory(history, "cat")).toEqual([
+      "cats",
+      "Cat food",
+      "catalogue",
+      "concat",
+    ]);
+  });
 
-	it('leaves out the entry equal to what was typed', () => {
-		expect(filterSearchHistory(history, 'cats')).not.toContain('cats');
-	});
+  it("leaves out the entry equal to what was typed", () => {
+    expect(filterSearchHistory(history, "cats")).not.toContain("cats");
+  });
 
-	it('caps the suggestions', () => {
-		const many = Array.from({ length: 12 }, (_, i) => `cat ${i}`);
-		expect(filterSearchHistory(many, 'cat')).toHaveLength(
-			MAX_HISTORY_SUGGESTIONS,
-		);
-	});
+  it("caps the suggestions", () => {
+    const many = Array.from({ length: 12 }, (_, i) => `cat ${i}`);
+    expect(filterSearchHistory(many, "cat")).toHaveLength(MAX_HISTORY_SUGGESTIONS);
+  });
 
-	it('returns nothing when there is no match', () => {
-		expect(filterSearchHistory(history, 'zebra')).toEqual([]);
-	});
+  it("returns nothing when there is no match", () => {
+    expect(filterSearchHistory(history, "zebra")).toEqual([]);
+  });
 });
 
-describe('isSearchHistory', () => {
-	it('accepts a list of strings', () => {
-		expect(isSearchHistory([])).toBe(true);
-		expect(isSearchHistory(['a', 'b'])).toBe(true);
-	});
+describe("isSearchHistory", () => {
+  it("accepts a list of strings", () => {
+    expect(isSearchHistory([])).toBe(true);
+    expect(isSearchHistory(["a", "b"])).toBe(true);
+  });
 
-	it('rejects anything else', () => {
-		expect(isSearchHistory(null)).toBe(false);
-		expect(isSearchHistory('a')).toBe(false);
-		expect(isSearchHistory(['a', 1])).toBe(false);
-		expect(isSearchHistory({ 0: 'a' })).toBe(false);
-	});
+  it("rejects anything else", () => {
+    expect(isSearchHistory(null)).toBe(false);
+    expect(isSearchHistory("a")).toBe(false);
+    expect(isSearchHistory(["a", 1])).toBe(false);
+    expect(isSearchHistory({ 0: "a" })).toBe(false);
+  });
 });

@@ -107,11 +107,7 @@ export function ComposeCard({
         return;
       }
 
-      if (
-        compose.content.length === 0 &&
-        compose.images.length === 0 &&
-        !compose.video
-      ) {
+      if (compose.content.length === 0 && compose.images.length === 0 && !compose.video) {
         setIsExpanded(false);
       }
     };

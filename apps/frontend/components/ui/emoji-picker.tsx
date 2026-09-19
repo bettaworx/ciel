@@ -1,11 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  SearchIcon,
-  XIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { SearchIcon, XIcon, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Grid, type CellComponentProps } from "react-window";
 
@@ -26,16 +22,8 @@ import {
   type EmojiPickerLayoutMetrics,
   type EmojiPickerSectionLayout,
 } from "@/lib/emoji-picker/layout";
-import type {
-  EmojiItem,
-  EmojiCategory,
-  EmojiSelectEvent,
-} from "@/lib/emoji-picker/types";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import type { EmojiItem, EmojiCategory, EmojiSelectEvent } from "@/lib/emoji-picker/types";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 
 const MOBILE_CELL_SIZE = 36;
@@ -91,9 +79,7 @@ function getLayoutMetrics(
   const gridPaddingX = isDesktop ? DESKTOP_GRID_PADDING_X : MOBILE_GRID_PADDING_X;
   const availableWidth = Math.max(0, containerWidth - gridPaddingX * 2);
   const fittedCellSize =
-    columns > 0 && availableWidth > 0
-      ? availableWidth / columns
-      : fallbackCellSize;
+    columns > 0 && availableWidth > 0 ? availableWidth / columns : fallbackCellSize;
   const cellSize = Math.max(24, fittedCellSize || fallbackCellSize);
 
   return {
@@ -127,10 +113,8 @@ interface EmojiPickerSearchContextValue {
   setSearchQuery: (q: string) => void;
 }
 
-const EmojiPickerDataContext =
-  React.createContext<EmojiPickerDataContextValue | null>(null);
-const EmojiPickerSearchContext =
-  React.createContext<EmojiPickerSearchContextValue | null>(null);
+const EmojiPickerDataContext = React.createContext<EmojiPickerDataContextValue | null>(null);
+const EmojiPickerSearchContext = React.createContext<EmojiPickerSearchContextValue | null>(null);
 
 function useEmojiPickerContext() {
   const ctx = React.useContext(EmojiPickerDataContext);
@@ -155,12 +139,7 @@ interface EmojiPickerProps {
   onEmojiSelect?: (event: EmojiSelectEvent) => void;
 }
 
-function EmojiPicker({
-  children,
-  className,
-  columns = 9,
-  onEmojiSelect,
-}: EmojiPickerProps) {
+function EmojiPicker({ children, className, columns = 9, onEmojiSelect }: EmojiPickerProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const deferredSearchQuery = React.useDeferredValue(searchQuery);
   const [activeCategory, setActiveCategory] = React.useState("");
@@ -170,8 +149,7 @@ function EmojiPicker({
   const setRecentEmojis = useSetRecentEmojis();
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
-  const { categories, isLoading, isEmpty, isSearching } =
-    useEmojiPickerData(deferredSearchQuery);
+  const { categories, isLoading, isEmpty, isSearching } = useEmojiPickerData(deferredSearchQuery);
   const layoutMetrics = React.useMemo(
     () => getLayoutMetrics(isDesktop, columns, viewportWidth || pickerWidth),
     [isDesktop, columns, pickerWidth, viewportWidth],
@@ -191,10 +169,7 @@ function EmojiPicker({
       return;
     }
 
-    if (
-      !activeCategory ||
-      !categories.some((category) => category.id === activeCategory)
-    ) {
+    if (!activeCategory || !categories.some((category) => category.id === activeCategory)) {
       setActiveCategory(categories[0].id);
     }
   }, [categories, activeCategory]);
@@ -215,8 +190,7 @@ function EmojiPicker({
 
   const onSelect = React.useCallback(
     (event: EmojiSelectEvent) => {
-      const key =
-        event.type === "custom" ? `:${event.shortcode}:` : event.emoji;
+      const key = event.type === "custom" ? `:${event.shortcode}:` : event.emoji;
       setRecentEmojis((prev) => addRecentEmoji(prev, key));
       onEmojiSelect?.(event);
     },
@@ -294,8 +268,7 @@ function EmojiPickerSearch({ className, placeholder }: EmojiPickerSearchProps) {
   const [skinToneOpen, setSkinToneOpen] = React.useState(false);
 
   const currentColor =
-    SKIN_TONE_OPTIONS.find((o) => o.value === skinTone)?.color ??
-    SKIN_TONE_OPTIONS[0].color;
+    SKIN_TONE_OPTIONS.find((o) => o.value === skinTone)?.color ?? SKIN_TONE_OPTIONS[0].color;
 
   return (
     <div
@@ -488,15 +461,7 @@ function EmojiGrid({
       columnGap: metrics.columnGap,
       rowGap: metrics.rowGap,
     }),
-    [
-      items,
-      columns,
-      rowCount,
-      onSelect,
-      metrics.cellSize,
-      metrics.columnGap,
-      metrics.rowGap,
-    ],
+    [items, columns, rowCount, onSelect, metrics.cellSize, metrics.columnGap, metrics.rowGap],
   );
 
   if (rowCount === 0) {
@@ -504,10 +469,7 @@ function EmojiGrid({
   }
 
   return (
-    <div
-      className="px-3 sm:px-1"
-      data-grid-item-count={items.length}
-    >
+    <div className="px-3 sm:px-1" data-grid-item-count={items.length}>
       <Grid
         cellComponent={EmojiGridCell}
         cellProps={itemData}
@@ -661,10 +623,7 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
             </>
           ) : (
             categories.map((category) => (
-              <section
-                key={category.id}
-                data-category-id={category.id}
-              >
+              <section key={category.id} data-category-id={category.id}>
                 <div className="bg-popover text-muted-foreground sticky top-0 z-10 px-3 pb-3.5 pt-3.5 text-sm leading-none sm:px-1 sm:text-xs">
                   <CategoryLabel category={category} />
                 </div>
@@ -688,8 +647,7 @@ interface EmojiPickerFooterProps {
 }
 
 function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
-  const { categories, isSearching, activeCategory, scrollToCategory } =
-    useEmojiPickerContext();
+  const { categories, isSearching, activeCategory, scrollToCategory } = useEmojiPickerContext();
   const footerRef = React.useRef<HTMLDivElement | null>(null);
   const buttonRefs = React.useRef(new Map<string, HTMLButtonElement>());
 
@@ -700,12 +658,8 @@ function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
       return;
     }
 
-    const buttonCenter =
-      activeButton.offsetLeft + activeButton.offsetWidth / 2;
-    const nextScrollLeft = Math.max(
-      0,
-      buttonCenter - container.clientWidth / 2,
-    );
+    const buttonCenter = activeButton.offsetLeft + activeButton.offsetWidth / 2;
+    const nextScrollLeft = Math.max(0, buttonCenter - container.clientWidth / 2);
 
     container.scrollTo({
       left: nextScrollLeft,
@@ -766,11 +720,6 @@ function EmojiPickerFooter({ className }: EmojiPickerFooterProps) {
   );
 }
 
-export {
-  EmojiPicker,
-  EmojiPickerSearch,
-  EmojiPickerContent,
-  EmojiPickerFooter,
-};
+export { EmojiPicker, EmojiPickerSearch, EmojiPickerContent, EmojiPickerFooter };
 
 export type { EmojiSelectEvent };

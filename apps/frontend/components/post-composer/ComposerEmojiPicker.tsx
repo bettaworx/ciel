@@ -11,17 +11,8 @@ import {
   EmojiPickerFooter,
   type EmojiSelectEvent,
 } from "@/components/ui/emoji-picker";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { applyFormatToTextarea } from "./applyFormat";
@@ -66,7 +57,10 @@ export function ComposerEmojiPicker({
       variant="ghost"
       size="icon"
       disabled={disabled}
-      className={cn("text-muted-foreground hover:text-foreground transition-colors duration-160 ease", className)}
+      className={cn(
+        "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+        className,
+      )}
       aria-label={t("addEmoji")}
     >
       <Smile className={cn("w-5 h-5", iconClassName)} />

@@ -27,10 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  useAdminDeleteEmoji,
-  useAdminEmojis,
-} from "@/lib/hooks/use-queries";
+import { useAdminDeleteEmoji, useAdminEmojis } from "@/lib/hooks/use-queries";
 import type { components } from "@/lib/api/api";
 
 type AdminEmoji = components["schemas"]["AdminEmoji"];
@@ -63,9 +60,7 @@ export default function AdminEmojisPage() {
       toast.success(t("messages.deleteSuccess"));
       setDeletingEmoji(null);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : t("messages.deleteError"),
-      );
+      toast.error(error instanceof Error ? error.message : t("messages.deleteError"));
     }
   };
 
@@ -85,9 +80,7 @@ export default function AdminEmojisPage() {
             <Spinner size="sm" className="text-muted-foreground" />
           </div>
         ) : error ? (
-          <div className="py-12 text-center text-sm text-destructive">
-            {tCommon("error")}
-          </div>
+          <div className="py-12 text-center text-sm text-destructive">{tCommon("error")}</div>
         ) : emojis.length === 0 ? (
           <EmptyState
             icon={SmilePlus}
@@ -109,9 +102,7 @@ export default function AdminEmojisPage() {
                   <TableHead>{t("table.category")}</TableHead>
                   <TableHead>{t("table.dimensions")}</TableHead>
                   <TableHead>{t("table.updatedAt")}</TableHead>
-                  <TableHead className="text-right">
-                    {t("table.actions")}
-                  </TableHead>
+                  <TableHead className="text-right">{t("table.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -129,9 +120,7 @@ export default function AdminEmojisPage() {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      :{emoji.shortcode}:
-                    </TableCell>
+                    <TableCell className="font-mono text-sm">:{emoji.shortcode}:</TableCell>
                     <TableCell>{emoji.name || "-"}</TableCell>
                     <TableCell>{emoji.category || "-"}</TableCell>
                     <TableCell className="text-muted-foreground">
@@ -145,9 +134,7 @@ export default function AdminEmojisPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() =>
-                            router.push(`/admin/emojis/${emoji.id}/edit`)
-                          }
+                          onClick={() => router.push(`/admin/emojis/${emoji.id}/edit`)}
                         >
                           <Pencil className="mr-1 h-3 w-3" />
                           {t("actions.edit")}

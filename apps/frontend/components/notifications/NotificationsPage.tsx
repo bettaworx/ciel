@@ -25,14 +25,8 @@ function NotificationList({ tab }: { tab: NotificationTab }) {
   const t = useTranslations("notifications");
   const tCommon = useTranslations();
   const markSeen = useMarkNotificationsSeen();
-  const {
-    data,
-    isLoading,
-    error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useNotifications(tab);
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useNotifications(tab);
 
   const notifications = useMemo(
     () => data?.pages.flatMap((page) => page.items ?? []) ?? [],

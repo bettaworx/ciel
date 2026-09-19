@@ -40,9 +40,7 @@ function NavButton({
         "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
         isPrimary && "bg-c-1 text-c-foreground group-hover:bg-c-2",
         !isPrimary &&
-          (isActive
-            ? "bg-c-1/15 text-c-1 group-hover:bg-c-1/25"
-            : "group-hover:bg-sidebar-hover"),
+          (isActive ? "bg-c-1/15 text-c-1 group-hover:bg-c-1/25" : "group-hover:bg-sidebar-hover"),
       )}
     >
       {icon}

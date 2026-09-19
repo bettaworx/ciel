@@ -17,11 +17,7 @@ interface AvatarStepProps {
   loading?: boolean;
 }
 
-export function AvatarStep({
-  onNext,
-  onSkip,
-  loading = false,
-}: AvatarStepProps) {
+export function AvatarStep({ onNext, onSkip, loading = false }: AvatarStepProps) {
   const t = useTranslations();
   const user = useAtomValue(userAtom);
   const [preview, setPreview] = useState<string | null>(null);
@@ -39,7 +35,9 @@ export function AvatarStep({
     const { dataUri } = generateAvatar(user.username);
     setPreview(dataUri);
 
-    rasterizeSvgToFile(dataUri).then(setGeneratedFile).catch(() => {});
+    rasterizeSvgToFile(dataUri)
+      .then(setGeneratedFile)
+      .catch(() => {});
   }, [user?.username]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,11 +81,7 @@ export function AvatarStep({
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Form content */}
-      <form
-        id="setup-avatar-form"
-        onSubmit={handleSubmit}
-        className="flex flex-col h-full min-h-0"
-      >
+      <form id="setup-avatar-form" onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
         <div className="flex-1 flex flex-col justify-center">
           {/* Title and subtitle - left aligned */}
           <div className="space-y-2 mb-6">

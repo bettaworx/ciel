@@ -15,9 +15,7 @@ export function SecuritySettingsContent() {
 
   return (
     <>
-      <PageHeader backHref="/settings">
-        {t("settings.security.title")}
-      </PageHeader>
+      <PageHeader backHref="/settings">{t("settings.security.title")}</PageHeader>
       <div className="space-y-3">
         <SettingsRowGroup>
           <StepupRow

@@ -6,13 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": [
-      "**",
-      "!lib/api/api.d.ts",
-      "!next-env.d.ts",
-      "!public",
-      "!storybook-static"
-    ]
+    "includes": ["**", "!lib/api/api.d.ts", "!next-env.d.ts", "!public", "!storybook-static"]
   },
   "formatter": {
     "enabled": true,

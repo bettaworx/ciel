@@ -4,12 +4,7 @@ import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Moon, Globe } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
-import {
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -59,7 +54,7 @@ export default function OfflinePage() {
 
   const handleReload = () => {
     // Force complete page reload bypassing all caches
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       // Method 1: Use location.reload(true) - deprecated but works
       // Method 2: Use location.href with timestamp to bypass cache
       const timestamp = Date.now();
@@ -69,7 +64,7 @@ export default function OfflinePage() {
 
   const handleLanguageChange = (newLocale: Locale) => {
     setClientLocale(newLocale);
-    window.dispatchEvent(new Event('ciel:locale-change'));
+    window.dispatchEvent(new Event("ciel:locale-change"));
   };
 
   return (
@@ -80,9 +75,7 @@ export default function OfflinePage() {
             <Moon className="h-32 w-32 text-muted-foreground" />
           </div>
           <CardTitle className="text-2xl">{t("offline.title")}</CardTitle>
-          <CardDescription className="text-base mt-3">
-            {t("offline.description")}
-          </CardDescription>
+          <CardDescription className="text-base mt-3">{t("offline.description")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">
           <Button onClick={handleReload} variant="primary" size="lg">

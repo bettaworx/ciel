@@ -29,21 +29,14 @@ interface ResetConfirmProps {
   onConfirm: () => void;
 }
 
-export function ResetConfirm({
-  open,
-  onOpenChange,
-  onConfirm,
-}: ResetConfirmProps) {
+export function ResetConfirm({ open, onOpenChange, onConfirm }: ResetConfirmProps) {
   const t = useTranslations("imageCrop.resetConfirm");
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
   if (isDesktop) {
     return (
       <AlertDialog open={open} onOpenChange={onOpenChange}>
-        <AlertDialogContent
-          className="z-[90]"
-          overlayClassName="z-[85]"
-        >
+        <AlertDialogContent className="z-[90]" overlayClassName="z-[85]">
           <AlertDialogHeader>
             <AlertDialogTitle>{t("title")}</AlertDialogTitle>
             <AlertDialogDescription>{t("description")}</AlertDialogDescription>
@@ -68,11 +61,7 @@ export function ResetConfirm({
         </DrawerHeader>
 
         <DrawerFooter className="pt-2">
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            className="w-full"
-          >
+          <Button variant="destructive" onClick={onConfirm} className="w-full">
             {t("confirm")}
           </Button>
 

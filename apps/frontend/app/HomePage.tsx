@@ -36,10 +36,7 @@ type TimelinePostItemProps = {
 
 function TimelineParentPostSkeleton() {
   return (
-    <article
-      aria-hidden
-      className="relative p-3 text-card-foreground"
-    >
+    <article aria-hidden className="relative p-3 text-card-foreground">
       <span className="absolute left-8 sm:left-9 top-14 sm:top-16 bottom-0 w-0.5 -translate-x-1/2 bg-border" />
       <div className="flex items-start gap-3">
         <Skeleton className="h-11 w-11 sm:h-12 sm:w-12 rounded-full shrink-0" />
@@ -104,33 +101,17 @@ function TimelinePostItem({ post, isLast, onUserClick }: TimelinePostItemProps) 
   }
 
   if (!parentId || !hasVisibleParent) {
-    return (
-      <PostCard
-        post={post}
-        onUserClick={onUserClick}
-        isLast={isLast}
-      />
-    );
+    return <PostCard post={post} onUserClick={onUserClick} isLast={isLast} />;
   }
 
   return (
     <>
       {parentPost ? (
-        <PostCard
-          post={parentPost}
-          onUserClick={onUserClick}
-          isLast={false}
-          threadLine="below"
-        />
+        <PostCard post={parentPost} onUserClick={onUserClick} isLast={false} threadLine="below" />
       ) : (
         <TimelineParentPostSkeleton />
       )}
-      <PostCard
-        post={post}
-        onUserClick={onUserClick}
-        isLast={isLast}
-        threadLine="above"
-      />
+      <PostCard post={post} onUserClick={onUserClick} isLast={isLast} threadLine="above" />
     </>
   );
 }
@@ -149,19 +130,11 @@ export function HomePage() {
   // the visible one is allowed to fetch.
   const globalTimeline = useTimeline({ enabled: !showingHome });
   const homeTimeline = useHomeTimeline({ enabled: showingHome });
-  const {
-    data,
-    isLoading,
-    error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = showingHome ? homeTimeline : globalTimeline;
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = showingHome
+    ? homeTimeline
+    : globalTimeline;
 
-  const posts = useMemo(
-    () => data?.pages.flatMap((page) => page.items ?? []) ?? [],
-    [data],
-  );
+  const posts = useMemo(() => data?.pages.flatMap((page) => page.items ?? []) ?? [], [data]);
   const timelineItems = useOwnerThreadTimelineItems(posts);
   const infiniteScrollRef = useInfiniteScroll({
     enabled: posts.length > 0,
@@ -174,9 +147,7 @@ export function HomePage() {
     <PageContainer maxWidth="2xl">
       <div className="space-y-3">
         {auth.user ? <ComposeCard /> : <WelcomeCard />}
-        {auth.user && (
-          <TimelineSwitcher value={scope} onChange={setStoredScope} />
-        )}
+        {auth.user && <TimelineSwitcher value={scope} onChange={setStoredScope} />}
         <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -208,7 +179,11 @@ export function HomePage() {
                   replies={item.replies}
                   isMerged={item.isMerged}
                   onUserClick={(username) => router.push(`/users/${username}`)}
-                  onShowThread={() => router.push(`/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`)}
+                  onShowThread={() =>
+                    router.push(
+                      `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
+                    )
+                  }
                   isLast={index === timelineItems.length - 1}
                 />
               ),

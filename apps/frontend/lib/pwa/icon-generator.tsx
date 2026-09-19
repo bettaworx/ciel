@@ -1,111 +1,106 @@
-import { ImageResponse } from 'next/og';
-import sharp from 'sharp';
-import {
-	getInternalApiBaseUrl,
-	rewriteBackendUrlForServerFetch,
-} from '@/lib/server/api-base-url';
+import { ImageResponse } from "next/og";
+import sharp from "sharp";
+import { getInternalApiBaseUrl, rewriteBackendUrlForServerFetch } from "@/lib/server/api-base-url";
 
 /**
  * Fetch and resize server icon from backend API
- * 
+ *
  * This function retrieves the server icon URL from the /server/info endpoint,
  * fetches the actual icon image, and resizes it to the specified size.
  * It prioritizes static versions (first frame) for animated images like GIFs.
- * 
+ *
  * @param size - Target size for the icon (width and height)
  * @returns Buffer of the resized icon image, or null if not available
  */
 export async function fetchServerIcon(size: number): Promise<Buffer | null> {
-	try {
-		const baseUrl = getInternalApiBaseUrl();
-		
-		const serverInfoRes = await fetch(`${baseUrl}/server/info`, {
-			cache: 'no-store'
-		});
-		
-		if (!serverInfoRes.ok) {
-			console.error('Failed to fetch server info:', serverInfoRes.status);
-			return null;
-		}
-		
-		const serverInfo = await serverInfoRes.json();
-		const iconUrl = serverInfo?.serverIconUrl;
-		
-		if (!iconUrl || typeof iconUrl !== 'string') {
-			return null;
-		}
-		
-		// For animated server icons (GIFs converted to WebP), try to fetch the static version first
-		// The static version (first frame only) is better for favicons and PWA icons
-		const serverFetchIconUrl = rewriteBackendUrlForServerFetch(iconUrl);
-		const staticIconUrl = serverFetchIconUrl
-			.replace('/image.webp', '/image_static.webp')
-			.replace('/image.png', '/image_static.png');
-		
-		let imageBuffer: ArrayBuffer | null = null;
-		
-		// Try static version first
-		if (staticIconUrl !== serverFetchIconUrl) {
-			const staticIconRes = await fetch(staticIconUrl, {
-				cache: 'no-store',
-			});
+  try {
+    const baseUrl = getInternalApiBaseUrl();
 
-			if (staticIconRes.ok) {
-				imageBuffer = await staticIconRes.arrayBuffer();
-			}
-		}
+    const serverInfoRes = await fetch(`${baseUrl}/server/info`, {
+      cache: "no-store",
+    });
 
-		// Fetch the actual icon image (fallback to animated version if static doesn't exist)
-		if (!imageBuffer) {
-			const iconRes = await fetch(serverFetchIconUrl, {
-				cache: 'no-store',
-			});
+    if (!serverInfoRes.ok) {
+      console.error("Failed to fetch server info:", serverInfoRes.status);
+      return null;
+    }
 
-			if (!iconRes.ok) {
-				console.error('Failed to fetch icon from URL:', iconUrl, iconRes.status);
-				return null;
-			}
+    const serverInfo = await serverInfoRes.json();
+    const iconUrl = serverInfo?.serverIconUrl;
 
-			imageBuffer = await iconRes.arrayBuffer();
-		}
+    if (!iconUrl || typeof iconUrl !== "string") {
+      return null;
+    }
 
-		// Resize the image using sharp
-		const resizedBuffer = await sharp(Buffer.from(imageBuffer))
-			.resize(size, size, {
-				fit: 'cover',
-				position: 'center',
-			})
-			.png()
-			.toBuffer();
+    // For animated server icons (GIFs converted to WebP), try to fetch the static version first
+    // The static version (first frame only) is better for favicons and PWA icons
+    const serverFetchIconUrl = rewriteBackendUrlForServerFetch(iconUrl);
+    const staticIconUrl = serverFetchIconUrl
+      .replace("/image.webp", "/image_static.webp")
+      .replace("/image.png", "/image_static.png");
 
-		return resizedBuffer;
-	} catch (error) {
-		console.error('Error fetching server icon:', error);
-		return null;
-	}
+    let imageBuffer: ArrayBuffer | null = null;
+
+    // Try static version first
+    if (staticIconUrl !== serverFetchIconUrl) {
+      const staticIconRes = await fetch(staticIconUrl, {
+        cache: "no-store",
+      });
+
+      if (staticIconRes.ok) {
+        imageBuffer = await staticIconRes.arrayBuffer();
+      }
+    }
+
+    // Fetch the actual icon image (fallback to animated version if static doesn't exist)
+    if (!imageBuffer) {
+      const iconRes = await fetch(serverFetchIconUrl, {
+        cache: "no-store",
+      });
+
+      if (!iconRes.ok) {
+        console.error("Failed to fetch icon from URL:", iconUrl, iconRes.status);
+        return null;
+      }
+
+      imageBuffer = await iconRes.arrayBuffer();
+    }
+
+    // Resize the image using sharp
+    const resizedBuffer = await sharp(Buffer.from(imageBuffer))
+      .resize(size, size, {
+        fit: "cover",
+        position: "center",
+      })
+      .png()
+      .toBuffer();
+
+    return resizedBuffer;
+  } catch (error) {
+    console.error("Error fetching server icon:", error);
+    return null;
+  }
 }
 
 /**
  * Generate a default icon with gradient background
- * 
+ *
  * Creates a simple icon with a top-to-bottom gray gradient.
  * Used as a fallback when no server icon is configured.
- * 
+ *
  * @param size - The size of the icon (width and height)
  * @returns ImageResponse with the generated icon
  */
 export async function generateDefaultIcon(size: number) {
-	return new ImageResponse(
-		(
-			<div
-				style={{
-					width: size,
-					height: size,
-					display: 'flex',
-					background: 'linear-gradient(180deg, #888888 0%, #444444 100%)',
-				}}
-			/>
-		),
-		{ width: size, height: size }
-	);
+  return new ImageResponse(
+    <div
+      style={{
+        width: size,
+        height: size,
+        display: "flex",
+        background: "linear-gradient(180deg, #888888 0%, #444444 100%)",
+      }}
+    />,
+    { width: size, height: size },
+  );
 }

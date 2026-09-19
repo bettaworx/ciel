@@ -1,9 +1,9 @@
 import { atom } from "jotai";
 
 export type SharedStepupToken = {
-	token: string;
-	/** Epoch ms. The server rejects the token past this, so stop offering it. */
-	expiresAt: number;
+  token: string;
+  /** Epoch ms. The server rejects the token past this, so stop offering it. */
+  expiresAt: number;
 };
 
 /**
@@ -24,6 +24,6 @@ export const stepupTokenAtom = atom<SharedStepupToken | null>(null);
 
 /** The held token if it is still worth sending, otherwise null. */
 export function usableStepupToken(held: SharedStepupToken | null): string | null {
-	if (!held) return null;
-	return held.expiresAt > Date.now() ? held.token : null;
+  if (!held) return null;
+  return held.expiresAt > Date.now() ? held.token : null;
 }

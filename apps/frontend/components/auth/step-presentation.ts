@@ -18,9 +18,9 @@ const PROMPT_HEADING = "text-lg font-semibold leading-none tracking-tight";
 const PROMPT_DESCRIPTION = "text-sm text-muted-foreground";
 
 export function stepHeadingClass(presentation: StepPresentation): string {
-	return presentation === "wizard" ? "text-2xl font-bold" : PROMPT_HEADING;
+  return presentation === "wizard" ? "text-2xl font-bold" : PROMPT_HEADING;
 }
 
 export function stepDescriptionClass(presentation: StepPresentation): string {
-	return presentation === "wizard" ? "text-muted-foreground" : PROMPT_DESCRIPTION;
+  return presentation === "wizard" ? "text-muted-foreground" : PROMPT_DESCRIPTION;
 }

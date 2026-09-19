@@ -66,9 +66,7 @@ function mimeTypesFor(extensions: string[], prefix: string): string[] {
 }
 
 /** Read the server's rules, falling back while the config request is in flight. */
-export function toMediaRequirements(
-  config: ServerConfig | undefined,
-): MediaRequirements {
+export function toMediaRequirements(config: ServerConfig | undefined): MediaRequirements {
   const limits = config?.mediaLimits;
   if (!limits) return FALLBACK_MEDIA_REQUIREMENTS;
 

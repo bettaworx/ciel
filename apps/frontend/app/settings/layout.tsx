@@ -5,11 +5,7 @@ import { isConcentratedMode } from "@/lib/utils/concentrated-mode";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { PageContainer } from "@/components/PageContainer";
 
-export default function SettingsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   // Step-up wizards own the whole screen: they bring their own full-screen

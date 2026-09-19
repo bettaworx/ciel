@@ -1,5 +1,5 @@
-import { safeFetch } from '@/lib/ogp/ssrf';
-import type { OgpData } from '@/lib/ogp/types';
+import { safeFetch } from "@/lib/ogp/ssrf";
+import type { OgpData } from "@/lib/ogp/types";
 
 // ---------------------------------------------------------------------------
 // Twitter / X URL detection
@@ -14,17 +14,16 @@ import type { OgpData } from '@/lib/ogp/types';
  *
  * Captures: [1] = screen_name, [2] = tweet ID
  */
-const TWEET_URL_RE =
-	/^https?:\/\/(?:mobile\.)?(?:twitter\.com|x\.com)\/([^/?#]+)\/status\/(\d+)/i;
+const TWEET_URL_RE = /^https?:\/\/(?:mobile\.)?(?:twitter\.com|x\.com)\/([^/?#]+)\/status\/(\d+)/i;
 
 /**
  * If the URL points to a tweet, returns `{ screenName, tweetId }`.
  * Otherwise returns `null`.
  */
 export function parseTweetUrl(url: string): { screenName: string; tweetId: string } | null {
-	const m = TWEET_URL_RE.exec(url);
-	if (!m) return null;
-	return { screenName: m[1], tweetId: m[2] };
+  const m = TWEET_URL_RE.exec(url);
+  if (!m) return null;
+  return { screenName: m[1], tweetId: m[2] };
 }
 
 // ---------------------------------------------------------------------------
@@ -32,36 +31,36 @@ export function parseTweetUrl(url: string): { screenName: string; tweetId: strin
 // ---------------------------------------------------------------------------
 
 interface SyndicationUser {
-	name?: string;
-	screen_name?: string;
-	profile_image_url_https?: string;
+  name?: string;
+  screen_name?: string;
+  profile_image_url_https?: string;
 }
 
 interface SyndicationMediaDetail {
-	type?: string;
-	media_url_https?: string;
+  type?: string;
+  media_url_https?: string;
 }
 
 interface SyndicationPhoto {
-	url?: string;
-	width?: number;
-	height?: number;
+  url?: string;
+  width?: number;
+  height?: number;
 }
 
 interface SyndicationTweet {
-	text?: string;
-	user?: SyndicationUser;
-	mediaDetails?: SyndicationMediaDetail[];
-	photos?: SyndicationPhoto[];
-	favorite_count?: number;
-	created_at?: string;
+  text?: string;
+  user?: SyndicationUser;
+  mediaDetails?: SyndicationMediaDetail[];
+  photos?: SyndicationPhoto[];
+  favorite_count?: number;
+  created_at?: string;
 }
 
 // ---------------------------------------------------------------------------
 // Fetch tweet data via Twitter's syndication API
 // ---------------------------------------------------------------------------
 
-const SYNDICATION_BASE = 'https://cdn.syndication.twimg.com/tweet-result';
+const SYNDICATION_BASE = "https://cdn.syndication.twimg.com/tweet-result";
 
 /**
  * Fetch a tweet from Twitter's public syndication API.
@@ -71,28 +70,28 @@ const SYNDICATION_BASE = 'https://cdn.syndication.twimg.com/tweet-result';
  * protected, or very old tweets.
  */
 export async function fetchTweetSyndication(tweetId: string): Promise<SyndicationTweet | null> {
-	const url = `${SYNDICATION_BASE}?id=${encodeURIComponent(tweetId)}&token=0`;
+  const url = `${SYNDICATION_BASE}?id=${encodeURIComponent(tweetId)}&token=0`;
 
-	const result = await safeFetch(url, {
-		allowedContentTypes: ['application/json', 'text/json'],
-		headers: {
-			Accept: 'application/json',
-		},
-	});
+  const result = await safeFetch(url, {
+    allowedContentTypes: ["application/json", "text/json"],
+    headers: {
+      Accept: "application/json",
+    },
+  });
 
-	if (!result.ok) {
-		return null;
-	}
+  if (!result.ok) {
+    return null;
+  }
 
-	try {
-		const text = await result.response.text();
-		const data = JSON.parse(text) as SyndicationTweet;
-		// Sanity check: the response should have at least __typename or text
-		if (!data.text && !data.user) return null;
-		return data;
-	} catch {
-		return null;
-	}
+  try {
+    const text = await result.response.text();
+    const data = JSON.parse(text) as SyndicationTweet;
+    // Sanity check: the response should have at least __typename or text
+    if (!data.text && !data.user) return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -108,40 +107,37 @@ export async function fetchTweetSyndication(tweetId: string): Promise<Syndicatio
  * Image: first photo from the tweet (if any)
  * Site name: "X (Twitter)"
  */
-export function tweetToOgpData(
-	tweet: SyndicationTweet,
-	originalUrl: string,
-): OgpData {
-	const user = tweet.user;
-	const displayName = user?.name ?? user?.screen_name ?? 'Unknown';
-	const handle = user?.screen_name ? `@${user.screen_name}` : '';
+export function tweetToOgpData(tweet: SyndicationTweet, originalUrl: string): OgpData {
+  const user = tweet.user;
+  const displayName = user?.name ?? user?.screen_name ?? "Unknown";
+  const handle = user?.screen_name ? `@${user.screen_name}` : "";
 
-	const title = handle ? `${displayName} (${handle})` : displayName;
+  const title = handle ? `${displayName} (${handle})` : displayName;
 
-	// Use the first photo as the OGP image.
-	// Prefer photos[].url (higher quality) over mediaDetails[].media_url_https.
-	let image: string | undefined;
-	let imageWidth: number | undefined;
-	let imageHeight: number | undefined;
-	if (tweet.photos && tweet.photos.length > 0) {
-		const photo = tweet.photos[0];
-		image = photo.url;
-		imageWidth = photo.width;
-		imageHeight = photo.height;
-	} else if (tweet.mediaDetails && tweet.mediaDetails.length > 0) {
-		const firstPhoto = tweet.mediaDetails.find((m) => m.type === 'photo');
-		image = firstPhoto?.media_url_https;
-	}
+  // Use the first photo as the OGP image.
+  // Prefer photos[].url (higher quality) over mediaDetails[].media_url_https.
+  let image: string | undefined;
+  let imageWidth: number | undefined;
+  let imageHeight: number | undefined;
+  if (tweet.photos && tweet.photos.length > 0) {
+    const photo = tweet.photos[0];
+    image = photo.url;
+    imageWidth = photo.width;
+    imageHeight = photo.height;
+  } else if (tweet.mediaDetails && tweet.mediaDetails.length > 0) {
+    const firstPhoto = tweet.mediaDetails.find((m) => m.type === "photo");
+    image = firstPhoto?.media_url_https;
+  }
 
-	return {
-		title: truncate(title, 200),
-		description: tweet.text ? truncate(tweet.text, 300) : undefined,
-		image,
-		imageWidth,
-		imageHeight,
-		siteName: 'X (Twitter)',
-		url: originalUrl,
-	};
+  return {
+    title: truncate(title, 200),
+    description: tweet.text ? truncate(tweet.text, 300) : undefined,
+    image,
+    imageWidth,
+    imageHeight,
+    siteName: "X (Twitter)",
+    url: originalUrl,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -155,13 +151,13 @@ export function tweetToOgpData(
  * fails / returns 404.
  */
 export async function fetchTwitterOgp(url: string): Promise<OgpData | null> {
-	const parsed = parseTweetUrl(url);
-	if (!parsed) return null;
+  const parsed = parseTweetUrl(url);
+  if (!parsed) return null;
 
-	const tweet = await fetchTweetSyndication(parsed.tweetId);
-	if (!tweet) return null;
+  const tweet = await fetchTweetSyndication(parsed.tweetId);
+  if (!tweet) return null;
 
-	return tweetToOgpData(tweet, url);
+  return tweetToOgpData(tweet, url);
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +165,6 @@ export async function fetchTwitterOgp(url: string): Promise<OgpData | null> {
 // ---------------------------------------------------------------------------
 
 function truncate(str: string, maxLen: number): string {
-	if (str.length <= maxLen) return str;
-	return `${str.slice(0, maxLen - 1)}\u2026`;
+  if (str.length <= maxLen) return str;
+  return `${str.slice(0, maxLen - 1)}\u2026`;
 }

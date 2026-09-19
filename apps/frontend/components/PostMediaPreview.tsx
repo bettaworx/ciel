@@ -18,9 +18,7 @@ const VideoPlayer = dynamic(
   () => import("@/components/VideoPlayer").then((mod) => mod.VideoPlayer),
   {
     ssr: false,
-    loading: () => (
-      <div className="w-full h-full bg-muted animate-pulse rounded-xl" />
-    ),
+    loading: () => <div className="w-full h-full bg-muted animate-pulse rounded-xl" />,
   },
 );
 
@@ -78,13 +76,7 @@ function RemoveButton({
   );
 }
 
-function CropButton({
-  onClick,
-  label,
-}: {
-  onClick: (e: React.MouseEvent) => void;
-  label: string;
-}) {
+function CropButton({ onClick, label }: { onClick: (e: React.MouseEvent) => void; label: string }) {
   return (
     <button
       type="button"
@@ -143,14 +135,8 @@ export function PostMediaPreview({
   const tCompose = useTranslations("createPost");
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
-  const videoMedia = useMemo(
-    () => media.find((m) => m.type === "video"),
-    [media],
-  );
-  const imageMedia = useMemo(
-    () => media.filter((m) => m.type !== "video"),
-    [media],
-  );
+  const videoMedia = useMemo(() => media.find((m) => m.type === "video"), [media]);
+  const imageMedia = useMemo(() => media.filter((m) => m.type !== "video"), [media]);
 
   // Single image/video display constraints:
   //   Aspect ratio clamped between 3:4 (portrait) and 21:9 (landscape)
@@ -186,14 +172,10 @@ export function PostMediaPreview({
     onLightboxOpen ? { "data-lightbox-index": index } : undefined;
 
   /** True while the lightbox is the one painting this image. */
-  const isHidden = (index: number) =>
-    Boolean(onLightboxOpen) && hiddenIndex === index;
+  const isHidden = (index: number) => Boolean(onLightboxOpen) && hiddenIndex === index;
 
   /** Blurhash stand-in for the cell the lightbox has taken over. */
-  const hiddenStyle = (
-    index: number,
-    item: PreviewMediaItem,
-  ): React.CSSProperties | undefined =>
+  const hiddenStyle = (index: number, item: PreviewMediaItem): React.CSSProperties | undefined =>
     isHidden(index)
       ? {
           backgroundImage: `url(${getBlurhashDataUrl(item.blurhash)})`,
@@ -210,8 +192,7 @@ export function PostMediaPreview({
    * 240ms — leaving the duplicate on screen for exactly the stretch of the
    * morph where the backdrop is still too light to cover it.
    */
-  const hiddenClass = (index: number) =>
-    isHidden(index) ? "invisible" : undefined;
+  const hiddenClass = (index: number) => (isHidden(index) ? "invisible" : undefined);
 
   /**
    * Controls overlaid on an image in editable mode. Animated images skip the
@@ -232,9 +213,7 @@ export function PostMediaPreview({
         {onCrop && !item.isAnimated && (
           <CropButton onClick={() => onCrop(item.id)} label={cropLabel} />
         )}
-        {onRemove && (
-          <RemoveButton onClick={() => onRemove(item.id)} label={removeLabel} />
-        )}
+        {onRemove && <RemoveButton onClick={() => onRemove(item.id)} label={removeLabel} />}
       </>
     );
   };
@@ -242,12 +221,11 @@ export function PostMediaPreview({
   const renderImageActionOverlay = (item: PreviewMediaItem, index: number) => {
     // The button is `absolute inset-0` directly inside the wrapper, so its
     // parent is the element that carries the rect, the rounding and the index.
-    const action: ((e: React.MouseEvent<HTMLButtonElement>) => void) | null =
-      onLightboxOpen
-        ? (e) => onLightboxOpen(index, e.currentTarget.parentElement)
-        : editable && onCrop && !item.isAnimated
-          ? () => onCrop(item.id)
-          : null;
+    const action: ((e: React.MouseEvent<HTMLButtonElement>) => void) | null = onLightboxOpen
+      ? (e) => onLightboxOpen(index, e.currentTarget.parentElement)
+      : editable && onCrop && !item.isAnimated
+        ? () => onCrop(item.id)
+        : null;
 
     if (!action) return null;
 
@@ -290,10 +268,7 @@ export function PostMediaPreview({
             )
           )}
           {editable && onRemove && (
-            <RemoveButton
-              onClick={() => onRemove(videoMedia.id)}
-              label={tCompose("removeVideo")}
-            />
+            <RemoveButton onClick={() => onRemove(videoMedia.id)} label={tCompose("removeVideo")} />
           )}
         </div>
       </div>
@@ -319,11 +294,7 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn(
-              "object-cover",
-              hiddenClass(0),
-              getImageCursorClass(imageMedia[0]),
-            )}
+            className={cn("object-cover", hiddenClass(0), getImageCursorClass(imageMedia[0]))}
             sizes="(max-width: 600px) 100vw, 600px"
           />
           {renderImageActionOverlay(imageMedia[0], 0)}
@@ -349,11 +320,7 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn(
-              "object-cover",
-              hiddenClass(0),
-              getImageCursorClass(imageMedia[0]),
-            )}
+            className={cn("object-cover", hiddenClass(0), getImageCursorClass(imageMedia[0]))}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[0], 0)}
@@ -371,11 +338,7 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn(
-              "object-cover",
-              hiddenClass(1),
-              getImageCursorClass(imageMedia[1]),
-            )}
+            className={cn("object-cover", hiddenClass(1), getImageCursorClass(imageMedia[1]))}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[1], 1)}
@@ -401,11 +364,7 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn(
-              "object-cover",
-              hiddenClass(0),
-              getImageCursorClass(imageMedia[0]),
-            )}
+            className={cn("object-cover", hiddenClass(0), getImageCursorClass(imageMedia[0]))}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[0], 0)}
@@ -423,11 +382,7 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn(
-              "object-cover",
-              hiddenClass(1),
-              getImageCursorClass(imageMedia[1]),
-            )}
+            className={cn("object-cover", hiddenClass(1), getImageCursorClass(imageMedia[1]))}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[1], 1)}
@@ -445,11 +400,7 @@ export function PostMediaPreview({
             alt=""
             fill
             unoptimized
-            className={cn(
-              "object-cover",
-              hiddenClass(2),
-              getImageCursorClass(imageMedia[2]),
-            )}
+            className={cn("object-cover", hiddenClass(2), getImageCursorClass(imageMedia[2]))}
             sizes="(max-width: 600px) 50vw, 300px"
           />
           {renderImageActionOverlay(imageMedia[2], 2)}
@@ -462,21 +413,13 @@ export function PostMediaPreview({
   // 4 images: 2×2 grid, all 16:9
   if (imageMedia.length >= 4) {
     const fourImages = imageMedia.slice(0, 4);
-    const roundingClasses = [
-      "rounded-tl-xl",
-      "rounded-tr-xl",
-      "rounded-bl-xl",
-      "rounded-br-xl",
-    ];
+    const roundingClasses = ["rounded-tl-xl", "rounded-tr-xl", "rounded-bl-xl", "rounded-br-xl"];
     return (
       <div className={cn("grid grid-cols-2 gap-1", className)}>
         {fourImages.map((item, i) => (
           <div
             key={item.id}
-            className={cn(
-              "relative aspect-video overflow-hidden group",
-              roundingClasses[i],
-            )}
+            className={cn("relative aspect-video overflow-hidden group", roundingClasses[i])}
             {...lightboxIndexAttr(i)}
             style={hiddenStyle(i, item)}
           >
@@ -487,11 +430,7 @@ export function PostMediaPreview({
               alt=""
               fill
               unoptimized
-              className={cn(
-                "object-cover",
-                hiddenClass(i),
-                getImageCursorClass(item),
-              )}
+              className={cn("object-cover", hiddenClass(i), getImageCursorClass(item))}
               sizes="(max-width: 600px) 50vw, 300px"
             />
             {renderImageActionOverlay(item, i)}

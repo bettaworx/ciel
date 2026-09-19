@@ -66,9 +66,7 @@ export function OgpCard({ url }: OgpCardProps) {
 
   // Decide layout: compact when image width is known and <= threshold.
   const isCompact =
-    imageProxyUrl != null &&
-    ogp.imageWidth != null &&
-    ogp.imageWidth <= COMPACT_THRESHOLD;
+    imageProxyUrl != null && ogp.imageWidth != null && ogp.imageWidth <= COMPACT_THRESHOLD;
 
   if (isCompact) {
     return (
@@ -124,12 +122,7 @@ export function OgpCard({ url }: OgpCardProps) {
       {imageProxyUrl && (
         <div className="relative w-full bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageProxyUrl}
-            alt={ogp.title ?? ""}
-            className="w-full h-auto"
-            loading="lazy"
-          />
+          <img src={imageProxyUrl} alt={ogp.title ?? ""} className="w-full h-auto" loading="lazy" />
         </div>
       )}
 

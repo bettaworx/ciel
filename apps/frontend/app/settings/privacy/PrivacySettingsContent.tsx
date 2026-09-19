@@ -41,9 +41,7 @@ export function PrivacySettingsContent() {
 
   return (
     <>
-      <PageHeader backHref="/settings">
-        {t("settings.privacy.title")}
-      </PageHeader>
+      <PageHeader backHref="/settings">{t("settings.privacy.title")}</PageHeader>
       <div className="space-y-3">
         <SettingsRowGroup title={t("settings.privacy.sections.visibility")}>
           <SettingsSwitchRow

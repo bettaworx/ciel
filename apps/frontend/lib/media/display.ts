@@ -18,8 +18,6 @@ const PIXEL_ART_MAX_WIDTH = 512;
  * blows it up. Returns undefined so it can be spread into a style object
  * without overriding anything.
  */
-export function pixelArtRendering(
-  width: number | null | undefined,
-): "pixelated" | undefined {
+export function pixelArtRendering(width: number | null | undefined): "pixelated" | undefined {
   return width && width <= PIXEL_ART_MAX_WIDTH ? "pixelated" : undefined;
 }

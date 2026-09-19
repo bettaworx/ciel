@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  animate,
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useTransform,
-} from "framer-motion";
+import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Hammer from "@egjs/hammerjs";
@@ -22,18 +16,8 @@ import {
   swipeAxis,
   type SwipeIntent,
 } from "@/lib/lightbox-swipe";
-import {
-  boxGeometry,
-  containRect,
-  containsPoint,
-  type Rect,
-} from "@/lib/lightbox-morph";
-import {
-  anchorPan,
-  clampPan,
-  clampScale,
-  panLimit,
-} from "@/lib/lightbox-zoom";
+import { boxGeometry, containRect, containsPoint, type Rect } from "@/lib/lightbox-morph";
+import { anchorPan, clampPan, clampScale, panLimit } from "@/lib/lightbox-zoom";
 import { cn } from "@/lib/utils";
 
 export interface LightboxItem {
@@ -64,8 +48,7 @@ interface LightboxProps {
   onShownIndexChange?: (index: number | null) => void;
 }
 
-const clampIndex = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
+const clampIndex = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 /** Floor for max zoom; raised per image so 1:1 pixels are always reachable. */
 const MIN_MAX_SCALE = 4;
@@ -148,8 +131,7 @@ const CONTROL_SURFACE = "bg-black/60 text-white";
  */
 const CONTROL_HOVER =
   "text-white hover:bg-white/25 hover:text-white active:bg-white/35 focus-visible:ring-2 focus-visible:ring-white/70";
-const ARROW_POSITION =
-  "absolute top-1/2 hidden -translate-y-1/2 rounded-full p-1 sm:block";
+const ARROW_POSITION = "absolute top-1/2 hidden -translate-y-1/2 rounded-full p-1 sm:block";
 
 export function Lightbox({
   items,
@@ -262,10 +244,7 @@ export function Lightbox({
   }, []);
   /** 0 while the morph is still travelling, 1 once the lightbox owns the screen. */
   const appear = useMotionValue(0);
-  const backdropOpacity = useTransform(
-    [dismiss, appear],
-    ([d, a]: number[]) => (1 - d) * a,
-  );
+  const backdropOpacity = useTransform([dismiss, appear], ([d, a]: number[]) => (1 - d) * a);
   const stageScale = useTransform(dismiss, [0, 1], [1, 0.6]);
 
   const maxIndex = Math.max(0, items.length - 1);
@@ -447,9 +426,7 @@ export function Lightbox({
 
   const goTo = useCallback(
     (delta: number) => {
-      setCurrentIndex((prev) =>
-        clampIndex(prev + delta, 0, latest.current.maxIndex),
-      );
+      setCurrentIndex((prev) => clampIndex(prev + delta, 0, latest.current.maxIndex));
       resetDrag();
       revealControls();
     },
@@ -508,7 +485,6 @@ export function Lightbox({
     animate(dismiss, 0, SETTLE);
   }, [dragX, dragY, dismiss]);
 
-
   /**
    * Close by flying the image back into its thumbnail.
    *
@@ -551,17 +527,7 @@ export function Lightbox({
     enterPhase("closing");
 
     flyBox(to, readRadius(source), 0, close);
-  }, [
-    onOpenChange,
-    enterPhase,
-    flyBox,
-    dragX,
-    dragY,
-    dismiss,
-    panX,
-    panY,
-    zoom,
-  ]);
+  }, [onOpenChange, enterPhase, flyBox, dragX, dragY, dismiss, panX, panY, zoom]);
 
   /**
    * Grow out of the thumbnail on open.
@@ -629,16 +595,8 @@ export function Lightbox({
       const cy = clientY - (rect.top + rect.height / 2);
 
       animate(zoom, next, ZOOM_TWEEN);
-      animate(
-        panX,
-        clampPan(anchorPan(cx, panX.get(), base, next), rect.width, next),
-        ZOOM_TWEEN,
-      );
-      animate(
-        panY,
-        clampPan(anchorPan(cy, panY.get(), base, next), rect.height, next),
-        ZOOM_TWEEN,
-      );
+      animate(panX, clampPan(anchorPan(cx, panX.get(), base, next), rect.width, next), ZOOM_TWEEN);
+      animate(panY, clampPan(anchorPan(cy, panY.get(), base, next), rect.height, next), ZOOM_TWEEN);
     },
     [zoom, panX, panY],
   );
@@ -662,11 +620,7 @@ export function Lightbox({
     (factor: number) => {
       const rect = stageRef.current?.getBoundingClientRect();
       if (!rect) return;
-      zoomAt(
-        rect.left + rect.width / 2,
-        rect.top + rect.height / 2,
-        zoom.get() * factor,
-      );
+      zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, zoom.get() * factor);
     },
     [zoom, zoomAt],
   );
@@ -685,9 +639,7 @@ export function Lightbox({
         animate(dragX, direction * width, {
           ...SETTLE,
           onComplete: () => {
-            setCurrentIndex((prev) =>
-              clampIndex(prev - direction, 0, latest.current.maxIndex),
-            );
+            setCurrentIndex((prev) => clampIndex(prev - direction, 0, latest.current.maxIndex));
             dragX.set(-direction * width);
             animate(dragX, 0, SETTLE);
           },
@@ -704,8 +656,7 @@ export function Lightbox({
     (delta: number) => {
       revealControls();
       const width = stageRef.current?.getBoundingClientRect().width ?? 0;
-      const blocked =
-        delta < 0 ? !latest.current.hasPrev : !latest.current.hasNext;
+      const blocked = delta < 0 ? !latest.current.hasPrev : !latest.current.hasNext;
       if (blocked) return;
       if (!width) {
         goTo(delta);
@@ -841,12 +792,8 @@ export function Lightbox({
       const cx = event.center.x - (rect.left + rect.width / 2);
       const cy = event.center.y - (rect.top + rect.height / 2);
       zoom.set(next);
-      panX.set(
-        clampPan(anchorPan(cx, startPanX, startZoom, next), stageW, next),
-      );
-      panY.set(
-        clampPan(anchorPan(cy, startPanY, startZoom, next), stageH, next),
-      );
+      panX.set(clampPan(anchorPan(cx, startPanX, startZoom, next), stageW, next));
+      panY.set(clampPan(anchorPan(cy, startPanY, startZoom, next), stageH, next));
     });
 
     mc.on("pinchend pinchcancel", () => {
@@ -886,9 +833,7 @@ export function Lightbox({
       // image letterboxed inside it. Hit test the box's own rect, which is the
       // painted rect once fitted and is measured live, so it stays correct
       // mid-zoom and mid-swipe too.
-      const painted = fittedRef.current
-        ? boxRef.current?.getBoundingClientRect()
-        : null;
+      const painted = fittedRef.current ? boxRef.current?.getBoundingClientRect() : null;
       if (painted && !containsPoint(painted, event.center.x, event.center.y)) {
         requestClose();
         return;
@@ -940,9 +885,7 @@ export function Lightbox({
     if (!dots) return;
 
     const mc = new Hammer.Manager(dots, { touchAction: "none" });
-    mc.add(
-      new Hammer.Pan({ direction: Hammer.DIRECTION_HORIZONTAL, threshold: 0 }),
-    );
+    mc.add(new Hammer.Pan({ direction: Hammer.DIRECTION_HORIZONTAL, threshold: 0 }));
     mc.add(new Hammer.Tap());
     mc.on("panstart panmove tap", (event) => scrubDots(event.center.x));
 
@@ -959,8 +902,7 @@ export function Lightbox({
       //
       // natural < 1 means the image was scaled *up* to fill the stage, so 1:1
       // sits below the fitted size and toggleZoom falls back to a magnify.
-      const natural =
-        img.naturalWidth / fittedRect(img.naturalWidth, img.naturalHeight).width;
+      const natural = img.naturalWidth / fittedRect(img.naturalWidth, img.naturalHeight).width;
       setNaturalScale(natural);
       setMaxScale(Math.max(MIN_MAX_SCALE, natural));
       // A late `load` on an item whose size the API did not carry: the box is
@@ -1067,10 +1009,7 @@ export function Lightbox({
   if (items.length === 0 || !currentItem) return null;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => (next ? onOpenChange(true) : requestClose())}
-    >
+    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : requestClose())}>
       <DialogContent
         // Radix's own overlay dims too, but nothing drives its opacity, so it
         // would snap in and out around the morph. One dim layer only: the
@@ -1081,10 +1020,7 @@ export function Lightbox({
         <DialogTitle className="sr-only">{t("title")}</DialogTitle>
         {/* Dim only, and a sibling rather than the parent of everything: the
             image has to stay opaque while this fades out from under it. */}
-        <motion.div
-          className="absolute inset-0 bg-black/85"
-          style={{ opacity: backdropOpacity }}
-        />
+        <motion.div className="absolute inset-0 bg-black/85" style={{ opacity: backdropOpacity }} />
         {/* Whole control overlay fades out while idle. `pointer-events-none`
             follows the fade so invisible controls cannot swallow a click. */}
         <div
@@ -1151,8 +1087,20 @@ export function Lightbox({
             {items.length > 1 &&
               (
                 [
-                  { side: "left-3", active: hasPrev, delta: -1, label: t("previous"), Icon: ChevronLeft },
-                  { side: "right-3", active: hasNext, delta: 1, label: t("next"), Icon: ChevronRight },
+                  {
+                    side: "left-3",
+                    active: hasPrev,
+                    delta: -1,
+                    label: t("previous"),
+                    Icon: ChevronLeft,
+                  },
+                  {
+                    side: "right-3",
+                    active: hasNext,
+                    delta: 1,
+                    label: t("next"),
+                    Icon: ChevronRight,
+                  },
                 ] as const
               ).map(({ side, active, delta, label, Icon }) => (
                 <div
@@ -1221,82 +1169,75 @@ export function Lightbox({
               </div>
             )}
           </div>
-          </div>
+        </div>
 
-          <div
-            ref={attachStage}
-            className={cn(
-              "absolute inset-0 overscroll-contain",
-              // The morph is the image moving, not an overlay, so the stage
-              // stays visible throughout — it just does not take gestures.
-              phase !== "open" && "pointer-events-none",
-            )}
-            style={{ touchAction: "none" }}
-          >
-            {/* Swipe layer: horizontal paging and swipe-to-dismiss. */}
+        <div
+          ref={attachStage}
+          className={cn(
+            "absolute inset-0 overscroll-contain",
+            // The morph is the image moving, not an overlay, so the stage
+            // stays visible throughout — it just does not take gestures.
+            phase !== "open" && "pointer-events-none",
+          )}
+          style={{ touchAction: "none" }}
+        >
+          {/* Swipe layer: horizontal paging and swipe-to-dismiss. */}
+          <motion.div className="h-full w-full" style={{ x: dragX, y: dragY, scale: stageScale }}>
+            {/* Zoom layer, nested so a dismiss shrinks the zoomed image too. */}
             <motion.div
-              className="h-full w-full"
-              style={{ x: dragX, y: dragY, scale: stageScale }}
+              className="flex h-full w-full items-center justify-center"
+              style={{ x: panX, y: panY, scale: zoom }}
             >
-              {/* Zoom layer, nested so a dismiss shrinks the zoomed image too. */}
-              <motion.div
-                className="flex h-full w-full items-center justify-center"
-                style={{ x: panX, y: panY, scale: zoom }}
-              >
-                  {/* ponytail: images only for now. Video preview is typed but not
+              {/* ponytail: images only for now. Video preview is typed but not
                       implemented — add a <VideoPlayer> branch here, and drop the
                       `type !== "video"` filter in PostCard, when it lands. */}
-                  {currentItem.type === "video" ? null : (
-                    // The image box. Its geometry *is* the morph: it starts on
-                    // the card thumbnail and grows to the fitted rect, so the
-                    // one <img> below travels rather than handing off to a copy.
-                    <motion.div
-                      ref={boxRef}
-                      className="overflow-hidden"
-                      style={{
-                        x: boxX,
-                        y: boxY,
-                        width: boxW,
-                        height: boxH,
-                        borderRadius: boxRadius,
-                      }}
-                    >
-                      <img
-                        key={currentItem.url}
-                        ref={attachImage}
-                        src={currentItem.url}
-                        alt={currentItem.alt || t("imageAlt")}
-                        draggable={false}
-                        onLoad={(event) => measureImage(event.currentTarget)}
-                        className={cn(
-                          "h-full w-full select-none",
-                          // Cover once the box carries the image's own aspect,
-                          // which is what unwinds the card's crop on the way
-                          // out; contain only while the box still spans the
-                          // stage because the natural size is unknown.
-                          fitted ? "object-cover" : "object-contain",
-                          // Fitted, a click closes rather than zooms — only the
-                          // zoomed state earns a magnifier.
-                          zoomed
-                            ? "cursor-zoom-out active:cursor-grabbing"
-                            : "cursor-default",
-                        )}
-                        style={{
-                          // Zooming is exactly where interpolation ruins pixel art.
-                          imageRendering: pixelArtRendering(currentItem.width),
-                          backgroundImage: blurhashUrl
-                            ? `url(${blurhashUrl})`
-                            : undefined,
-                          backgroundSize: fitted ? "cover" : "contain",
-                          backgroundRepeat: "no-repeat",
-                          backgroundPosition: "center",
-                        }}
-                      />
-                    </motion.div>
-                  )}
-              </motion.div>
+              {currentItem.type === "video" ? null : (
+                // The image box. Its geometry *is* the morph: it starts on
+                // the card thumbnail and grows to the fitted rect, so the
+                // one <img> below travels rather than handing off to a copy.
+                <motion.div
+                  ref={boxRef}
+                  className="overflow-hidden"
+                  style={{
+                    x: boxX,
+                    y: boxY,
+                    width: boxW,
+                    height: boxH,
+                    borderRadius: boxRadius,
+                  }}
+                >
+                  <img
+                    key={currentItem.url}
+                    ref={attachImage}
+                    src={currentItem.url}
+                    alt={currentItem.alt || t("imageAlt")}
+                    draggable={false}
+                    onLoad={(event) => measureImage(event.currentTarget)}
+                    className={cn(
+                      "h-full w-full select-none",
+                      // Cover once the box carries the image's own aspect,
+                      // which is what unwinds the card's crop on the way
+                      // out; contain only while the box still spans the
+                      // stage because the natural size is unknown.
+                      fitted ? "object-cover" : "object-contain",
+                      // Fitted, a click closes rather than zooms — only the
+                      // zoomed state earns a magnifier.
+                      zoomed ? "cursor-zoom-out active:cursor-grabbing" : "cursor-default",
+                    )}
+                    style={{
+                      // Zooming is exactly where interpolation ruins pixel art.
+                      imageRendering: pixelArtRendering(currentItem.width),
+                      backgroundImage: blurhashUrl ? `url(${blurhashUrl})` : undefined,
+                      backgroundSize: fitted ? "cover" : "contain",
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "center",
+                    }}
+                  />
+                </motion.div>
+              )}
             </motion.div>
-          </div>
+          </motion.div>
+        </div>
       </DialogContent>
     </Dialog>
   );

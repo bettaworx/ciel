@@ -10,10 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import {
-  useAdminInviteCode,
-  useAdminUpdateInviteCode,
-} from "@/lib/hooks/use-queries";
+import { useAdminInviteCode, useAdminUpdateInviteCode } from "@/lib/hooks/use-queries";
 
 type UsageLimit = "unlimited" | "limited";
 type Expiration = "never" | "7d" | "30d" | "custom";
@@ -21,10 +18,7 @@ type Expiration = "never" | "7d" | "30d" | "custom";
 /**
  * Helper function to calculate expiration date based on option
  */
-function calculateExpiresAt(
-  expiration: Expiration,
-  customDate?: string,
-): string | null {
+function calculateExpiresAt(expiration: Expiration, customDate?: string): string | null {
   if (expiration === "never") return null;
 
   if (expiration === "custom" && customDate) {
@@ -48,9 +42,7 @@ function getExpirationType(expiresAt: string | null | undefined): Expiration {
 
   const expiryDate = new Date(expiresAt);
   const now = new Date();
-  const diffDays = Math.ceil(
-    (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const diffDays = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
   // Check if it's approximately 7 or 30 days from now
   if (Math.abs(diffDays - 7) <= 1) return "7d";
@@ -59,11 +51,7 @@ function getExpirationType(expiresAt: string | null | undefined): Expiration {
   return "custom";
 }
 
-export default function EditInvitePage({
-  params,
-}: {
-  params: Promise<{ inviteId: string }>;
-}) {
+export default function EditInvitePage({ params }: { params: Promise<{ inviteId: string }> }) {
   const t = useTranslations("admin.invites");
   const router = useRouter();
 
@@ -91,9 +79,7 @@ export default function EditInvitePage({
       if (invite.expiresAt) {
         // Convert ISO string to datetime-local format
         const date = new Date(invite.expiresAt);
-        const localDatetime = new Date(
-          date.getTime() - date.getTimezoneOffset() * 60000,
-        )
+        const localDatetime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
           .toISOString()
           .slice(0, 16);
         setCustomDate(localDatetime);
@@ -108,8 +94,7 @@ export default function EditInvitePage({
     try {
       const requestBody = {
         code: customCode.trim() !== invite.code ? customCode.trim() : null,
-        maxUses:
-          usageLimit === "limited" ? parseInt(maxUses, 10) : (null as any),
+        maxUses: usageLimit === "limited" ? parseInt(maxUses, 10) : (null as any),
         expiresAt: calculateExpiresAt(expiration, customDate) as any,
         note: note.trim() || (null as any),
       };
@@ -155,9 +140,7 @@ export default function EditInvitePage({
               </Button>
               <h1 className="text-2xl font-bold">{t("edit")}</h1>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Update the invite code settings
-            </p>
+            <p className="text-sm text-muted-foreground">Update the invite code settings</p>
           </div>
 
           <div className="space-y-6 border rounded-lg p-6">
@@ -174,16 +157,12 @@ export default function EditInvitePage({
                 placeholder={t("form.customCodePlaceholder")}
                 maxLength={32}
               />
-              <p className="text-sm text-muted-foreground">
-                {t("form.customCodeHint")}
-              </p>
+              <p className="text-sm text-muted-foreground">{t("form.customCodeHint")}</p>
             </div>
 
             {/* Usage Limit */}
             <div className="flex flex-col gap-4">
-              <Label className="text-base font-medium">
-                {t("form.usageLimit")}
-              </Label>
+              <Label className="text-base font-medium">{t("form.usageLimit")}</Label>
               <RadioGroup
                 value={usageLimit}
                 onValueChange={(v) => setUsageLimit(v as UsageLimit)}
@@ -191,32 +170,19 @@ export default function EditInvitePage({
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="unlimited" id="unlimited" />
-                  <Label
-                    htmlFor="unlimited"
-                    className="font-normal cursor-pointer"
-                  >
+                  <Label htmlFor="unlimited" className="font-normal cursor-pointer">
                     {t("form.unlimited")}
                   </Label>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <RadioGroupItem
-                    value="limited"
-                    id="limited"
-                    className="mt-2"
-                  />
+                  <RadioGroupItem value="limited" id="limited" className="mt-2" />
                   <div className="flex-1 space-y-2">
-                    <Label
-                      htmlFor="limited"
-                      className="font-normal cursor-pointer"
-                    >
+                    <Label htmlFor="limited" className="font-normal cursor-pointer">
                       {t("form.limited")}
                     </Label>
                     {usageLimit === "limited" && (
                       <div className="space-y-1">
-                        <Label
-                          htmlFor="max-uses"
-                          className="text-sm text-muted-foreground"
-                        >
+                        <Label htmlFor="max-uses" className="text-sm text-muted-foreground">
                           {t("form.maxUses")}
                         </Label>
                         <Input
@@ -237,9 +203,7 @@ export default function EditInvitePage({
 
             {/* Expiration */}
             <div className="flex flex-col gap-4">
-              <Label className="text-base font-medium">
-                {t("form.expiration")}
-              </Label>
+              <Label className="text-base font-medium">{t("form.expiration")}</Label>
               <RadioGroup
                 value={expiration}
                 onValueChange={(v) => setExpiration(v as Expiration)}
@@ -266,18 +230,12 @@ export default function EditInvitePage({
                 <div className="flex items-start space-x-2">
                   <RadioGroupItem value="custom" id="custom" className="mt-2" />
                   <div className="flex-1 space-y-2">
-                    <Label
-                      htmlFor="custom"
-                      className="font-normal cursor-pointer"
-                    >
+                    <Label htmlFor="custom" className="font-normal cursor-pointer">
                       {t("form.customDate")}
                     </Label>
                     {expiration === "custom" && (
                       <div className="space-y-1">
-                        <Label
-                          htmlFor="custom-date"
-                          className="text-sm text-muted-foreground"
-                        >
+                        <Label htmlFor="custom-date" className="text-sm text-muted-foreground">
                           {t("form.selectDate")}
                         </Label>
                         <Input
@@ -325,9 +283,7 @@ export default function EditInvitePage({
                 disabled={updateInviteMutation.isPending}
                 className="flex-1"
               >
-                {updateInviteMutation.isPending
-                  ? "Saving..."
-                  : t("actions.save")}
+                {updateInviteMutation.isPending ? "Saving..." : t("actions.save")}
               </Button>
             </div>
           </div>

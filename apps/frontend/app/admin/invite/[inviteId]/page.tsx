@@ -48,10 +48,8 @@ interface InviteCode {
 
 function getInviteStatus(invite: InviteCode): InviteStatus {
   if (invite.disabled) return "disabled";
-  if (invite.expiresAt && new Date(invite.expiresAt) < new Date())
-    return "expired";
-  if (invite.maxUses != null && invite.useCount >= invite.maxUses)
-    return "exhausted";
+  if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) return "expired";
+  if (invite.maxUses != null && invite.useCount >= invite.maxUses) return "exhausted";
   return "active";
 }
 
@@ -70,24 +68,17 @@ function getStatusVariant(
   }
 }
 
-export default function InviteDetailPage({
-  params,
-}: {
-  params: Promise<{ inviteId: string }>;
-}) {
+export default function InviteDetailPage({ params }: { params: Promise<{ inviteId: string }> }) {
   const t = useTranslations("admin.invites");
   const router = useRouter();
   const locale = useLocale();
   const dateLocale = locale === "ja" ? ja : enUS;
-  
+
   // Unwrap params promise
   const { inviteId } = use(params);
 
-  const { data: invite, isLoading: inviteLoading } = useAdminInviteCode(
-    inviteId,
-  );
-  const { data: usageHistory, isLoading: historyLoading } =
-    useAdminInviteUsageHistory(inviteId);
+  const { data: invite, isLoading: inviteLoading } = useAdminInviteCode(inviteId);
+  const { data: usageHistory, isLoading: historyLoading } = useAdminInviteUsageHistory(inviteId);
 
   const disableMutation = useAdminDisableInviteCode();
   const deleteMutation = useAdminDeleteInviteCode();
@@ -150,9 +141,7 @@ export default function InviteDetailPage({
 
   const status = getInviteStatus(invite);
   const usagePercentage =
-    invite.maxUses != null
-      ? Math.min((invite.useCount / invite.maxUses) * 100, 100)
-      : 0;
+    invite.maxUses != null ? Math.min((invite.useCount / invite.maxUses) * 100, 100) : 0;
 
   return (
     <>
@@ -161,11 +150,7 @@ export default function InviteDetailPage({
           <div className="w-full max-w-5xl mx-auto space-y-6 py-8">
             {/* Header */}
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.push("/admin/invite")}
-              >
+              <Button variant="ghost" size="icon" onClick={() => router.push("/admin/invite")}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
               <h1 className="text-2xl font-bold">{t("detail")}</h1>
@@ -178,9 +163,7 @@ export default function InviteDetailPage({
 
                 {/* Code Display */}
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {t("fields.code")}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t("fields.code")}</p>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 px-4 py-3 bg-muted rounded-lg font-mono text-xl font-bold tracking-wider">
                       {invite.code}
@@ -191,41 +174,27 @@ export default function InviteDetailPage({
                       onClick={handleCopyCode}
                       title={t("actions.copy")}
                     >
-                      {copied ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
+                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </Button>
                   </div>
                 </div>
 
                 {/* Status */}
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {t("fields.status")}
-                  </p>
-                  <Badge variant={getStatusVariant(status)}>
-                    {t(`status.${status}`)}
-                  </Badge>
+                  <p className="text-sm text-muted-foreground">{t("fields.status")}</p>
+                  <Badge variant={getStatusVariant(status)}>{t(`status.${status}`)}</Badge>
                 </div>
 
                 {/* Created At */}
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {t("fields.createdAt")}
-                  </p>
-                  <p className="text-sm">
-                    {new Date(invite.createdAt).toLocaleString(locale)}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t("fields.createdAt")}</p>
+                  <p className="text-sm">{new Date(invite.createdAt).toLocaleString(locale)}</p>
                 </div>
 
                 {/* Last Used At */}
                 {invite.lastUsedAt && (
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      {t("fields.lastUsedAt")}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{t("fields.lastUsedAt")}</p>
                     <p className="text-sm">
                       {formatDistanceToNow(new Date(invite.lastUsedAt), {
                         addSuffix: true,
@@ -238,9 +207,7 @@ export default function InviteDetailPage({
                 {/* Note */}
                 {invite.note && (
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      {t("fields.note")}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{t("fields.note")}</p>
                     <p className="text-sm">{invite.note}</p>
                   </div>
                 )}
@@ -253,24 +220,18 @@ export default function InviteDetailPage({
                 {/* Usage Count */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      {t("fields.useCount")}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{t("fields.useCount")}</p>
                     <p className="text-sm font-medium">
                       {invite.useCount}
                       {invite.maxUses != null && ` / ${invite.maxUses}`}
                     </p>
                   </div>
-                  {invite.maxUses != null && (
-                    <Progress value={usagePercentage} className="h-2" />
-                  )}
+                  {invite.maxUses != null && <Progress value={usagePercentage} className="h-2" />}
                 </div>
 
                 {/* Expiration */}
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {t("fields.expiresAt")}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t("fields.expiresAt")}</p>
                   <p className="text-sm">
                     {invite.expiresAt
                       ? new Date(invite.expiresAt).toLocaleString(locale)
@@ -283,9 +244,7 @@ export default function InviteDetailPage({
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() =>
-                      router.push(`/admin/invite/${inviteId}/edit`)
-                    }
+                    onClick={() => router.push(`/admin/invite/${inviteId}/edit`)}
                   >
                     <Edit className="w-4 h-4 mr-2" />
                     {t("actions.edit")}
@@ -316,16 +275,12 @@ export default function InviteDetailPage({
 
             {/* Card 3: Usage History (Full Width) */}
             <div className="border rounded-lg p-6 space-y-4">
-              <h2 className="text-lg font-semibold">
-                {t("usageHistory.title")}
-              </h2>
+              <h2 className="text-lg font-semibold">{t("usageHistory.title")}</h2>
 
               {historyLoading ? (
                 <p className="text-sm text-muted-foreground">Loading...</p>
               ) : !usageHistory || usageHistory.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t("usageHistory.noUsage")}
-                </p>
+                <p className="text-sm text-muted-foreground">{t("usageHistory.noUsage")}</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -346,20 +301,24 @@ export default function InviteDetailPage({
                             <div className="flex items-center gap-3">
                               <Avatar className="w-8 h-8">
                                 <AvatarImage
-                                  src={usage.avatarMediaId ? `/api/media/${usage.avatarMediaId}` : undefined}
+                                  src={
+                                    usage.avatarMediaId
+                                      ? `/api/media/${usage.avatarMediaId}`
+                                      : undefined
+                                  }
                                 />
                                 <AvatarFallback>
-                                  {usage.displayName?.[0] ||
-                                    usage.username[0].toUpperCase()}
+                                  {usage.displayName?.[0] || usage.username[0].toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
                                 <p className="text-sm font-medium">
-                                  <MfmRenderer text={usage.displayName || usage.username} allowList={DISPLAY_NAME_ALLOW_LIST} />
+                                  <MfmRenderer
+                                    text={usage.displayName || usage.username}
+                                    allowList={DISPLAY_NAME_ALLOW_LIST}
+                                  />
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                  @{usage.username}
-                                </p>
+                                <p className="text-xs text-muted-foreground">@{usage.username}</p>
                               </div>
                             </div>
                           </td>
@@ -382,16 +341,11 @@ export default function InviteDetailPage({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("confirm.disableTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("confirm.disableDescription")}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t("confirm.disableDescription")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("actions.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDisable}
-              disabled={disableMutation.isPending}
-            >
+            <AlertDialogAction onClick={handleDisable} disabled={disableMutation.isPending}>
               {t("actions.disable")}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -403,9 +357,7 @@ export default function InviteDetailPage({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("confirm.deleteTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("confirm.deleteDescription")}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t("confirm.deleteDescription")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("actions.cancel")}</AlertDialogCancel>

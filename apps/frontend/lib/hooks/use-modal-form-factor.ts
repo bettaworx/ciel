@@ -20,15 +20,15 @@ export type ModalFormFactor = "dialog" | "sheet";
  * sheet and tear it straight down, which is the same swap by another name.
  */
 export function useModalFormFactor(open: boolean): ModalFormFactor | null {
-	const isDesktop = useMediaQuery("(min-width: 640px)");
-	const [measured, setMeasured] = useState(false);
-	useEffect(() => setMeasured(true), []);
+  const isDesktop = useMediaQuery("(min-width: 640px)");
+  const [measured, setMeasured] = useState(false);
+  useEffect(() => setMeasured(true), []);
 
-	const held = useRef<ModalFormFactor | null>(null);
-	if (!measured) return null;
+  const held = useRef<ModalFormFactor | null>(null);
+  if (!measured) return null;
 
-	const current: ModalFormFactor = isDesktop ? "dialog" : "sheet";
-	// Closed, so there is nothing to disturb: follow the breakpoint freely.
-	if (!open || !held.current) held.current = current;
-	return held.current;
+  const current: ModalFormFactor = isDesktop ? "dialog" : "sheet";
+  // Closed, so there is nothing to disturb: follow the breakpoint freely.
+  if (!open || !held.current) held.current = current;
+  return held.current;
 }

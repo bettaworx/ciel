@@ -102,9 +102,7 @@ export function ResponsiveDialog({
           </DrawerHeader>
           {children}
           {footer && (
-            <DrawerFooter className="mt-6 flex-row justify-end gap-2 p-0">
-              {footer}
-            </DrawerFooter>
+            <DrawerFooter className="mt-6 flex-row justify-end gap-2 p-0">{footer}</DrawerFooter>
           )}
         </div>
       </DrawerContent>

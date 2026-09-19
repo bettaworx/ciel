@@ -20,9 +20,7 @@ export function PasswordSettingsContent() {
 
   return (
     <>
-      <PageHeader backHref={PARENT}>
-        {t("settings.security.password.title")}
-      </PageHeader>
+      <PageHeader backHref={PARENT}>{t("settings.security.password.title")}</PageHeader>
       <StepupGate heading={t("settings.reauth.heading")} cancelHref={PARENT}>
         {(stepupToken, invalidate) => (
           <PasswordForm stepupToken={stepupToken} onStepupExpired={invalidate} />
@@ -118,9 +116,7 @@ function PasswordForm({
           autoComplete="new-password"
         />
         {mismatch && (
-          <p className="text-sm text-destructive">
-            {t("settings.security.password.mismatch")}
-          </p>
+          <p className="text-sm text-destructive">{t("settings.security.password.mismatch")}</p>
         )}
       </div>
 

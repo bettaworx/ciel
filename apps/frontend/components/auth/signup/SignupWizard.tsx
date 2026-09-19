@@ -14,9 +14,7 @@ import { UsernameStep } from "@/components/auth/signup/UsernameStep";
 import { PasswordStep } from "@/components/auth/signup/PasswordStep";
 import { InviteCodeStep } from "@/components/auth/signup/InviteCodeStep";
 import { ChevronLeft } from "lucide-react";
-import {
-  type SignupStep,
-} from "@/lib/config/auth-steps";
+import type { SignupStep } from "@/lib/config/auth-steps";
 import type { AnimationDirection } from "@/lib/config/setup-animation";
 import { createApiClient } from "@/lib/api/client";
 import type { components } from "@/lib/api/api";
@@ -88,8 +86,8 @@ export function SignupWizard() {
     const loadAgreementContent = async () => {
       try {
         const [termsRes, privacyRes] = await Promise.all([
-          apiClient.getLatestAgreement('terms', locale),
-          apiClient.getLatestAgreement('privacy', locale),
+          apiClient.getLatestAgreement("terms", locale),
+          apiClient.getLatestAgreement("privacy", locale),
         ]);
 
         if (termsRes.ok) {
@@ -284,27 +282,21 @@ export function SignupWizard() {
         );
 
       case "username":
-        return (
-          <UsernameStep onNext={handleUsernameNext} initialValue={username} />
-        );
+        return <UsernameStep onNext={handleUsernameNext} initialValue={username} />;
 
       case "password":
         return (
           <PasswordStep
             username={username}
             onSubmit={
-              serverInfo && !serverInfo.signupEnabled
-                ? handlePasswordNext
-                : handlePasswordSubmit
+              serverInfo && !serverInfo.signupEnabled ? handlePasswordNext : handlePasswordSubmit
             }
             loading={loading}
           />
         );
 
       case "invite-code":
-        return (
-          <InviteCodeStep onSubmit={handleInviteCodeSubmit} loading={loading} />
-        );
+        return <InviteCodeStep onSubmit={handleInviteCodeSubmit} loading={loading} />;
 
       default:
         return null;
@@ -428,11 +420,7 @@ export function SignupWizard() {
             disabled={loading}
             className="bg-c-1 text-c-foreground hover:bg-c-2 transition-colors duration-160 ease"
           >
-            {loading
-              ? t("loading")
-              : isInviteOnly
-                ? t("setup.next")
-                : t("signup.createAccount")}
+            {loading ? t("loading") : isInviteOnly ? t("setup.next") : t("signup.createAccount")}
           </Button>
         </div>
       );

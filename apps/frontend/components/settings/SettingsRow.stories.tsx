@@ -2,12 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { KeyRound, Languages, Lock, Palette, Trash2, UserPen } from "lucide-react";
-import {
-  SettingsRow,
-  SettingsRowGroup,
-  SettingsSelectRow,
-  SettingsSwitchRow,
-} from "./SettingsRow";
+import { SettingsRow, SettingsRowGroup, SettingsSelectRow, SettingsSwitchRow } from "./SettingsRow";
 
 const meta = {
   title: "Settings/SettingsRow",
@@ -24,11 +19,7 @@ export const Group: Story = {
   render: () => (
     <div className="max-w-lg">
       <SettingsRowGroup>
-        <SettingsRow
-          icon={UserPen}
-          label="ユーザー名を変更"
-          href="/settings/account/username"
-        />
+        <SettingsRow icon={UserPen} label="ユーザー名を変更" href="/settings/account/username" />
         <SettingsRow icon={KeyRound} label="パスワード" href="/settings/security/password" />
         <SettingsRow label="ミュートとブロック" href="/settings/mutes" />
         <SettingsRow
@@ -95,8 +86,6 @@ export const Select: Story = {
     const options = within(document.body);
     await userEvent.click(await options.findByText("ダーク"));
 
-    await expect(
-      canvas.getByRole("button", { name: /テーマ/ }),
-    ).toHaveTextContent("ダーク");
+    await expect(canvas.getByRole("button", { name: /テーマ/ })).toHaveTextContent("ダーク");
   },
 };

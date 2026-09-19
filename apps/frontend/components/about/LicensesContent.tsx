@@ -50,9 +50,7 @@ export function LicensesContent({ backHref }: { backHref?: string }) {
             entry.version,
             entry.license,
             entry.source,
-            entry.font?.weights?.length
-              ? `weights: ${entry.font.weights.join(", ")}`
-              : null,
+            entry.font?.weights?.length ? `weights: ${entry.font.weights.join(", ")}` : null,
           ].filter(Boolean);
           const label = (
             <>
@@ -73,9 +71,7 @@ export function LicensesContent({ backHref }: { backHref?: string }) {
               </a>
             </Button>
           ) : (
-            <div className="flex items-center justify-between px-4 py-3 rounded-md">
-              {label}
-            </div>
+            <div className="flex items-center justify-between px-4 py-3 rounded-md">{label}</div>
           );
 
           return (

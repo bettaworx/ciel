@@ -9,11 +9,7 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { PageContainer } from "@/components/PageContainer";
 import { Spinner } from "@/components/ui/spinner";
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = useAtomValue(userAtom);
   const authStatus = useAtomValue(authStatusAtom);
   const router = useRouter();

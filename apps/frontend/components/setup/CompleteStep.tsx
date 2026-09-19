@@ -18,7 +18,6 @@ export function CompleteStep() {
           <p className="text-muted-foreground">{t("setup.completed.description")}</p>
         </div>
       </div>
-
     </div>
   );
 }

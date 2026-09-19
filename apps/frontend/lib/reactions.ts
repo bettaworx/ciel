@@ -12,10 +12,7 @@ export function isReactionByCurrentUser(
   selfEmojiSet: ReadonlySet<string>,
   isAuthenticated: boolean,
 ) {
-  return (
-    isAuthenticated &&
-    (selfEmojiSet.has(reaction.emoji) || reaction.reactedByCurrentUser)
-  );
+  return isAuthenticated && (selfEmojiSet.has(reaction.emoji) || reaction.reactedByCurrentUser);
 }
 
 export function reactedEmojiList(reactions: readonly ReactionCount[] | undefined) {
@@ -35,8 +32,7 @@ export function mergeReactionStatusForCurrentUser(
   return reactions.map((reaction) => ({
     ...reaction,
     reactedByCurrentUser:
-      selfEmojiSet.has(reaction.emoji) ||
-      (trustServerStatus && reaction.reactedByCurrentUser),
+      selfEmojiSet.has(reaction.emoji) || (trustServerStatus && reaction.reactedByCurrentUser),
   }));
 }
 
@@ -47,10 +43,6 @@ export function mergeReactionCountsForCurrentUser(
 ): ReactionCounts {
   return {
     ...counts,
-    reactions: mergeReactionStatusForCurrentUser(
-      counts.reactions,
-      selfEmojis,
-      options,
-    ),
+    reactions: mergeReactionStatusForCurrentUser(counts.reactions, selfEmojis, options),
   };
 }

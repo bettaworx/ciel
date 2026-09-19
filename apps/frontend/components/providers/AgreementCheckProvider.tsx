@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { useAgreementCheck } from '@/lib/hooks/use-agreement-check';
-import { useMe } from '@/lib/hooks/use-queries';
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAgreementCheck } from "@/lib/hooks/use-agreement-check";
+import { useMe } from "@/lib/hooks/use-queries";
 
 interface AgreementCheckProviderProps {
   children: React.ReactNode;
@@ -13,21 +13,19 @@ interface AgreementCheckProviderProps {
  * Provider that checks if the user needs to re-accept updated agreements
  * and redirects to /agreements page if necessary.
  */
-export function AgreementCheckProvider({
-  children,
-}: AgreementCheckProviderProps) {
+export function AgreementCheckProvider({ children }: AgreementCheckProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: me } = useMe();
-  
+
   // Skip agreement check on excluded pages to prevent redirect loops
-  const isExcludedPage = 
-    pathname?.startsWith('/login') ||
-    pathname?.startsWith('/signup') ||
-    pathname?.startsWith('/server-setup') ||
-    pathname?.startsWith('/admin-setup') ||
-    pathname?.startsWith('/agreements');
-  
+  const isExcludedPage =
+    pathname?.startsWith("/login") ||
+    pathname?.startsWith("/signup") ||
+    pathname?.startsWith("/server-setup") ||
+    pathname?.startsWith("/admin-setup") ||
+    pathname?.startsWith("/agreements");
+
   // Conditionally call useAgreementCheck only when NOT on excluded page
   // This prevents unnecessary API calls and potential redirect loops
   const shouldCheck = !isExcludedPage && !!me;
@@ -45,7 +43,7 @@ export function AgreementCheckProvider({
     }
 
     if (needsReaccept) {
-      router.push('/agreements');
+      router.push("/agreements");
     }
   }, [me, needsReaccept, pathname, router, isExcludedPage]);
 

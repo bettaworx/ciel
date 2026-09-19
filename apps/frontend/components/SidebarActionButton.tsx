@@ -69,23 +69,14 @@ export function SidebarActionButton({
           width: isExpanded ? textWidth : 0,
           opacity: isExpanded ? 1 : 0,
         }}
-        transition={
-          canAnimate
-            ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
-            : { duration: 0 }
-        }
+        transition={canAnimate ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }}
         className={cn(
           "overflow-hidden whitespace-nowrap flex items-center",
           trailingIcon && "pr-3",
         )}
         style={{ pointerEvents: isExpanded ? "auto" : "none", flexShrink: 0 }}
       >
-        <div
-          className={cn(
-            "flex min-w-0 flex-col text-left grow",
-            !trailingIcon && "pr-3",
-          )}
-        >
+        <div className={cn("flex min-w-0 flex-col text-left grow", !trailingIcon && "pr-3")}>
           <span
             className={cn(
               "text-sm font-medium leading-tight truncate",
@@ -121,11 +112,7 @@ export function SidebarActionButton({
 
   if (typeof props.href === "string") {
     return (
-      <Link
-        href={props.href}
-        className={classes}
-        aria-current={isActive ? "page" : undefined}
-      >
+      <Link href={props.href} className={classes} aria-current={isActive ? "page" : undefined}>
         {content}
       </Link>
     );

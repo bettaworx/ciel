@@ -43,10 +43,7 @@ import {
 } from "lucide-react";
 import { mfmSettingsAtom, type MfmSettings } from "@/atoms/mfm-settings";
 import { NestedToggle } from "@/components/settings/NestedToggle";
-import {
-  SettingsRowGroup,
-  SettingsSwitchRow,
-} from "@/components/settings/SettingsRow";
+import { SettingsRowGroup, SettingsSwitchRow } from "@/components/settings/SettingsRow";
 
 // ---------------------------------------------------------------------------
 // Helper: update a top-level boolean key
@@ -94,8 +91,7 @@ export function MfmSettingsSection() {
         // Auto-enable parent when a child is turned ON
         if (value) next.enabled = true;
         // Auto-disable parent when ALL children are OFF
-        if (!next.serif && !next.monospace && !next.cursive && !next.fantasy)
-          next.enabled = false;
+        if (!next.serif && !next.monospace && !next.cursive && !next.fantasy) next.enabled = false;
         return { ...prev, font: next };
       });
     },
@@ -110,8 +106,13 @@ export function MfmSettingsSection() {
         if (value) next.enabled = true;
         // Auto-disable parent when ALL children are OFF
         if (
-          !next.jelly && !next.tada && !next.jump && !next.bounce &&
-          !next.spin && !next.shake && !next.twitch
+          !next.jelly &&
+          !next.tada &&
+          !next.jump &&
+          !next.bounce &&
+          !next.spin &&
+          !next.shake &&
+          !next.twitch
         )
           next.enabled = false;
         return { ...prev, animation: next };

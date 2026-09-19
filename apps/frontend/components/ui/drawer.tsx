@@ -79,9 +79,7 @@ const DrawerContent = React.forwardRef<
       )}
       {...props}
     >
-      {!hideHandle && (
-        <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
-      )}
+      {!hideHandle && <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />}
       {/* Once the sheet has a ceiling, the overflow has to go somewhere: this
           scrolls it instead of hiding it past the bottom edge. Kept a flex
           column so DrawerFooter's mt-auto still reaches the bottom. */}
@@ -93,25 +91,13 @@ const DrawerContent = React.forwardRef<
 ));
 DrawerContent.displayName = "DrawerContent";
 
-const DrawerHeader = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn("grid gap-1.5 p-4 text-center sm:text-left", className)}
-    {...props}
-  />
+const DrawerHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("grid gap-1.5 p-4 text-center sm:text-left", className)} {...props} />
 );
 DrawerHeader.displayName = "DrawerHeader";
 
-const DrawerFooter = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn("mt-auto flex flex-col gap-2 p-2", className)}
-    {...props}
-  />
+const DrawerFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("mt-auto flex flex-col gap-2 p-2", className)} {...props} />
 );
 DrawerFooter.displayName = "DrawerFooter";
 
@@ -121,10 +107,7 @@ const DrawerTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Title
     ref={ref}
-    className={cn(
-      "text-lg font-semibold leading-none tracking-tight",
-      className,
-    )}
+    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
     {...props}
   />
 ));

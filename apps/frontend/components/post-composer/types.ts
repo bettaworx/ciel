@@ -2,10 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { Crop } from "react-image-crop";
 import type { AspectRatioId } from "@/components/shared/image-crop/aspectRatios";
 import type { Transform } from "@/components/shared/image-crop/transforms";
-import type {
-  ImageQualityMode,
-  VideoQualityMode,
-} from "@/lib/media/normalize";
+import type { ImageQualityMode, VideoQualityMode } from "@/lib/media/normalize";
 
 /**
  * Types for post composition
@@ -48,9 +45,7 @@ export interface LocalVideo {
   canSkipConversion: boolean;
 }
 
-export type LocalMedia =
-  | { kind: "image"; data: LocalImage }
-  | { kind: "video"; data: LocalVideo };
+export type LocalMedia = { kind: "image"; data: LocalImage } | { kind: "video"; data: LocalVideo };
 
 /**
  * Unified media item type used by the shared PostMediaPreview component.
@@ -78,6 +73,4 @@ export interface TextSelectionRange {
   end: number;
 }
 
-export type TextSelectionRangeSetter = Dispatch<
-  SetStateAction<TextSelectionRange>
->;
+export type TextSelectionRangeSetter = Dispatch<SetStateAction<TextSelectionRange>>;

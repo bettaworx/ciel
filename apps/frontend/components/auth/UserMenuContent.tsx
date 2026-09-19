@@ -76,19 +76,12 @@ export function UserMenuContent({
             {user.displayName ? (
               <>
                 <div className="text-sm font-semibold">
-                  <DisplayName
-                    name={user.displayName}
-                    isPrivate={user.isPrivate}
-                  />
+                  <DisplayName name={user.displayName} isPrivate={user.isPrivate} />
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  @{user.username}
-                </div>
+                <div className="text-sm text-muted-foreground">@{user.username}</div>
               </>
             ) : (
-              <div className="font-semibold">
-                @{user.username}
-              </div>
+              <div className="font-semibold">@{user.username}</div>
             )}
           </div>
 

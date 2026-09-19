@@ -12,25 +12,21 @@ interface PasswordStepProps {
   loading?: boolean;
 }
 
-export function PasswordStep({
-  username,
-  onSubmit,
-  loading = false,
-}: PasswordStepProps) {
+export function PasswordStep({ username, onSubmit, loading = false }: PasswordStepProps) {
   const t = useTranslations();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate password
     const errorKey = validatePassword(password);
     if (errorKey) {
       setError(t(errorKey));
       return;
     }
-    
+
     // Clear error and proceed
     setError(null);
     onSubmit(password);
@@ -45,9 +41,7 @@ export function PasswordStep({
       >
         <div className="flex-1 flex flex-col justify-center">
           <div className="space-y-2 mb-6">
-            <h2 className="text-2xl font-bold">
-              {t("signup.wizard.password.title")}
-            </h2>
+            <h2 className="text-2xl font-bold">{t("signup.wizard.password.title")}</h2>
             <p className="text-muted-foreground text-sm">
               {t("signup.wizard.password.description")}
             </p>
@@ -70,9 +64,7 @@ export function PasswordStep({
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            <p className="text-muted-foreground text-sm">
-              {t("passwordRequirements")}
-            </p>
+            <p className="text-muted-foreground text-sm">{t("passwordRequirements")}</p>
           </div>
         </div>
       </form>

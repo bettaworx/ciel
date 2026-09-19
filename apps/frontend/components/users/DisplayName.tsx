@@ -32,13 +32,7 @@ interface DisplayNameProps {
  * property of the account. That split is the whole reason this component exists;
  * the rule is enforced by which call sites use it, not by a prop.
  */
-export function DisplayName({
-  name,
-  isPrivate,
-  isMuted,
-  isBlocked,
-  className,
-}: DisplayNameProps) {
+export function DisplayName({ name, isPrivate, isMuted, isBlocked, className }: DisplayNameProps) {
   const t = useTranslations();
 
   return (

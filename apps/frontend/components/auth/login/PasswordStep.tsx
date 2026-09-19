@@ -4,10 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import {
-  stepHeadingClass,
-  type StepPresentation,
-} from "@/components/auth/step-presentation";
+import { stepHeadingClass, type StepPresentation } from "@/components/auth/step-presentation";
 import { UserProfileDisplay } from "./UserProfileDisplay";
 
 interface PasswordStepProps {
@@ -68,22 +65,14 @@ export function PasswordStep({
 
         <div className="flex-1 flex flex-col justify-center">
           <div className="mb-6">
-            <h2
-              className={cn(
-                stepHeadingClass(presentation),
-                isSheet && "text-center",
-              )}
-            >
+            <h2 className={cn(stepHeadingClass(presentation), isSheet && "text-center")}>
               {heading ?? t("login.wizard.password.welcomeBack")}
             </h2>
           </div>
 
           <div className="space-y-6">
             {/* User profile display */}
-            <UserProfileDisplay
-              username={username}
-              layout={isSheet ? "stacked" : "inline"}
-            />
+            <UserProfileDisplay username={username} layout={isSheet ? "stacked" : "inline"} />
 
             {/* Password input */}
             <Input

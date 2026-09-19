@@ -28,11 +28,7 @@ export default function EditEmojiPage() {
   }
 
   if (error || !emoji) {
-    return (
-      <div className="py-12 text-center text-sm text-destructive">
-        {tCommon("error")}
-      </div>
-    );
+    return <div className="py-12 text-center text-sm text-destructive">{tCommon("error")}</div>;
   }
 
   return (
@@ -46,9 +42,7 @@ export default function EditEmojiPage() {
           toast.success(t("messages.updateSuccess"));
           router.push("/admin/emojis");
         } catch (error) {
-          toast.error(
-            error instanceof Error ? error.message : t("messages.updateError"),
-          );
+          toast.error(error instanceof Error ? error.message : t("messages.updateError"));
         }
       }}
     />

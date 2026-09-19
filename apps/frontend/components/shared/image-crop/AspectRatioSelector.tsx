@@ -51,10 +51,7 @@ export function AspectRatioSelector({
         <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="z-[80]">
           {ASPECT_RATIO_OPTIONS.map((opt) => (
-            <DropdownMenuItem
-              key={opt.id}
-              onClick={() => onChange(opt.id)}
-            >
+            <DropdownMenuItem key={opt.id} onClick={() => onChange(opt.id)}>
               {t(opt.labelKey)}
               {value === opt.id && <Check className="ml-auto h-4 w-4" />}
             </DropdownMenuItem>

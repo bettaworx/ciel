@@ -26,12 +26,7 @@ import {
 } from "@/components/ui/drawer";
 import { userAtom } from "@/atoms/auth";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import {
-  useBlockUser,
-  useMuteUser,
-  useUnblockUser,
-  useUnmuteUser,
-} from "@/lib/hooks/use-queries";
+import { useBlockUser, useMuteUser, useUnblockUser, useUnmuteUser } from "@/lib/hooks/use-queries";
 
 type ConfirmKind = "mute" | "unmute" | "block" | "unblock";
 
@@ -73,9 +68,7 @@ export function useHideUserActions(
   const blockUser = useBlockUser();
   const unblockUser = useUnblockUser();
 
-  const available = Boolean(
-    username && authUser && authUser.username !== username,
-  );
+  const available = Boolean(username && authUser && authUser.username !== username);
 
   const isMuted = Boolean(state.isMuted);
   const isBlocking = Boolean(state.isBlocking);
@@ -84,11 +77,7 @@ export function useHideUserActions(
     ? [
         {
           key: "mute",
-          icon: isMuted ? (
-            <Volume2 className="h-4 w-4" />
-          ) : (
-            <VolumeX className="h-4 w-4" />
-          ),
+          icon: isMuted ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />,
           label: isMuted ? t("user.unmuteUser") : t("user.muteUser"),
           // Muting is silent, reversible and invisible to the other account, so
           // it is offered plainly rather than in destructive red.
@@ -116,17 +105,13 @@ export function useHideUserActions(
     if (!username || !confirming) return;
     const isMuteSide = confirming === "mute" || confirming === "unmute";
     mutations[confirming].mutate(username, {
-      onError: () =>
-        toast.error(t(isMuteSide ? "user.muteError" : "user.blockError")),
+      onError: () => toast.error(t(isMuteSide ? "user.muteError" : "user.blockError")),
       onSettled: () => setConfirming(null),
     });
   };
 
   const isConfirmPending =
-    muteUser.isPending ||
-    unmuteUser.isPending ||
-    blockUser.isPending ||
-    unblockUser.isPending;
+    muteUser.isPending || unmuteUser.isPending || blockUser.isPending || unblockUser.isPending;
 
   // These menus often sit inside a link to the profile, and the dialog portals
   // to the body while React events still bubble up the component tree.
@@ -180,11 +165,7 @@ export function useHideUserActions(
           >
             {confirmLabel}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => setConfirming(null)}
-            disabled={isConfirmPending}
-          >
+          <Button variant="outline" onClick={() => setConfirming(null)} disabled={isConfirmPending}>
             {t("user.hideConfirmCancel")}
           </Button>
         </DrawerFooter>

@@ -82,11 +82,7 @@ export function BookmarksContent() {
               ))}
             </ul>
           ) : (
-            <EmptyState
-              icon={Bookmark}
-              title={t("empty")}
-              description={t("emptyDescription")}
-            />
+            <EmptyState icon={Bookmark} title={t("empty")} description={t("emptyDescription")} />
           )}
         </div>
       </div>

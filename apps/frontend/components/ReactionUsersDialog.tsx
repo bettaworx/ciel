@@ -70,10 +70,7 @@ export function ReactionUsersDialog({
 
   const content = (
     <div className="flex flex-col gap-3">
-      <Tabs
-        value={activeEmoji}
-        onValueChange={(value) => setSelectedEmoji(value)}
-      >
+      <Tabs value={activeEmoji} onValueChange={(value) => setSelectedEmoji(value)}>
         <TabsList className="w-full justify-start gap-1 overflow-x-auto">
           {sortedReactions.map((reaction) => (
             <TabsTrigger
@@ -94,14 +91,10 @@ export function ReactionUsersDialog({
 
       <div className="flex flex-col gap-2">
         {list.isLoading && (
-          <span className="px-2 py-1 text-sm text-muted-foreground">
-            {t("loadingUsers")}
-          </span>
+          <span className="px-2 py-1 text-sm text-muted-foreground">{t("loadingUsers")}</span>
         )}
         {!list.isLoading && users.length === 0 && (
-          <span className="px-2 py-1 text-sm text-muted-foreground">
-            {t("noUsers")}
-          </span>
+          <span className="px-2 py-1 text-sm text-muted-foreground">{t("noUsers")}</span>
         )}
         {users.map((user) => (
           <ReactionUserButton key={user.id} user={user} />

@@ -36,12 +36,7 @@ export function clampPan(value: number, extent: number, scale: number): number {
  * the scale changes. `cursor` is measured from the element's centre, matching
  * the transform origin.
  */
-export function anchorPan(
-  cursor: number,
-  pan: number,
-  scale: number,
-  nextScale: number,
-): number {
+export function anchorPan(cursor: number, pan: number, scale: number, nextScale: number): number {
   if (scale <= 0) return pan;
   return cursor - (cursor - pan) * (nextScale / scale);
 }

@@ -32,10 +32,7 @@ import { FormatOverflowMenu } from "./FormatOverflowMenu";
 import { MediaUploadOverflowMenu } from "./MediaUploadOverflowMenu";
 import { ComposerEmojiPicker } from "./ComposerEmojiPicker";
 import { insertCenterDecoration } from "./centerDecoration";
-import {
-  ACCEPTED_IMAGE_ACCEPT,
-  ACCEPTED_VIDEO_ACCEPT,
-} from "./constants";
+import { ACCEPTED_IMAGE_ACCEPT, ACCEPTED_VIDEO_ACCEPT } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
 import { useComposerPlaceholder } from "./useComposerPlaceholder";
 import { PostCard } from "@/components/PostCard";
@@ -211,8 +208,7 @@ export function PostComposerContent({
       };
 
       setSelectionRange((current) =>
-        current.start === nextSelectionRange.start &&
-        current.end === nextSelectionRange.end
+        current.start === nextSelectionRange.start && current.end === nextSelectionRange.end
           ? current
           : nextSelectionRange,
       );
@@ -493,9 +489,7 @@ export function PostComposerContent({
       <div className="absolute inset-0 z-10 bg-background/90 border-2 border-dashed border-c-1 rounded-xl flex items-center justify-center pointer-events-none">
         <div className="text-center">
           <ImageIcon className="w-12 h-12 mx-auto mb-2 text-c-1" />
-          <p className="text-lg font-medium text-foreground">
-            {t("createPost.dropMedia")}
-          </p>
+          <p className="text-lg font-medium text-foreground">{t("createPost.dropMedia")}</p>
         </div>
       </div>
     ) : null;
@@ -572,9 +566,7 @@ export function PostComposerContent({
         </div>
 
         {/* Actions bar: upload (left) + counter & post (right) */}
-        <div
-          className={cn("flex items-center justify-between", s.contentPadding)}
-        >
+        <div className={cn("flex items-center justify-between", s.contentPadding)}>
           <div>{uploadButtons}</div>
           <div className="flex flex-row gap-3">
             {formatButtons}

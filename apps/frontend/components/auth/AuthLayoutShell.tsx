@@ -26,9 +26,7 @@ export function AuthLayoutShell({
       <div
         className={cn(
           "w-full h-dvh sm:h-auto sm:rounded-2xl bg-card p-6 sm:p-8 flex flex-col",
-          fixedAspectRatio
-            ? "sm:aspect-square sm:max-w-3xl"
-            : "sm:max-w-md",
+          fixedAspectRatio ? "sm:aspect-square sm:max-w-3xl" : "sm:max-w-md",
           className,
         )}
       >

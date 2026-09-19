@@ -71,8 +71,7 @@ export function SetupWizard() {
       // Determine direction based on step indices
       const currentIndex = getStepIndex(currentStep);
       const targetIndex = getStepIndex(targetStep);
-      const dir: AnimationDirection =
-        targetIndex > currentIndex ? "forward" : "backward";
+      const dir: AnimationDirection = targetIndex > currentIndex ? "forward" : "backward";
 
       setDirection(dir);
       setCurrentStep(targetStep);
@@ -171,28 +170,13 @@ export function SetupWizard() {
         return <WelcomeStep />;
 
       case "display-name":
-        return (
-          <DisplayNameStep
-            onNext={handleDisplayNameNext}
-            loading={updateProfile.isPending}
-          />
-        );
+        return <DisplayNameStep onNext={handleDisplayNameNext} loading={updateProfile.isPending} />;
 
       case "avatar":
-        return (
-          <AvatarStep
-            onNext={handleAvatarNext}
-            loading={updateAvatar.isPending}
-          />
-        );
+        return <AvatarStep onNext={handleAvatarNext} loading={updateAvatar.isPending} />;
 
       case "bio":
-        return (
-          <BioStep
-            onComplete={handleBioComplete}
-            loading={updateProfile.isPending}
-          />
-        );
+        return <BioStep onComplete={handleBioComplete} loading={updateProfile.isPending} />;
 
       case "complete":
         return <CompleteStep />;
@@ -220,7 +204,7 @@ export function SetupWizard() {
         onSkip={goSkip}
         onStart={goNext}
         onGoToTimeline={handleGoToTimeline}
-      />
+      />,
     );
 
     return () => {

@@ -7,10 +7,7 @@ import { toast } from "sonner";
 import { useSetupLayout } from "@/components/setup/SetupLayoutContext";
 import { AdminSetupFooter } from "./AdminSetupFooter";
 import { createApiClient } from "@/lib/api/client";
-import {
-  type AdminSetupStep,
-  ADMIN_SETUP_STEPS,
-} from "@/lib/config/admin-setup-steps";
+import { type AdminSetupStep, ADMIN_SETUP_STEPS } from "@/lib/config/admin-setup-steps";
 import { WelcomeStep } from "./WelcomeStep";
 import { VerifyPasswordStep } from "./VerifyPasswordStep";
 import { CreateAdminStep } from "./CreateAdminStep";
@@ -38,7 +35,9 @@ export function AdminSetupWizard() {
   // State
   const [currentStep, setCurrentStep] = useState<AdminSetupStep>("welcome");
   const [isLoading, setIsLoading] = useState(false);
-  const [profileSubStep, setProfileSubStep] = useState<'display-name' | 'avatar' | 'bio'>('display-name');
+  const [profileSubStep, setProfileSubStep] = useState<"display-name" | "avatar" | "bio">(
+    "display-name",
+  );
 
   // Profile update hooks
   const updateProfile = useUpdateProfile();
@@ -58,7 +57,7 @@ export function AdminSetupWizard() {
     const checkStatus = async () => {
       try {
         const response = await apiClient.setupStatus();
-        
+
         if (!response.ok) {
           console.error("Failed to check setup status:", response.errorText);
           toast.error(t("error.setupFailed"));
@@ -83,7 +82,7 @@ export function AdminSetupWizard() {
           }
 
           // Logged in - continue setup from profile step
-          setProfileSubStep('display-name'); // Reset sub-step
+          setProfileSubStep("display-name"); // Reset sub-step
           const savedStep = localStorage.getItem(STORAGE_KEY);
           if (savedStep && ADMIN_SETUP_STEPS.includes(savedStep as AdminSetupStep)) {
             const stepIndex = ADMIN_SETUP_STEPS.indexOf(savedStep as AdminSetupStep);
@@ -160,22 +159,22 @@ export function AdminSetupWizard() {
 
   // Profile sub-step navigation
   const goNextProfileSubStep = useCallback(() => {
-    if (profileSubStep === 'display-name') {
-      setProfileSubStep('avatar');
-    } else if (profileSubStep === 'avatar') {
-      setProfileSubStep('bio');
-    } else if (profileSubStep === 'bio') {
+    if (profileSubStep === "display-name") {
+      setProfileSubStep("avatar");
+    } else if (profileSubStep === "avatar") {
+      setProfileSubStep("bio");
+    } else if (profileSubStep === "bio") {
       // Bio完了後は次のメインステップへ
       goNext();
     }
   }, [profileSubStep, goNext]);
 
   const goBackProfileSubStep = useCallback(() => {
-    if (profileSubStep === 'bio') {
-      setProfileSubStep('avatar');
-    } else if (profileSubStep === 'avatar') {
-      setProfileSubStep('display-name');
-    } else if (profileSubStep === 'display-name') {
+    if (profileSubStep === "bio") {
+      setProfileSubStep("avatar");
+    } else if (profileSubStep === "avatar") {
+      setProfileSubStep("display-name");
+    } else if (profileSubStep === "display-name") {
       // Display name から戻る = 前のメインステップへ
       goBack();
     }
@@ -218,16 +217,16 @@ export function AdminSetupWizard() {
       }
 
       setAdminUsername(username);
-      
+
       // Auto-login: The server sets an httpOnly cookie with the token
       // Save user info to localStorage for UI purposes
       const authState = {
-        status: 'ready' as const,
+        status: "ready" as const,
         user: result.data.user,
         error: null,
       };
       localStorage.setItem("ciel-auth", JSON.stringify(authState));
-      
+
       // Reload page - initialization logic will detect admin exists and continue from admin-profile
       window.location.reload();
       return true;
@@ -276,21 +275,14 @@ export function AdminSetupWizard() {
     goNextProfileSubStep();
   };
 
-  const handleServerInfoNext = (
-    name: string,
-    description: string,
-    iconMediaId: string | null
-  ) => {
+  const handleServerInfoNext = (name: string, description: string, iconMediaId: string | null) => {
     setServerName(name);
     setServerDescription(description);
     setServerIconMediaId(iconMediaId);
     goNext();
   };
 
-  const handleInviteSettingsComplete = async (
-    inviteOnlyEnabled: boolean,
-    code: string
-  ) => {
+  const handleInviteSettingsComplete = async (inviteOnlyEnabled: boolean, code: string) => {
     setInviteOnly(inviteOnlyEnabled);
     setInviteCode(code);
 
@@ -330,27 +322,14 @@ export function AdminSetupWizard() {
         return <CreateAdminStep onCreate={handleCreateAdmin} loading={isLoading} />;
 
       case "admin-profile":
-        if (profileSubStep === 'display-name') {
+        if (profileSubStep === "display-name") {
           return (
-            <DisplayNameStep
-              onNext={handleProfileDisplayName}
-              loading={updateProfile.isPending}
-            />
+            <DisplayNameStep onNext={handleProfileDisplayName} loading={updateProfile.isPending} />
           );
-        } else if (profileSubStep === 'avatar') {
-          return (
-            <AvatarStep
-              onNext={handleProfileAvatar}
-              loading={updateAvatar.isPending}
-            />
-          );
-        } else if (profileSubStep === 'bio') {
-          return (
-            <BioStep
-              onComplete={handleProfileBio}
-              loading={updateProfile.isPending}
-            />
-          );
+        } else if (profileSubStep === "avatar") {
+          return <AvatarStep onNext={handleProfileAvatar} loading={updateAvatar.isPending} />;
+        } else if (profileSubStep === "bio") {
+          return <BioStep onComplete={handleProfileBio} loading={updateProfile.isPending} />;
         }
         return null;
 
@@ -405,26 +384,35 @@ export function AdminSetupWizard() {
     setFooter(
       <AdminSetupFooter
         currentStep={currentStep}
-        profileSubStep={currentStep === 'admin-profile' ? profileSubStep : undefined}
+        profileSubStep={currentStep === "admin-profile" ? profileSubStep : undefined}
         isLoading={isLoading}
         loadingProfile={updateProfile.isPending}
         loadingAvatar={updateAvatar.isPending}
-        onBack={currentStep === 'admin-profile' ? goBackProfileSubStep : goBack}
-        onNext={currentStep === 'admin-profile' ? goNextProfileSubStep : goNext}
-        onSkip={currentStep === 'admin-profile' ? goNextProfileSubStep : undefined}
+        onBack={currentStep === "admin-profile" ? goBackProfileSubStep : goBack}
+        onNext={currentStep === "admin-profile" ? goNextProfileSubStep : goNext}
+        onSkip={currentStep === "admin-profile" ? goNextProfileSubStep : undefined}
         onStart={goNext}
         onGoToTimeline={handleGoToHome}
-      />
+      />,
     );
 
     return () => {
       setFooter(null);
     };
-  }, [currentStep, profileSubStep, isLoading, updateProfile.isPending, updateAvatar.isPending, setFooter, setProgress, goBack, goNext, goBackProfileSubStep, goNextProfileSubStep, handleGoToHome]);
+  }, [
+    currentStep,
+    profileSubStep,
+    isLoading,
+    updateProfile.isPending,
+    updateAvatar.isPending,
+    setFooter,
+    setProgress,
+    goBack,
+    goNext,
+    goBackProfileSubStep,
+    goNextProfileSubStep,
+    handleGoToHome,
+  ]);
 
-  return (
-    <div className="flex-1 min-h-0 h-full flex flex-col">
-      {renderCurrentStep()}
-    </div>
-  );
+  return <div className="flex-1 min-h-0 h-full flex flex-col">{renderCurrentStep()}</div>;
 }

@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { WARNING_THRESHOLD } from "./constants";
 
 interface CharacterCounterProps {
@@ -18,12 +13,7 @@ interface CharacterCounterProps {
 /**
  * Character counter component with circular progress ring
  */
-export function CharacterCounter({
-  current,
-  max,
-  percentage,
-  showCount,
-}: CharacterCounterProps) {
+export function CharacterCounter({ current, max, percentage, showCount }: CharacterCounterProps) {
   const radius = 13;
   const circumference = 2 * Math.PI * radius;
 
@@ -61,9 +51,7 @@ export function CharacterCounter({
                 className={`fill-none transition-all duration-300 ${getColorClass()}`}
                 strokeWidth="2.5"
                 strokeDasharray={circumference}
-                strokeDashoffset={
-                  circumference * (1 - Math.min(percentage, 100) / 100)
-                }
+                strokeDashoffset={circumference * (1 - Math.min(percentage, 100) / 100)}
                 strokeLinecap="round"
               />
             </svg>

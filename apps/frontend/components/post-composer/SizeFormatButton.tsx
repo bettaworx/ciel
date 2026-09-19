@@ -135,11 +135,8 @@ export function removeSizeDecoration(
 ): { newValue: string; newStart: number; newEnd: number } {
   const prefixLen = match.prefixEnd - match.prefixStart;
 
-  let newValue =
-    content.slice(0, match.suffixStart) + content.slice(match.suffixEnd);
-  newValue =
-    newValue.slice(0, match.prefixStart) +
-    newValue.slice(match.prefixStart + prefixLen);
+  let newValue = content.slice(0, match.suffixStart) + content.slice(match.suffixEnd);
+  newValue = newValue.slice(0, match.prefixStart) + newValue.slice(match.prefixStart + prefixLen);
 
   return {
     newValue,
@@ -182,11 +179,7 @@ export function insertSizeDecoration(
     }
 
     const newValue =
-      value.slice(0, selectionStart) +
-      prefix +
-      selected +
-      suffix +
-      value.slice(selectionEnd);
+      value.slice(0, selectionStart) + prefix + selected + suffix + value.slice(selectionEnd);
     return {
       newValue,
       newStart: selectionStart + prefix.length,
@@ -194,11 +187,7 @@ export function insertSizeDecoration(
     };
   }
 
-  const newValue =
-    value.slice(0, selectionStart) +
-    prefix +
-    suffix +
-    value.slice(selectionStart);
+  const newValue = value.slice(0, selectionStart) + prefix + suffix + value.slice(selectionStart);
   const cursor = selectionStart + prefix.length;
   return { newValue, newStart: cursor, newEnd: cursor };
 }
@@ -227,11 +216,7 @@ export function SizeFormatButton({
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const sizeMatch = findSizeDecoration(
-    content,
-    selectionRange.start,
-    selectionRange.end,
-  );
+  const sizeMatch = findSizeDecoration(content, selectionRange.start, selectionRange.end);
   const isActive = sizeMatch !== null;
 
   const handleRemove = () => {
@@ -270,10 +255,7 @@ export function SizeFormatButton({
         onClick={handleRemove}
         aria-label={ariaLabel}
         aria-pressed
-        className={cn(
-          "text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15",
-          className,
-        )}
+        className={cn("text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15", className)}
       >
         <Icon className={cn(iconClassName)} />
       </Button>
@@ -286,7 +268,10 @@ export function SizeFormatButton({
       size="icon"
       type="button"
       aria-label={ariaLabel}
-      className={cn("text-muted-foreground hover:text-foreground transition-colors duration-160 ease", className)}
+      className={cn(
+        "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+        className,
+      )}
     >
       <Icon className={cn(iconClassName)} />
     </Button>

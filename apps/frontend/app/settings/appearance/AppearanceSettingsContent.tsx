@@ -3,10 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useAtom } from "jotai";
 import { Palette } from "lucide-react";
-import {
-  SettingsRowGroup,
-  SettingsSelectRow,
-} from "@/components/settings/SettingsRow";
+import { SettingsRowGroup, SettingsSelectRow } from "@/components/settings/SettingsRow";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MfmSettingsSection } from "@/components/settings/MfmSettingsSection";
 import { themeAtom } from "@/atoms/theme";
@@ -17,9 +14,7 @@ export function AppearanceSettingsContent() {
 
   return (
     <>
-      <PageHeader backHref="/settings">
-        {t("settings.appearance.title")}
-      </PageHeader>
+      <PageHeader backHref="/settings">{t("settings.appearance.title")}</PageHeader>
       <div className="space-y-3">
         <SettingsRowGroup>
           <SettingsSelectRow

@@ -16,11 +16,7 @@ type TimelinePage = components["schemas"]["TimelinePage"];
 const owner = { id: "owner-id", username: "owner" };
 const other = { id: "other-id", username: "other" };
 
-function post(
-  id: string,
-  author = owner,
-  overrides: Partial<Post> = {},
-): Post {
+function post(id: string, author = owner, overrides: Partial<Post> = {}): Post {
   return {
     id,
     author: {
@@ -49,9 +45,7 @@ function page(items: Post[], nextCursor?: string | null): TimelinePage {
   };
 }
 
-function makeFetchReplies(
-  repliesByParent: Record<string, TimelinePage[]>,
-): FetchRepliesPage {
+function makeFetchReplies(repliesByParent: Record<string, TimelinePage[]>): FetchRepliesPage {
   return async (postId, params) => {
     const pages = repliesByParent[postId] ?? [page([])];
     if (!params.cursor) return pages[0] ?? page([]);
@@ -87,11 +81,7 @@ describe("collectOwnerReplyThread", () => {
       }),
     );
 
-    expect(replies.map((reply) => reply.id)).toEqual([
-      "owner-a",
-      "owner-a-child",
-      "owner-b",
-    ]);
+    expect(replies.map((reply) => reply.id)).toEqual(["owner-a", "owner-a-child", "owner-b"]);
   });
 
   it("walks every replies page before recursing", async () => {
@@ -102,19 +92,13 @@ describe("collectOwnerReplyThread", () => {
     const replies = await collectOwnerReplyThread(
       root,
       makeFetchReplies({
-        [root.id]: [
-          page([firstPageReply], "1"),
-          page([secondPageReply], null),
-        ],
+        [root.id]: [page([firstPageReply], "1"), page([secondPageReply], null)],
         [firstPageReply.id]: [page([])],
         [secondPageReply.id]: [page([])],
       }),
     );
 
-    expect(replies.map((reply) => reply.id)).toEqual([
-      "first-page-reply",
-      "second-page-reply",
-    ]);
+    expect(replies.map((reply) => reply.id)).toEqual(["first-page-reply", "second-page-reply"]);
   });
 
   it("does not collect duplicates when a malformed reply graph repeats a post", async () => {
@@ -273,11 +257,7 @@ describe("collectOwnerReplyThreadChunk", () => {
       }),
     );
 
-    expect(chunk.replies.map((reply) => reply.id)).toEqual([
-      "owner-a",
-      "owner-b",
-      "owner-c",
-    ]);
+    expect(chunk.replies.map((reply) => reply.id)).toEqual(["owner-a", "owner-b", "owner-c"]);
     expect(chunk.continuationParentIds).toEqual([]);
   });
 });
@@ -348,10 +328,7 @@ describe("mergeTimelineOwnerThreads", () => {
       createdAt: "2026-05-17T00:03:00.000Z",
     });
 
-    const items = mergeTimelineOwnerThreads(
-      [reply3, reply2, reply1, root],
-      new Map(),
-    );
+    const items = mergeTimelineOwnerThreads([reply3, reply2, reply1, root], new Map());
 
     expect(itemIds(items)).toEqual(["merged:root:reply-3"]);
   });
@@ -371,10 +348,7 @@ describe("mergeTimelineOwnerThreads", () => {
       createdAt: "2026-05-17T00:02:00.000Z",
     });
 
-    const items = mergeTimelineOwnerThreads(
-      [reply2, reply1, root],
-      new Map(),
-    );
+    const items = mergeTimelineOwnerThreads([reply2, reply1, root], new Map());
 
     expect(itemIds(items)).toEqual(["thread:root:reply-1,reply-2"]);
   });
@@ -409,15 +383,9 @@ describe("mergeTimelineOwnerThreads", () => {
       createdAt: "2026-05-17T00:01:00.000Z",
     });
 
-    const items = mergeTimelineOwnerThreads(
-      [reply2, reply1, root],
-      new Map([[root.id, root]]),
-    );
+    const items = mergeTimelineOwnerThreads([reply2, reply1, root], new Map([[root.id, root]]));
 
-    expect(itemIds(items)).toEqual([
-      "thread:root:reply-2",
-      "thread:root:reply-1",
-    ]);
+    expect(itemIds(items)).toEqual(["thread:root:reply-2", "thread:root:reply-1"]);
   });
 
   it("keeps non-owner reply chains within the threshold expanded", () => {
@@ -438,9 +406,7 @@ describe("mergeTimelineOwnerThreads", () => {
       new Map([[root.id, root]]),
     );
 
-    expect(itemIds(items)).toEqual([
-      "thread:root:other-reply-1,other-reply-2",
-    ]);
+    expect(itemIds(items)).toEqual(["thread:root:other-reply-1,other-reply-2"]);
   });
 
   it("collapses non-owner reply chains longer than three posts to root and latest reply", () => {
@@ -488,10 +454,7 @@ describe("mergeTimelineOwnerThreads", () => {
       new Map([[root.id, root]]),
     );
 
-    expect(itemIds(items)).toEqual([
-      "post:third-reply",
-      "thread:root:other-reply",
-    ]);
+    expect(itemIds(items)).toEqual(["post:third-reply", "thread:root:other-reply"]);
   });
 
   it("does not group owner replies that are not connected to the owner thread chain", () => {
@@ -512,10 +475,7 @@ describe("mergeTimelineOwnerThreads", () => {
       new Map([[root.id, root]]),
     );
 
-    expect(itemIds(items)).toEqual([
-      "post:owner-under-other",
-      "thread:root:other-reply",
-    ]);
+    expect(itemIds(items)).toEqual(["post:owner-under-other", "thread:root:other-reply"]);
   });
 
   it("keeps multiple owner threads under one root independent", () => {
@@ -546,15 +506,9 @@ describe("mergeTimelineOwnerThreads", () => {
       createdAt: "2026-05-17T00:11:00.000Z",
     });
 
-    const items = mergeTimelineOwnerThreads(
-      [b2, b1, a3, a2, a1, root],
-      new Map([[root.id, root]]),
-    );
+    const items = mergeTimelineOwnerThreads([b2, b1, a3, a2, a1, root], new Map([[root.id, root]]));
 
-    expect(itemIds(items)).toEqual([
-      "thread:root:b-1,b-2",
-      "merged:root:a-3",
-    ]);
+    expect(itemIds(items)).toEqual(["thread:root:b-1,b-2", "merged:root:a-3"]);
   });
 
   it("collapses each root independently", () => {
@@ -601,10 +555,7 @@ describe("mergeTimelineOwnerThreads", () => {
       ]),
     );
 
-    expect(itemIds(items)).toEqual([
-      "merged:root-b:b-3",
-      "merged:root-a:a-3",
-    ]);
+    expect(itemIds(items)).toEqual(["merged:root-b:b-3", "merged:root-a:a-3"]);
   });
 });
 
@@ -620,8 +571,6 @@ describe("getTimelineOwnerThreadMergeRootIds", () => {
       rootId: root.id,
     });
 
-    expect(
-      getTimelineOwnerThreadMergeRootIds([nestedReply, directReply, root]),
-    ).toEqual([root.id]);
+    expect(getTimelineOwnerThreadMergeRootIds([nestedReply, directReply, root])).toEqual([root.id]);
   });
 });

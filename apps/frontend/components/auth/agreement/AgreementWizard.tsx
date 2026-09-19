@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAgreementVersions, useLatestAgreement, useMe, queryKeys } from "@/lib/hooks/use-queries";
+import {
+  useAgreementVersions,
+  useLatestAgreement,
+  useMe,
+  queryKeys,
+} from "@/lib/hooks/use-queries";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useApi } from "@/lib/api/use-api";
 import type { components } from "@/lib/api/api";
@@ -29,28 +34,36 @@ export function AgreementWizard() {
   const { logout } = useAuth();
   const api = useApi();
   const queryClient = useQueryClient();
-  
+
   // Directly check versions here without using useAgreementCheck to avoid circular dependencies
   const { data: me } = useMe();
   const { data: versions } = useAgreementVersions();
-  
+
   // Custom mutation that doesn't refetch immediately during multi-step flow
   const acceptMutation = useMutation({
-    mutationFn: async (body: components['schemas']['AcceptAgreementsRequest']) => {
+    mutationFn: async (body: components["schemas"]["AcceptAgreementsRequest"]) => {
       const result = await api.acceptAgreements(body);
       if (!result.ok) throw new Error(result.errorText);
     },
     // Don't refetch on success - we'll do it manually after all steps complete
     onSuccess: undefined,
   });
-  
+
   // Calculate what needs updating directly
   const needsTerms = (me?.termsVersion ?? 0) < (versions?.termsVersion ?? 0);
   const needsPrivacy = (me?.privacyVersion ?? 0) < (versions?.privacyVersion ?? 0);
 
   // Fetch latest agreement documents from API - only fetch what's needed
-  const { data: termsDoc, isLoading: termsLoading } = useLatestAgreement('terms', locale, needsTerms);
-  const { data: privacyDoc, isLoading: privacyLoading } = useLatestAgreement('privacy', locale, needsPrivacy);
+  const { data: termsDoc, isLoading: termsLoading } = useLatestAgreement(
+    "terms",
+    locale,
+    needsTerms,
+  );
+  const { data: privacyDoc, isLoading: privacyLoading } = useLatestAgreement(
+    "privacy",
+    locale,
+    needsPrivacy,
+  );
 
   // State
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -64,7 +77,7 @@ export function AgreementWizard() {
 
   // Loading state - wait for agreements that need to be shown
   const loadingAgreements = (needsTerms && termsLoading) || (needsPrivacy && privacyLoading);
-  
+
   // Determine which steps to show based on what needs updating
   const steps = useMemo((): AgreementWizardStep[] => {
     const s: AgreementWizardStep[] = [];
@@ -86,12 +99,13 @@ export function AgreementWizard() {
 
   // Show message if no agreements need updating instead of auto-redirecting
   // Auto-redirect causes confusion and cache issues
-  const showAlreadyAcceptedMessage = me && versions && !needsTerms && !needsPrivacy && !loadingAgreements;
+  const showAlreadyAcceptedMessage =
+    me && versions && !needsTerms && !needsPrivacy && !loadingAgreements;
 
   // Navigation functions
   const goNext = () => {
     if (isTransitioning || loading) return;
-    
+
     const nextIndex = currentStepIndex + 1;
     if (nextIndex < steps.length) {
       setDirection("forward");
@@ -102,7 +116,7 @@ export function AgreementWizard() {
 
   const goBack = () => {
     if (isTransitioning || loading) return;
-    
+
     const prevIndex = currentStepIndex - 1;
     if (prevIndex >= 0) {
       setDirection("backward");
@@ -132,14 +146,14 @@ export function AgreementWizard() {
 
       if (currentStep === "terms") {
         body.termsVersion = versions.termsVersion;
-        
-        console.log('[AgreementWizard] Accepting terms, needsPrivacy:', needsPrivacy);
-        
+
+        console.log("[AgreementWizard] Accepting terms, needsPrivacy:", needsPrivacy);
+
         // If privacy also needs updating and is next, we'll handle it on the next step
         // Otherwise, if privacy doesn't need updating, we're done
         if (!needsPrivacy) {
           // Only terms needed, submit and redirect
-          console.log('[AgreementWizard] Only terms needed, redirecting to home');
+          console.log("[AgreementWizard] Only terms needed, redirecting to home");
           await acceptMutation.mutateAsync(body);
           // Refetch user data before redirecting
           await queryClient.refetchQueries({ queryKey: queryKeys.me });
@@ -148,15 +162,15 @@ export function AgreementWizard() {
           return;
         } else {
           // Privacy step comes next, just accept terms and move forward
-          console.log('[AgreementWizard] Terms accepted, moving to privacy step');
+          console.log("[AgreementWizard] Terms accepted, moving to privacy step");
           await acceptMutation.mutateAsync(body);
-          console.log('[AgreementWizard] About to call goNext()');
+          console.log("[AgreementWizard] About to call goNext()");
           goNext();
           return;
         }
       } else if (currentStep === "privacy") {
         body.privacyVersion = versions.privacyVersion;
-        
+
         // Privacy is the last step (or only step), submit and redirect
         await acceptMutation.mutateAsync(body);
         // Refetch user data before redirecting

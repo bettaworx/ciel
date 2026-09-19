@@ -21,9 +21,7 @@ export function UsernameSettingsContent() {
 
   return (
     <>
-      <PageHeader backHref={PARENT}>
-        {t("settings.account.username.title")}
-      </PageHeader>
+      <PageHeader backHref={PARENT}>{t("settings.account.username.title")}</PageHeader>
       <StepupGate heading={t("settings.reauth.heading")} cancelHref={PARENT}>
         {(stepupToken, invalidate) => (
           <UsernameForm stepupToken={stepupToken} onStepupExpired={invalidate} />

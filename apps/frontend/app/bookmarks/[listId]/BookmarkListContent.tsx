@@ -26,10 +26,7 @@ export function BookmarkListContent({ listId }: { listId: string }) {
   const list = lists?.find((candidate) => candidate.id === listId);
 
   const query = useBookmarkListPosts(listId);
-  const posts = useMemo(
-    () => query.data?.pages.flatMap((page) => page.items) ?? [],
-    [query.data],
-  );
+  const posts = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
 
   const sentinelRef = useInfiniteScroll({
     enabled: posts.length > 0,
@@ -45,10 +42,7 @@ export function BookmarkListContent({ listId }: { listId: string }) {
         <PageHeader
           action={
             list && (
-              <BookmarkListRowMenu
-                list={list}
-                onDeleted={() => router.replace("/bookmarks")}
-              />
+              <BookmarkListRowMenu list={list} onDeleted={() => router.replace("/bookmarks")} />
             )
           }
         >
@@ -80,9 +74,7 @@ export function BookmarkListContent({ listId }: { listId: string }) {
                 post={post}
                 variant="timeline"
                 isLast={index === posts.length - 1}
-                onUserClick={(username) =>
-                  router.push(`/users/${encodeURIComponent(username)}`)
-                }
+                onUserClick={(username) => router.push(`/users/${encodeURIComponent(username)}`)}
               />
             ))
           )}

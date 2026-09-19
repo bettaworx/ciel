@@ -7,29 +7,16 @@ import { toast } from "sonner";
 import { useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import {
-  Copy,
-  EyeOff,
-  MoreHorizontal,
-  RotateCcw,
-  Trash2,
-} from "lucide-react";
+import { Copy, EyeOff, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { useDeletePost } from "@/lib/hooks/use-queries";
-import {
-  PostCardIndicatorRow,
-  type PostCardIndicator,
-} from "@/components/PostCardIndicatorRow";
+import { PostCardIndicatorRow, type PostCardIndicator } from "@/components/PostCardIndicatorRow";
 import { PostPlaceholderCard } from "@/components/PostPlaceholderCard";
 
 type DeletedPostCardProps = {
@@ -60,12 +47,8 @@ export function DeletedPostCard({
   const deletePost = useDeletePost();
   const [indicatorMenuOpen, setIndicatorMenuOpen] = useState(false);
   const PlaceholderIcon = restricted ? EyeOff : Trash2;
-  const placeholderLabel = restricted
-    ? t("restrictedPost.label")
-    : t("deletedPost.label");
-  const canUndoBoost =
-    indicator?.actorUserId != null &&
-    indicator.actorUserId === auth.user?.id;
+  const placeholderLabel = restricted ? t("restrictedPost.label") : t("deletedPost.label");
+  const canUndoBoost = indicator?.actorUserId != null && indicator.actorUserId === auth.user?.id;
 
   const handleCopyPostId = useCallback(() => {
     navigator.clipboard.writeText(referenceId).then(
@@ -93,7 +76,7 @@ export function DeletedPostCard({
   const showMenu = !restricted || canUndoBoost;
   const showCopyPostId = !restricted;
 
-  const menuNode = !showMenu ? undefined : (isDesktop ? (
+  const menuNode = !showMenu ? undefined : isDesktop ? (
     <DropdownMenu open={indicatorMenuOpen} onOpenChange={setIndicatorMenuOpen}>
       <DropdownMenuTrigger asChild>
         <Button
@@ -157,7 +140,7 @@ export function DeletedPostCard({
         </div>
       </DrawerContent>
     </Drawer>
-  ));
+  );
 
   const indicatorNode = indicator && (
     <PostCardIndicatorRow

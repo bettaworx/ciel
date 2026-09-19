@@ -150,15 +150,7 @@ export const fontFaces = {
 
 type FontFaceKey = keyof typeof fontFaces;
 
-export type FontLanguageCode =
-  | "ja"
-  | "en"
-  | "zh-Hans"
-  | "zh-Hant"
-  | "ko"
-  | "he"
-  | "ar"
-  | "th";
+export type FontLanguageCode = "ja" | "en" | "zh-Hans" | "zh-Hant" | "ko" | "he" | "ar" | "th";
 
 export type FontDirection = "ltr" | "rtl";
 

@@ -22,10 +22,7 @@ export function MfmHashtag({ node }: MfmHashtagProps) {
   }
 
   return (
-    <Link
-      href={searchUrl(`#${hashtag}`, "posts")}
-      className="mfm-hashtag hover:underline"
-    >
+    <Link href={searchUrl(`#${hashtag}`, "posts")} className="mfm-hashtag hover:underline">
       #{hashtag}
     </Link>
   );

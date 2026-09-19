@@ -33,12 +33,7 @@ export function containRect(natW: number, natH: number, box: Rect): Rect {
 
 /** Whether a viewport point falls inside `rect`. */
 export function containsPoint(rect: Rect, x: number, y: number): boolean {
-  return (
-    x >= rect.x &&
-    x <= rect.x + rect.width &&
-    y >= rect.y &&
-    y <= rect.y + rect.height
-  );
+  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
 }
 
 /**

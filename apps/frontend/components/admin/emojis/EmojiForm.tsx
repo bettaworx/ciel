@@ -38,9 +38,7 @@ export function EmojiForm({
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlRef = useRef<string | null>(null);
-  const [values, setValues] = useState<AdminEmojiFormValues>(
-    getAdminEmojiFormDefaults(),
-  );
+  const [values, setValues] = useState<AdminEmojiFormValues>(getAdminEmojiFormDefaults());
   const [formError, setFormError] = useState<string | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
@@ -140,10 +138,8 @@ export function EmojiForm({
     });
   };
 
-  const title =
-    mode === "create" ? t("createTitle") : t("editTitle");
-  const description =
-    mode === "create" ? t("createDescription") : t("editDescription");
+  const title = mode === "create" ? t("createTitle") : t("editTitle");
+  const description = mode === "create" ? t("createDescription") : t("editDescription");
 
   return (
     <>
@@ -152,11 +148,7 @@ export function EmojiForm({
           <div className="mx-auto w-full max-w-4xl space-y-6 py-8">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => router.push(backHref)}
-                >
+                <Button variant="ghost" size="icon" onClick={() => router.push(backHref)}>
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <h1 className="text-2xl font-bold">{title}</h1>
@@ -199,13 +191,9 @@ export function EmojiForm({
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isPending}
                   >
-                    {mode === "create"
-                      ? t("actions.selectImage")
-                      : t("actions.replaceImage")}
+                    {mode === "create" ? t("actions.selectImage") : t("actions.replaceImage")}
                   </Button>
-                  <p className="text-xs text-muted-foreground">
-                    {t("form.imageHint")}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t("form.imageHint")}</p>
                 </div>
 
                 <div className="grid gap-4">
@@ -223,9 +211,7 @@ export function EmojiForm({
                       placeholder={t("form.shortcodePlaceholder")}
                       disabled={isPending}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      {t("form.shortcodeHint")}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{t("form.shortcodeHint")}</p>
                   </div>
 
                   <div className="grid gap-2">
@@ -278,9 +264,7 @@ export function EmojiForm({
                 </div>
               </div>
 
-              {formError ? (
-                <p className="text-sm text-destructive">{formError}</p>
-              ) : null}
+              {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
 
               <div className="flex justify-end gap-2">
                 <Button

@@ -65,9 +65,7 @@ export function MfmNode({ node }: MfmNodeProps) {
 
     // --- Small text ---
     case "small": {
-      return (
-        <small className="mfm-small">{renderChildren(node.children)}</small>
-      );
+      return <small className="mfm-small">{renderChildren(node.children)}</small>;
     }
 
     // --- Center align (block) ---
@@ -77,11 +75,7 @@ export function MfmNode({ node }: MfmNodeProps) {
 
     // --- Quote (block) ---
     case "quote": {
-      return (
-        <blockquote className="mfm-quote">
-          {renderChildren(node.children)}
-        </blockquote>
-      );
+      return <blockquote className="mfm-quote">{renderChildren(node.children)}</blockquote>;
     }
 
     // --- Code block ---
@@ -112,12 +106,7 @@ export function MfmNode({ node }: MfmNodeProps) {
       }
       const segments = formatDisplayUrl(node.props.url);
       return (
-        <a
-          href={url}
-          className="mfm-url font-bold"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href={url} className="mfm-url font-bold" target="_blank" rel="noopener noreferrer">
           {segments.map((seg, i) =>
             seg.dim ? (
               <span key={i} className="opacity-85 font-normal">
@@ -139,12 +128,7 @@ export function MfmNode({ node }: MfmNodeProps) {
         return <span>{renderChildren(node.children)}</span>;
       }
       return (
-        <a
-          href={url}
-          className="mfm-link"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href={url} className="mfm-link" target="_blank" rel="noopener noreferrer">
           {renderChildren(node.children)}
           <ExternalLink size={12} className="mfm-external-link-icon" />
         </a>
@@ -223,8 +207,7 @@ function formatDisplayUrl(rawUrl: string): UrlSegment[] {
   try {
     parsed = new URL(rawUrl);
   } catch {
-    const text =
-      rawUrl.length > MAX_LEN ? `${rawUrl.slice(0, MAX_LEN - 1)}…` : rawUrl;
+    const text = rawUrl.length > MAX_LEN ? `${rawUrl.slice(0, MAX_LEN - 1)}…` : rawUrl;
     return [{ text, dim: false }];
   }
 
@@ -232,10 +215,7 @@ function formatDisplayUrl(rawUrl: string): UrlSegment[] {
 
   const mainPart = parsed.hostname;
 
-  const dimSuffix =
-    (parsed.pathname === "/" ? "" : parsed.pathname) +
-    parsed.search +
-    parsed.hash;
+  const dimSuffix = (parsed.pathname === "/" ? "" : parsed.pathname) + parsed.search + parsed.hash;
 
   const fullLen = dimPrefix.length + mainPart.length + dimSuffix.length;
   if (fullLen <= MAX_LEN) {

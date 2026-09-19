@@ -4,24 +4,14 @@ import { useDeferredValue, useMemo } from "react";
 import { useLocale } from "next-intl";
 import { useEmojiData, resolveEmoji } from "./use-emoji-data";
 import { useCustomEmojis } from "@/lib/hooks/use-queries";
-import {
-  useRecentEmojis,
-  useEmojiSkinTone,
-  normalizeRecentEmojis,
-} from "@/atoms/emoji-picker";
-import {
-  RECENT_CATEGORY_ICON,
-  CUSTOM_CATEGORY_ICON,
-} from "./constants";
-import {
-  getEmojiSrc,
-} from "./helpers";
+import { useRecentEmojis, useEmojiSkinTone, normalizeRecentEmojis } from "@/atoms/emoji-picker";
+import { RECENT_CATEGORY_ICON, CUSTOM_CATEGORY_ICON } from "./constants";
+import { getEmojiSrc } from "./helpers";
 import type { EmojiItem, EmojiCategory } from "./types";
 import { buildEmojiSearchDataset, searchEmojiDataset } from "./search";
 
 function resolveEmojiItemTone(item: EmojiItem, skinTone: number): EmojiItem {
-  const resolvedEmoji =
-    skinTone !== 0 && item.emoji ? resolveEmoji(item, skinTone) : item.emoji;
+  const resolvedEmoji = skinTone !== 0 && item.emoji ? resolveEmoji(item, skinTone) : item.emoji;
 
   if (!resolvedEmoji || resolvedEmoji === item.emoji) {
     return item;

@@ -26,10 +26,7 @@ const EMPTY_KEYS: Record<FollowTab, string> = {
   followers_you_follow: "user.noFollowersYouFollow",
 };
 
-export function UserFollowListContent({
-  username,
-  tab,
-}: UserFollowListContentProps) {
+export function UserFollowListContent({ username, tab }: UserFollowListContentProps) {
   const t = useTranslations();
   const router = useRouter();
   const authUser = useAtomValue(userAtom);
@@ -39,8 +36,10 @@ export function UserFollowListContent({
   // viewer at all, so the tab is hidden in both cases.
   const showsKnownTab = !!authUser && !isOwnProfile;
 
-  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useFollowList(username, tab);
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useFollowList(
+    username,
+    tab,
+  );
 
   useEffect(() => {
     if (tab === "followers_you_follow" && !showsKnownTab) {
@@ -58,23 +57,16 @@ export function UserFollowListContent({
   const users = data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <PageContainer
-      maxWidth="2xl"
-      header={<PageHeader>@{username}</PageHeader>}
-    >
+    <PageContainer maxWidth="2xl" header={<PageHeader>@{username}</PageHeader>}>
       <Tabs
         value={tab}
-        onValueChange={(next) =>
-          router.replace(`/users/${encodeURIComponent(username)}/${next}`)
-        }
+        onValueChange={(next) => router.replace(`/users/${encodeURIComponent(username)}/${next}`)}
       >
         <TabsList className="mb-3 w-full">
           <TabsTrigger value="following">{t("user.followingCount")}</TabsTrigger>
           <TabsTrigger value="followers">{t("user.followersCount")}</TabsTrigger>
           {showsKnownTab && (
-            <TabsTrigger value="followers_you_follow">
-              {t("user.followersYouFollow")}
-            </TabsTrigger>
+            <TabsTrigger value="followers_you_follow">{t("user.followersYouFollow")}</TabsTrigger>
           )}
         </TabsList>
       </Tabs>

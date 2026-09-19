@@ -14,10 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Locale } from "@/i18n/constants";
-import {
-  resolveEmoji,
-  useEmojiData,
-} from "@/lib/emoji-picker/use-emoji-data";
+import { resolveEmoji, useEmojiData } from "@/lib/emoji-picker/use-emoji-data";
 
 const SKIN_TONE_OPTIONS = [
   { value: "0", label: "デフォルト", sample: "👋" },
@@ -33,33 +30,18 @@ export default function EmojiTestPage() {
   const { data, isLoading, error } = useEmojiData(locale);
   const [tone, setTone] = useState(0);
   const categories = data?.categories ?? [];
-  const totalCount = categories.reduce(
-    (count, category) => count + category.emojis.length,
-    0,
-  );
-  const errorMessage = error
-    ? error instanceof Error
-      ? error.message
-      : String(error)
-    : null;
+  const totalCount = categories.reduce((count, category) => count + category.emojis.length, 0);
+  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
 
   return (
-    <PageContainer
-      maxWidth="6xl"
-      header={<PageHeader>Twemoji テスト</PageHeader>}
-    >
+    <PageContainer maxWidth="6xl" header={<PageHeader>Twemoji テスト</PageHeader>}>
       <div className="mb-6 flex items-center justify-between gap-4 pt-2">
         <p className="text-sm text-muted-foreground">
           {isLoading ? "読み込み中..." : `${totalCount} 個の絵文字`}
         </p>
         <div className="flex items-center gap-2">
-          <span className="whitespace-nowrap text-sm text-muted-foreground">
-            肌の色
-          </span>
-          <Select
-            value={String(tone)}
-            onValueChange={(value) => setTone(Number(value))}
-          >
+          <span className="whitespace-nowrap text-sm text-muted-foreground">肌の色</span>
+          <Select value={String(tone)} onValueChange={(value) => setTone(Number(value))}>
             <SelectTrigger className="w-52">
               <SelectValue />
             </SelectTrigger>
@@ -90,10 +72,7 @@ export default function EmojiTestPage() {
               <div className="mb-3 h-5 w-32 animate-pulse rounded bg-muted" />
               <div className="flex flex-wrap gap-1">
                 {Array.from({ length: 24 }).map((_, itemIndex) => (
-                  <div
-                    key={itemIndex}
-                    className="size-9 animate-pulse rounded bg-muted"
-                  />
+                  <div key={itemIndex} className="size-9 animate-pulse rounded bg-muted" />
                 ))}
               </div>
             </div>

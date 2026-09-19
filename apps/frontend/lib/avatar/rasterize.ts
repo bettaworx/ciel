@@ -20,10 +20,7 @@ export async function rasterizeSvgToFile(
   ctx.drawImage(img, 0, 0, size, size);
 
   const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error("Canvas toBlob failed"))),
-      "image/png",
-    );
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Canvas toBlob failed"))), "image/png");
   });
 
   return new File([blob], filename, { type: "image/png" });

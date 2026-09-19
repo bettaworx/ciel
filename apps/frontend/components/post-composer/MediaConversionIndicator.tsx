@@ -19,9 +19,7 @@ interface MediaConversionIndicatorProps {
  * Uses the same SVG ring technique as CharacterCounter, on the same translucent
  * disc as RemoveButton so it reads against any frame of the video.
  */
-export function MediaConversionIndicator({
-  progress,
-}: MediaConversionIndicatorProps) {
+export function MediaConversionIndicator({ progress }: MediaConversionIndicatorProps) {
   const t = useTranslations("createPost");
   const radius = 9;
   const circumference = 2 * Math.PI * radius;
@@ -52,13 +50,7 @@ export function MediaConversionIndicator({
       className={`${shell} gap-1.5`}
     >
       <svg className="w-3.5 h-3.5 shrink-0 -rotate-90" viewBox="0 0 24 24">
-        <circle
-          cx="12"
-          cy="12"
-          r={radius}
-          className="fill-none stroke-white/30"
-          strokeWidth="3"
-        />
+        <circle cx="12" cy="12" r={radius} className="fill-none stroke-white/30" strokeWidth="3" />
         <circle
           cx="12"
           cy="12"

@@ -22,9 +22,7 @@ export default function NewEmojiPage() {
           toast.success(t("messages.createSuccess"));
           router.push("/admin/emojis");
         } catch (error) {
-          toast.error(
-            error instanceof Error ? error.message : t("messages.createError"),
-          );
+          toast.error(error instanceof Error ? error.message : t("messages.createError"));
         }
       }}
     />

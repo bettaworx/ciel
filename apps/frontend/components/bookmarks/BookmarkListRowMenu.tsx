@@ -32,10 +32,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { BookmarkListFormDialog } from "@/components/bookmarks/BookmarkListFormDialog";
-import {
-  useDeleteBookmarkList,
-  type BookmarkList,
-} from "@/lib/hooks/use-bookmarks";
+import { useDeleteBookmarkList, type BookmarkList } from "@/lib/hooks/use-bookmarks";
 
 interface BookmarkListRowMenuProps {
   list: BookmarkList;
@@ -173,9 +170,7 @@ export function BookmarkListRowMenu({ list, onDeleted }: BookmarkListRowMenuProp
               <AlertDialogDescription>{confirmText}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={remove.isPending}>
-                {t("cancel")}
-              </AlertDialogCancel>
+              <AlertDialogCancel disabled={remove.isPending}>{t("cancel")}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={(event) => {
                   // Keep the dialog up until the request settles, so a failure

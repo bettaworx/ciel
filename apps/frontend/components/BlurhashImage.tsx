@@ -113,7 +113,10 @@ export function BlurhashImage({
             });
           };
 
-          void image.decode().catch(() => undefined).then(reveal);
+          void image
+            .decode()
+            .catch(() => undefined)
+            .then(reveal);
         }}
       />
     </>

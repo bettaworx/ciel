@@ -129,9 +129,7 @@ export function StepupPrompt({ open, heading, stepup, onDismiss }: StepupPromptP
         <div className="px-4 pb-4 pt-6">
           <DrawerTitle className="sr-only">{heading}</DrawerTitle>
           {body}
-          <DrawerFooter className="mt-6 flex-row justify-between p-0">
-            {actions}
-          </DrawerFooter>
+          <DrawerFooter className="mt-6 flex-row justify-between p-0">{actions}</DrawerFooter>
         </div>
       </DrawerContent>
     </Drawer>

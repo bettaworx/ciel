@@ -35,13 +35,9 @@ export function rendersAsPostCard(notification: Notification): boolean {
  * the backend stores as a `boost` — the difference is whether the boosting post
  * carries text of its own.
  */
-export type NotificationDisplayType =
-  | Notification["type"]
-  | "quote";
+export type NotificationDisplayType = Notification["type"] | "quote";
 
-export function notificationDisplayType(
-  notification: Notification,
-): NotificationDisplayType {
+export function notificationDisplayType(notification: Notification): NotificationDisplayType {
   const post = notification.post;
   if (notification.type === "boost" && post && !isPureBoost(post)) {
     return "quote";
@@ -76,9 +72,7 @@ export function notificationActors(
   notification: Notification,
 ): NonNullable<Notification["actors"]> {
   if (notification.actors?.length) return notification.actors;
-  return notification.actor
-    ? [{ user: notification.actor, emoji: notification.emoji }]
-    : [];
+  return notification.actor ? [{ user: notification.actor, emoji: notification.emoji }] : [];
 }
 
 /**
@@ -99,9 +93,7 @@ export function notificationCount(notification: Notification): number {
  * read, not just the one whose id it carries.
  */
 export function notificationIds(notification: Notification): string[] {
-  return notification.notificationIds?.length
-    ? notification.notificationIds
-    : [notification.id];
+  return notification.notificationIds?.length ? notification.notificationIds : [notification.id];
 }
 
 /**
@@ -117,9 +109,7 @@ export function notificationExcerpt(notification: Notification): string {
 }
 
 /** Post a notification should link to when tapped. */
-export function notificationTargetPostId(
-  notification: Notification,
-): string | undefined {
+export function notificationTargetPostId(notification: Notification): string | undefined {
   const post = notification.post;
   if (!post) return undefined;
   // A pure boost has no content of its own — send the user to what was boosted.

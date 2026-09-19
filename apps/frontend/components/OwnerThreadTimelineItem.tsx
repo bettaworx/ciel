@@ -1,11 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-  PostCard,
-  PostTreeActionButton,
-  type PostCardThreadLine,
-} from "@/components/PostCard";
+import { PostCard, PostTreeActionButton, type PostCardThreadLine } from "@/components/PostCard";
 import type { components } from "@/lib/api/api";
 
 type Post = components["schemas"]["Post"];
@@ -21,10 +17,7 @@ type OwnerThreadTimelineItemProps = {
   skipHiddenCushion?: boolean;
 };
 
-function getReplyThreadLine(
-  hasPrevious: boolean,
-  hasNext: boolean,
-): PostCardThreadLine {
+function getReplyThreadLine(hasPrevious: boolean, hasNext: boolean): PostCardThreadLine {
   if (hasPrevious && hasNext) return "both";
   if (hasPrevious) return "above";
   if (hasNext) return "below";

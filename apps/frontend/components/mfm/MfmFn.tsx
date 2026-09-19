@@ -35,10 +35,7 @@ function parseNumArg(
  * Parses a CSS time value from an argument (e.g., "5s", "500ms").
  * Returns the raw string if valid, or the default value.
  */
-function parseSpeedArg(
-  value: string | true | undefined,
-  defaultVal: string,
-): string {
+function parseSpeedArg(value: string | true | undefined, defaultVal: string): string {
   if (value === undefined || value === true) return defaultVal;
   if (/^[0-9.]+m?s$/.test(value)) return value;
   return defaultVal;
@@ -105,11 +102,7 @@ export function MfmFn({ node, children }: MfmFnProps) {
             ? "mfm-spin-y-alternate"
             : "mfm-spin-y";
       } else {
-        className = isLeft
-          ? "mfm-spin-left"
-          : isAlternate
-            ? "mfm-spin-alternate"
-            : "mfm-spin";
+        className = isLeft ? "mfm-spin-left" : isAlternate ? "mfm-spin-alternate" : "mfm-spin";
       }
       break;
     }
@@ -154,11 +147,9 @@ export function MfmFn({ node, children }: MfmFnProps) {
     case "font": {
       style.display = "inline-block";
       // Respect per-font sub-settings
-      if (args.serif === true && settings.font.serif)
-        style.fontFamily = "var(--mfm-font-serif)";
+      if (args.serif === true && settings.font.serif) style.fontFamily = "var(--mfm-font-serif)";
       else if (args.monospace === true && settings.font.monospace)
-        style.fontFamily =
-          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+        style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
       else if (args.cursive === true && settings.font.cursive) style.fontFamily = "cursive";
       else if (args.fantasy === true && settings.font.fantasy) style.fontFamily = "fantasy";
       // If the specific sub-font is disabled, renders in default font (no fontFamily set)
@@ -214,9 +205,7 @@ export function MfmFn({ node, children }: MfmFnProps) {
       const width = parseNumArg(args.width as string, 1, 0, 20);
       style.borderWidth = `${width}px`;
 
-      const color = args.color
-        ? validateColor(args.color as string)
-        : "var(--border)";
+      const color = args.color ? validateColor(args.color as string) : "var(--border)";
       style.borderColor = color || "var(--border)";
 
       const radius = parseNumArg(args.radius as string, 0, 0, 50);

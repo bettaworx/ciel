@@ -33,13 +33,8 @@ export function MfaSettingsContent() {
 
   return (
     <>
-      <PageHeader backHref="/settings/security">
-        {t("settings.security.mfa.title")}
-      </PageHeader>
-      <StepupGate
-        heading={t("settings.reauth.heading")}
-        cancelHref="/settings/security"
-      >
+      <PageHeader backHref="/settings/security">{t("settings.security.mfa.title")}</PageHeader>
+      <StepupGate heading={t("settings.reauth.heading")} cancelHref="/settings/security">
         {(stepupToken, invalidate) => (
           <MfaManager stepupToken={stepupToken} onStepupExpired={invalidate} />
         )}
@@ -62,18 +57,13 @@ function MfaManager({
 }) {
   const t = useTranslations();
   const locale = useLocale();
-  const { api, refresh, status, isLoading, pending, run } = useMfa(
-    stepupToken,
-    onStepupExpired,
-  );
+  const { api, refresh, status, isLoading, pending, run } = useMfa(stepupToken, onStepupExpired);
 
   const [enrolling, setEnrolling] = useState(false);
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
   const [confirming, setConfirming] = useState<PendingConfirm | null>(null);
   // Naming covers both a key that was just registered and a later rename.
-  const [naming, setNaming] = useState<
-    { id: string; name: string; isNew: boolean } | null
-  >(null);
+  const [naming, setNaming] = useState<{ id: string; name: string; isNew: boolean } | null>(null);
 
   const credentials = status?.webauthnCredentials ?? [];
   const hasAnyFactor = Boolean(status?.totpEnabled) || credentials.length > 0;
@@ -132,9 +122,7 @@ function MfaManager({
       }
 
       if (confirming.kind === "credential") {
-        await run((token) =>
-          api.webauthnCredentialDelete(confirming.credential.id, token),
-        );
+        await run((token) => api.webauthnCredentialDelete(confirming.credential.id, token));
       } else {
         // Both remove and reset start by clearing the current secret; /totp/setup
         // answers 409 while one is still active.
@@ -171,9 +159,7 @@ function MfaManager({
   return (
     <>
       <div className="space-y-6">
-        <p className="text-sm text-muted-foreground">
-          {t("settings.security.mfa.description")}
-        </p>
+        <p className="text-sm text-muted-foreground">{t("settings.security.mfa.description")}</p>
 
         {/* ---- One-time password ---- */}
         <div className="space-y-1.5">
@@ -349,9 +335,7 @@ function MfaManager({
             </Button>
             <Button
               type="button"
-              variant={
-                confirming?.kind === "backup-regenerate" ? "primary" : "destructive"
-              }
+              variant={confirming?.kind === "backup-regenerate" ? "primary" : "destructive"}
               onClick={confirmDestructive}
               disabled={pending}
             >
@@ -392,10 +376,7 @@ function confirmCopy(confirming: PendingConfirm | null, status: MfaStatus) {
 }
 
 /** How many second factors would be left if `confirming` went through. */
-function factorsAfterRemoval(
-  status: MfaStatus,
-  confirming: PendingConfirm | null,
-): number {
+function factorsAfterRemoval(status: MfaStatus, confirming: PendingConfirm | null): number {
   const total = (status.totpEnabled ? 1 : 0) + status.webauthnCredentials.length;
   return confirming ? total - 1 : total;
 }

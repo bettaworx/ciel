@@ -22,12 +22,7 @@ type PageHeaderProps = {
   action?: React.ReactNode;
 };
 
-export function PageHeader({
-  children,
-  backHref,
-  showBackButton = true,
-  action,
-}: PageHeaderProps) {
+export function PageHeader({ children, backHref, showBackButton = true, action }: PageHeaderProps) {
   const router = useRouter();
 
   return (
@@ -60,9 +55,7 @@ export function PageHeader({
             <ChevronLeft className="w-5 h-5" />
           </Button>
         )}
-        <span className="text-base font-semibold text-foreground truncate">
-          {children}
-        </span>
+        <span className="text-base font-semibold text-foreground truncate">{children}</span>
         {action && <div className="ml-auto shrink-0">{action}</div>}
       </div>
     </div>

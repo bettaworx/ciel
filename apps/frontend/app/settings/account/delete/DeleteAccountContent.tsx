@@ -21,9 +21,7 @@ export function DeleteAccountContent() {
 
   return (
     <>
-      <PageHeader backHref={PARENT}>
-        {t("settings.account.delete.title")}
-      </PageHeader>
+      <PageHeader backHref={PARENT}>{t("settings.account.delete.title")}</PageHeader>
       <StepupGate heading={t("settings.reauth.heading")} cancelHref={PARENT}>
         {(stepupToken, invalidate) => (
           <DeleteForm stepupToken={stepupToken} onStepupExpired={invalidate} />
@@ -100,12 +98,8 @@ function DeleteForm({
     return (
       <div className="space-y-6">
         <div className="space-y-3">
-          <h2 className="text-xl font-semibold">
-            {t("settings.account.delete.goodbyeTitle")}
-          </h2>
-          <p className="text-muted-foreground">
-            {t("settings.account.delete.goodbyeDescription")}
-          </p>
+          <h2 className="text-xl font-semibold">{t("settings.account.delete.goodbyeTitle")}</h2>
+          <p className="text-muted-foreground">{t("settings.account.delete.goodbyeDescription")}</p>
         </div>
         <Button variant="primary" onClick={() => void goHome()}>
           {t("settings.account.delete.goHome")}
@@ -117,12 +111,8 @@ function DeleteForm({
   return (
     <form onSubmit={submit} className="space-y-6">
       <div className="space-y-3">
-        <h2 className="text-xl font-semibold">
-          {t("settings.account.delete.confirmTitle")}
-        </h2>
-        <p className="text-muted-foreground">
-          {t("settings.account.delete.confirmDescription")}
-        </p>
+        <h2 className="text-xl font-semibold">{t("settings.account.delete.confirmTitle")}</h2>
+        <p className="text-muted-foreground">{t("settings.account.delete.confirmDescription")}</p>
       </div>
 
       <Alert variant="destructive">

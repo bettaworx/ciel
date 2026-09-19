@@ -33,10 +33,7 @@ type Actor = NonNullable<Notification["actors"]>[number];
  * Icon per notification type. Shared with the PostCard indicator in
  * NotificationItem so the two never drift apart.
  */
-export const NOTIFICATION_ICONS: Record<
-  NotificationDisplayType,
-  typeof Plus
-> = {
+export const NOTIFICATION_ICONS: Record<NotificationDisplayType, typeof Plus> = {
   // Plus is the add-reaction affordance on a post card; keep the vocabulary shared.
   reaction: Plus,
   reply: Reply,
@@ -77,9 +74,7 @@ function ActorAvatar({
     <span className={cn("relative inline-flex", className)}>
       <Avatar className={size}>
         <AvatarImage src={user.avatarUrl ?? undefined} alt={name} />
-        <AvatarFallback className="text-xs">
-          {name.slice(0, 2).toUpperCase()}
-        </AvatarFallback>
+        <AvatarFallback className="text-xs">{name.slice(0, 2).toUpperCase()}</AvatarFallback>
       </Avatar>
       {/* A row covers a whole post, so each avatar carries its own emoji. */}
       {showEmoji && actor.emoji && (
@@ -140,8 +135,7 @@ export function NotificationRow({
   const t = useTranslations("notifications");
   const actors = notificationActors(notification);
   const count = notificationCount(notification);
-  const displayName =
-    actors[0]?.user.displayName || actors[0]?.user.username || "";
+  const displayName = actors[0]?.user.displayName || actors[0]?.user.username || "";
   const excerpt = notificationExcerpt(notification);
   const displayType = notificationDisplayType(notification);
   const Icon = NOTIFICATION_ICONS[displayType];
@@ -169,9 +163,7 @@ export function NotificationRow({
   const labelNode = replaceName(label, displayName, (name) => {
     // A display name carries MFM, but only what fits on one line — the
     // allow-list drops everything that would animate or resize the row.
-    const rendered = (
-      <MfmRenderer text={name} allowList={DISPLAY_NAME_ALLOW_LIST} />
-    );
+    const rendered = <MfmRenderer text={name} allowList={DISPLAY_NAME_ALLOW_LIST} />;
     if (!onUserClick || !primaryActor) return rendered;
     return (
       <button
@@ -197,13 +189,7 @@ export function NotificationRow({
     );
 
   return (
-    <div
-      className={cn(
-        "flex gap-3 p-3",
-        compact ? "items-center" : "items-start",
-        className,
-      )}
-    >
+    <div className={cn("flex gap-3 p-3", compact ? "items-center" : "items-start", className)}>
       {actorRowLayout ? (
         <span className="flex h-10 w-10 shrink-0 items-center justify-center text-c-1 sm:h-12 sm:w-12">
           {/* A row can span several emoji now, so the type icon leads and each
@@ -233,9 +219,7 @@ export function NotificationRow({
         <div className="flex items-baseline gap-2">
           {/* Weight is explicit: inside a toast this sits in sonner's title
               wrapper, which would otherwise make it bolder than in the list. */}
-          <span className="min-w-0 truncate text-sm font-normal">
-            {labelNode}
-          </span>
+          <span className="min-w-0 truncate text-sm font-normal">{labelNode}</span>
           {showTimestamp && (
             <time
               className="ml-auto shrink-0 text-xs text-muted-foreground"
@@ -248,20 +232,15 @@ export function NotificationRow({
 
         {excerpt && (
           <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
-            <MfmRenderer
-              text={excerpt}
-              allowList={NOTIFICATION_EXCERPT_ALLOW_LIST}
-            />
+            <MfmRenderer text={excerpt} allowList={NOTIFICATION_EXCERPT_ALLOW_LIST} />
           </p>
         )}
 
         {/* Not in a toast: a decision this consequential should not sit on
             something that disappears on its own. */}
-        {!singleActor &&
-          notification.type === "follow_request" &&
-          primaryActor && (
-            <FollowRequestActions username={primaryActor.user.username} />
-          )}
+        {!singleActor && notification.type === "follow_request" && primaryActor && (
+          <FollowRequestActions username={primaryActor.user.username} />
+        )}
 
         {actorRowLayout && actors.length > 0 && (
           <div className="mt-1.5 flex items-center gap-1">
@@ -276,11 +255,7 @@ export function NotificationRow({
               />
             ))}
             <Overflow count={count} shown={AVATARS_NARROW} className="sm:hidden" />
-            <Overflow
-              count={count}
-              shown={AVATARS_WIDE}
-              className="hidden sm:inline"
-            />
+            <Overflow count={count} shown={AVATARS_WIDE} className="hidden sm:inline" />
           </div>
         )}
       </div>
@@ -293,11 +268,7 @@ export function NotificationRow({
  * rendered as MFM and made clickable. Returns the label untouched when the name
  * is absent — the grouped reaction and follow labels never name anyone.
  */
-function replaceName(
-  label: string,
-  name: string,
-  render: (name: string) => ReactNode,
-): ReactNode {
+function replaceName(label: string, name: string, render: (name: string) => ReactNode): ReactNode {
   if (!name) return label;
   const at = label.indexOf(name);
   if (at < 0) return label;
@@ -322,8 +293,6 @@ function Overflow({
 }) {
   if (count <= shown) return null;
   return (
-    <span className={cn("ml-1 text-xs text-muted-foreground", className)}>
-      +{count - shown}
-    </span>
+    <span className={cn("ml-1 text-xs text-muted-foreground", className)}>+{count - shown}</span>
   );
 }

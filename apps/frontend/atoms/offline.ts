@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { atom } from 'jotai';
+import { atom } from "jotai";
 
 /**
  * Server offline state.

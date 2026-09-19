@@ -11,20 +11,14 @@ export const MAX_HISTORY_SUGGESTIONS = 5;
  * copy, so the list stays a set ordered by recency.
  */
 export function pushSearchHistory(history: readonly string[], query: string): string[] {
-	const trimmed = query.trim();
-	if (!trimmed) return [...history];
-	return [trimmed, ...history.filter((entry) => entry !== trimmed)].slice(
-		0,
-		MAX_SEARCH_HISTORY,
-	);
+  const trimmed = query.trim();
+  if (!trimmed) return [...history];
+  return [trimmed, ...history.filter((entry) => entry !== trimmed)].slice(0, MAX_SEARCH_HISTORY);
 }
 
 /** Drops one past search. Unknown entries leave the list unchanged. */
-export function removeSearchHistory(
-	history: readonly string[],
-	query: string,
-): string[] {
-	return history.filter((entry) => entry !== query);
+export function removeSearchHistory(history: readonly string[], query: string): string[] {
+  return history.filter((entry) => entry !== query);
 }
 
 /**
@@ -34,24 +28,21 @@ export function removeSearchHistory(
  * More entries are stored than are ever shown, so that filtering still has
  * something to find once the user starts typing.
  */
-export function filterSearchHistory(
-	history: readonly string[],
-	input: string,
-): string[] {
-	const trimmed = input.trim();
-	if (!trimmed) return history.slice(0, MAX_HISTORY_SUGGESTIONS);
+export function filterSearchHistory(history: readonly string[], input: string): string[] {
+  const trimmed = input.trim();
+  if (!trimmed) return history.slice(0, MAX_HISTORY_SUGGESTIONS);
 
-	const needle = trimmed.toLowerCase();
-	return history
-		.filter((entry) => {
-			// Offering the exact thing already typed would be a no-op suggestion.
-			if (entry === trimmed) return false;
-			return entry.toLowerCase().includes(needle);
-		})
-		.slice(0, MAX_HISTORY_SUGGESTIONS);
+  const needle = trimmed.toLowerCase();
+  return history
+    .filter((entry) => {
+      // Offering the exact thing already typed would be a no-op suggestion.
+      if (entry === trimmed) return false;
+      return entry.toLowerCase().includes(needle);
+    })
+    .slice(0, MAX_HISTORY_SUGGESTIONS);
 }
 
 /** Narrows unknown storage content back to a history list. */
 export function isSearchHistory(value: unknown): value is string[] {
-	return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
 }

@@ -92,10 +92,7 @@ export function buildEmojiSearchDataset(
   };
 }
 
-export function searchEmojiDataset(
-  dataset: EmojiSearchDataset,
-  rawQuery: string,
-): EmojiItem[] {
+export function searchEmojiDataset(dataset: EmojiSearchDataset, rawQuery: string): EmojiItem[] {
   const query = rawQuery.trim().toLowerCase();
   if (!query) {
     return [];

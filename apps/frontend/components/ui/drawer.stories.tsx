@@ -35,9 +35,7 @@ export const Default: Story = {
           </DrawerDescription>
         </DrawerHeader>
         <div className="p-4">
-          <p className="text-sm text-muted-foreground">
-            Drawer body content goes here.
-          </p>
+          <p className="text-sm text-muted-foreground">Drawer body content goes here.</p>
         </div>
         <DrawerFooter>
           <Button>Save</Button>
@@ -59,9 +57,7 @@ export const Simple: Story = {
       <DrawerContent>
         <DrawerHeader>
           <DrawerTitle>Confirmation</DrawerTitle>
-          <DrawerDescription>
-            Are you sure you want to continue?
-          </DrawerDescription>
+          <DrawerDescription>Are you sure you want to continue?</DrawerDescription>
         </DrawerHeader>
         <DrawerFooter>
           <Button>Confirm</Button>
@@ -120,9 +116,7 @@ export const TallWithKeyboard: Story = {
         <DrawerContent>
           <DrawerHeader>
             <DrawerTitle>Long form</DrawerTitle>
-            <DrawerDescription>
-              Twenty fields, more than fits above the keyboard.
-            </DrawerDescription>
+            <DrawerDescription>Twenty fields, more than fits above the keyboard.</DrawerDescription>
           </DrawerHeader>
           <div className="flex flex-col gap-3 px-4 pb-4">
             {Array.from({ length: 20 }, (_, i) => (

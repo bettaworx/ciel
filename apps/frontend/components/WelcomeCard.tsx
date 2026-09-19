@@ -12,11 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Globe, Ellipsis, Info } from "lucide-react";
 import type { Locale } from "@/i18n/constants";
 import { useServerInfo } from "@/lib/hooks/use-queries";
@@ -43,7 +39,7 @@ export function WelcomeCard() {
 
   const handleLanguageChange = (newLocale: Locale) => {
     setClientLocale(newLocale);
-    window.dispatchEvent(new Event('ciel:locale-change'));
+    window.dispatchEvent(new Event("ciel:locale-change"));
   };
 
   return (
@@ -69,9 +65,7 @@ export function WelcomeCard() {
             })}
           </h1>
           <div className="text-xs sm:text-sm text-muted-foreground">
-            <MfmRenderer
-              text={serverInfo?.serverDescription || t("welcome.descriptionFallback")}
-            />
+            <MfmRenderer text={serverInfo?.serverDescription || t("welcome.descriptionFallback")} />
           </div>
         </div>
         <div>
@@ -130,9 +124,7 @@ export function WelcomeCard() {
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="sm:w-auto">
                 <Globe className="sm:ml-4 w-4 h-4 sm:mr-2" />
-                <div className="hidden sm:block sm:mr-4">
-                  {t("setup.welcome.changeLanguage")}
-                </div>
+                <div className="hidden sm:block sm:mr-4">{t("setup.welcome.changeLanguage")}</div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>

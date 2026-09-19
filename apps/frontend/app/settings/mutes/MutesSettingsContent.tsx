@@ -9,11 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserListRow } from "@/components/users/UserListRow";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
-import {
-  useHiddenList,
-  useUnblockUser,
-  useUnmuteUser,
-} from "@/lib/hooks/use-queries";
+import { useHiddenList, useUnblockUser, useUnmuteUser } from "@/lib/hooks/use-queries";
 
 /**
  * The muted and blocked account lists.
@@ -28,9 +24,7 @@ export function MutesSettingsContent() {
   return (
     <>
       {/* Reached from privacy, not the sidebar — so the arrow stays on desktop. */}
-      <PageHeader backHref="/settings/privacy">
-        {t("settings.mutes.title")}
-      </PageHeader>
+      <PageHeader backHref="/settings/privacy">{t("settings.mutes.title")}</PageHeader>
       <div className="space-y-3">
         <Tabs defaultValue="mutes">
           <TabsList className="mb-3 w-full">
@@ -52,14 +46,8 @@ export function MutesSettingsContent() {
 
 function HiddenUserList({ kind }: { kind: "mutes" | "blocks" }) {
   const t = useTranslations();
-  const {
-    data,
-    isLoading,
-    error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useHiddenList(kind);
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useHiddenList(kind);
 
   const unmute = useUnmuteUser();
   const unblock = useUnblockUser();
@@ -96,9 +84,7 @@ function HiddenUserList({ kind }: { kind: "mutes" | "blocks" }) {
     return (
       <div className="flex items-center justify-center py-12">
         <p className="text-muted-foreground">
-          {kind === "mutes"
-            ? t("settings.mutes.noMuted")
-            : t("settings.mutes.noBlocked")}
+          {kind === "mutes" ? t("settings.mutes.noMuted") : t("settings.mutes.noBlocked")}
         </p>
       </div>
     );
@@ -124,17 +110,11 @@ function HiddenUserList({ kind }: { kind: "mutes" | "blocks" }) {
                   e.stopPropagation();
                   undo.mutate(user.username, {
                     onError: () =>
-                      toast.error(
-                        kind === "mutes"
-                          ? t("user.muteError")
-                          : t("user.blockError"),
-                      ),
+                      toast.error(kind === "mutes" ? t("user.muteError") : t("user.blockError")),
                   });
                 }}
               >
-                {kind === "mutes"
-                  ? t("user.unmuteUser")
-                  : t("user.unblockUser")}
+                {kind === "mutes" ? t("user.unmuteUser") : t("user.unblockUser")}
               </Button>
             }
           />

@@ -18,13 +18,7 @@ import { DisplayName } from "@/components/users/DisplayName";
 import { UnreadDot } from "./UnreadDot";
 import type { components } from "@/lib/api/api";
 import type { AccountEntry } from "@/atoms/accounts";
-import {
-  MoreHorizontal,
-  Users,
-  LogOut,
-  Check,
-  Plus,
-} from "lucide-react";
+import { MoreHorizontal, Users, LogOut, Check, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -93,14 +87,9 @@ export function DesktopUserMenu({
                     borderRadius: isExpanded ? "12px" : "16px",
                   }}
                   transition={
-                    canAnimate
-                      ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
-                      : { duration: 0 }
+                    canAnimate ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }
                   }
-                  className={cn(
-                    "shrink-0 overflow-hidden",
-                    isExpanded ? "h-9 w-9" : "h-12 w-12",
-                  )}
+                  className={cn("shrink-0 overflow-hidden", isExpanded ? "h-9 w-9" : "h-12 w-12")}
                 >
                   <Avatar className="w-full h-full rounded-none">
                     <AvatarImage
@@ -120,10 +109,7 @@ export function DesktopUserMenu({
             }
             label={
               user.displayName ? (
-                <DisplayName
-                  name={user.displayName}
-                  isPrivate={user.isPrivate}
-                />
+                <DisplayName name={user.displayName} isPrivate={user.isPrivate} />
               ) : (
                 `@${user.username}`
               )
@@ -158,8 +144,9 @@ export function DesktopUserMenu({
                 <DropdownMenuSubContent className="max-h-[300px] overflow-y-auto">
                   {accounts.map((account) => {
                     const isActive = account.userId === user.id;
-                    const accountInitials =
-                      (account.displayName?.[0] || account.username[0]).toUpperCase();
+                    const accountInitials = (
+                      account.displayName?.[0] || account.username[0]
+                    ).toUpperCase();
 
                     return (
                       <DropdownMenuItem
@@ -200,7 +187,7 @@ export function DesktopUserMenu({
                             role="status"
                             className={cn(
                               "flex h-4 min-w-4 items-center justify-center",
-                              "rounded-full bg-c-1 px-1 text-[9px] leading-none font-semibold text-c-foreground shrink-0"
+                              "rounded-full bg-c-1 px-1 text-[9px] leading-none font-semibold text-c-foreground shrink-0",
                             )}
                           >
                             {account.cachedUnreadCount > MAX_DISPLAYED

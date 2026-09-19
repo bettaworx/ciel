@@ -8,19 +8,12 @@ const ROOT = resolve(__dirname, "..");
 const OUTPUT = resolve(ROOT, "public/licenses.json");
 const GOOGLE_FONT_METADATA_PATH = resolve(
   ROOT,
-  "node_modules/next/dist/compiled/@next/font/dist/google/font-data.json"
+  "node_modules/next/dist/compiled/@next/font/dist/google/font-data.json",
 );
 const GOOGLE_FONTS_REPO_BASE = "https://github.com/google/fonts/tree/main/ofl";
-const GOOGLE_FONTS_RAW_BASE =
-  "https://raw.githubusercontent.com/google/fonts/main/ofl";
+const GOOGLE_FONTS_RAW_BASE = "https://raw.githubusercontent.com/google/fonts/main/ofl";
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx"]);
-const SKIP_DIRS = new Set([
-  ".git",
-  ".next",
-  "node_modules",
-  "public",
-  "storybook-static",
-]);
+const SKIP_DIRS = new Set([".git", ".next", "node_modules", "public", "storybook-static"]);
 
 /** @typedef {{ licenses: string | string[]; repository?: string; licenseText?: string }} PackageInfo */
 /** @typedef {{ weights?: string[]; styles?: string[]; subsets?: string[]; display?: string; preload?: boolean; availableWeights?: string[]; availableStyles?: string[]; availableSubsets?: string[] }} FontSpec */
@@ -32,9 +25,7 @@ function readGoogleFontMetadata() {
     return JSON.parse(readFileSync(GOOGLE_FONT_METADATA_PATH, "utf-8"));
   } catch (e) {
     console.warn(
-      `⚠ Could not read Next.js Google Fonts metadata: ${
-        /** @type {Error} */ (e).message
-      }`
+      `⚠ Could not read Next.js Google Fonts metadata: ${/** @type {Error} */ (e).message}`,
     );
     return {};
   }
@@ -112,14 +103,9 @@ function mergeFontSpecs(current, next) {
     weights: mergeArray(current.weights, next.weights),
     styles: mergeArray(current.styles, next.styles),
     subsets: mergeArray(current.subsets, next.subsets),
-    display:
-      current.display === next.display || !next.display
-        ? current.display
-        : "multiple",
+    display: current.display === next.display || !next.display ? current.display : "multiple",
     preload:
-      current.preload === next.preload || next.preload === undefined
-        ? current.preload
-        : undefined,
+      current.preload === next.preload || next.preload === undefined ? current.preload : undefined,
     availableWeights: mergeArray(current.availableWeights, next.availableWeights),
     availableStyles: mergeArray(current.availableStyles, next.availableStyles),
     availableSubsets: mergeArray(current.availableSubsets, next.availableSubsets),
@@ -132,16 +118,17 @@ function mergeFontSpecs(current, next) {
  * @param {string} propertyName
  */
 function getObjectProperty(ts, node, propertyName) {
-  if (!ts || !/** @type {any} */ (ts).isObjectLiteralExpression(node)) {
+  const tsApi = /** @type {any} */ (ts);
+  if (!tsApi || !tsApi.isObjectLiteralExpression(node)) {
     return undefined;
   }
 
   return /** @type {any} */ (node).properties.find((property) => {
-    if (!/** @type {any} */ (ts).isPropertyAssignment(property)) return false;
+    if (!tsApi.isPropertyAssignment(property)) return false;
     const name = property.name;
     return (
-      (/** @type {any} */ (ts).isIdentifier(name) && name.text === propertyName) ||
-      (/** @type {any} */ (ts).isStringLiteral(name) && name.text === propertyName)
+      (tsApi.isIdentifier(name) && name.text === propertyName) ||
+      (tsApi.isStringLiteral(name) && name.text === propertyName)
     );
   })?.initializer;
 }
@@ -156,14 +143,14 @@ function readStringArrayOption(ts, value) {
   if (/** @type {any} */ (ts).isStringLiteral(value)) {
     return [/** @type {{ text: string }} */ (value).text];
   }
-  if (!/** @type {any} */ (ts).isArrayLiteralExpression(value)) {
+  if (!(/** @type {any} */ (ts).isArrayLiteralExpression(value))) {
     return undefined;
   }
   const values = /** @type {{ elements: unknown[] }} */ (value).elements
     .map((element) =>
       /** @type {any} */ (ts).isStringLiteral(element)
         ? /** @type {{ text: string }} */ (element).text
-        : null
+        : null,
     )
     .filter((element) => element !== null);
   return /** @type {string[]} */ (values);
@@ -175,7 +162,7 @@ function readStringArrayOption(ts, value) {
  * @returns {string | undefined}
  */
 function readStringOption(ts, value) {
-  if (!value || !/** @type {any} */ (ts).isStringLiteral(value)) {
+  if (!value || !(/** @type {any} */ (ts).isStringLiteral(value))) {
     return undefined;
   }
   return /** @type {{ text: string }} */ (value).text;
@@ -188,16 +175,10 @@ function readStringOption(ts, value) {
  */
 function readBooleanOption(ts, value) {
   if (!value) return undefined;
-  if (
-    /** @type {any} */ (value).kind ===
-    /** @type {any} */ (ts).SyntaxKind.TrueKeyword
-  ) {
+  if (/** @type {any} */ (value).kind === /** @type {any} */ (ts).SyntaxKind.TrueKeyword) {
     return true;
   }
-  if (
-    /** @type {any} */ (value).kind ===
-    /** @type {any} */ (ts).SyntaxKind.FalseKeyword
-  ) {
+  if (/** @type {any} */ (value).kind === /** @type {any} */ (ts).SyntaxKind.FalseKeyword) {
     return false;
   }
   return undefined;
@@ -235,7 +216,7 @@ function detectGoogleFontsWithTypescript(filePath, ts) {
     filePath,
     sourceText,
     /** @type {any} */ (ts).ScriptTarget.Latest,
-    true
+    true,
   );
   /** @type {Map<string, string>} */
   const importNamesByLocalName = new Map();
@@ -254,7 +235,7 @@ function detectGoogleFontsWithTypescript(filePath, ts) {
       for (const element of node.importClause.namedBindings.elements) {
         importNamesByLocalName.set(
           element.name.text,
-          element.propertyName?.text ?? element.name.text
+          element.propertyName?.text ?? element.name.text,
         );
       }
     }
@@ -293,7 +274,7 @@ function detectGoogleFontsWithTypescript(filePath, ts) {
 function detectGoogleFontsWithRegex(filePath) {
   const sourceText = readFileSync(filePath, "utf-8");
   const importMatch = sourceText.match(
-    /import\s*\{([\s\S]*?)\}\s*from\s*["']next\/font\/google["']/m
+    /import\s*\{([\s\S]*?)\}\s*from\s*["']next\/font\/google["']/m,
   );
   if (!importMatch) return [];
 
@@ -337,16 +318,11 @@ function collectGoogleFontLicenseEntries() {
       const fontFamily = call.functionName.replace(/_/g, " ");
       const fontMetadata = metadata[fontFamily];
       if (!fontMetadata) {
-        throw new Error(
-          `Unknown next/font/google family "${fontFamily}" in ${filePath}`
-        );
+        throw new Error(`Unknown next/font/google family "${fontFamily}" in ${filePath}`);
       }
       const spec = normalizeFontSpec(call.spec, fontMetadata);
       const current = specsByFamily.get(fontFamily);
-      specsByFamily.set(
-        fontFamily,
-        current ? mergeFontSpecs(current, spec) : spec
-      );
+      specsByFamily.set(fontFamily, current ? mergeFontSpecs(current, spec) : spec);
     }
   }
 
@@ -378,7 +354,7 @@ function buildPackageEntries(packages) {
       version,
       license: Array.isArray(info.licenses)
         ? info.licenses.join(", ")
-        : info.licenses ?? "Unknown",
+        : (info.licenses ?? "Unknown"),
       repository: info.repository ?? null,
       licenseUrl: null,
       licenseText: info.licenseText?.trim() ?? null,
@@ -389,10 +365,7 @@ function buildPackageEntries(packages) {
 /** @param {Record<string, PackageInfo>} packages */
 function writeOutput(packages) {
   /** @type {LicenseEntry[]} */
-  const entries = [
-    ...buildPackageEntries(packages),
-    ...collectGoogleFontLicenseEntries(),
-  ];
+  const entries = [...buildPackageEntries(packages), ...collectGoogleFontLicenseEntries()];
 
   entries.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -409,9 +382,7 @@ try {
   if (/** @type {any} */ (e).code === "MODULE_NOT_FOUND") {
     // devDependencies are not installed (e.g. production-only install).
     // Write font licenses only so the build does not fail.
-    console.warn(
-      "⚠ license-checker-rseidelsohn not found — writing font licenses only"
-    );
+    console.warn("⚠ license-checker-rseidelsohn not found — writing font licenses only");
     writeOutput({});
     process.exit(0);
   }
@@ -431,5 +402,5 @@ licenseChecker.init(
       process.exit(1);
     }
     writeOutput(packages);
-  }
+  },
 );

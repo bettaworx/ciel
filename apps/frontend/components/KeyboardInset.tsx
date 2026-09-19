@@ -25,10 +25,7 @@ export function KeyboardInset() {
     if (!viewport) return;
 
     const update = () => {
-      const covered =
-        document.documentElement.clientHeight -
-        viewport.height -
-        viewport.offsetTop;
+      const covered = document.documentElement.clientHeight - viewport.height - viewport.offsetTop;
       // Toolbars sliding in and out and sub-pixel rounding both move this by a
       // few pixels; only a gap big enough to be a keyboard counts.
       document.documentElement.style.setProperty(

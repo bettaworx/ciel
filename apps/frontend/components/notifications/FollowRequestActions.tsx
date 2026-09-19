@@ -3,10 +3,7 @@
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  useAcceptFollowRequest,
-  useRejectFollowRequest,
-} from "@/lib/hooks/use-queries";
+import { useAcceptFollowRequest, useRejectFollowRequest } from "@/lib/hooks/use-queries";
 
 /**
  * Approve / decline buttons for a follow request.
@@ -22,10 +19,7 @@ export function FollowRequestActions({ username }: { username: string }) {
 
   const isPending = accept.isPending || reject.isPending;
 
-  const run = (
-    mutation: typeof accept,
-    successMessage: string,
-  ) => (e: React.MouseEvent) => {
+  const run = (mutation: typeof accept, successMessage: string) => (e: React.MouseEvent) => {
     // The row itself is clickable, so keep the decision from also navigating.
     e.preventDefault();
     e.stopPropagation();
@@ -37,20 +31,10 @@ export function FollowRequestActions({ username }: { username: string }) {
 
   return (
     <div className="mt-2 flex items-center gap-2">
-      <Button
-        variant="primary"
-        size="sm"
-        disabled={isPending}
-        onClick={run(accept, t("accepted"))}
-      >
+      <Button variant="primary" size="sm" disabled={isPending} onClick={run(accept, t("accepted"))}>
         {t("accept")}
       </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={isPending}
-        onClick={run(reject, t("rejected"))}
-      >
+      <Button variant="outline" size="sm" disabled={isPending} onClick={run(reject, t("rejected"))}>
         {t("reject")}
       </Button>
     </div>

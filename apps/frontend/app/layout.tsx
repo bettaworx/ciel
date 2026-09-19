@@ -39,11 +39,7 @@ export default async function RootLayout({
   const nonce = requestHeaders.get("x-nonce") ?? undefined;
   const locale = await getLocale();
   return (
-    <html
-      lang={locale}
-      className={getFontVariableClassName()}
-      suppressHydrationWarning
-    >
+    <html lang={locale} className={getFontVariableClassName()} suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/pwa/manifest.json" />
         <RuntimeConfigScript nonce={nonce} />

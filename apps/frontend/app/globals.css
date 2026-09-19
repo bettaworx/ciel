@@ -3,354 +3,304 @@
 @import "react-image-crop/dist/ReactCrop.css";
 
 @theme {
-    --radius: 0.625rem;
-    --radius-sm: calc(var(--radius) - 4px);
-    --radius-md: calc(var(--radius) - 2px);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) + 4px);
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 
-    --color-background: var(--background);
-    --color-background-1: var(--background-1);
-    --color-foreground: var(--foreground);
-    --color-card: var(--card);
-    --color-card-hover: var(--card-hover);
-    --color-card-foreground: var(--card-foreground);
-    --color-popover: var(--popover);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-primary: var(--primary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-secondary: var(--secondary);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-muted: var(--muted);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-accent: var(--accent);
-    --color-sidebar-hover: var(--sidebar-hover);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-destructive: var(--destructive);
-    --color-destructive-foreground: var(--destructive-foreground);
-    --color-success: var(--success);
-    --color-success-foreground: var(--success-foreground);
-    --color-warning: var(--warning);
-    --color-warning-foreground: var(--warning-foreground);
-    --color-border: var(--border);
-    --color-input: var(--input);
-    --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-background-1: var(--background-1);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
-    --color-c-1: var(--c-1);
-    --color-c-2: var(--c-2);
-    --color-c-8: var(--c-8);
-    --color-c-9: var(--c-9);
-    --color-c-ring: var(--c-ring);
-    --color-c-foreground: var(--c-foreground);
-    --color-c-foreground-1: var(--c-foreground-1);
+  --color-c-1: var(--c-1);
+  --color-c-2: var(--c-2);
+  --color-c-8: var(--c-8);
+  --color-c-9: var(--c-9);
+  --color-c-ring: var(--c-ring);
+  --color-c-foreground: var(--c-foreground);
+  --color-c-foreground-1: var(--c-foreground-1);
 }
 
 :root {
-    /* Typography tokens: update families by role, not by vendor name. */
-    --font-fallback-sans:
-        sans-serif,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI";
-    --font-fallback-serif:
-        ui-serif,
-        Georgia,
-        Cambria,
-        "Times New Roman",
-        Times,
-        serif;
-    --font-stack-sans-international:
-        var(--font-sans-chinese-simplified),
-        var(--font-sans-chinese-traditional),
-        var(--font-sans-korean),
-        var(--font-sans-hebrew),
-        var(--font-sans-arabic),
-        var(--font-sans-thai);
-    --font-stack-serif-international:
-        var(--font-serif-chinese-simplified),
-        var(--font-serif-chinese-traditional),
-        var(--font-serif-korean),
-        var(--font-serif-hebrew),
-        var(--font-serif-arabic),
-        var(--font-serif-thai);
-    --font-stack-sans-ja:
-        var(--font-sans-japanese),
-        var(--font-sans-latin),
-        var(--font-stack-sans-international),
-        var(--font-fallback-sans);
-    --font-stack-sans-en:
-        var(--font-sans-latin),
-        var(--font-sans-japanese),
-        var(--font-stack-sans-international),
-        var(--font-fallback-sans);
-    --font-stack-sans-zh-hans:
-        var(--font-sans-chinese-simplified),
-        var(--font-sans-latin),
-        var(--font-stack-sans-international),
-        var(--font-fallback-sans);
-    --font-stack-sans-zh-hant:
-        var(--font-sans-chinese-traditional),
-        var(--font-sans-latin),
-        var(--font-stack-sans-international),
-        var(--font-fallback-sans);
-    --font-stack-sans-ko:
-        var(--font-sans-korean),
-        var(--font-sans-latin),
-        var(--font-stack-sans-international),
-        var(--font-fallback-sans);
-    --font-stack-sans-he:
-        var(--font-sans-hebrew),
-        var(--font-sans-latin),
-        var(--font-stack-sans-international),
-        var(--font-fallback-sans);
-    --font-stack-sans-ar:
-        var(--font-sans-arabic),
-        var(--font-sans-latin),
-        var(--font-stack-sans-international),
-        var(--font-fallback-sans);
-    --font-stack-sans-th:
-        var(--font-sans-thai),
-        var(--font-sans-latin),
-        var(--font-stack-sans-international),
-        var(--font-fallback-sans);
-    --font-stack-serif-ja:
-        var(--font-serif-japanese),
-        var(--font-serif-latin),
-        var(--font-stack-serif-international),
-        var(--font-fallback-serif);
-    --font-stack-serif-en:
-        var(--font-serif-latin),
-        var(--font-serif-japanese),
-        var(--font-stack-serif-international),
-        var(--font-fallback-serif);
-    --font-stack-serif-zh-hans:
-        var(--font-serif-chinese-simplified),
-        var(--font-serif-latin),
-        var(--font-stack-serif-international),
-        var(--font-fallback-serif);
-    --font-stack-serif-zh-hant:
-        var(--font-serif-chinese-traditional),
-        var(--font-serif-latin),
-        var(--font-stack-serif-international),
-        var(--font-fallback-serif);
-    --font-stack-serif-ko:
-        var(--font-serif-korean),
-        var(--font-serif-latin),
-        var(--font-stack-serif-international),
-        var(--font-fallback-serif);
-    --font-stack-serif-he:
-        var(--font-serif-hebrew),
-        var(--font-serif-latin),
-        var(--font-stack-serif-international),
-        var(--font-fallback-serif);
-    --font-stack-serif-ar:
-        var(--font-serif-arabic),
-        var(--font-serif-latin),
-        var(--font-stack-serif-international),
-        var(--font-fallback-serif);
-    --font-stack-serif-th:
-        var(--font-serif-thai),
-        var(--font-serif-latin),
-        var(--font-stack-serif-international),
-        var(--font-fallback-serif);
-    --app-font-sans: var(--font-stack-sans-ja);
-    --font-sans: var(--app-font-sans);
-    --mfm-font-serif: var(--font-stack-serif-ja);
-    --background: oklch(0.97 0 0);
-    --background-1: oklch(1 0 0);
-    --foreground: oklch(0.25 0 0);
-    --card: oklch(1 0 0);
-    /* カード面のリスト行ホバー。テーマごとに数値が違うのは、card との明度差を
+  /* Typography tokens: update families by role, not by vendor name. */
+  --font-fallback-sans: sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI";
+  --font-fallback-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-stack-sans-international:
+    var(--font-sans-chinese-simplified), var(--font-sans-chinese-traditional),
+    var(--font-sans-korean), var(--font-sans-hebrew), var(--font-sans-arabic), var(--font-sans-thai);
+  --font-stack-serif-international:
+    var(--font-serif-chinese-simplified), var(--font-serif-chinese-traditional),
+    var(--font-serif-korean), var(--font-serif-hebrew), var(--font-serif-arabic),
+    var(--font-serif-thai);
+  --font-stack-sans-ja:
+    var(--font-sans-japanese), var(--font-sans-latin), var(--font-stack-sans-international),
+    var(--font-fallback-sans);
+  --font-stack-sans-en:
+    var(--font-sans-latin), var(--font-sans-japanese), var(--font-stack-sans-international),
+    var(--font-fallback-sans);
+  --font-stack-sans-zh-hans:
+    var(--font-sans-chinese-simplified), var(--font-sans-latin),
+    var(--font-stack-sans-international), var(--font-fallback-sans);
+  --font-stack-sans-zh-hant:
+    var(--font-sans-chinese-traditional), var(--font-sans-latin),
+    var(--font-stack-sans-international), var(--font-fallback-sans);
+  --font-stack-sans-ko:
+    var(--font-sans-korean), var(--font-sans-latin), var(--font-stack-sans-international),
+    var(--font-fallback-sans);
+  --font-stack-sans-he:
+    var(--font-sans-hebrew), var(--font-sans-latin), var(--font-stack-sans-international),
+    var(--font-fallback-sans);
+  --font-stack-sans-ar:
+    var(--font-sans-arabic), var(--font-sans-latin), var(--font-stack-sans-international),
+    var(--font-fallback-sans);
+  --font-stack-sans-th:
+    var(--font-sans-thai), var(--font-sans-latin), var(--font-stack-sans-international),
+    var(--font-fallback-sans);
+  --font-stack-serif-ja:
+    var(--font-serif-japanese), var(--font-serif-latin), var(--font-stack-serif-international),
+    var(--font-fallback-serif);
+  --font-stack-serif-en:
+    var(--font-serif-latin), var(--font-serif-japanese), var(--font-stack-serif-international),
+    var(--font-fallback-serif);
+  --font-stack-serif-zh-hans:
+    var(--font-serif-chinese-simplified), var(--font-serif-latin),
+    var(--font-stack-serif-international), var(--font-fallback-serif);
+  --font-stack-serif-zh-hant:
+    var(--font-serif-chinese-traditional), var(--font-serif-latin),
+    var(--font-stack-serif-international), var(--font-fallback-serif);
+  --font-stack-serif-ko:
+    var(--font-serif-korean), var(--font-serif-latin), var(--font-stack-serif-international),
+    var(--font-fallback-serif);
+  --font-stack-serif-he:
+    var(--font-serif-hebrew), var(--font-serif-latin), var(--font-stack-serif-international),
+    var(--font-fallback-serif);
+  --font-stack-serif-ar:
+    var(--font-serif-arabic), var(--font-serif-latin), var(--font-stack-serif-international),
+    var(--font-fallback-serif);
+  --font-stack-serif-th:
+    var(--font-serif-thai), var(--font-serif-latin), var(--font-stack-serif-international),
+    var(--font-fallback-serif);
+  --app-font-sans: var(--font-stack-sans-ja);
+  --font-sans: var(--app-font-sans);
+  --mfm-font-serif: var(--font-stack-serif-ja);
+  --background: oklch(0.97 0 0);
+  --background-1: oklch(1 0 0);
+  --foreground: oklch(0.25 0 0);
+  --card: oklch(1 0 0);
+  /* カード面のリスト行ホバー。テーマごとに数値が違うのは、card との明度差を
        同じだけ知覚させるため（単一の alpha では片方のテーマで潰れる）。 */
-    --card-hover: oklch(0.95 0 0);
-    --card-foreground: oklch(0.25 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.25 0 0);
-    --primary: oklch(0.97 0 0);
-    --primary-foreground: oklch(0.25 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.95 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(1 0 0);
-    /* destructive と明度を揃えた意味色 */
-    --success: oklch(0.577 0.155 152);
-    --success-foreground: oklch(1 0 0);
-    --warning: oklch(0.68 0.16 75);
-    --warning-foreground: oklch(0.25 0 0);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-    --sidebar-hover: oklch(0.92 0 0);
+  --card-hover: oklch(0.95 0 0);
+  --card-foreground: oklch(0.25 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0 0);
+  --primary: oklch(0.97 0 0);
+  --primary-foreground: oklch(0.25 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.95 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(1 0 0);
+  /* destructive と明度を揃えた意味色 */
+  --success: oklch(0.577 0.155 152);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.68 0.16 75);
+  --warning-foreground: oklch(0.25 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-hover: oklch(0.92 0 0);
 
-    /* chromatic colours */
-    --c-1: oklch(62.3% 0.214 259.815);
-    --c-2: oklch(54.6% 0.245 262.881);
-    --c-8: oklch(88.2% 0.059 254.128);
-    --c-9: oklch(93.2% 0.032 255.585);
-    --c-ring: oklch(93.2% 0.032 255.585);
-    --c-foreground: oklch(0.97 0 0);
-    --c-foreground-1: oklch(62.3% 0.214 259.815);
+  /* chromatic colours */
+  --c-1: oklch(62.3% 0.214 259.815);
+  --c-2: oklch(54.6% 0.245 262.881);
+  --c-8: oklch(88.2% 0.059 254.128);
+  --c-9: oklch(93.2% 0.032 255.585);
+  --c-ring: oklch(93.2% 0.032 255.585);
+  --c-foreground: oklch(0.97 0 0);
+  --c-foreground-1: oklch(62.3% 0.214 259.815);
 }
 
 html[lang="ja"] {
-    --app-font-sans: var(--font-stack-sans-ja);
-    --font-sans: var(--app-font-sans);
-    --mfm-font-serif: var(--font-stack-serif-ja);
+  --app-font-sans: var(--font-stack-sans-ja);
+  --font-sans: var(--app-font-sans);
+  --mfm-font-serif: var(--font-stack-serif-ja);
 }
 
 html[lang="en"] {
-    --app-font-sans: var(--font-stack-sans-en);
-    --font-sans: var(--app-font-sans);
-    --mfm-font-serif: var(--font-stack-serif-en);
+  --app-font-sans: var(--font-stack-sans-en);
+  --font-sans: var(--app-font-sans);
+  --mfm-font-serif: var(--font-stack-serif-en);
 }
 
 html[lang="zh-Hans"],
 html[lang="zh-CN"],
 html[lang="zh-SG"] {
-    --app-font-sans: var(--font-stack-sans-zh-hans);
-    --font-sans: var(--app-font-sans);
-    --mfm-font-serif: var(--font-stack-serif-zh-hans);
+  --app-font-sans: var(--font-stack-sans-zh-hans);
+  --font-sans: var(--app-font-sans);
+  --mfm-font-serif: var(--font-stack-serif-zh-hans);
 }
 
 html[lang="zh-Hant"],
 html[lang="zh-TW"],
 html[lang="zh-HK"],
 html[lang="zh-MO"] {
-    --app-font-sans: var(--font-stack-sans-zh-hant);
-    --font-sans: var(--app-font-sans);
-    --mfm-font-serif: var(--font-stack-serif-zh-hant);
+  --app-font-sans: var(--font-stack-sans-zh-hant);
+  --font-sans: var(--app-font-sans);
+  --mfm-font-serif: var(--font-stack-serif-zh-hant);
 }
 
 html[lang="ko"] {
-    --app-font-sans: var(--font-stack-sans-ko);
-    --font-sans: var(--app-font-sans);
-    --mfm-font-serif: var(--font-stack-serif-ko);
+  --app-font-sans: var(--font-stack-sans-ko);
+  --font-sans: var(--app-font-sans);
+  --mfm-font-serif: var(--font-stack-serif-ko);
 }
 
 html[lang="he"] {
-    --app-font-sans: var(--font-stack-sans-he);
-    --font-sans: var(--app-font-sans);
-    --mfm-font-serif: var(--font-stack-serif-he);
+  --app-font-sans: var(--font-stack-sans-he);
+  --font-sans: var(--app-font-sans);
+  --mfm-font-serif: var(--font-stack-serif-he);
 }
 
 html[lang="ar"] {
-    --app-font-sans: var(--font-stack-sans-ar);
-    --font-sans: var(--app-font-sans);
-    --mfm-font-serif: var(--font-stack-serif-ar);
+  --app-font-sans: var(--font-stack-sans-ar);
+  --font-sans: var(--app-font-sans);
+  --mfm-font-serif: var(--font-stack-serif-ar);
 }
 
 html[lang="th"] {
-    --app-font-sans: var(--font-stack-sans-th);
-    --font-sans: var(--app-font-sans);
-    --mfm-font-serif: var(--font-stack-serif-th);
+  --app-font-sans: var(--font-stack-sans-th);
+  --font-sans: var(--app-font-sans);
+  --mfm-font-serif: var(--font-stack-serif-th);
 }
 
 .dark {
-    /* 背景層（暗い → 明るい） */
-    --background: oklch(0.145 0 0); /* メイン背景（最も暗い） */
-    --background-1: oklch(0.18 0 0); /* 第2背景（backgroundより明るい） */
-    --card: oklch(0.205 0 0); /* カード背景 */
-    --card-hover: oklch(0.26 0 0); /* カード面のリスト行ホバー */
-    --popover: oklch(0.205 0 0); /* ポップオーバー背景 */
+  /* 背景層（暗い → 明るい） */
+  --background: oklch(0.145 0 0); /* メイン背景（最も暗い） */
+  --background-1: oklch(0.18 0 0); /* 第2背景（backgroundより明るい） */
+  --card: oklch(0.205 0 0); /* カード背景 */
+  --card-hover: oklch(0.26 0 0); /* カード面のリスト行ホバー */
+  --popover: oklch(0.205 0 0); /* ポップオーバー背景 */
 
-    /* テキスト色 */
-    --foreground: oklch(0.985 0 0); /* メインテキスト */
-    --card-foreground: oklch(0.985 0 0); /* カード上のテキスト */
-    --popover-foreground: oklch(0.985 0 0); /* ポップオーバー上のテキスト */
-    --muted-foreground: oklch(0.708 0 0); /* ミュートテキスト */
+  /* テキスト色 */
+  --foreground: oklch(0.985 0 0); /* メインテキスト */
+  --card-foreground: oklch(0.985 0 0); /* カード上のテキスト */
+  --popover-foreground: oklch(0.985 0 0); /* ポップオーバー上のテキスト */
+  --muted-foreground: oklch(0.708 0 0); /* ミュートテキスト */
 
-    /* ボタン/インタラクティブ要素 */
-    --primary: oklch(0.26 0 0); /* プライマリボタン（cardより明るい） */
-    --primary-foreground: oklch(0.985 0 0); /* プライマリ上のテキスト */
-    --secondary: oklch(0.26 0 0); /* セカンダリボタン */
-    --secondary-foreground: oklch(0.985 0 0); /* セカンダリ上のテキスト */
-    --muted: oklch(0.3 0 0); /* ミュート背景 */
-    --accent: oklch(0.35 0 0); /* アクセント背景（cardより明るい） */
-    --accent-foreground: oklch(0.985 0 0); /* アクセント上のテキスト */
+  /* ボタン/インタラクティブ要素 */
+  --primary: oklch(0.26 0 0); /* プライマリボタン（cardより明るい） */
+  --primary-foreground: oklch(0.985 0 0); /* プライマリ上のテキスト */
+  --secondary: oklch(0.26 0 0); /* セカンダリボタン */
+  --secondary-foreground: oklch(0.985 0 0); /* セカンダリ上のテキスト */
+  --muted: oklch(0.3 0 0); /* ミュート背景 */
+  --accent: oklch(0.35 0 0); /* アクセント背景（cardより明るい） */
+  --accent-foreground: oklch(0.985 0 0); /* アクセント上のテキスト */
 
-    /* 状態色 */
-    --destructive: oklch(0.6 0.19 25); /* 破壊的操作（赤系） */
-    --destructive-foreground: oklch(0.985 0 0); /* 破壊的操作上のテキスト */
-    --success: oklch(0.68 0.14 152); /* 成功（緑系） */
-    --success-foreground: oklch(0.985 0 0); /* 成功上のテキスト */
-    --warning: oklch(0.78 0.14 75); /* 警告（アンバー系） */
-    --warning-foreground: oklch(0.205 0 0); /* 警告上のテキスト */
+  /* 状態色 */
+  --destructive: oklch(0.6 0.19 25); /* 破壊的操作（赤系） */
+  --destructive-foreground: oklch(0.985 0 0); /* 破壊的操作上のテキスト */
+  --success: oklch(0.68 0.14 152); /* 成功（緑系） */
+  --success-foreground: oklch(0.985 0 0); /* 成功上のテキスト */
+  --warning: oklch(0.78 0.14 75); /* 警告（アンバー系） */
+  --warning-foreground: oklch(0.205 0 0); /* 警告上のテキスト */
 
-    /* ボーダー・入力・リング */
-    --border: oklch(1 0 0 / 10%); /* ボーダー（薄い白） */
-    --input: oklch(0.24 0 0); /* 入力フィールド背景 */
-    --ring: oklch(0.556 0 0); /* フォーカスリング */
+  /* ボーダー・入力・リング */
+  --border: oklch(1 0 0 / 10%); /* ボーダー（薄い白） */
+  --input: oklch(0.24 0 0); /* 入力フィールド背景 */
+  --ring: oklch(0.556 0 0); /* フォーカスリング */
 
-    /* チャート色 */
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
+  /* チャート色 */
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
 
-    /* サイドバー */
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-    --sidebar-hover: oklch(0.3 0 0);
+  /* サイドバー */
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-hover: oklch(0.3 0 0);
 
-    /* テーマカラー（アクセント） */
-    --c-1: oklch(65% 0.19 260); /* テーマカラー（ダークモード用に明るめ） */
-    --c-2: oklch(70% 0.21 262); /* テーマカラーホバー（さらに明るく） */
-    --c-8: oklch(54.6% 0.245 262.881);
-    --c-9: oklch(48.8% 0.243 264.376);
-    --c-ring: oklch(51.117% 0.09377 260.975); /* テーマリング（暗めの青） */
-    --c-foreground: oklch(0.985 0 0); /* テーマカラー上のテキスト */
-    --c-foreground-1: oklch(0.985 0 0);
+  /* テーマカラー（アクセント） */
+  --c-1: oklch(65% 0.19 260); /* テーマカラー（ダークモード用に明るめ） */
+  --c-2: oklch(70% 0.21 262); /* テーマカラーホバー（さらに明るく） */
+  --c-8: oklch(54.6% 0.245 262.881);
+  --c-9: oklch(48.8% 0.243 264.376);
+  --c-ring: oklch(51.117% 0.09377 260.975); /* テーマリング（暗めの青） */
+  --c-foreground: oklch(0.985 0 0); /* テーマカラー上のテキスト */
+  --c-foreground-1: oklch(0.985 0 0);
 }
 
 @layer base {
-    * {
-        @apply border-border outline-ring/50;
-    }
-    html,
-    body {
-        @apply bg-background text-foreground;
-        font-family: var(--app-font-sans);
-    }
-    code,
-    pre,
-    kbd,
-    samp {
-        @apply font-mono;
-    }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--app-font-sans);
+  }
+  code,
+  pre,
+  kbd,
+  samp {
+    @apply font-mono;
+  }
 }
 
 @layer components {
-    .toaster {
-        --offset-top: 1rem;
-        --offset-bottom: 1rem;
-    }
+  .toaster {
+    --offset-top: 1rem;
+    --offset-bottom: 1rem;
+  }
 
-    /* Unread notification highlight, shared by the list and the realtime toast.
+  /* Unread notification highlight, shared by the list and the realtime toast.
        Applied as a background *image* so it layers over whatever background the
        element already has (the card) instead of replacing it.
 
@@ -359,39 +309,39 @@ html[lang="th"] {
 
        The strength is per theme — the same alpha reads much weaker over a dark
        card than over a white one. */
-    .notification-unread-tint {
-        --notification-tint-strength: 12%;
-        background-image: linear-gradient(
-            color-mix(in srgb, var(--c-1) var(--notification-tint-strength), transparent),
-            color-mix(in srgb, var(--c-1) var(--notification-tint-strength), transparent)
-        );
-    }
+  .notification-unread-tint {
+    --notification-tint-strength: 12%;
+    background-image: linear-gradient(
+      color-mix(in srgb, var(--c-1) var(--notification-tint-strength), transparent),
+      color-mix(in srgb, var(--c-1) var(--notification-tint-strength), transparent)
+    );
+  }
 
-    .dark .notification-unread-tint {
-        --notification-tint-strength: 20%;
-    }
+  .dark .notification-unread-tint {
+    --notification-tint-strength: 20%;
+  }
 
-    /* Snappier toast enter/exit. Sonner's own 400ms transition lives on
+  /* Snappier toast enter/exit. Sonner's own 400ms transition lives on
        `[data-sonner-toast]` in a stylesheet it injects at runtime, so these
        selectors have to out-specify it rather than rely on source order.
        Only the animation speed changes — how long a toast stays is unaffected. */
-    [data-sonner-toaster] [data-sonner-toast],
-    [data-sonner-toaster]
-        [data-sonner-toast][data-removed="true"][data-front="false"][data-swipe-out="false"][data-expanded="false"] {
-        transition-duration: 150ms;
-    }
+  [data-sonner-toaster] [data-sonner-toast],
+  [data-sonner-toaster]
+    [data-sonner-toast][data-removed="true"][data-front="false"][data-swipe-out="false"][data-expanded="false"] {
+    transition-duration: 150ms;
+  }
 
-    /* Custom spinner animation - 2x faster than default */
-    .animate-spin-fast {
-        animation: spin 0.5s linear infinite;
-    }
+  /* Custom spinner animation - 2x faster than default */
+  .animate-spin-fast {
+    animation: spin 0.5s linear infinite;
+  }
 
-    @keyframes spin {
-        from {
-            transform: rotate(0deg);
-        }
-        to {
-            transform: rotate(360deg);
-        }
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
     }
+    to {
+      transform: rotate(360deg);
+    }
+  }
 }

@@ -28,15 +28,8 @@ import { SidebarActionButton } from "@/components/SidebarActionButton";
 import { NotificationBadge } from "@/components/notifications/NotificationBadge";
 import { CreatePostDialog } from "@/components/CreatePostDialog";
 import { isAuthenticatedAtom, userAtom } from "@/atoms/auth";
-import {
-  sidebarPinnedAtom,
-  sidebarExpandedAtom,
-  sidebarMenuOpenAtom,
-} from "@/atoms/sidebar";
-import {
-  useServerInfo,
-  useUnreadNotificationCount,
-} from "@/lib/hooks/use-queries";
+import { sidebarPinnedAtom, sidebarExpandedAtom, sidebarMenuOpenAtom } from "@/atoms/sidebar";
+import { useServerInfo, useUnreadNotificationCount } from "@/lib/hooks/use-queries";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { useTranslations } from "next-intl";
 import { motion, useAnimate } from "framer-motion";
@@ -94,7 +87,9 @@ export function Sidebar() {
     prevIsMenuOpenRef.current = isMenuOpen;
   }, [isMenuOpen]);
 
-  useEffect(() => { router.prefetch("/"); }, [router]);
+  useEffect(() => {
+    router.prefetch("/");
+  }, [router]);
 
   const [pinIconRef, animatePinIcon] = useAnimate();
   const hoverBg = "hover:bg-sidebar-hover";
@@ -109,11 +104,7 @@ export function Sidebar() {
 
   const handlePinToggle = () => {
     const y = isPinned ? -3 : 3;
-    animatePinIcon(
-      pinIconRef.current,
-      { y: [0, y, 0] },
-      { duration: 0.2, ease: "circOut" },
-    );
+    animatePinIcon(pinIconRef.current, { y: [0, y, 0] }, { duration: 0.2, ease: "circOut" });
     setIsPinned(!isPinned);
   };
 
@@ -122,11 +113,7 @@ export function Sidebar() {
       <motion.aside
         ref={asideRef}
         animate={{ width: isExpanded ? 256 : 72 }}
-        transition={
-          canExpand
-            ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
-            : { duration: 0 }
-        }
+        transition={canExpand ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }}
         className="fixed left-0 top-0 h-dvh flex flex-col p-3 z-40 gap-3 overflow-hidden"
         onMouseEnter={(e) => {
           if (isMenuOpen && !isPinned) {
@@ -157,14 +144,9 @@ export function Sidebar() {
                       borderRadius: isExpanded ? "12px" : "16px",
                     }}
                     transition={
-                      canExpand
-                        ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
-                        : { duration: 0 }
+                      canExpand ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }
                     }
-                    className={cn(
-                      "shrink-0 overflow-hidden",
-                      isExpanded ? "h-9 w-9" : "h-12 w-12",
-                    )}
+                    className={cn("shrink-0 overflow-hidden", isExpanded ? "h-9 w-9" : "h-12 w-12")}
                   >
                     {serverInfo?.serverIconUrl ? (
                       <Image
@@ -203,32 +185,20 @@ export function Sidebar() {
 
           <motion.div
             animate={{ opacity: isTopControlsVisible ? 1 : 0 }}
-            transition={
-              canExpand
-                ? { duration: 0.15, ease: "easeInOut" }
-                : { duration: 0 }
-            }
+            transition={canExpand ? { duration: 0.15, ease: "easeInOut" } : { duration: 0 }}
             className="flex items-center shrink-0 gap-2 justify-start"
             style={{ pointerEvents: isTopControlsVisible ? "auto" : "none" }}
           >
             <Button
               variant="ghost"
               rounded="md"
-              className={cn(
-                "w-10 h-10 transition-none",
-                isPinned && "bg-accent/60",
-                hoverBg,
-              )}
+              className={cn("w-10 h-10 transition-none", isPinned && "bg-accent/60", hoverBg)}
               onClick={handlePinToggle}
               aria-label={tNav(isPinned ? "unpinSidebar" : "pinSidebar")}
               tabIndex={isTopControlsVisible ? 0 : -1}
             >
               <span ref={pinIconRef} className="flex">
-                {isPinned ? (
-                  <PinOff className="w-4 h-4" />
-                ) : (
-                  <Pin className="w-4 h-4" />
-                )}
+                {isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
               </span>
             </Button>
           </motion.div>
@@ -273,9 +243,7 @@ export function Sidebar() {
                 </span>
               }
               label={tNav("notifications")}
-              trailingIcon={
-                isExpanded && unreadCount > 0 ? <NotificationBadge /> : undefined
-              }
+              trailingIcon={isExpanded && unreadCount > 0 ? <NotificationBadge /> : undefined}
               isActive={pathname === "/notifications"}
               isExpanded={isExpanded}
               canAnimate={canExpand}
@@ -327,18 +295,11 @@ export function Sidebar() {
           )}
         </div>
 
-        <SidebarAvatar
-          isExpanded={isExpanded}
-          isPinned={isPinned}
-          canAnimate={canExpand}
-        />
+        <SidebarAvatar isExpanded={isExpanded} isPinned={isPinned} canAnimate={canExpand} />
       </motion.aside>
 
       {isAuthenticated && (
-        <CreatePostDialog
-          open={isPostDialogOpen}
-          onOpenChange={setIsPostDialogOpen}
-        />
+        <CreatePostDialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen} />
       )}
     </>
   );

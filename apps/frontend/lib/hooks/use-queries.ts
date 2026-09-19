@@ -35,7 +35,6 @@ type UserSearchPage = components["schemas"]["UserSearchPage"];
 /** Notification list tabs. "mentions" covers everything addressed at you. */
 export type NotificationTab = "all" | "mentions";
 
-
 export const NOTIFICATION_TAB_TYPES: Record<
   NotificationTab,
   readonly NotificationType[] | undefined
@@ -60,18 +59,15 @@ export const queryKeys = {
   homeTimeline: ["timeline", "home"] as const,
   post: (id: string) => ["post", id] as const,
   postContext: (id: string) => ["postContext", id] as const,
-  postThread: (id: string, params?: PostThreadParams) =>
-    ["postThread", id, params ?? {}] as const,
+  postThread: (id: string, params?: PostThreadParams) => ["postThread", id, params ?? {}] as const,
   replies: (postId: string) => ["replies", postId] as const,
   ownerReplyThread: (postId: string) => ["ownerReplyThread", postId] as const,
   user: (username: string) => ["user", username] as const,
   userPosts: (username: string) => ["userPosts", username] as const,
   // Prefix shared by every follow list, so one follow can patch all of them.
   follows: ["follows"] as const,
-  followList: (username: string, tab: FollowTab) =>
-    ["follows", username, tab] as const,
-  followersYouFollowPreview: (username: string) =>
-    ["followersYouFollowPreview", username] as const,
+  followList: (username: string, tab: FollowTab) => ["follows", username, tab] as const,
+  followersYouFollowPreview: (username: string) => ["followersYouFollowPreview", username] as const,
   reactions: (postId: string) => ["reactions", postId] as const,
   bookmarkLists: ["bookmarkLists"] as const,
   bookmarkListPosts: (listId: string) => ["bookmarkListPosts", listId] as const,
@@ -85,17 +81,14 @@ export const queryKeys = {
     language?: "en" | "ja";
     type?: "terms" | "privacy";
   }) => ["adminAgreementDocuments", params] as const,
-  adminAgreementDocument: (id: string) =>
-    ["adminAgreementDocument", id] as const,
+  adminAgreementDocument: (id: string) => ["adminAgreementDocument", id] as const,
   adminAgreementHistory: (type: "terms" | "privacy", language: "en" | "ja") =>
     ["adminAgreementHistory", type, language] as const,
   adminInviteCodes: (params?: { limit?: number; offset?: number }) =>
     ["adminInviteCodes", params] as const,
   adminInviteCode: (id: string) => ["adminInviteCode", id] as const,
-  adminInviteUsageHistory: (id: string) =>
-    ["adminInviteUsageHistory", id] as const,
-  adminEmojis: (params?: { limit?: number; offset?: number }) =>
-    ["adminEmojis", params] as const,
+  adminInviteUsageHistory: (id: string) => ["adminInviteUsageHistory", id] as const,
+  adminEmojis: (params?: { limit?: number; offset?: number }) => ["adminEmojis", params] as const,
   ogp: (url: string) => ["ogp", url] as const,
   notifications: (tab: NotificationTab) => ["notifications", tab] as const,
   notificationsUnread: ["notificationsUnread"] as const,
@@ -279,10 +272,7 @@ export function usePostContext(postId: string | undefined) {
   });
 }
 
-export function usePostThread(
-  postId: string | undefined,
-  params?: PostThreadParams,
-) {
+export function usePostThread(postId: string | undefined, params?: PostThreadParams) {
   const api = useApi();
   const fetchPostThreadSlice = useCallback(
     async (targetPostId: string, sliceParams?: PostThreadParams) => {
@@ -294,9 +284,7 @@ export function usePostThread(
   );
 
   const query = useQuery({
-    queryKey: postId
-      ? queryKeys.postThread(postId, params)
-      : ["postThread", "null"],
+    queryKey: postId ? queryKeys.postThread(postId, params) : ["postThread", "null"],
     queryFn: async () => {
       if (!postId) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
       return fetchPostThreadSlice(postId, params);
@@ -314,22 +302,21 @@ export function usePostThread(
 export function useOwnerReplyThread(post: components["schemas"]["Post"] | undefined) {
   const api = useApi();
   const fetchOwnerReplyThreadChunk = useCallback(
-    async (
-      parentPost: components["schemas"]["Post"],
-      visitedPostIds?: Iterable<string>,
-    ) =>
-      collectOwnerReplyThreadChunk(parentPost, async (parentId, params) => {
-        const result = await api.listReplies(parentId, params);
-        if (!result.ok) throw new Error(result.errorText);
-        return result.data;
-      }, { visitedPostIds }),
+    async (parentPost: components["schemas"]["Post"], visitedPostIds?: Iterable<string>) =>
+      collectOwnerReplyThreadChunk(
+        parentPost,
+        async (parentId, params) => {
+          const result = await api.listReplies(parentId, params);
+          if (!result.ok) throw new Error(result.errorText);
+          return result.data;
+        },
+        { visitedPostIds },
+      ),
     [api],
   );
 
   const query = useQuery({
-    queryKey: post
-      ? queryKeys.ownerReplyThread(post.id)
-      : ["ownerReplyThread", "null"],
+    queryKey: post ? queryKeys.ownerReplyThread(post.id) : ["ownerReplyThread", "null"],
     queryFn: async () => {
       if (!post) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
       return fetchOwnerReplyThreadChunk(post);
@@ -390,9 +377,7 @@ function useFollowMutation(follow: boolean) {
 
   return useMutation({
     mutationFn: async (username: string) => {
-      const result = follow
-        ? await api.followUser(username)
-        : await api.unfollowUser(username);
+      const result = follow ? await api.followUser(username) : await api.unfollowUser(username);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
     },
@@ -402,9 +387,8 @@ function useFollowMutation(follow: boolean) {
       queryClient.invalidateQueries({ queryKey: queryKeys.homeTimeline });
       // Patch the button state in every loaded follow list so it flips without
       // waiting on a refetch...
-      queryClient.setQueriesData<InfiniteData<UsersPage>>(
-        { queryKey: queryKeys.follows },
-        (old) => patchFollowedUser(old, username, follow),
+      queryClient.setQueriesData<InfiniteData<UsersPage>>({ queryKey: queryKeys.follows }, (old) =>
+        patchFollowedUser(old, username, follow),
       );
       // ...and in search results, which show the same button. Following someone
       // does not change whether they match the query, so unlike the follow
@@ -524,9 +508,7 @@ export function useFollowList(username: string | undefined, tab: FollowTab) {
   const api = useApi();
 
   return useInfiniteQuery({
-    queryKey: username
-      ? queryKeys.followList(username, tab)
-      : ["follows", "null", tab],
+    queryKey: username ? queryKeys.followList(username, tab) : ["follows", "null", tab],
     queryFn: async ({ pageParam }) => {
       if (!username) throw new Error(ERROR_CODES.USERNAME_REQUIRED);
       const result = await api.followList(username, tab, {
@@ -544,10 +526,7 @@ export function useFollowList(username: string | undefined, tab: FollowTab) {
 }
 
 // The first few known followers plus a total, for the profile card facepile.
-export function useFollowersYouFollowPreview(
-  username: string | undefined,
-  enabled: boolean,
-) {
+export function useFollowersYouFollowPreview(username: string | undefined, enabled: boolean) {
   const api = useApi();
 
   return useQuery({
@@ -568,14 +547,17 @@ export function useFollowersYouFollowPreview(
 // User posts with infinite scroll
 export function useUserPosts(
   username: string | undefined,
-  params?: { limit?: number; mediaType?: "image" | "video" | "media"; onlyReplies?: boolean; excludeForeignReplies?: boolean },
+  params?: {
+    limit?: number;
+    mediaType?: "image" | "video" | "media";
+    onlyReplies?: boolean;
+    excludeForeignReplies?: boolean;
+  },
 ) {
   const api = useApi();
 
   return useInfiniteQuery({
-    queryKey: username
-      ? [...queryKeys.userPosts(username), params]
-      : ["userPosts", "null"],
+    queryKey: username ? [...queryKeys.userPosts(username), params] : ["userPosts", "null"],
     queryFn: async ({ pageParam }) => {
       if (!username) throw new Error(ERROR_CODES.USERNAME_REQUIRED);
       const result = await api.userPosts(username, {
@@ -679,13 +661,7 @@ export function useAddReaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      postId,
-      emoji,
-    }: {
-      postId: string;
-      emoji: string;
-    }) => {
+    mutationFn: async ({ postId, emoji }: { postId: string; emoji: string }) => {
       const result = await api.addReaction(postId, { emoji }); // Cookie-based auth
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -705,13 +681,7 @@ export function useRemoveReaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      postId,
-      emoji,
-    }: {
-      postId: string;
-      emoji: string;
-    }) => {
+    mutationFn: async ({ postId, emoji }: { postId: string; emoji: string }) => {
       const result = await api.removeReaction(postId, emoji); // Cookie-based auth
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -761,13 +731,7 @@ export function useUpdateUsername() {
   const setAuth = useSetAtom(authAtom);
 
   return useMutation({
-    mutationFn: async ({
-      username,
-      stepupToken,
-    }: {
-      username: string;
-      stepupToken: string;
-    }) => {
+    mutationFn: async ({ username, stepupToken }: { username: string; stepupToken: string }) => {
       const result = await api.updateUsername({ username }, stepupToken);
       if (!result.ok) {
         throw new ApiHttpError(result.errorText, result.status, result.headers);
@@ -868,11 +832,7 @@ export function useAgreementVersions(options?: { enabled?: boolean }) {
 }
 
 // Latest agreement document (public endpoint)
-export function useLatestAgreement(
-  type: "terms" | "privacy",
-  language: string,
-  enabled = true,
-) {
+export function useLatestAgreement(type: "terms" | "privacy", language: string, enabled = true) {
   const api = useApi();
 
   return useQuery({
@@ -893,9 +853,7 @@ export function useAcceptAgreements() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["AcceptAgreementsRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["AcceptAgreementsRequest"]) => {
       const result = await api.acceptAgreements(body);
       if (!result.ok) throw new Error(result.errorText);
     },
@@ -912,9 +870,7 @@ export function useUpdateAgreementVersions() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["UpdateAgreementVersionsRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["UpdateAgreementVersionsRequest"]) => {
       const result = await api.adminUpdateAgreementVersions(body);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -1041,10 +997,7 @@ export function useAdminAgreementDocument(documentId: string | undefined) {
 }
 
 // Get agreement history (admin only)
-export function useAdminAgreementHistory(
-  type: "terms" | "privacy",
-  language: "en" | "ja",
-) {
+export function useAdminAgreementHistory(type: "terms" | "privacy", language: "en" | "ja") {
   const api = useApi();
 
   return useQuery({
@@ -1064,9 +1017,7 @@ export function useAdminCreateAgreementDocument() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["CreateAgreementDocumentRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["CreateAgreementDocumentRequest"]) => {
       const result = await api.adminCreateAgreementDocument(body);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -1086,9 +1037,7 @@ export function useAdminUpdateAgreementDocument(documentId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["UpdateAgreementDocumentRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["UpdateAgreementDocumentRequest"]) => {
       const result = await api.adminUpdateAgreementDocument(documentId, body);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -1173,10 +1122,7 @@ export function useAdminDuplicateAgreementDocument(documentId: string) {
 
 // ==================== Admin - Emojis ====================
 
-export function useAdminEmojis(params?: {
-  limit?: number;
-  offset?: number;
-}) {
+export function useAdminEmojis(params?: { limit?: number; offset?: number }) {
   const api = useApi();
 
   return useQuery({
@@ -1249,10 +1195,7 @@ export function useAdminDeleteEmoji() {
 // ==================== Admin - Invite Codes ====================
 
 // List invite codes (admin only)
-export function useAdminInviteCodes(params?: {
-  limit?: number;
-  offset?: number;
-}) {
+export function useAdminInviteCodes(params?: { limit?: number; offset?: number }) {
   const api = useApi();
 
   return useQuery({
@@ -1271,9 +1214,7 @@ export function useAdminInviteCode(inviteId: string | undefined) {
   const api = useApi();
 
   return useQuery({
-    queryKey: inviteId
-      ? queryKeys.adminInviteCode(inviteId)
-      : ["adminInviteCode", "null"],
+    queryKey: inviteId ? queryKeys.adminInviteCode(inviteId) : ["adminInviteCode", "null"],
     queryFn: async () => {
       if (!inviteId) throw new Error("Invite ID required");
       const result = await api.adminGetInviteCode(inviteId);
@@ -1308,9 +1249,7 @@ export function useAdminCreateInviteCode() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["CreateInviteCodeRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["CreateInviteCodeRequest"]) => {
       const result = await api.adminCreateInviteCode(body);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -1330,9 +1269,7 @@ export function useAdminUpdateInviteCode(inviteId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["UpdateInviteCodeRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["UpdateInviteCodeRequest"]) => {
       const result = await api.adminUpdateInviteCode(inviteId, body);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -1561,26 +1498,23 @@ export function markNotificationsReadInCache(
 
   queryClient.setQueriesData<{
     pages?: Array<{ items?: components["schemas"]["Notification"][] }>;
-  }>(
-    { predicate: (query) => query.queryKey[0] === "notifications" },
-    (payload) => {
-      if (!payload || !Array.isArray(payload.pages)) return payload;
-      let changed = false;
-      const pages = payload.pages.map((page) => {
-        if (!page || !Array.isArray(page.items)) return page;
-        let pageChanged = false;
-        const items = page.items.map((item) => {
-          if (item.readAt || (idSet && !idSet.has(item.id))) return item;
-          pageChanged = true;
-          return { ...item, readAt };
-        });
-        if (!pageChanged) return page;
-        changed = true;
-        return { ...page, items };
+  }>({ predicate: (query) => query.queryKey[0] === "notifications" }, (payload) => {
+    if (!payload || !Array.isArray(payload.pages)) return payload;
+    let changed = false;
+    const pages = payload.pages.map((page) => {
+      if (!page || !Array.isArray(page.items)) return page;
+      let pageChanged = false;
+      const items = page.items.map((item) => {
+        if (item.readAt || (idSet && !idSet.has(item.id))) return item;
+        pageChanged = true;
+        return { ...item, readAt };
       });
-      return changed ? { ...payload, pages } : payload;
-    },
-  );
+      if (!pageChanged) return page;
+      changed = true;
+      return { ...page, items };
+    });
+    return changed ? { ...payload, pages } : payload;
+  });
 }
 
 const SEARCH_PAGE_SIZE = 30;

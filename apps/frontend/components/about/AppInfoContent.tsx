@@ -48,9 +48,7 @@ export function AppInfoContent({
           </div>
 
           <h1 className="text-2xl font-bold text-center">ciel</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {serverInfo?.version ?? "—"}
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">{serverInfo?.version ?? "—"}</p>
         </div>
 
         {/* Tabs */}
@@ -96,11 +94,7 @@ export function AppInfoContent({
           </Button>
           <Separator />
           <Button variant="list_row" size="list" asChild>
-            <a
-              href="https://github.com/bettaworx/ciel"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href="https://github.com/bettaworx/ciel" target="_blank" rel="noopener noreferrer">
               <span>{t("sourceCode")}</span>
               <ExternalLink className="opacity-60" />
             </a>

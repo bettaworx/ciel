@@ -129,12 +129,7 @@ export function SearchContent({ query, tab }: SearchContentProps) {
       );
     }
     if (resultCount === 0) {
-      return (
-        <EmptyState
-          icon={SearchX}
-          title={tab === "posts" ? t("noPosts") : t("noUsers")}
-        />
-      );
+      return <EmptyState icon={SearchX} title={tab === "posts" ? t("noPosts") : t("noUsers")} />;
     }
 
     if (tab === "users") {
@@ -155,9 +150,7 @@ export function SearchContent({ query, tab }: SearchContentProps) {
             post={displayedPost(post)}
             variant="timeline"
             isLast={index === posts.length - 1}
-            onUserClick={(username) =>
-              router.push(`/users/${encodeURIComponent(username)}`)
-            }
+            onUserClick={(username) => router.push(`/users/${encodeURIComponent(username)}`)}
           />
         ))}
       </div>

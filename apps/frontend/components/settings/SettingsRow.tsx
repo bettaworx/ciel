@@ -33,11 +33,7 @@ export function SettingsRowGroup({
 }) {
   return (
     <section className="space-y-1.5">
-      {title && (
-        <h2 className="text-sm font-medium text-muted-foreground">
-          {title}
-        </h2>
-      )}
+      {title && <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>}
       <div
         className={cn(
           "flex flex-col overflow-hidden rounded-2xl bg-card",
@@ -51,8 +47,7 @@ export function SettingsRowGroup({
   );
 }
 
-interface SettingsRowProps
-  extends Omit<React.ComponentPropsWithoutRef<typeof Button>, "children"> {
+interface SettingsRowProps extends Omit<React.ComponentPropsWithoutRef<typeof Button>, "children"> {
   icon?: LucideIcon;
   label: string;
   /** Current value, shown before the caret. Its presence picks the caret. */
@@ -133,12 +128,7 @@ export function SettingsSwitchRow({
         {Icon && <Icon />}
         <span>{label}</span>
       </span>
-      <Switch
-        id={id}
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        disabled={disabled}
-      />
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
     </label>
   );
 }
@@ -183,10 +173,7 @@ export function SettingsSelectRow<T extends string>({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuRadioGroup
-            value={value}
-            onValueChange={(next) => onValueChange(next as T)}
-          >
+          <DropdownMenuRadioGroup value={value} onValueChange={(next) => onValueChange(next as T)}>
             {options.map((opt) => (
               <DropdownMenuRadioItem key={opt.value} value={opt.value}>
                 {opt.label}

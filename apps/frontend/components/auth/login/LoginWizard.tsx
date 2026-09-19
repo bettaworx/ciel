@@ -13,11 +13,7 @@ import { PasswordStep } from "@/components/auth/login/PasswordStep";
 import { MfaChallengeStep } from "@/components/auth/MfaChallengeStep";
 import { useMfaChallenge } from "@/lib/hooks/use-mfa-challenge";
 import { ChevronLeft } from "lucide-react";
-import {
-  type LoginStep,
-  getLoginStepIndex,
-  getLoginStepByIndex,
-} from "@/lib/config/auth-steps";
+import { type LoginStep, getLoginStepIndex, getLoginStepByIndex } from "@/lib/config/auth-steps";
 import type { AnimationDirection } from "@/lib/config/setup-animation";
 import type { components } from "@/lib/api/api";
 
@@ -142,10 +138,7 @@ export function LoginWizard({ initialUsername = "" }: LoginWizardProps) {
 
   // useMfaChallenge reports this one itself, so it only hands back the key.
   const handleMfaSecurityKey = () =>
-    runMfa(
-      () => completeLoginMfaWebAuthn(mfaToken ?? ""),
-      "login.wizard.mfa.webauthnFailed",
-    );
+    runMfa(() => completeLoginMfaWebAuthn(mfaToken ?? ""), "login.wizard.mfa.webauthnFailed");
 
   // Render current step
   const renderCurrentStep = () => {
@@ -155,11 +148,7 @@ export function LoginWizard({ initialUsername = "" }: LoginWizardProps) {
 
       case "password":
         return (
-          <PasswordStep
-            username={username}
-            onSubmit={handlePasswordSubmit}
-            loading={loading}
-          />
+          <PasswordStep username={username} onSubmit={handlePasswordSubmit} loading={loading} />
         );
 
       case "mfa":

@@ -5,10 +5,7 @@ export default function AppInfoSettingsPage() {
   return (
     <>
       <DynamicTitle titleKey="meta.pages.settingsAboutApp" />
-      <AppInfoContent
-        backHref="/settings/about"
-        licensesHref="/settings/about/app/licenses"
-      />
+      <AppInfoContent backHref="/settings/about" licensesHref="/settings/about/app/licenses" />
     </>
   );
 }

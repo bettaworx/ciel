@@ -10,11 +10,7 @@ interface DisplayNameStepProps {
   loading?: boolean;
 }
 
-export function DisplayNameStep({
-  onNext,
-  onSkip,
-  loading = false,
-}: DisplayNameStepProps) {
+export function DisplayNameStep({ onNext, onSkip, loading = false }: DisplayNameStepProps) {
   const t = useTranslations();
   const [displayName, setDisplayName] = useState("");
 
@@ -35,9 +31,7 @@ export function DisplayNameStep({
           {/* Title and subtitle - left aligned */}
           <div className="space-y-2 mb-6">
             <h2 className="text-2xl font-bold">{t("setup.displayName.title")}</h2>
-            <p className="text-muted-foreground text-sm">
-              {t("setup.displayName.description")}
-            </p>
+            <p className="text-muted-foreground text-sm">{t("setup.displayName.description")}</p>
           </div>
 
           {/* Input field */}
@@ -52,12 +46,10 @@ export function DisplayNameStep({
               required
               className="transition-colors duration-160 ease"
             />
-          <p className="text-xs text-muted-foreground text-right">
-            {displayName.length} / 50
-          </p>
+            <p className="text-xs text-muted-foreground text-right">{displayName.length} / 50</p>
+          </div>
         </div>
-      </div>
-    </form>
-  </div>
+      </form>
+    </div>
   );
 }

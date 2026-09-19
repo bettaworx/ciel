@@ -11,16 +11,16 @@ import { cn } from "@/lib/utils";
  * Position it with the className — the parent has to be `relative`.
  */
 export function UnreadDot({ className }: { className?: string }) {
-	const t = useTranslations();
+  const t = useTranslations();
 
-	return (
-		<span
-			role="status"
-			aria-label={t("accountSwitcher.otherAccountsUnread")}
-			className={cn(
-				"pointer-events-none absolute h-2 w-2 rounded-full bg-c-1 ring-2 ring-background",
-				className
-			)}
-		/>
-	);
+  return (
+    <span
+      role="status"
+      aria-label={t("accountSwitcher.otherAccountsUnread")}
+      className={cn(
+        "pointer-events-none absolute h-2 w-2 rounded-full bg-c-1 ring-2 ring-background",
+        className,
+      )}
+    />
+  );
 }

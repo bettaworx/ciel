@@ -30,9 +30,7 @@ export function loadQualityMode<K extends "image" | "video">(
   kind: K,
   allowNone: boolean,
 ): ModeFor<K> {
-  const fallback = (
-    kind === "video" ? DEFAULT_VIDEO_MODE : DEFAULT_IMAGE_MODE
-  ) as ModeFor<K>;
+  const fallback = (kind === "video" ? DEFAULT_VIDEO_MODE : DEFAULT_IMAGE_MODE) as ModeFor<K>;
 
   if (typeof window === "undefined") return fallback;
 

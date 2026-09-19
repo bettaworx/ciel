@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAtomValue } from "jotai";
 import { userAtom } from "@/atoms/auth";
 import { PostCard } from "@/components/PostCard";
-import {
-  NOTIFICATION_ICONS,
-  NotificationRow,
-} from "@/components/notifications/NotificationRow";
+import { NOTIFICATION_ICONS, NotificationRow } from "@/components/notifications/NotificationRow";
 import {
   notificationDisplayType,
   notificationIds,
@@ -61,10 +58,7 @@ export function NotificationItem({
       onFocus={markSeen}
       // Touch devices never fire hover, so any interaction has to count as seen.
       onClick={markSeen}
-      className={cn(
-        "transition-colors duration-500",
-        isUnread && "notification-unread-tint",
-      )}
+      className={cn("transition-colors duration-500", isUnread && "notification-unread-tint")}
     >
       {rendersAsPostCard(notification) && notification.post ? (
         <PostCard

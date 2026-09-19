@@ -80,9 +80,7 @@ export function UserListRow({ user, action, hideMenu, className }: UserListRowPr
         </div>
         {user.displayName && (
           <div className="flex min-w-0 items-center gap-2">
-            <div className="truncate text-sm text-muted-foreground">
-              @{user.username}
-            </div>
+            <div className="truncate text-sm text-muted-foreground">@{user.username}</div>
             {followsYouBadge}
           </div>
         )}

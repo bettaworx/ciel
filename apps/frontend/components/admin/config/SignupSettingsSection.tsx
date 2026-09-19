@@ -88,10 +88,7 @@ export function SignupSettingsSection({ settings }: SignupSettingsSectionProps) 
         {/* Save Button */}
         {hasChanges && (
           <div className="flex justify-end">
-            <Button
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-            >
+            <Button onClick={handleSave} disabled={updateMutation.isPending}>
               {updateMutation.isPending ? t("saving") : t("save")}
             </Button>
           </div>

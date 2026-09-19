@@ -114,9 +114,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
       >
         <div className="flex-1 flex flex-col justify-center">
           <div className="space-y-2 mb-6">
-            <h2 className="text-2xl font-bold">
-              {t("login.wizard.username.title")}
-            </h2>
+            <h2 className="text-2xl font-bold">{t("login.wizard.username.title")}</h2>
           </div>
 
           <div className="space-y-4">
