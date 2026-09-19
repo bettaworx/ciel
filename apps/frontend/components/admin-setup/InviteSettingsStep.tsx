@@ -51,7 +51,7 @@ export function InviteSettingsStep({
 }: InviteSettingsStepProps) {
   const t = useTranslations("adminSetup");
   const [inviteOnly, setInviteOnly] = useState(initialInviteOnly);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
 
   // Invite code creation state

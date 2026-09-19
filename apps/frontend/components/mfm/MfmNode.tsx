@@ -224,7 +224,7 @@ function formatDisplayUrl(rawUrl: string): UrlSegment[] {
     parsed = new URL(rawUrl);
   } catch {
     const text =
-      rawUrl.length > MAX_LEN ? rawUrl.slice(0, MAX_LEN - 1) + "…" : rawUrl;
+      rawUrl.length > MAX_LEN ? `${rawUrl.slice(0, MAX_LEN - 1)}…` : rawUrl;
     return [{ text, dim: false }];
   }
 

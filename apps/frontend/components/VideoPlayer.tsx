@@ -37,22 +37,6 @@ interface VideoPlayerProps {
   style?: React.CSSProperties;
 }
 
-function getMimeType(url: string): string {
-  const ext = url.split(".").pop()?.split("?")[0]?.toLowerCase();
-  switch (ext) {
-    case "webm":
-      return "video/webm";
-    case "ogg":
-    case "ogv":
-      return "video/ogg";
-    case "m3u8":
-      return "application/x-mpegURL";
-    case "mp4":
-    default:
-      return "video/mp4";
-  }
-}
-
 function formatTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);

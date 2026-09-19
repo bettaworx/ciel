@@ -45,7 +45,7 @@ export default function AdminLayout({
           // User doesn't have admin access
           router.replace("/");
         }
-      } catch (error) {
+      } catch (_error) {
         // Error checking access, redirect to home
         router.replace("/");
       }

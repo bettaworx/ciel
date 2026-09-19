@@ -170,7 +170,7 @@ export function FormatOverflowMenu({
     } else {
       const hasSelection = selectionStart !== selectionEnd;
       if (!hasSelection) {
-        apply(value.slice(0, selectionStart) + "``" + value.slice(selectionStart), selectionStart + 1, selectionStart + 1);
+        apply(`${value.slice(0, selectionStart)}\`\`${value.slice(selectionStart)}`, selectionStart + 1, selectionStart + 1);
       } else {
         const selected = value.slice(selectionStart, selectionEnd);
         if (selected.includes("\n")) {
@@ -183,7 +183,7 @@ export function FormatOverflowMenu({
           );
         } else {
           apply(
-            value.slice(0, selectionStart) + "`" + selected + "`" + value.slice(selectionEnd),
+            `${value.slice(0, selectionStart)}\`${selected}\`${value.slice(selectionEnd)}`,
             selectionStart + 1,
             selectionEnd + 1,
           );
@@ -207,13 +207,13 @@ export function FormatOverflowMenu({
       if (hasSelection) {
         const selected = value.slice(selectionStart, selectionEnd);
         if (/^https?:\/\/\S+$/.test(selected.trim())) {
-          apply(value.slice(0, selectionStart) + "[](" + selected + ")" + value.slice(selectionEnd), selectionStart + 1, selectionStart + 1);
+          apply(`${value.slice(0, selectionStart)}[](${selected})${value.slice(selectionEnd)}`, selectionStart + 1, selectionStart + 1);
         } else {
           const cursor = selectionStart + 1 + selected.length + 2;
-          apply(value.slice(0, selectionStart) + "[" + selected + "]()" + value.slice(selectionEnd), cursor, cursor);
+          apply(`${value.slice(0, selectionStart)}[${selected}]()${value.slice(selectionEnd)}`, cursor, cursor);
         }
       } else {
-        apply(value.slice(0, selectionStart) + "[](url)" + value.slice(selectionStart), selectionStart + 1, selectionStart + 1);
+        apply(`${value.slice(0, selectionStart)}[](url)${value.slice(selectionStart)}`, selectionStart + 1, selectionStart + 1);
       }
     }
     setDrawerOpen(false);

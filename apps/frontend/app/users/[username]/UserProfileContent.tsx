@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useMemo, useCallback } from "react";
+import type React from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

@@ -138,7 +138,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
 		options.onServerOffline?.();
 	}
 
-	function handleNonOkResponse(res: Response, errorText: string, errorJson?: unknown): void {
+	function handleNonOkResponse(res: Response, _errorText: string, errorJson?: unknown): void {
 		// Check for server errors (5xx) - confirm offline
 		if (res.status >= 500) {
 			console.error('[API Client] Server error detected:', res.status);

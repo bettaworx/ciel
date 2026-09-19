@@ -67,7 +67,7 @@ export function BackupCodesDialog({ codes, onClose }: BackupCodesDialogProps) {
     // distinguishes one file from another, and hardcoding the product name
     // there only reads as if it were the host.
     const parts = [safe(host), safe(user?.username ?? "")].filter(Boolean);
-    link.download = [...parts, "backup-codes"].join("-") + ".txt";
+    link.download = `${[...parts, "backup-codes"].join("-")}.txt`;
     link.click();
     URL.revokeObjectURL(url);
   };

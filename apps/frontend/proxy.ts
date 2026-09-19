@@ -35,7 +35,7 @@ function websocketSource(value: string | undefined): string[] {
 
 function sourceList(...sources: string[][]): string {
   const unique = [...new Set(sources.flat().map(sanitize))]
-  return unique.length ? ' ' + unique.join(' ') : ''
+  return unique.length ? ` ${unique.join(' ')}` : ''
 }
 
 function backendHttpSources(): string[] {
@@ -56,7 +56,7 @@ function buildCsp(nonce: string): string {
 
   const extra = (directive: Parameters<typeof getRegisteredSources>[0]) => {
     const sources = getRegisteredSources(directive)
-    return sources.length ? ' ' + sources.join(' ') : ''
+    return sources.length ? ` ${sources.join(' ')}` : ''
   }
 
   // Nonce is always injected into script-src automatically.

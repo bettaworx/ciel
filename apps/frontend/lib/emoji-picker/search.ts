@@ -105,7 +105,7 @@ export function searchEmojiDataset(
     .search(query)
     .map((id) => dataset.entryMap.get(String(id)))
     .filter((entry): entry is EmojiSearchEntry => {
-      return Boolean(entry && entry.item.searchText.includes(query));
+      return Boolean(entry?.item.searchText.includes(query));
     })
     .sort((left, right) => left.order - right.order)
     .map((entry) => entry.item);

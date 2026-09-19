@@ -1,6 +1,5 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -18,8 +17,6 @@ export default function UserDetailPage({
 	params: Promise<{ userId: string }>;
 }) {
 	const { userId } = use(params);
-	const t = useTranslations('admin.users');
-	const tCommon = useTranslations('admin.common');
 	const api = useApi();
 
 	const { data: user, isLoading: userLoading } = useQuery({

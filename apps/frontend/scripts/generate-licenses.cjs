@@ -1,8 +1,8 @@
 // @ts-check
 "use strict";
 
-const { readFileSync, readdirSync, writeFileSync, mkdirSync } = require("fs");
-const { extname, join, resolve } = require("path");
+const { readFileSync, readdirSync, writeFileSync, mkdirSync } = require("node:fs");
+const { extname, join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "..");
 const OUTPUT = resolve(ROOT, "public/licenses.json");

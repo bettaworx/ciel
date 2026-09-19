@@ -20,7 +20,7 @@ export function useSlideAnimation({
 
   const resolveEase = (value: string) => {
     if (value === 'power2.inOut') {
-      return (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+      return (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
     }
 
     if (value === 'linear') {
@@ -155,7 +155,9 @@ export function useSlideAnimation({
 
     return () => {
       isActive = false;
-      activeAnimations.forEach((animation) => animation.stop());
+      activeAnimations.forEach((animation) => {
+        animation.stop();
+      });
     };
   }, [currentView, containerRef, duration, ease]);
 

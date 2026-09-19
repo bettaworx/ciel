@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { safeFetch } from '@/lib/ogp/ssrf';
 import { imageProxyRateLimiter, getClientIdentifier } from '@/lib/ogp/rate-limit';
-import { logDebug, logWarn, logError, getDomain } from '@/lib/ogp/logger';
+import { logDebug, logError, getDomain } from '@/lib/ogp/logger';
 
 export const runtime = 'nodejs';
 

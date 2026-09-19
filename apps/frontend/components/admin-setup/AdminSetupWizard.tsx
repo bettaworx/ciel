@@ -14,7 +14,6 @@ import {
 import { WelcomeStep } from "./WelcomeStep";
 import { VerifyPasswordStep } from "./VerifyPasswordStep";
 import { CreateAdminStep } from "./CreateAdminStep";
-import { AdminProfileStep } from "./AdminProfileStep";
 import { ServerInfoStep } from "./ServerInfoStep";
 import { InviteSettingsStep } from "./InviteSettingsStep";
 import { CompleteStep } from "./CompleteStep";
@@ -235,11 +234,6 @@ export function AdminSetupWizard() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleAdminProfileComplete = () => {
-    // Profile setup is optional, just move to next step
-    goNext();
   };
 
   // Profile update handlers

@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type Locale } from "@/i18n/constants";
+import type { Locale } from "@/i18n/constants";
 import { setClientLocale } from "@/i18n/client-locale";
 import type { AdminSetupStep } from "@/lib/config/admin-setup-steps";
 

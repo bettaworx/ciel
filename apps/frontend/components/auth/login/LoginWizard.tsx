@@ -102,7 +102,7 @@ export function LoginWizard({ initialUsername = "" }: LoginWizardProps) {
       } else {
         toast.error(t("login.failed"));
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error(t("error.generic"));
     } finally {
       setLoading(false);

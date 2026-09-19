@@ -24,7 +24,6 @@ export function BioStep({
   };
 
   // Check if input is valid (not empty after trim)
-  const isInputValid = bio.trim().length > 0;
 
   return (
     <div className="flex flex-col h-full min-h-0">

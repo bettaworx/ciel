@@ -35,6 +35,7 @@ export function RuntimeConfigScript({ nonce }: RuntimeConfigScriptProps) {
 			type="application/json"
 			nonce={nonce}
 			suppressHydrationWarning
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: JSON.stringify された自前のランタイム設定を application/json スクリプトに埋め込むだけで、ユーザー入力は通らない
 			dangerouslySetInnerHTML={{
 				__html: serializeRuntimeConfig(runtimeConfig),
 			}}

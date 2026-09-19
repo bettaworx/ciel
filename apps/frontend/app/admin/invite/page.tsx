@@ -81,7 +81,7 @@ export default function InviteCodesPage() {
 			await disableMutation.mutateAsync(disableDialog.inviteId);
 			toast.success(t('messages.disableSuccess'));
 			setDisableDialog({ open: false, inviteId: null });
-		} catch (error) {
+		} catch (_error) {
 			toast.error(t('messages.disableError'));
 		}
 	};
@@ -92,7 +92,7 @@ export default function InviteCodesPage() {
 			await deleteMutation.mutateAsync(deleteDialog.inviteId);
 			toast.success(t('messages.deleteSuccess'));
 			setDeleteDialog({ open: false, inviteId: null });
-		} catch (error) {
+		} catch (_error) {
 			toast.error(t('messages.deleteError'));
 		}
 	};

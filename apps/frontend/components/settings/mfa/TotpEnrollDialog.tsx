@@ -167,6 +167,7 @@ export function TotpEnrollDialog({
               className="mx-auto w-48 rounded-xl bg-white p-3 [&_svg]:h-full [&_svg]:w-full"
               // The SVG is produced locally by the qrcode encoder from a URL the
               // server generated; no user input reaches this markup.
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: 上記の通り QR の SVG は手元生成でユーザー入力を含まない
               dangerouslySetInnerHTML={{ __html: qr }}
             />
           )}

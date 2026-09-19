@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { applyFormatToTextarea } from "./applyFormat";

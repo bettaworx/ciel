@@ -33,7 +33,7 @@ export const isAuthenticatedAtom = atom((get) => !!get(authAtom).user && get(aut
 export const authStatusAtom = atom((get) => get(authAtom).status);
 
 // Action atoms
-export const clearAuthAtom = atom(null, (get, set) => {
+export const clearAuthAtom = atom(null, (_get, set) => {
 	set(authAtom, {
 		status: 'ready',
 		user: null,

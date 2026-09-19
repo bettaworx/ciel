@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type RefObject } from "react";
-import { type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -87,6 +87,7 @@ export function findSizeDecoration(
 
   let lastMatch: RegExpExecArray | null = null;
   let m: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: RegExp.exec を回す定型ループ
   while ((m = SIZE_REGEX.exec(before)) !== null) {
     lastMatch = m;
   }

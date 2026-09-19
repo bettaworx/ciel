@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { applyFormatToTextarea } from "./applyFormat";
@@ -226,7 +226,7 @@ export function LinkFormatButton({
       }
     } else {
       const newValue =
-        value.slice(0, selectionStart) + "[](url)" + value.slice(selectionStart);
+        `${value.slice(0, selectionStart)}[](url)${value.slice(selectionStart)}`;
       apply(newValue, selectionStart + 1, selectionStart + 1);
     }
   };

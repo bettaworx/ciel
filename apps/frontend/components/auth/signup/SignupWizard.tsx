@@ -16,8 +16,6 @@ import { InviteCodeStep } from "@/components/auth/signup/InviteCodeStep";
 import { ChevronLeft } from "lucide-react";
 import {
   type SignupStep,
-  getSignupStepIndex,
-  getSignupStepByIndex,
 } from "@/lib/config/auth-steps";
 import type { AnimationDirection } from "@/lib/config/setup-animation";
 import { createApiClient } from "@/lib/api/client";
@@ -54,7 +52,7 @@ export function SignupWizard() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Agreement acceptance state
@@ -215,7 +213,7 @@ export function SignupWizard() {
       } else {
         toast.error(t("signup.failed"));
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error(t("error.generic"));
     } finally {
       setLoading(false);
@@ -241,7 +239,7 @@ export function SignupWizard() {
         // Show invite-specific error message
         toast.error(t("signup.wizard.inviteCode.invalid"));
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error(t("error.generic"));
     } finally {
       setLoading(false);

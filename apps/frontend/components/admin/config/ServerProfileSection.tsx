@@ -33,7 +33,7 @@ export function ServerProfileSection({ serverInfo }: ServerProfileSectionProps) 
 
   const handleIconFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
+    if (!file?.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onloadend = () => {
       setCropImageSrc(reader.result as string);

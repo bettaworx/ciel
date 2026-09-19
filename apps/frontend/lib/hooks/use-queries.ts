@@ -1116,7 +1116,7 @@ export function useAdminPublishAgreementDocument() {
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
     },
-    onSuccess: (data, documentId) => {
+    onSuccess: (_data, documentId) => {
       // Invalidate agreement documents list and single document
       queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === "adminAgreementDocuments",
@@ -1359,7 +1359,7 @@ export function useAdminDisableInviteCode() {
       const result = await api.adminDisableInviteCode(inviteId);
       if (!result.ok) throw new Error(result.errorText);
     },
-    onSuccess: (data, inviteId) => {
+    onSuccess: (_data, inviteId) => {
       // Invalidate invite codes list and single invite
       queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === "adminInviteCodes",

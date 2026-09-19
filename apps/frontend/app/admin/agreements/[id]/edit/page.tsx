@@ -50,7 +50,7 @@ export default function EditAgreementPage() {
 			await updateMutation.mutateAsync({ title, content });
 			toast.success(t('messages.updateSuccess'));
 			router.push('/admin/agreements');
-		} catch (error) {
+		} catch (_error) {
 			toast.error(t('messages.updateError'));
 		}
 	};

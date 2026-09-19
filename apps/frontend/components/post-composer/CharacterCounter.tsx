@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import {
   Tooltip,
   TooltipContent,
@@ -25,7 +24,6 @@ export function CharacterCounter({
   percentage,
   showCount,
 }: CharacterCounterProps) {
-  const t = useTranslations();
   const radius = 13;
   const circumference = 2 * Math.PI * radius;
 

@@ -18,7 +18,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Globe, Ellipsis, Info } from "lucide-react";
-import { type Locale } from "@/i18n/constants";
+import type { Locale } from "@/i18n/constants";
 import { useServerInfo } from "@/lib/hooks/use-queries";
 import { setClientLocale } from "@/i18n/client-locale";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";

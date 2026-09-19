@@ -47,7 +47,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
         // Other error
         setError(t("login.wizard.username.error"));
       }
-    } catch (err) {
+    } catch (_err) {
       // Network or other error
       setError(t("login.wizard.username.error"));
     } finally {

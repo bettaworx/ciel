@@ -78,7 +78,7 @@ export default function NewAgreementPage() {
 			setTimeout(() => {
 				router.push('/admin/agreements');
 			}, 100);
-		} catch (error) {
+		} catch (_error) {
 			toast.error(t('messages.createError'));
 		}
 	};

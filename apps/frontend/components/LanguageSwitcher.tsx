@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
-import { type Locale } from "@/i18n/constants";
+import type { Locale } from "@/i18n/constants";
 import { Button } from "@/components/ui/button";
 import { setClientLocale } from "@/i18n/client-locale";
 

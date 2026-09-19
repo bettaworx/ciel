@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type RefObject } from "react";
-import { type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -92,6 +92,7 @@ export function findFontDecoration(
 
   let lastMatch: RegExpExecArray | null = null;
   let m: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: RegExp.exec を回す定型ループ
   while ((m = FONT_REGEX.exec(before)) !== null) {
     lastMatch = m;
   }
@@ -142,7 +143,6 @@ export function removeFontDecoration(
   match: FontMatch,
 ): { newValue: string; newStart: number; newEnd: number } {
   const prefixLen = match.prefixEnd - match.prefixStart;
-  const suffixLen = match.suffixEnd - match.suffixStart;
 
   // Remove suffix first (higher index)
   let newValue =

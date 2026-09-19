@@ -74,7 +74,7 @@ export default function AgreementsPage() {
 			await publishMutation.mutateAsync(publishDialog.documentId);
 			toast.success(t('messages.publishSuccess'));
 			setPublishDialog({ open: false, documentId: null });
-		} catch (error) {
+		} catch (_error) {
 			toast.error(t('messages.publishError'));
 		}
 	};
@@ -85,7 +85,7 @@ export default function AgreementsPage() {
 			await deleteMutation.mutateAsync(deleteDialog.documentId);
 			toast.success(t('messages.deleteSuccess'));
 			setDeleteDialog({ open: false, documentId: null });
-		} catch (error) {
+		} catch (_error) {
 			toast.error(t('messages.deleteError'));
 		}
 	};

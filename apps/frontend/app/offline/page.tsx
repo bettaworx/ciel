@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type Locale } from "@/i18n/constants";
+import type { Locale } from "@/i18n/constants";
 import { setClientLocale } from "@/i18n/client-locale";
 import { resolveApiBaseUrl } from "@/lib/api/base-url";
 
@@ -62,7 +62,7 @@ export default function OfflinePage() {
     if (typeof window !== 'undefined') {
       // Method 1: Use location.reload(true) - deprecated but works
       // Method 2: Use location.href with timestamp to bypass cache
-      const timestamp = new Date().getTime();
+      const timestamp = Date.now();
       window.location.href = `/?t=${timestamp}`;
     }
   };

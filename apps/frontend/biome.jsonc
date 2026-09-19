@@ -1,0 +1,80 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!lib/api/api.d.ts",
+      "!next-env.d.ts",
+      "!public",
+      "!storybook-static"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "css": {
+    // globals.css は Tailwind v4 の @theme / @apply を使う
+    "parser": { "tailwindDirectives": true }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "domains": {
+      "next": "recommended",
+      "react": "recommended",
+      "test": "recommended"
+    },
+    "rules": {
+      "preset": "recommended",
+      "suspicious": {
+        // 旧 eslint.config.mjs から引き継ぎ (@typescript-eslint/no-explicit-any)
+        "noExplicitAny": "off",
+        // ESLint 時代は未検査。11 件あり、既存分を直すまで CI は落とさない
+        "noArrayIndexKey": "warn"
+      },
+      "style": {
+        // 既存コードは ! を意図的に使う。noExplicitAny を off にしている方針と揃える
+        "noNonNullAssertion": "off"
+      },
+      "correctness": {
+        // eslint-config-next の react-hooks/exhaustive-deps と同じ warn 扱いに合わせる
+        "useExhaustiveDependencies": "warn"
+      },
+      // a11y は ESLint 時代に一度も検査されておらず既存違反が 33 件ある。
+      // 消すのではなく warn に落として可視化し、別タスクで解消する。
+      "a11y": {
+        "noNoninteractiveElementToInteractiveRole": "warn",
+        "useAriaPropsSupportedByRole": "warn",
+        "noStaticElementInteractions": "warn",
+        "useFocusableInteractive": "warn",
+        "useKeyWithClickEvents": "warn",
+        "noLabelWithoutControl": "warn",
+        "useSemanticElements": "warn",
+        "noSvgWithoutTitle": "warn",
+        "useValidAnchor": "warn",
+        "useButtonType": "warn"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        // import 並べ替えは副作用 import の順序を壊しうるため初回は無効
+        "organizeImports": "off"
+      }
+    }
+  }
+}

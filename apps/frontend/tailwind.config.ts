@@ -1,4 +1,4 @@
-import { Inter, M_PLUS_1, M_PLUS_1p } from 'next/font/google';
+
 import type { Config } from 'tailwindcss';
 
 const config: Config = {

@@ -5,7 +5,7 @@ import { useAtom } from "jotai";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { themeAtom, type Theme } from "@/atoms/theme";
+import { themeAtom, } from "@/atoms/theme";
 
 export function ThemeToggle() {
   const t = useTranslations();

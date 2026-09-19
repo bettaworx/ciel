@@ -6,9 +6,9 @@ import {
   useEffect,
   useMemo,
   useCallback,
-  ChangeEvent,
-  KeyboardEvent,
-  ClipboardEvent,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type ClipboardEvent,
 } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";

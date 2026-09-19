@@ -95,5 +95,5 @@ export function parseOgp(html: string, pageUrl: string): OgpData | null {
 /** Truncate a string to a maximum length, appending "..." if needed. */
 function truncate(str: string, maxLen: number): string {
 	if (str.length <= maxLen) return str;
-	return str.slice(0, maxLen - 1) + '\u2026';
+	return `${str.slice(0, maxLen - 1)}\u2026`;
 }
