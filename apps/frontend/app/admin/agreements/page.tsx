@@ -31,9 +31,6 @@ import {
   useAdminDeleteAgreementDocument,
 } from "@/lib/hooks/use-queries";
 import { toast } from "sonner";
-import type { components } from "@/lib/api/api";
-
-type AgreementDocument = components["schemas"]["AgreementDocument"];
 
 export default function AgreementsPage() {
   const t = useTranslations("admin.agreements");
@@ -52,7 +49,7 @@ export default function AgreementsPage() {
     status: statusFilter !== "all" ? (statusFilter as "draft" | "published") : undefined,
   };
 
-  const { data, isLoading, error } = useAdminAgreementDocuments(queryParams);
+  const { data, isLoading } = useAdminAgreementDocuments(queryParams);
 
   // Publish dialog
   const [publishDialog, setPublishDialog] = useState<{ open: boolean; documentId: string | null }>({

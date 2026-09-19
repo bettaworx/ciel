@@ -15,16 +15,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
   const { userId } = use(params);
   const api = useApi();
 
-  const { data: user, isLoading: userLoading } = useQuery({
-    queryKey: ["adminUser", userId],
-    queryFn: async () => {
-      // Note: We don't have a dedicated admin user detail endpoint,
-      // so we'll need to add this or use the regular user endpoint
-      // For now, using a placeholder
-      return null;
-    },
-  });
-
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["adminUserStats", userId],
     queryFn: async () => {
@@ -55,7 +45,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
     },
   });
 
-  const isLoading = userLoading || statsLoading;
+  const isLoading = statsLoading;
 
   if (isLoading) {
     return (
