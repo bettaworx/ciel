@@ -25,8 +25,8 @@ type WebAuthnUser struct {
 }
 
 func (u *WebAuthnUser) WebAuthnID() []byte          { return u.ID[:] }
-func (u *WebAuthnUser) WebAuthnName() string         { return u.Name }
-func (u *WebAuthnUser) WebAuthnDisplayName() string  { return u.DisplayName }
+func (u *WebAuthnUser) WebAuthnName() string        { return u.Name }
+func (u *WebAuthnUser) WebAuthnDisplayName() string { return u.DisplayName }
 func (u *WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 	return u.Credentials
 }
@@ -100,12 +100,12 @@ func NewWebAuthn(cfg WebAuthnConfig) (*webauthn.WebAuthn, error) {
 
 // WebAuthnSessionData is stored between options and verify.
 type WebAuthnSessionData struct {
-	SessionID    string                `json:"sessionId"`
-	UserID       string                `json:"userId"`
-	Purpose      string                `json:"purpose"` // register | assert
-	MfaToken     string                `json:"mfaToken,omitempty"`
-	SessionData  webauthn.SessionData  `json:"sessionData"`
-	ExpiresAtUTC time.Time             `json:"expiresAtUtc"`
+	SessionID    string               `json:"sessionId"`
+	UserID       string               `json:"userId"`
+	Purpose      string               `json:"purpose"` // register | assert
+	MfaToken     string               `json:"mfaToken,omitempty"`
+	SessionData  webauthn.SessionData `json:"sessionData"`
+	ExpiresAtUTC time.Time            `json:"expiresAtUtc"`
 }
 
 // WebAuthnSessionStore stores in-flight WebAuthn ceremonies.

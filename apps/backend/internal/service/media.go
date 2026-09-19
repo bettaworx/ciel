@@ -994,7 +994,7 @@ func validateMIMEType(buf []byte, ext, declaredCT string) error {
 		// so perfectly good files come back as octet-stream. For video that is
 		// not worth rejecting on: ffprobe checks the container and every codec
 		// straight after, which is a far stronger test than four magic bytes.
-		if !(sniff == "application/octet-stream" && isVideoExt(ext)) {
+		if sniff != "application/octet-stream" || !isVideoExt(ext) {
 			return NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "unsupported mime type")
 		}
 	} else if expectedMime != "" && sniff != expectedMime {

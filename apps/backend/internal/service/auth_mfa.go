@@ -659,10 +659,10 @@ func mapWebAuthnCredential(r sqlc.AuthWebauthnCredential) api.WebAuthnCredential
 		t := r.LastUsedAt.Time
 		lastUsed = &t
 	}
+	// make+append rather than a plain copy: an empty list must marshal as [] and
+	// not null.
 	transports := make([]string, 0, len(r.Transports))
-	for _, t := range r.Transports {
-		transports = append(transports, t)
-	}
+	transports = append(transports, r.Transports...)
 	return api.WebAuthnCredential{
 		Id:         openapi_types.UUID(r.ID),
 		Name:       r.Name,

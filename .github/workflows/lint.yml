@@ -33,11 +33,12 @@ jobs:
         working-directory: apps/backend
         run: go build ./...
 
-      - uses: golangci/golangci-lint-action@v7
+      # Pin the version: "latest" means an unrelated golangci-lint release can
+      # turn this job red on a commit that changed nothing.
+      - uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.13.2
           working-directory: apps/backend
-          args: --path-prefix=apps/backend
 
   lint-js:
     name: JS/TS (Biome) Lint

@@ -1059,9 +1059,9 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 		ParentID:     uuid.NullUUID{UUID: parentID, Valid: true},
 		ViewerID:     nullUUIDFromPtr(userID),
 		BlockedByIds: scope.BlockedByIDs(),
-		CursorTime: cTime,
-		CursorID:   cID,
-		Limit:      int32(limit),
+		CursorTime:   cTime,
+		CursorID:     cID,
+		Limit:        int32(limit),
 	})
 	if err != nil {
 		return api.TimelinePage{}, err

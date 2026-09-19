@@ -122,9 +122,9 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 		ViewerID:     nullUUIDFromPtr(userID),
 		HiddenIds:    scope.HiddenIDs(),
 		BlockedByIds: scope.BlockedByIDs(),
-		CursorTime: cTime,
-		CursorID:   cID,
-		Limit:      int32(limit),
+		CursorTime:   cTime,
+		CursorID:     cID,
+		Limit:        int32(limit),
 	})
 	if err != nil {
 		return api.TimelinePage{}, err
@@ -340,19 +340,19 @@ func (s *TimelineService) warmGlobalTimeline(ctx context.Context) {
 
 func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
 	return api.Post{
-		Id:          row.ID,
-		Content:     row.Content,
-		Media:       []api.Media{},
-		Reactions:   []api.ReactionCount{},
-		Mentions:    []api.MentionUser{},
-		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
-		RootId:      nullUUIDToPostIDPtr(row.RootID),
-		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		Id:            row.ID,
+		Content:       row.Content,
+		Media:         []api.Media{},
+		Reactions:     []api.ReactionCount{},
+		Mentions:      []api.MentionUser{},
+		ParentId:      nullUUIDToPostIDPtr(row.ParentID),
+		RootId:        nullUUIDToPostIDPtr(row.RootID),
+		ReferenceId:   nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
 		ParentHidden:  &row.ParentHidden,
-		CreatedAt:   row.CreatedAt,
-		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
+		CreatedAt:     row.CreatedAt,
+		DeletedAt:     nil,
+		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
@@ -620,36 +620,36 @@ func (s *TimelineService) attachReplyCountsToPosts(ctx context.Context, posts []
 
 func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 	return api.Post{
-		Id:          row.ID,
-		Content:     row.Content,
-		Media:       []api.Media{},
-		Reactions:   []api.ReactionCount{},
-		Mentions:    []api.MentionUser{},
-		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
-		RootId:      nullUUIDToPostIDPtr(row.RootID),
-		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		Id:            row.ID,
+		Content:       row.Content,
+		Media:         []api.Media{},
+		Reactions:     []api.ReactionCount{},
+		Mentions:      []api.MentionUser{},
+		ParentId:      nullUUIDToPostIDPtr(row.ParentID),
+		RootId:        nullUUIDToPostIDPtr(row.RootID),
+		ReferenceId:   nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
 		ParentHidden:  &row.ParentHidden,
-		CreatedAt:   row.CreatedAt,
-		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
+		CreatedAt:     row.CreatedAt,
+		DeletedAt:     nil,
+		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
 func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 	return api.Post{
-		Id:          row.ID,
-		Content:     row.Content,
-		Media:       []api.Media{},
-		Reactions:   []api.ReactionCount{},
-		Mentions:    []api.MentionUser{},
-		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
-		RootId:      nullUUIDToPostIDPtr(row.RootID),
-		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		Id:            row.ID,
+		Content:       row.Content,
+		Media:         []api.Media{},
+		Reactions:     []api.ReactionCount{},
+		Mentions:      []api.MentionUser{},
+		ParentId:      nullUUIDToPostIDPtr(row.ParentID),
+		RootId:        nullUUIDToPostIDPtr(row.RootID),
+		ReferenceId:   nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
 		ParentHidden:  &row.ParentHidden,
-		CreatedAt:   row.CreatedAt,
-		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
+		CreatedAt:     row.CreatedAt,
+		DeletedAt:     nil,
+		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }

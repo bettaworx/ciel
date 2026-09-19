@@ -76,9 +76,9 @@ func TestBuildFilterWithTags(t *testing.T) {
 	}
 
 	combined := buildFilter(Query{
-		Tags:   []string{"a", "b"},
-		Since:  unix(1000),
-		Until:  unix(2000),
+		Tags:  []string{"a", "b"},
+		Since: unix(1000),
+		Until: unix(2000),
 	})
 	want := `createdAt >= 1000 AND createdAt <= 2000 AND tags = "a" AND tags = "b"`
 	if combined != want {

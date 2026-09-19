@@ -25,37 +25,37 @@ func mapPostRow(row sqlc.GetPostWithAuthorByIDRow) api.Post {
 		deletedAt = &t
 	}
 	return api.Post{
-		Id:          row.ID,
-		Content:     row.Content,
-		Media:       []api.Media{},
-		Reactions:   []api.ReactionCount{},
-		Mentions:    []api.MentionUser{},
-		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
-		RootId:      nullUUIDToPostIDPtr(row.RootID),
-		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		Id:            row.ID,
+		Content:       row.Content,
+		Media:         []api.Media{},
+		Reactions:     []api.ReactionCount{},
+		Mentions:      []api.MentionUser{},
+		ParentId:      nullUUIDToPostIDPtr(row.ParentID),
+		RootId:        nullUUIDToPostIDPtr(row.RootID),
+		ReferenceId:   nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
 		ParentHidden:  &row.ParentHidden,
-		CreatedAt:   row.CreatedAt,
-		DeletedAt:   deletedAt,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
+		CreatedAt:     row.CreatedAt,
+		DeletedAt:     deletedAt,
+		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
 func mapPostsByUsernameRow(row sqlc.ListPostsByUsernameRow) api.Post {
 	return api.Post{
-		Id:          row.ID,
-		Content:     row.Content,
-		Media:       []api.Media{},
-		Reactions:   []api.ReactionCount{},
-		Mentions:    []api.MentionUser{},
-		ParentId:    nullUUIDToPostIDPtr(row.ParentID),
-		RootId:      nullUUIDToPostIDPtr(row.RootID),
-		ReferenceId: nullUUIDToPostIDPtr(row.ReferenceID),
+		Id:            row.ID,
+		Content:       row.Content,
+		Media:         []api.Media{},
+		Reactions:     []api.ReactionCount{},
+		Mentions:      []api.MentionUser{},
+		ParentId:      nullUUIDToPostIDPtr(row.ParentID),
+		RootId:        nullUUIDToPostIDPtr(row.RootID),
+		ReferenceId:   nullUUIDToPostIDPtr(row.ReferenceID),
 		ParentPrivate: &row.ParentPrivate,
 		ParentHidden:  &row.ParentHidden,
-		CreatedAt:   row.CreatedAt,
-		DeletedAt:   nil,
-		Author:      mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
+		CreatedAt:     row.CreatedAt,
+		DeletedAt:     nil,
+		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
 	}
 }
 
