@@ -16,6 +16,8 @@
     "run:backend": "cd apps/backend && go run .",
     "run:frontend": "dotenv -e .env -- pnpm -C apps/frontend run start",
     "test:backend": "cd apps/backend && go test ./...",
+    "lint:backend": "cd apps/backend && golangci-lint run",
+    "fmt:backend": "cd apps/backend && golangci-lint fmt",
     "dev:frontend": "dotenv -e .env -- pnpm -C apps/frontend run dev",
     "build:frontend": "cd apps/frontend && pnpm run build",
     "build:kotodoki": "pnpm -C packages/kotodoki run build",

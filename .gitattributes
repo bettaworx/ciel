@@ -2,3 +2,7 @@
 # checkout on Windows leaves "#!/bin/sh\r" in the shebang, and the image fails
 # with "no such file or directory" on an executable that plainly exists.
 *.sh text eol=lf
+
+# gofmt/goimports write LF. Without this, a CRLF checkout on Windows makes
+# golangci-lint report every Go file as unformatted.
+*.go text eol=lf
