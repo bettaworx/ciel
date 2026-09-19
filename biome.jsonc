@@ -10,6 +10,9 @@
     // にしか書かれていないビルド成果物・生成物はここで明示的に外す。
     "includes": [
       "**",
+      // git worktree の実体（リポジトリ全体の複製）。.gitignore にも入れているが、
+      // useIgnoreFile を切っても同じソースを二重に検査しないようここでも外す
+      "!**/.claude/worktrees",
       "!**/.next",
       "!**/dist",
       "!**/coverage",
