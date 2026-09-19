@@ -1,9 +1,22 @@
 # Ciel
-An open source software, which enables making a self-hosted microblogging service
+![A preview of ciel](assets/AppPreview.webp)
+<div style="text-align: center;padding-bottom:24px;">
+    <i>An open-source software, which enables making a self-hosted microblogging service</i>
+</div>
+
+# What is this?
+This is an open-source software microblogging service, which is designed with self-hosting in mind.
+
+It enables hosting a social service and post texts/medias and interacting with others in the same service by reactions/boosts/replies/follows.
+
+![Reactioning with an emoji someone's reply](assets/Reaction.webp)
 
 # Status
 This project is under development and is very unstable; there may be breaking changes.
 We do our best to avoid that since we operate a real server. But sometimes we have to make difficult choices.
+
+### About ActivityPub
+Supporting ActivityPub is under consideration for now. We are focusing on making the software more stable.
 
 # Running Ciel
 
