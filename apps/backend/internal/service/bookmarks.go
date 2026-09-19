@@ -419,4 +419,3 @@ func errBookmarkListNotFound() error {
 func errDatabaseUnavailable() error {
 	return NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 }
-
