@@ -200,6 +200,7 @@ SELECT
 	u.avatar_media_id,
 	u.banner_media_id,
 	u.created_at,
+	u.is_private,
 	u.terms_version,
 	u.privacy_version,
 	u.terms_accepted_at,

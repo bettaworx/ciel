@@ -133,7 +133,9 @@ func (s *PostsService) DeletePost(ctx context.Context, postID, deletedBy uuid.UU
 		fmt.Printf("warning: failed to log post deletion: %v\n", err)
 	}
 
-	s.search.ReindexPost(ctx, postID)
+	if s.search != nil {
+		s.search.ReindexPost(ctx, postID)
+	}
 	return nil
 }
 
@@ -161,7 +163,9 @@ func (s *PostsService) HidePost(ctx context.Context, postID, adminUserID uuid.UU
 		fmt.Printf("warning: failed to log post hide: %v\n", err)
 	}
 
-	s.search.ReindexPost(ctx, postID)
+	if s.search != nil {
+		s.search.ReindexPost(ctx, postID)
+	}
 	return nil
 }
 
@@ -185,6 +189,8 @@ func (s *PostsService) UnhidePost(ctx context.Context, postID, adminUserID uuid.
 		fmt.Printf("warning: failed to log post unhide: %v\n", err)
 	}
 
-	s.search.ReindexPost(ctx, postID)
+	if s.search != nil {
+		s.search.ReindexPost(ctx, postID)
+	}
 	return nil
 }

@@ -75,7 +75,9 @@ func (s *ProfileService) DeleteUserDisplayName(ctx context.Context, userID, admi
 		fmt.Printf("warning: failed to log display name deletion: %v\n", err)
 	}
 
-	s.search.ReindexUser(ctx, userID)
+	if s.search != nil {
+		s.search.ReindexUser(ctx, userID)
+	}
 	return nil
 }
 
@@ -99,6 +101,8 @@ func (s *ProfileService) DeleteUserBio(ctx context.Context, userID, adminUserID 
 		fmt.Printf("warning: failed to log bio deletion: %v\n", err)
 	}
 
-	s.search.ReindexUser(ctx, userID)
+	if s.search != nil {
+		s.search.ReindexUser(ctx, userID)
+	}
 	return nil
 }

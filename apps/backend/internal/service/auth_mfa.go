@@ -590,7 +590,7 @@ func (s *AuthService) completeLogin(ctx context.Context, userID uuid.UUID, usern
 	if err != nil {
 		return api.LoginAuthenticated{}, api.StepupAuthenticated{}, "", err
 	}
-	user := mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, false)
+	user := mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, row.IsPrivate)
 	return api.LoginAuthenticated{
 		Status:           api.LoginAuthenticatedStatusAuthenticated,
 		AccessToken:      token,

@@ -23,7 +23,6 @@ import type { components } from "@/lib/api/api";
 
 type Post = components["schemas"]["Post"];
 type PostId = components["schemas"]["PostId"];
-type UserId = components["schemas"]["UserId"];
 type ReactionCounts = components["schemas"]["ReactionCounts"];
 type ServerInfo = components["schemas"]["ServerInfo"];
 type ServerConfig = components["schemas"]["ServerConfig"];
@@ -38,7 +37,7 @@ type RealtimeEvent =
   | { type: "user_privacy_changed"; username: string }
   | { type: "server_info_updated"; serverInfo: ServerInfo }
   | { type: "server_config_updated"; serverConfig: ServerConfig }
-  | { type: "notification_created"; notification: Notification; targetUserId: UserId };
+  | { type: "notification_created"; notification: Notification };
 
 interface RealtimeProviderProps {
   children: React.ReactNode;

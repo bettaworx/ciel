@@ -42,13 +42,17 @@ func newMFATestService(t *testing.T) (*service.AuthService, sqlmock.Sqlmock, *au
 }
 
 func authRowColumns() []string {
+	return []string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "is_private", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash", "salt", "iterations", "stored_key", "server_key"}
+}
+
+func authByUsernameRowColumns() []string {
 	return []string{"user_id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "avatar_ext", "banner_ext", "banner_blurhash", "salt", "iterations", "stored_key", "server_key"}
 }
 
 func addAuthRow(rows *sqlmock.Rows, userID uuid.UUID, username string) {
 	created := time.Unix(1_700_000_000, 0).UTC()
 	rows.AddRow(userID, username, sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created,
-		sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{},
+		false, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{},
 		sql.NullString{}, sql.NullString{}, sql.NullString{}, []byte("salt"), int32(100000), []byte{1, 2}, []byte{3, 4})
 }
 
@@ -236,7 +240,7 @@ func TestAuthService_LoginFinish_MfaRequired(t *testing.T) {
 
 	// LoginStart looks up credentials by username.
 	mock.ExpectQuery(`SELECT\s+u.id`).WithArgs("alice").WillReturnRows(func() *sqlmock.Rows {
-		r := sqlmock.NewRows(authRowColumns())
+		r := sqlmock.NewRows(authByUsernameRowColumns())
 		created := time.Unix(1_700_000_000, 0).UTC()
 		r.AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created,
 			sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{},
@@ -254,7 +258,7 @@ func TestAuthService_LoginFinish_MfaRequired(t *testing.T) {
 
 	// GetAuthByUsername during finish
 	mock.ExpectQuery(`SELECT\s+u.id`).WithArgs("alice").WillReturnRows(func() *sqlmock.Rows {
-		r := sqlmock.NewRows(authRowColumns())
+		r := sqlmock.NewRows(authByUsernameRowColumns())
 		created := time.Unix(1_700_000_000, 0).UTC()
 		r.AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created,
 			sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{},

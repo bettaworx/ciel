@@ -102,16 +102,13 @@ components:
 
     NotificationCreatedEvent:
       type: object
-      description: Delivered only to the WebSocket connections of targetUserId.
+      description: Delivered only to the WebSocket connections of the recipient.
       required:
         - type
         - notification
-        - targetUserId
       properties:
         type:
           type: string
           enum: [notification_created]
         notification:
           $ref: ./notification.yml#/components/schemas/Notification
-        targetUserId:
-          $ref: ./common.yml#/components/schemas/UserId

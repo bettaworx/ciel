@@ -22,7 +22,7 @@ jobs:
             apps/backend/internal/db/sqlc/*.go
             apps/backend/internal/api/*.go
             packages/api/openapi.bundled.yml
-          key: go-generate-${{ hashFiles('apps/backend/db/schema.sql', 'apps/backend/db/queries*.sql', 'apps/backend/sqlc.yaml', 'apps/backend/oapi-codegen.yaml', 'packages/api/openapi.yml') }}
+          key: go-generate-${{ hashFiles('apps/backend/db/schema.sql', 'apps/backend/db/queries*.sql', 'apps/backend/sqlc.yaml', 'apps/backend/oapi-codegen.yaml', 'packages/api/openapi.yml', 'packages/api/paths/**', 'packages/api/schemas/**') }}
 
       - name: Generate code
         if: steps.gen-cache.outputs.cache-hit != 'true'
