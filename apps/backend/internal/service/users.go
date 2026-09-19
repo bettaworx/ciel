@@ -109,7 +109,7 @@ func (s *UsersService) attachFollowStats(ctx context.Context, user *api.User, vi
 	blockEitherWay := stats.IsBlockedBy || stats.IsBlocking
 	hidden := blockEitherWay ||
 		(user.IsPrivate != nil && *user.IsPrivate &&
-			!(viewer != nil && (*viewer == user.Id || stats.IsFollowing)))
+			(viewer == nil || (*viewer != user.Id && !stats.IsFollowing)))
 	if !hidden {
 		followers := int(stats.FollowersCount)
 		following := int(stats.FollowingCount)
