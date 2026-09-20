@@ -24,6 +24,7 @@ import (
 	"backend/internal/handlers"
 	"backend/internal/logging"
 	"backend/internal/middleware"
+	"backend/internal/ogp"
 	"backend/internal/realtime"
 	"backend/internal/repository"
 	"backend/internal/search"
@@ -487,6 +488,7 @@ func main() {
 
 	mediaSvc := service.NewMediaService(store, absMediaDir, configMgr.Get().Media, mediaInitErr)
 	emojiSvc := service.NewEmojiService(store, mediaSvc, cacheImpl)
+	ogpSvc := service.NewOGPService(ogp.NewClient(), cacheImpl)
 
 	// Public media routes (authentication bypassed in OptionalAuth middleware)
 	r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
@@ -520,6 +522,7 @@ func main() {
 		Notifications: notificationsSvc,
 		Media:         mediaSvc,
 		Emojis:        emojiSvc,
+		OGP:           ogpSvc,
 		Setup:         setupSvc,
 		Agreements:    agreementsSvc,
 		Tokens:        tokenManager,

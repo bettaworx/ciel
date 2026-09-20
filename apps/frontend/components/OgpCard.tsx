@@ -2,6 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpotifyEmbed } from "@/components/SpotifyEmbed";
+import { resolveApiBaseUrl } from "@/lib/api/base-url";
 import { useOgp } from "@/lib/hooks/use-queries";
 import { parseSpotifyUrl } from "@/lib/ogp/spotify";
 import { ExternalLink } from "lucide-react";
@@ -60,8 +61,10 @@ export function OgpCard({ url }: OgpCardProps) {
     }
   })();
 
+  // Proxied through the backend rather than loaded directly, so the linked
+  // site never sees the viewer's IP or referrer.
   const imageProxyUrl = ogp.image
-    ? `/internal/ogp/image?url=${encodeURIComponent(ogp.image)}`
+    ? `${resolveApiBaseUrl()}/ogp/image?${new URLSearchParams({ url: ogp.image }).toString()}`
     : null;
 
   // Decide layout: compact when image width is known and <= threshold.

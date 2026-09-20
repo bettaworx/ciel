@@ -1,5 +1,3 @@
-import "server-only";
-
 import {
   DEFAULT_API_BASE_URL,
   backendOriginFromBaseUrl,

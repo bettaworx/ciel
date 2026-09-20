@@ -84,6 +84,12 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		// costs a search-engine query plus a hydration round trip, so this is
 		// tighter than a timeline read.
 		{routeKey: "search", limit: 60, window: 1 * time.Minute, subject: subjectUser},
+		// Link previews: per-IP, because the routes are public. Each miss costs
+		// an outbound fetch, so these match the limits the old frontend-side
+		// in-process limiter used — except that Redis makes them hold across
+		// every instance instead of one process.
+		{routeKey: "ogp", limit: 30, window: 1 * time.Minute, subject: subjectIP},
+		{routeKey: "ogp_image", limit: 60, window: 1 * time.Minute, subject: subjectIP},
 	}
 
 	return func(next http.Handler) http.Handler {
@@ -303,6 +309,22 @@ func classifySearchRoute(method, path string) string {
 	return ""
 }
 
+// classifyOgpRoute classifies link-preview routes
+func classifyOgpRoute(method, path string) string {
+	if method != http.MethodGet {
+		return ""
+	}
+
+	switch path {
+	case "/api/v1/ogp":
+		return "ogp"
+	case "/api/v1/ogp/image":
+		return "ogp_image"
+	default:
+		return ""
+	}
+}
+
 // classifyRoute maps request paths to stable route keys for rate limiting / access control.
 // This is intentionally simple prefix matching so it works in global chi middlewares.
 func classifyRoute(r *http.Request) string {
@@ -331,6 +353,9 @@ func classifyRoute(r *http.Request) string {
 		return route
 	}
 	if route := classifySearchRoute(method, path); route != "" {
+		return route
+	}
+	if route := classifyOgpRoute(method, path); route != "" {
 		return route
 	}
 

@@ -1,7 +1,7 @@
 // Service Worker for Ciel PWA
 // Implements hybrid caching strategy for optimal offline experience
 
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 const STATIC_CACHE = `ciel-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ciel-dynamic-${CACHE_VERSION}`;
 const RSC_CACHE = `ciel-rsc-${CACHE_VERSION}`;
@@ -76,6 +76,13 @@ self.addEventListener("fetch", (event) => {
 
   // Media files - Network Only (large files should not be buffered or cached)
   if (url.pathname.match(/\.(mp4|webm|ogg|mp3|wav|flac|aac|mov|avi)$/i)) {
+    return;
+  }
+
+  // Cross-origin images - let the browser handle them. Media and link-preview
+  // thumbnails are served by the backend, so they would otherwise fall into the
+  // API/external branch below and be answered with a JSON error on failure.
+  if (request.destination === "image" && url.origin !== self.location.origin) {
     return;
   }
 
