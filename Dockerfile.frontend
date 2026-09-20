@@ -10,8 +10,15 @@ COPY apps/frontend/package.json ./apps/frontend/package.json
 COPY packages/kotodoki/package.json ./packages/kotodoki/package.json
 
 # CI/release builds require an up-to-date pnpm-lock.yaml; fail fast on lockfile drift.
+# Corepack's download can hit transient ECONNRESETs against registry.npmjs.org,
+# so retry a few times before giving up.
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    corepack enable pnpm && pnpm install --frozen-lockfile
+    for i in 1 2 3; do \
+      corepack enable pnpm && break; \
+      echo "corepack enable failed (attempt $i), retrying..."; \
+      sleep $((i * 3)); \
+    done && \
+    pnpm install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app
@@ -30,7 +37,12 @@ COPY packages/api ./packages/api
 COPY packages/kotodoki ./packages/kotodoki
 
 WORKDIR /app/apps/frontend
-RUN corepack enable pnpm
+# Retry for the same transient registry/network issue as the deps stage.
+RUN for i in 1 2 3; do \
+      corepack enable pnpm && break; \
+      echo "corepack enable failed (attempt $i), retrying..."; \
+      sleep $((i * 3)); \
+    done
 # The API types are not covered by a lifecycle script, so generate them first.
 # `build` then runs `prebuild` itself, which builds kotodoki and the licence
 # manifest — running gen:licenses here as well would just do it twice.
