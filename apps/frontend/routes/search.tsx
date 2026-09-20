@@ -3,10 +3,11 @@ import { z } from "zod";
 import { DynamicTitle } from "@/components/DynamicTitle";
 import { resolveSearchTab } from "@/lib/search-tabs";
 import { SearchContent } from "@/components/search/SearchContent";
+import { asText, textSearchParam } from "@/lib/search-params";
 
 const searchSchema = z.object({
-  q: z.string().optional(),
-  type: z.string().optional(),
+  q: textSearchParam,
+  type: textSearchParam,
 });
 
 export const Route = createFileRoute("/search")({
@@ -20,7 +21,7 @@ function SearchPage() {
   return (
     <>
       <DynamicTitle titleKey="meta.pages.search" />
-      <SearchContent query={q ?? ""} tab={resolveSearchTab(type)} />
+      <SearchContent query={asText(q) ?? ""} tab={resolveSearchTab(asText(type))} />
     </>
   );
 }

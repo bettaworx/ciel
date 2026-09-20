@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 import { cielRuntimePlugin, dropLegacyWoffPlugin } from "./vite-plugin-ciel.ts";
 
 const projectRoot = fileURLToPath(new URL(".", import.meta.url));
+// pnpm keeps its store at the monorepo root, so @fontsource files live outside
+// this package. Without this the dev server answers 403 for every webfont.
+const workspaceRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 /** Hosts allowed to reach the dev/preview server (Tailscale, LAN, …). */
 const allowedHosts = (process.env.DEV_ALLOWED_HOSTS ?? "")
@@ -53,7 +56,7 @@ export default defineConfig({
       process.env.npm_package_version ?? "0.0.0",
     ),
   },
-  server: { port: 3000, allowedHosts, proxy },
+  server: { port: 3000, allowedHosts, proxy, fs: { allow: [workspaceRoot] } },
   preview: { port: 3000, allowedHosts, proxy },
   build: {
     sourcemap: false,

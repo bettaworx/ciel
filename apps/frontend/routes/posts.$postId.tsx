@@ -2,10 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { DynamicTitle } from "@/components/DynamicTitle";
 import { PostDetailContent } from "@/components/posts/PostDetailContent";
+import { asText, textSearchParam } from "@/lib/search-params";
 
 const searchSchema = z.object({
   /** "1" opens the thread with ancestors already expanded. */
-  expandAncestors: z.string().optional(),
+  expandAncestors: textSearchParam,
 });
 
 export const Route = createFileRoute("/posts/$postId")({
@@ -20,7 +21,7 @@ function PostDetailPage() {
   return (
     <>
       <DynamicTitle titleKey="meta.pages.postDetail" />
-      <PostDetailContent postId={postId} expandAncestors={expandAncestors === "1"} />
+      <PostDetailContent postId={postId} expandAncestors={asText(expandAncestors) === "1"} />
     </>
   );
 }

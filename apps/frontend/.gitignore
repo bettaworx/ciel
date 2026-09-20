@@ -36,8 +36,9 @@ yarn-error.log*
 # storybook
 storybook-static/
 
-# TanStack Router generated route tree
+# TanStack Router generated route tree and plugin cache
 /routeTree.gen.ts
+/.tanstack/
 
 # OpenAPI generated types
 /lib/api/api.d.ts
