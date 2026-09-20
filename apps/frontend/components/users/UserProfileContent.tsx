@@ -219,6 +219,64 @@ function ProfilePostItem({ post, isLast, onUserClick, revealHidden }: ProfilePos
   );
 }
 
+type ProfileTabContentProps = {
+  isLoading: boolean;
+  error: Error | null;
+  isEmpty: boolean;
+  emptyMessage: string;
+  sentinelRef: React.RefObject<HTMLDivElement | null>;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  children: React.ReactNode;
+};
+
+function ProfileTabContent({
+  isLoading,
+  error,
+  isEmpty,
+  emptyMessage,
+  sentinelRef,
+  hasNextPage,
+  isFetchingNextPage,
+  children,
+}: ProfileTabContentProps) {
+  const t = useTranslations();
+
+  return (
+    <>
+      {isLoading && isEmpty && (
+        <div className="flex items-center justify-center py-12">
+          <Spinner variant="theme" label={t("loading")} />
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center justify-center py-12">
+          <p className="text-destructive">
+            {t("error.title")}: {error.message}
+          </p>
+        </div>
+      )}
+
+      {!isLoading && !error && isEmpty && (
+        <div className="flex items-center justify-center py-12">
+          <p className="text-muted-foreground">{emptyMessage}</p>
+        </div>
+      )}
+
+      {!isEmpty && (
+        <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">{children}</div>
+      )}
+
+      <InfiniteScrollTrigger
+        sentinelRef={sentinelRef}
+        hasNextPage={Boolean(hasNextPage)}
+        isFetchingNextPage={isFetchingNextPage}
+      />
+    </>
+  );
+}
+
 const DEFAULT_BANNER_URL = "/assets/Default-Banner.png";
 
 type UserProfileContentProps = {
@@ -250,6 +308,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   const showHiddenGate = hiddenByViewer && !profileRevealed;
   const isBlockedByUser = visibility.blockedByOwner;
   const bioWithheld = visibility.withholdBio;
+  const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media">("posts");
   const { actions: hideActions, dialog: hideDialog } = useHideUserActions(username, {
     isMuted: user?.isMuted,
     isBlocking: user?.isBlocking,
@@ -271,7 +330,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useUserPosts(username, { excludeForeignReplies: true });
+  } = useUserPosts(username, { excludeForeignReplies: true, enabled: activeTab === "posts" });
   const {
     data: repliesData,
     isLoading: repliesLoading,
@@ -279,7 +338,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     fetchNextPage: fetchNextRepliesPage,
     hasNextPage: hasNextRepliesPage,
     isFetchingNextPage: isFetchingNextRepliesPage,
-  } = useUserPosts(username, { onlyReplies: true });
+  } = useUserPosts(username, { onlyReplies: true, enabled: activeTab === "replies" });
   const {
     data: mediaData,
     isLoading: mediaLoading,
@@ -287,7 +346,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     fetchNextPage: fetchNextMediaPage,
     hasNextPage: hasNextMediaPage,
     isFetchingNextPage: isFetchingNextMediaPage,
-  } = useUserPosts(username, { mediaType: "media" });
+  } = useUserPosts(username, { mediaType: "media", enabled: activeTab === "media" });
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -334,19 +393,19 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
   const hasImageChanges = Boolean(selectedAvatarFile || selectedBannerFile);
   const canSaveProfile = hasTextChanges || hasImageChanges;
   const postsInfiniteScrollRef = useInfiniteScroll({
-    enabled: Boolean(hasNextPage),
+    enabled: activeTab === "posts" && Boolean(hasNextPage),
     hasNextPage: Boolean(hasNextPage),
     isFetchingNextPage,
     fetchNextPage,
   });
   const repliesInfiniteScrollRef = useInfiniteScroll({
-    enabled: Boolean(hasNextRepliesPage),
+    enabled: activeTab === "replies" && Boolean(hasNextRepliesPage),
     hasNextPage: Boolean(hasNextRepliesPage),
     isFetchingNextPage: isFetchingNextRepliesPage,
     fetchNextPage: fetchNextRepliesPage,
   });
   const mediaInfiniteScrollRef = useInfiniteScroll({
-    enabled: Boolean(hasNextMediaPage),
+    enabled: activeTab === "media" && Boolean(hasNextMediaPage),
     hasNextPage: Boolean(hasNextMediaPage),
     isFetchingNextPage: isFetchingNextMediaPage,
     fetchNextPage: fetchNextMediaPage,
@@ -983,7 +1042,10 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             </Button>
           </div>
         ) : (
-          <Tabs defaultValue="posts">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as typeof activeTab)}
+          >
             <TabsList className="mb-3 w-full">
               <TabsTrigger value="posts">{t("user.posts")}</TabsTrigger>
               <TabsTrigger value="replies">{t("user.replies")}</TabsTrigger>
@@ -991,163 +1053,103 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
             </TabsList>
 
             <TabsContent value="posts">
-              {postsLoading && posts.length === 0 && (
-                <div className="flex items-center justify-center py-12">
-                  <Spinner variant="theme" label={t("loading")} />
-                </div>
-              )}
-
-              {postsError && (
-                <div className="flex items-center justify-center py-12">
-                  <p className="text-destructive">
-                    {t("error.title")}: {postsError.message}
-                  </p>
-                </div>
-              )}
-
-              {!postsLoading && !postsError && posts.length === 0 && (
-                <div className="flex items-center justify-center py-12">
-                  <p className="text-muted-foreground">{t("user.noPosts")}</p>
-                </div>
-              )}
-
-              {posts.length > 0 && (
-                <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-                  {postItems.map((item, index) =>
-                    item.type === "post" ? (
-                      <ProfilePostItem
-                        key={item.post.id}
-                        post={item.post}
-                        onUserClick={(username) => router.push(`/users/${username}`)}
-                        isLast={index === postItems.length - 1}
-                        revealHidden={hiddenByViewer}
-                      />
-                    ) : (
-                      <OwnerThreadTimelineItem
-                        key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
-                        rootPost={item.rootPost}
-                        replies={item.replies}
-                        isMerged={item.isMerged}
-                        onUserClick={(username) => router.push(`/users/${username}`)}
-                        onShowThread={() =>
-                          router.push(
-                            `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
-                          )
-                        }
-                        isLast={index === postItems.length - 1}
-                        skipHiddenCushion={hiddenByViewer}
-                      />
-                    ),
-                  )}
-                </div>
-              )}
-
-              <InfiniteScrollTrigger
+              <ProfileTabContent
+                isLoading={postsLoading}
+                error={postsError}
+                isEmpty={posts.length === 0}
+                emptyMessage={t("user.noPosts")}
                 sentinelRef={postsInfiniteScrollRef}
                 hasNextPage={Boolean(hasNextPage)}
                 isFetchingNextPage={isFetchingNextPage}
-              />
+              >
+                {postItems.map((item, index) =>
+                  item.type === "post" ? (
+                    <ProfilePostItem
+                      key={item.post.id}
+                      post={item.post}
+                      onUserClick={(username) => router.push(`/users/${username}`)}
+                      isLast={index === postItems.length - 1}
+                      revealHidden={hiddenByViewer}
+                    />
+                  ) : (
+                    <OwnerThreadTimelineItem
+                      key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
+                      rootPost={item.rootPost}
+                      replies={item.replies}
+                      isMerged={item.isMerged}
+                      onUserClick={(username) => router.push(`/users/${username}`)}
+                      onShowThread={() =>
+                        router.push(
+                          `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
+                        )
+                      }
+                      isLast={index === postItems.length - 1}
+                      skipHiddenCushion={hiddenByViewer}
+                    />
+                  ),
+                )}
+              </ProfileTabContent>
             </TabsContent>
 
             <TabsContent value="replies">
-              {repliesLoading && replies.length === 0 && (
-                <div className="flex items-center justify-center py-12">
-                  <Spinner variant="theme" label={t("loading")} />
-                </div>
-              )}
-
-              {repliesError && (
-                <div className="flex items-center justify-center py-12">
-                  <p className="text-destructive">
-                    {t("error.title")}: {repliesError.message}
-                  </p>
-                </div>
-              )}
-
-              {!repliesLoading && !repliesError && replies.length === 0 && (
-                <div className="flex items-center justify-center py-12">
-                  <p className="text-muted-foreground">{t("user.noReplies")}</p>
-                </div>
-              )}
-
-              {replies.length > 0 && (
-                <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-                  {replyItems.map((item, index) =>
-                    item.type === "post" ? (
-                      <ProfilePostItem
-                        key={item.post.id}
-                        post={item.post}
-                        onUserClick={(username) => router.push(`/users/${username}`)}
-                        isLast={index === replyItems.length - 1}
-                        revealHidden={hiddenByViewer}
-                      />
-                    ) : (
-                      <OwnerThreadTimelineItem
-                        key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
-                        rootPost={item.rootPost}
-                        replies={item.replies}
-                        isMerged={item.isMerged}
-                        onUserClick={(username) => router.push(`/users/${username}`)}
-                        onShowThread={() =>
-                          router.push(
-                            `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
-                          )
-                        }
-                        isLast={index === replyItems.length - 1}
-                        skipHiddenCushion={hiddenByViewer}
-                      />
-                    ),
-                  )}
-                </div>
-              )}
-
-              <InfiniteScrollTrigger
+              <ProfileTabContent
+                isLoading={repliesLoading}
+                error={repliesError}
+                isEmpty={replies.length === 0}
+                emptyMessage={t("user.noReplies")}
                 sentinelRef={repliesInfiniteScrollRef}
                 hasNextPage={Boolean(hasNextRepliesPage)}
                 isFetchingNextPage={isFetchingNextRepliesPage}
-              />
+              >
+                {replyItems.map((item, index) =>
+                  item.type === "post" ? (
+                    <ProfilePostItem
+                      key={item.post.id}
+                      post={item.post}
+                      onUserClick={(username) => router.push(`/users/${username}`)}
+                      isLast={index === replyItems.length - 1}
+                      revealHidden={hiddenByViewer}
+                    />
+                  ) : (
+                    <OwnerThreadTimelineItem
+                      key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
+                      rootPost={item.rootPost}
+                      replies={item.replies}
+                      isMerged={item.isMerged}
+                      onUserClick={(username) => router.push(`/users/${username}`)}
+                      onShowThread={() =>
+                        router.push(
+                          `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
+                        )
+                      }
+                      isLast={index === replyItems.length - 1}
+                      skipHiddenCushion={hiddenByViewer}
+                    />
+                  ),
+                )}
+              </ProfileTabContent>
             </TabsContent>
 
             <TabsContent value="media">
-              {mediaLoading && media.length === 0 && (
-                <div className="flex items-center justify-center py-12">
-                  <Spinner variant="theme" label={t("loading")} />
-                </div>
-              )}
-
-              {mediaError && (
-                <div className="flex items-center justify-center py-12">
-                  <p className="text-destructive">
-                    {t("error.title")}: {mediaError.message}
-                  </p>
-                </div>
-              )}
-
-              {!mediaLoading && !mediaError && media.length === 0 && (
-                <div className="flex items-center justify-center py-12">
-                  <p className="text-muted-foreground">{t("user.noMedia")}</p>
-                </div>
-              )}
-
-              {media.length > 0 && (
-                <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-                  {media.map((post, index) => (
-                    <PostCard
-                      key={post.id}
-                      post={post}
-                      onUserClick={(username) => router.push(`/users/${username}`)}
-                      isLast={index === media.length - 1}
-                      skipHiddenCushion={hiddenByViewer}
-                    />
-                  ))}
-                </div>
-              )}
-
-              <InfiniteScrollTrigger
+              <ProfileTabContent
+                isLoading={mediaLoading}
+                error={mediaError}
+                isEmpty={media.length === 0}
+                emptyMessage={t("user.noMedia")}
                 sentinelRef={mediaInfiniteScrollRef}
                 hasNextPage={Boolean(hasNextMediaPage)}
                 isFetchingNextPage={isFetchingNextMediaPage}
-              />
+              >
+                {media.map((post, index) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onUserClick={(username) => router.push(`/users/${username}`)}
+                    isLast={index === media.length - 1}
+                    skipHiddenCushion={hiddenByViewer}
+                  />
+                ))}
+              </ProfileTabContent>
             </TabsContent>
           </Tabs>
         )}

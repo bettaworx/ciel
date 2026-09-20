@@ -551,6 +551,7 @@ export function useUserPosts(
     mediaType?: "image" | "video" | "media";
     onlyReplies?: boolean;
     excludeForeignReplies?: boolean;
+    enabled?: boolean;
   },
 ) {
   const api = useApi();
@@ -571,7 +572,7 @@ export function useUserPosts(
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled: !!username,
+    enabled: !!username && (params?.enabled ?? true),
     staleTime: 1000 * 60, // 1分
   });
 }
