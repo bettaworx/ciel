@@ -60,10 +60,13 @@ TWITTER_FRAME="https://platform.twitter.com https://syndication.twitter.com"
 CSP="default-src ${CSP_DEFAULT_SRC:-'self'}"
 CSP="$CSP; script-src ${CSP_SCRIPT_SRC:-'self' $TWITTER_SCRIPT}"
 CSP="$CSP; style-src ${CSP_STYLE_SRC:-'self' 'unsafe-inline'}"
-CSP="$CSP; img-src ${CSP_IMG_SRC:-'self' data: blob: $TWEMOJI $TWITTER_IMG $BACKENDS}"
+# Backend origins are appended unconditionally: the browser talks directly to
+# the backend for API calls, media and the WebSocket, so omitting them breaks
+# the app even when a deployment overrides individual CSP directives.
+CSP="$CSP; img-src ${CSP_IMG_SRC:-'self' data: blob: $TWEMOJI $TWITTER_IMG} $BACKENDS"
 CSP="$CSP; font-src ${CSP_FONT_SRC:-'self' data:}"
-CSP="$CSP; connect-src ${CSP_CONNECT_SRC:-'self' $SPOTIFY $YOUTUBE $TWITTER_CONNECT $BACKENDS $SOCKET_ORIGIN}"
-CSP="$CSP; media-src ${CSP_MEDIA_SRC:-'self' blob: $TWITTER_MEDIA $BACKENDS}"
+CSP="$CSP; connect-src ${CSP_CONNECT_SRC:-'self' $SPOTIFY $YOUTUBE $TWITTER_CONNECT} $BACKENDS $SOCKET_ORIGIN"
+CSP="$CSP; media-src ${CSP_MEDIA_SRC:-'self' blob: $TWITTER_MEDIA} $BACKENDS"
 CSP="$CSP; object-src ${CSP_OBJECT_SRC:-'none'}"
 CSP="$CSP; frame-src ${CSP_FRAME_SRC:-'self' $SPOTIFY $YOUTUBE $TWITTER_FRAME}"
 CSP="$CSP; base-uri ${CSP_BASE_URI:-'self'}"
