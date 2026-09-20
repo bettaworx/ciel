@@ -1,9 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "@/lib/navigation";
+import { useTranslations } from "@/lib/i18n";
+import Image from "@/components/ui/image";
+import Link from "@/components/ui/link";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {

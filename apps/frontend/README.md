@@ -1,57 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Ciel's frontend: a single-page React app built with [Vite](https://vite.dev) and
+[TanStack Router](https://tanstack.com/router). It renders entirely in the
+browser — there is no server-side rendering.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm dev        # dev server on http://localhost:3000
+pnpm build      # production build into dist/
+pnpm start      # serve the build locally (vite preview)
+pnpm test       # vitest
+pnpm typecheck  # tsc --noEmit
+pnpm storybook  # component workshop on http://localhost:6006
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Routes live in `routes/`, one file per URL, following TanStack Router's flat
+file convention (`settings.security.mfa.tsx` → `/settings/security/mfa`). A
+route file wires a URL to a component; the components themselves live under
+`components/`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Talking to the backend
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The browser calls the backend directly at `API_BASE_URL`, including the
+WebSocket. The frontend provides **no** API proxy.
 
-## API Routes
+That URL is not baked into the bundle: one built image is deployed against any
+backend by changing environment variables. The web server writes
+`/runtime-config.json` at startup, and `lib/api/base-url.ts` reads it once
+before the app renders.
 
-The frontend does not provide a backend API proxy. Backend REST and WebSocket
-calls are made directly to `API_BASE_URL` from the browser. Server-side
-frontend code may use `INTERNAL_API_BASE_URL` only for frontend-owned assets
-that need backend metadata, such as `/icon` and `/pwa/manifest.json`.
+Endpoints that used to be frontend route handlers now live on the backend:
 
-### OGP Preview API
+- `GET /api/v1/ogp?url=…` — Open Graph metadata for link previews
+- `GET /api/v1/ogp/image?url=…` — proxied preview thumbnails
+- `GET /pwa/manifest.json` — the Web App Manifest, carrying the instance's name
 
-The OGP (Open Graph Protocol) preview API is available at `/internal/ogp` instead of `/api/ogp` to avoid conflicts with the backend REST API routes.
+The manifest is the one thing the frontend's own web server proxies, because a
+manifest has to be same-origin with the document for its `start_url` to stay in
+scope. `INTERNAL_API_BASE_URL` is the address it proxies to, and is used for
+nothing else.
 
-**Endpoints:**
-- `GET /internal/ogp?url=<url>` - Fetch OGP metadata for a given URL
-- `GET /internal/ogp/image?url=<url>` - Fetch external preview images (with SSRF protection)
+The favicon is set in the browser by `components/FaviconLink.tsx` from the
+server icon in `/server/info`, so changing it in the admin screens updates the
+tab immediately.
 
-**Note:** These routes are internal Next.js API routes. Backend REST calls use `API_BASE_URL` and the backend `/api/v1/` endpoints directly.
+## Production
 
-**Logging:**
-- Development: Detailed debug logs are enabled for troubleshooting
-- Production: Only errors and warnings are logged
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`Dockerfile.frontend` builds the bundle with Node and serves it from
+`nginx:alpine` — no Node, and no native image libraries, in the runtime image.
+The server's configuration is `nginx/frontend/default.conf.template` plus
+`nginx/frontend/40-ciel-config.sh`, which generates the runtime config and the
+Content-Security-Policy header from the container's environment.

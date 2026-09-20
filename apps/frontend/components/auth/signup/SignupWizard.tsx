@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslations, useLocale } from "next-intl";
+import { useRouter } from "@/lib/navigation";
+import { useTranslations, useLocale } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useAgreementVersions } from "@/lib/hooks/use-queries";

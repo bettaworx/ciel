@@ -81,7 +81,6 @@ export function OgpCard({ url }: OgpCardProps) {
       >
         {/* Square-cropped thumbnail */}
         <div className="relative shrink-0 w-[108px] h-[108px] bg-muted">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageProxyUrl}
             alt={ogp.title ?? ""}
@@ -124,7 +123,6 @@ export function OgpCard({ url }: OgpCardProps) {
       {/* OGP Image */}
       {imageProxyUrl && (
         <div className="relative w-full bg-muted">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageProxyUrl} alt={ogp.title ?? ""} className="w-full h-auto" loading="lazy" />
         </div>
       )}

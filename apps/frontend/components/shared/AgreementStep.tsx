@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { AgreementDocument } from "./AgreementDocument";
 import { Checkbox } from "@/components/ui/checkbox";
 

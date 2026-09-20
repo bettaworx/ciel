@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import Link from "@/components/ui/link";
+import { usePathname } from "@/lib/navigation";
+import { useTranslations } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,

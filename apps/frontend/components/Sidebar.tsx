@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import Image from "@/components/ui/image";
+import { usePathname, useRouter } from "@/lib/navigation";
 import { useAtomValue, useAtom } from "jotai";
 import {
   Home,
@@ -31,7 +31,7 @@ import { isAuthenticatedAtom, userAtom } from "@/atoms/auth";
 import { sidebarPinnedAtom, sidebarExpandedAtom, sidebarMenuOpenAtom } from "@/atoms/sidebar";
 import { useServerInfo, useUnreadNotificationCount } from "@/lib/hooks/use-queries";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { motion, useAnimate } from "framer-motion";
 import { cn } from "@/lib/utils";
 

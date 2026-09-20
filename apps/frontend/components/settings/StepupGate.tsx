@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { useAtom } from "jotai";
 import { stepupTokenAtom, usableStepupToken } from "@/atoms/stepup";
 import { useStepup } from "@/lib/hooks/use-stepup";

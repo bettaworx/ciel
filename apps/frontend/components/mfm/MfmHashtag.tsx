@@ -1,5 +1,5 @@
 import type { MfmHashtag as MfmHashtagType } from "mfm-js";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { searchUrl } from "@/lib/search-tabs";
 
 interface MfmHashtagProps {

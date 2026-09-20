@@ -4,7 +4,6 @@
 const CACHE_VERSION = "v5";
 const STATIC_CACHE = `ciel-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ciel-dynamic-${CACHE_VERSION}`;
-const RSC_CACHE = `ciel-rsc-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline";
 
 // Assets to precache on install
@@ -38,10 +37,10 @@ self.addEventListener("activate", (event) => {
               return (
                 (cacheName.startsWith("ciel-static-") ||
                   cacheName.startsWith("ciel-dynamic-") ||
+                  // Retired in the Vite migration; drop any left behind.
                   cacheName.startsWith("ciel-rsc-")) &&
                 cacheName !== STATIC_CACHE &&
-                cacheName !== DYNAMIC_CACHE &&
-                cacheName !== RSC_CACHE
+                cacheName !== DYNAMIC_CACHE
               );
             })
             .map((cacheName) => caches.delete(cacheName)),
@@ -86,28 +85,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // React Server Components requests (_rsc query param)
-  // Network First so client-side navigation always receives fresh server data.
-  if (url.searchParams.has("_rsc")) {
-    event.respondWith(
-      caches.open(RSC_CACHE).then(async (cache) => {
-        try {
-          const response = await fetch(request);
-          if (response.ok) {
-            cache.put(request, response.clone());
-          }
-          return response;
-        } catch {
-          return (
-            cache.match(request) ||
-            new Response("", { status: 503, statusText: "Service Unavailable" })
-          );
-        }
-      }),
-    );
-    return;
-  }
-
   // Navigation requests (HTML pages) - Network First
   if (request.mode === "navigate") {
     // Special handling for offline page - always fetch from network
@@ -145,10 +122,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Next.js build assets (including JS/CSS) should always be fetched through the
-  // browser's normal cache semantics. Avoid SW-level caching so deploys don't keep
-  // serving stale application bundles.
-  if (url.pathname.startsWith("/_next/static/")) {
+  // Hashed build assets are already immutable and long-cached by the browser;
+  // keeping them out of the SW means a deploy is never served stale bundles.
+  if (url.pathname.startsWith("/assets/")) {
     event.respondWith(fetch(request));
     return;
   }

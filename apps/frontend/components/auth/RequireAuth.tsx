@@ -2,7 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import { authStatusAtom, isAuthenticatedAtom } from "@/atoms/auth";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "@/lib/navigation";
 import { useState, useEffect } from "react";
 
 interface RequireAuthProps {

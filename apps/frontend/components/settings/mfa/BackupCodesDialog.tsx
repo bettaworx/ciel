@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { useAtomValue } from "jotai";
 import { userAtom } from "@/atoms/auth";
 import { toast } from "sonner";

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { useTranslations } from "next-intl";
+import Link from "@/components/ui/link";
+import { useTranslations } from "@/lib/i18n";
 import { User as UserIcon } from "lucide-react";
 import { useAtomValue } from "jotai";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";

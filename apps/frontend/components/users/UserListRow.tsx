@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useTranslations } from "next-intl";
+import Link from "@/components/ui/link";
+import { useTranslations } from "@/lib/i18n";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DisplayName } from "@/components/users/DisplayName";

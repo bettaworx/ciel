@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useRouter } from "@/lib/navigation";
+import { useTranslations } from "@/lib/i18n";
 import { useAtom } from "jotai";
 import type { LucideIcon } from "lucide-react";
 import { stepupTokenAtom, usableStepupToken } from "@/atoms/stepup";

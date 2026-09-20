@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { useAtomValue } from "jotai";
 import { toast } from "sonner";
 import { Ban, Volume2, VolumeX } from "lucide-react";

@@ -11,7 +11,7 @@ import type { components } from "@/lib/api/api";
 import { useReactionUsers } from "@/lib/hooks/use-reaction-users";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { cn } from "@/lib/utils";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 
 type PostId = components["schemas"]["PostId"];
 

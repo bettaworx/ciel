@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { ChevronRight, ExternalLink } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -33,9 +33,9 @@ export function AppInfoContent({
   const t = useTranslations("about");
   const { data: serverInfo } = useServerInfo();
 
-  const appVersion = process.env.NEXT_PUBLIC_BUILD_VERSION ?? "—";
-  const appCommit = process.env.NEXT_PUBLIC_BUILD_COMMIT ?? "—";
-  const appBranch = process.env.NEXT_PUBLIC_BUILD_BRANCH ?? "—";
+  const appVersion = import.meta.env.VITE_BUILD_VERSION ?? "—";
+  const appCommit = import.meta.env.VITE_BUILD_COMMIT ?? "—";
+  const appBranch = import.meta.env.VITE_BUILD_BRANCH ?? "—";
 
   return (
     <>

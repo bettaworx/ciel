@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Spinner } from "@/components/ui/spinner";
 
 type InfiniteScrollTriggerProps = {

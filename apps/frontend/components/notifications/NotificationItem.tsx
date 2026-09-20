@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { useAtomValue } from "jotai";
 import { userAtom } from "@/atoms/auth";
 import { PostCard } from "@/components/PostCard";

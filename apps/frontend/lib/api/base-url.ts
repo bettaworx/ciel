@@ -1,6 +1,13 @@
 export const DEFAULT_API_BASE_URL = "http://localhost:6137";
 export const API_PATH_PREFIX = "/api/v1";
-export const RUNTIME_CONFIG_SCRIPT_ID = "__CIEL_RUNTIME_CONFIG__";
+
+/**
+ * Path of the deployment config the web server generates at container start.
+ *
+ * The API base URL cannot be baked in at build time: one image is deployed
+ * against different backends by changing environment variables only.
+ */
+export const RUNTIME_CONFIG_PATH = "/runtime-config.json";
 
 export type RuntimeConfig = {
   apiBaseUrl?: string;
@@ -45,22 +52,40 @@ export function backendOriginFromBaseUrl(value?: string | null): string {
   }
 }
 
-function parseRuntimeConfig(value: string): RuntimeConfig {
+function parseRuntimeConfig(value: unknown): RuntimeConfig {
+  const candidate = value as RuntimeConfigCandidate | null;
+  return typeof candidate?.apiBaseUrl === "string" ? { apiBaseUrl: candidate.apiBaseUrl } : {};
+}
+
+let runtimeConfig: RuntimeConfig = {};
+
+/**
+ * Load the deployment config. Awaited once before the app renders, so every
+ * later resolveApiBaseUrl / resolveWebSocketUrl call stays synchronous.
+ *
+ * A failure is not fatal: the default base URL still points at a local
+ * backend, which is what a developer running without the config file wants.
+ */
+export async function initRuntimeConfig(): Promise<RuntimeConfig> {
   try {
-    const parsed = JSON.parse(value) as RuntimeConfigCandidate;
-    return typeof parsed.apiBaseUrl === "string" ? { apiBaseUrl: parsed.apiBaseUrl } : {};
+    const response = await fetch(RUNTIME_CONFIG_PATH, { cache: "no-store" });
+    if (response.ok) {
+      runtimeConfig = parseRuntimeConfig(await response.json());
+    }
   } catch {
-    return {};
+    // Keep the defaults.
   }
+
+  return runtimeConfig;
+}
+
+/** Overrides the loaded config. For tests. */
+export function setRuntimeConfig(config: RuntimeConfig): void {
+  runtimeConfig = config;
 }
 
 export function getRuntimeConfig(): RuntimeConfig {
-  if (typeof document === "undefined") return {};
-
-  const element = document.getElementById(RUNTIME_CONFIG_SCRIPT_ID);
-  if (!element?.textContent) return {};
-
-  return parseRuntimeConfig(element.textContent);
+  return runtimeConfig;
 }
 
 export function resolveApiBaseUrl(explicit?: string): string {

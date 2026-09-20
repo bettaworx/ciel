@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import Image from "@/components/ui/image";
+import { useTranslations } from "@/lib/i18n";
+import { useRouter } from "@/lib/navigation";
 import { ArrowLeft, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

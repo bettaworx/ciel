@@ -14,7 +14,7 @@ import { MobileUserMenu } from "@/components/auth/MobileUserMenu";
 import { MobileLogoutConfirm } from "@/components/auth/MobileLogoutConfirm";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 
 interface SidebarAvatarProps {
   /** サイドバー展開時にユーザー名を表示するか */

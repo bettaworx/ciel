@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useRouter } from "@/lib/navigation";
+import { useTranslations } from "@/lib/i18n";
 import { toast } from "sonner";
 import { SetupTransition } from "@/components/setup/SetupTransition";
 import { WelcomeStep } from "@/components/setup/WelcomeStep";

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { usePathname } from "@/lib/navigation";
+import { useTranslations } from "@/lib/i18n";
 import { useServerInfo } from "@/lib/hooks/use-queries";
 
 type DynamicTitleProps = {

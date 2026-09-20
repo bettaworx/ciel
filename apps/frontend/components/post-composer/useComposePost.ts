@@ -10,7 +10,7 @@ import {
   type KeyboardEvent,
   type ClipboardEvent,
 } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreatePost, useUploadMedia, useMediaLimits, queryKeys } from "@/lib/hooks/use-queries";

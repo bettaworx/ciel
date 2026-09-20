@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo } from "react";
-import { useLocale } from "next-intl";
+import { useLocale } from "@/lib/i18n";
 import { useEmojiData, resolveEmoji } from "./use-emoji-data";
 import { useCustomEmojis } from "@/lib/hooks/use-queries";
 import { useRecentEmojis, useEmojiSkinTone, normalizeRecentEmojis } from "@/atoms/emoji-picker";

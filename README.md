@@ -46,9 +46,9 @@ browsers can reach. A host-level reverse proxy is optional deployment
 infrastructure, not required by the application containers.
 
 The frontend container does not proxy backend REST or WebSocket traffic. Browser
-clients call the backend directly using `API_BASE_URL`; the Next.js server uses
-`INTERNAL_API_BASE_URL` only for server-rendered assets such as icons and the
-web app manifest.
+clients call the backend directly using `API_BASE_URL`; the frontend web server uses
+`INTERNAL_API_BASE_URL` for one thing only — proxying the web app manifest, which
+has to look same-origin to the browser.
 
 Operational settings are provided at runtime through Docker Compose and `.env`.
 Build provenance is the exception: frontend and backend images intentionally

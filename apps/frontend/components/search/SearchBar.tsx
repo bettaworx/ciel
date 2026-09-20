@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useRouter } from "@/lib/navigation";
+import { useTranslations } from "@/lib/i18n";
 import { useAtom } from "jotai";
 import { Clock, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";

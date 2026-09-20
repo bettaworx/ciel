@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/lib/navigation";
 import { useAtomValue } from "jotai";
 import { isAuthenticatedAtom } from "@/atoms/auth";
 import { sidebarExpandedAtom } from "@/atoms/sidebar";

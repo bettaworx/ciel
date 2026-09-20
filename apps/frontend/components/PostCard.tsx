@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { ReactionBadge } from "@/components/ReactionBadge";
@@ -16,7 +16,7 @@ import { HiddenPostCard } from "@/components/HiddenPostCard";
 import { postCushion } from "@/lib/moderation/visibility";
 import { useHideUserActions } from "@/lib/hooks/use-hide-user-actions";
 import { useReactions } from "@/lib/hooks/use-reactions";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
@@ -288,7 +288,7 @@ export function PostCard({
   // line passing through the content area would be visually misleading.
   const showBelowLine = wantsBelowLine && !verticalIdentity;
 
-  if (process.env.NODE_ENV !== "production" && wantsBelowLine && verticalIdentity) {
+  if (!import.meta.env.PROD && wantsBelowLine && verticalIdentity) {
     console.warn(
       'PostCard: threadLine "below"/"both" is not supported with variant="detail" — the line below the avatar will be omitted.',
     );

@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAtomValue } from "jotai";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { User, Upload } from "lucide-react";
-import Image from "next/image";
+import Image from "@/components/ui/image";
 import { userAtom } from "@/atoms/auth";
 import { generateAvatar, rasterizeSvgToFile } from "@/lib/avatar";
 import { isImageFile } from "@/lib/media/normalize";
