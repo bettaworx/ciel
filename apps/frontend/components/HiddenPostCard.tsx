@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Ban, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PostPlaceholderCard } from "@/components/PostPlaceholderCard";

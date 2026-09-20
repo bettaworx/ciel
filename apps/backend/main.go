@@ -24,6 +24,7 @@ import (
 	"backend/internal/handlers"
 	"backend/internal/logging"
 	"backend/internal/middleware"
+	"backend/internal/ogp"
 	"backend/internal/realtime"
 	"backend/internal/repository"
 	"backend/internal/search"
@@ -487,6 +488,7 @@ func main() {
 
 	mediaSvc := service.NewMediaService(store, absMediaDir, configMgr.Get().Media, mediaInitErr)
 	emojiSvc := service.NewEmojiService(store, mediaSvc, cacheImpl)
+	ogpSvc := service.NewOGPService(ogp.NewClient(), cacheImpl)
 
 	// Public media routes (authentication bypassed in OptionalAuth middleware)
 	r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
@@ -520,6 +522,7 @@ func main() {
 		Notifications: notificationsSvc,
 		Media:         mediaSvc,
 		Emojis:        emojiSvc,
+		OGP:           ogpSvc,
 		Setup:         setupSvc,
 		Agreements:    agreementsSvc,
 		Tokens:        tokenManager,
@@ -541,6 +544,11 @@ func main() {
 		ModMedia:         modMediaSvc,
 	}
 	r.Get("/ws/events", handlers.NewWebSocketHandler(realtimeHub, tokenManager, handlers.WebSocketOptions{TrustProxy: trustProxy}))
+
+	// Web App Manifest (public). Served outside /api/v1 so the frontend's web
+	// server can proxy it at the same path and keep it same-origin for the
+	// browser, which start_url scoping requires.
+	r.Get("/pwa/manifest.json", apiServer.GetPwaManifest)
 	api.HandlerWithOptions(&apiServer, api.ChiServerOptions{
 		BaseURL:    "/api/v1",
 		BaseRouter: r,

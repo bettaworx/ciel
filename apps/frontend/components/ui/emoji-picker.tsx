@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { SearchIcon, XIcon, type LucideIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Grid, type CellComponentProps } from "react-window";
 
 import { cn } from "@/lib/utils";

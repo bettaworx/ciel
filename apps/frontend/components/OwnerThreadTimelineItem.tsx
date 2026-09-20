@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { PostCard, PostTreeActionButton, type PostCardThreadLine } from "@/components/PostCard";
 import type { components } from "@/lib/api/api";
 

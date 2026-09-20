@@ -22,7 +22,7 @@ export function setSecureCookie(
 ): void {
   if (typeof document === "undefined") return;
 
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = import.meta.env.PROD;
   const secureFlag = isProduction ? "; Secure" : "";
   const maxAge = options?.maxAge ?? 31536000; // 1 year default
   const path = options?.path ?? "/";
@@ -40,7 +40,7 @@ export function setSecureCookie(
 export function deleteSecureCookie(name: string): void {
   if (typeof document === "undefined") return;
 
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = import.meta.env.PROD;
   const secureFlag = isProduction ? "; Secure" : "";
 
   document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax${secureFlag}`;

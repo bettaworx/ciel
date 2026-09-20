@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -14,14 +14,6 @@ type LicenseEntry = {
   repository: string | null;
   licenseUrl: string | null;
   licenseText: string | null;
-  source?: string;
-  font?: {
-    weights?: string[];
-    styles?: string[];
-    subsets?: string[];
-    display?: string;
-    preload?: boolean;
-  };
 };
 
 /**
@@ -46,12 +38,7 @@ export function LicensesContent({ backHref }: { backHref?: string }) {
         {licenses.map((entry, index) => {
           const key = `${entry.name}@${entry.version}`;
           const linkTarget = entry.licenseUrl ?? entry.repository;
-          const details = [
-            entry.version,
-            entry.license,
-            entry.source,
-            entry.font?.weights?.length ? `weights: ${entry.font.weights.join(", ")}` : null,
-          ].filter(Boolean);
+          const details = [entry.version, entry.license].filter(Boolean);
           const label = (
             <>
               <div className="flex flex-col min-w-0 text-left">

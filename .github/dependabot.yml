@@ -19,10 +19,20 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
-      next:
+      tanstack:
         patterns:
-          - "next"
-          - "next-*"
+          - "@tanstack/*"
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "vitest"
+          - "@vitest/*"
+      fontsource:
+        patterns:
+          - "@fontsource/*"
+          - "@fontsource-variable/*"
+
       radix-ui:
         patterns:
           - "@radix-ui/*"

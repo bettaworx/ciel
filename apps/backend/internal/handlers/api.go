@@ -39,6 +39,7 @@ type API struct {
 	Notifications *service.NotificationsService
 	Media         *service.MediaService
 	Emojis        *service.EmojiService
+	OGP           *service.OGPService
 	Setup         *service.SetupService
 	Agreements    *service.AgreementsService
 	Tokens        *auth.TokenManager

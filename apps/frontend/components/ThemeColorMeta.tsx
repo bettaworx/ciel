@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme } from "next-themes";
+import { useResolvedTheme } from "@/providers/theme-provider";
 import { useEffect } from "react";
 
 /**
@@ -14,7 +14,7 @@ import { useEffect } from "react";
  * - Dark mode: oklch(0.145 0 0) → #252525
  */
 export function ThemeColorMeta() {
-  const { resolvedTheme } = useTheme();
+  const resolvedTheme = useResolvedTheme();
 
   useEffect(() => {
     // Theme colors matching globals.css

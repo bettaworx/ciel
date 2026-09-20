@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { CircleCheck } from "lucide-react";
 
 export function CompleteStep() {

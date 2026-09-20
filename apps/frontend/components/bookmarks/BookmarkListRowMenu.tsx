@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { Button } from "@/components/ui/button";

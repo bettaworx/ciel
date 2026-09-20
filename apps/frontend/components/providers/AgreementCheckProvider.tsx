@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "@/lib/navigation";
 import { useAgreementCheck } from "@/lib/hooks/use-agreement-check";
 import { useMe } from "@/lib/hooks/use-queries";
 

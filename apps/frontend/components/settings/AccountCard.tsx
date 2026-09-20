@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { userAtom } from "@/atoms/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DisplayName } from "@/components/users/DisplayName";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 
 export function AccountCard() {
   const user = useAtomValue(userAtom);

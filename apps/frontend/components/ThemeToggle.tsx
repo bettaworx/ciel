@@ -2,7 +2,7 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useAtom } from "jotai";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { themeAtom } from "@/atoms/theme";

@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { Plus } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useTranslations } from "@/lib/i18n";
+import { usePathname, useSearchParams } from "@/lib/navigation";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import {
   EmojiPicker,

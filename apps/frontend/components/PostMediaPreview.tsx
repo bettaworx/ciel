@@ -1,8 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { lazy, Suspense, useMemo } from "react";
+import { useTranslations } from "@/lib/i18n";
 import { Crop, X } from "lucide-react";
 import { BlurhashImage } from "@/components/BlurhashImage";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
@@ -14,13 +13,15 @@ import { MediaConversionIndicator } from "@/components/post-composer/MediaConver
 import type { PreviewMediaItem } from "@/components/post-composer/types";
 import type { QualityMode } from "@/components/post-composer/MediaQualityPicker";
 
-const VideoPlayer = dynamic(
-  () => import("@/components/VideoPlayer").then((mod) => mod.VideoPlayer),
-  {
-    ssr: false,
-    loading: () => <div className="w-full h-full bg-muted animate-pulse rounded-xl" />,
-  },
+// Split out because it pulls in the media stack, which most timelines never
+// need.
+const VideoPlayer = lazy(() =>
+  import("@/components/VideoPlayer").then((mod) => ({ default: mod.VideoPlayer })),
 );
+
+function VideoPlayerFallback() {
+  return <div className="w-full h-full bg-muted animate-pulse rounded-xl" />;
+}
 
 export interface PostMediaPreviewProps {
   /** List of media items to render. */
@@ -247,13 +248,15 @@ export function PostMediaPreview({
           className="relative w-full bg-muted overflow-hidden rounded-xl group"
           style={singleVideoStyle}
         >
-          <VideoPlayer
-            src={videoMedia.url}
-            width={videoMedia.width}
-            height={videoMedia.height}
-            poster={videoMedia.thumbnailUrl}
-            className="w-full h-full"
-          />
+          <Suspense fallback={<VideoPlayerFallback />}>
+            <VideoPlayer
+              src={videoMedia.url}
+              width={videoMedia.width}
+              height={videoMedia.height}
+              poster={videoMedia.thumbnailUrl}
+              className="w-full h-full"
+            />
+          </Suspense>
           {videoMedia.conversionProgress != null ? (
             <MediaConversionIndicator progress={videoMedia.conversionProgress} />
           ) : (

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Bookmark, Check, Plus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";

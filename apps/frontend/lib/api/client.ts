@@ -312,6 +312,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
     serverInfo: () => request<components["schemas"]["ServerInfo"]>("GET", "/server/info"),
     serverConfig: () => request<components["schemas"]["ServerConfig"]>("GET", "/server/config"),
 
+    // Link previews. The backend does the outbound fetch so the viewer's IP
+    // never reaches the linked site, and so the SSRF guard lives in one place.
+    ogp: (url: string) =>
+      request<components["schemas"]["Ogp"]>(
+        "GET",
+        `/ogp?${new URLSearchParams({ url }).toString()}`,
+      ),
+
     register: (body: components["schemas"]["RegisterRequest"]) =>
       request<components["schemas"]["User"]>("POST", "/auth/register", { body }),
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { useRef, useEffect, useState } from "react";
 import { animate } from "framer-motion";
 import { Progress } from "@/components/ui/progress";

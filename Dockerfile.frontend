@@ -31,48 +31,47 @@ COPY packages/kotodoki ./packages/kotodoki
 
 WORKDIR /app/apps/frontend
 RUN corepack enable pnpm
+# The API types are not covered by a lifecycle script, so generate them first.
+# `build` then runs `prebuild` itself, which builds kotodoki and the licence
+# manifest — running gen:licenses here as well would just do it twice.
 RUN pnpm run gen:openapi
-RUN pnpm run gen:licenses
 RUN pnpm run build
 
-# Remove source maps from the build output to avoid exposing source structure
-RUN find .next -name "*.map" -delete
-
-# Install sharp for the runtime platform ($TARGETPLATFORM).
-# The deps/builder stages run on $BUILDPLATFORM, so the sharp binary in the
-# standalone output is for the build host. This stage fetches the correct one.
-FROM --platform=$TARGETPLATFORM node:22-bookworm-slim AS sharp-target
-WORKDIR /sharp
-RUN npm install --prefer-optional --no-package-lock sharp@0.34.5
-
-FROM --platform=$TARGETPLATFORM node:22-bookworm-slim AS runner
-WORKDIR /app
+# The output is a static bundle, so the runtime is a web server and nothing
+# else: no Node, no native image libraries. Link previews and icon resizing
+# moved to the backend, and the SPA is the same bytes for every deployment.
+FROM nginx:1.29-alpine AS runner
 
 ARG BUILD_COMMIT=dev
 ARG BUILD_BRANCH=dev
 LABEL org.opencontainers.image.revision=${BUILD_COMMIT}
 LABEL org.opencontainers.image.ref.name=${BUILD_BRANCH}
 
-RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 --home /home/nextjs nextjs \
-  && mkdir -p /home/nextjs/.cache/node/corepack \
-  && chown -R nextjs:nodejs /home/nextjs
+COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
+COPY nginx/frontend/default.conf.template /etc/nginx/templates/default.conf.template
+COPY nginx/frontend/40-ciel-config.sh /docker-entrypoint.d/40-ciel-config.sh
+RUN chmod +x /docker-entrypoint.d/40-ciel-config.sh
 
-COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/static ./apps/frontend/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/public ./apps/frontend/public
+# envsubst only touches the names matching this filter, so nginx's own
+# $variables survive the template step. Everything else this server needs
+# (API_BASE_URL, INTERNAL_API_BASE_URL, PUBLIC_BASE_URL) is read at container
+# start by nginx/frontend/40-ciel-config.sh.
+ENV PORT=3000
+ENV NGINX_ENVSUBST_FILTER='^PORT$'
 
-# Replace the build-platform sharp binary with the target-platform binary.
-# Cover both locations the standalone output may place it in a pnpm monorepo.
-COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/sharp ./node_modules/sharp
-COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/@img ./node_modules/@img
-COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/sharp ./apps/frontend/node_modules/sharp
-COPY --from=sharp-target --chown=nextjs:nodejs /sharp/node_modules/@img ./apps/frontend/node_modules/@img
-
-USER nextjs
-
-ENV NODE_ENV=production
-ENV HOSTNAME="0.0.0.0"
+# CSP defaults, overridable per deployment. Each maps to one directive; unset
+# means "use what the app needs" (see nginx/frontend/40-ciel-config.sh).
+ENV CSP_DEFAULT_SRC=""
+ENV CSP_SCRIPT_SRC=""
+ENV CSP_STYLE_SRC=""
+ENV CSP_IMG_SRC=""
+ENV CSP_FONT_SRC=""
+ENV CSP_CONNECT_SRC=""
+ENV CSP_MEDIA_SRC=""
+ENV CSP_OBJECT_SRC=""
+ENV CSP_FRAME_SRC=""
+ENV CSP_BASE_URI=""
+ENV CSP_FORM_ACTION=""
+ENV CSP_FRAME_ANCESTORS=""
 
 EXPOSE 3000
-CMD ["node", "apps/frontend/server.js"]

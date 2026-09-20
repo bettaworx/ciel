@@ -19,7 +19,7 @@ import { UnreadDot } from "./UnreadDot";
 import type { components } from "@/lib/api/api";
 import type { AccountEntry } from "@/atoms/accounts";
 import { MoreHorizontal, Users, LogOut, Check, Plus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 

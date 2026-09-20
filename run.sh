@@ -248,7 +248,8 @@ start_frontend() {
     log_success "Frontend built successfully"
 
     # Start frontend in production mode using pnpm start
-    # This uses Next.js built-in production server
+    # This serves the built SPA with `vite preview`. Production deployments use
+    # the nginx image instead (see Dockerfile.frontend).
     log_info "Starting frontend on port 3000..."
     setsid nohup pnpm start > ../../frontend.log 2>&1 &
     FRONTEND_PID=$!

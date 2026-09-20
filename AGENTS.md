@@ -6,7 +6,7 @@ This repository is a monorepo for **Ciel**, a minimal SNS (Social Networking Ser
 
 Ciel is a modern web application built with:
 - **Backend**: Go API with PostgreSQL and Redis
-- **Frontend**: Next.js with TypeScript
+- **Frontend**: Vite + TanStack Router SPA with TypeScript
 - **API Contract**: OpenAPI specification as the single source of truth
 
 ## Design Philosophy
@@ -42,8 +42,8 @@ ciel/
 │   │   ├── db/           # Schema, queries, migrations
 │   │   ├── tests/        # Unit and integration tests
 │   │   └── AGENTS.md     # Backend-specific guidelines
-│   └── frontend/         # Next.js application
-│       ├── app/          # App Router pages
+│   └── frontend/         # Vite single-page application
+│       ├── routes/       # TanStack Router route files
 │       ├── components/   # React components
 │       ├── lib/          # API client, hooks, utilities
 │       └── AGENTS.md     # Frontend-specific guidelines
@@ -141,7 +141,8 @@ pnpm -C apps/frontend gen:openapi   # Generate frontend API types
 - See `apps/backend/TESTING.md` for detailed requirements
 
 ### Frontend Tests
-- (To be added in the future)
+- `pnpm -C apps/frontend test` (vitest). Pure logic only — no DOM environment,
+  so files are `*.test.ts`, never `*.test.tsx`.
 
 ### Testing Guidelines
 - When implementing new functionality, **always add or update tests**

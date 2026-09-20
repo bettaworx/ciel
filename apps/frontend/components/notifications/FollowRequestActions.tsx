@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAcceptFollowRequest, useRejectFollowRequest } from "@/lib/hooks/use-queries";

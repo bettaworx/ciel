@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { stepHeadingClass, type StepPresentation } from "@/components/auth/step-presentation";

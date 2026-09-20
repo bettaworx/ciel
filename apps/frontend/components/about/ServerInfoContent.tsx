@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
-import { useTranslations } from "next-intl";
+import Image from "@/components/ui/image";
+import { useTranslations } from "@/lib/i18n";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useServerInfo } from "@/lib/hooks/use-queries";
 

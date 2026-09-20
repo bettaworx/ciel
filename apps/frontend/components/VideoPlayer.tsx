@@ -12,7 +12,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
 import { videoVolumeAtom, claimPlayback, releasePlayback } from "@/atoms/video-player";

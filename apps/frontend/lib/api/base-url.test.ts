@@ -1,22 +1,19 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
-  RUNTIME_CONFIG_SCRIPT_ID,
   backendOriginFromBaseUrl,
   normalizeApiBaseUrl,
   resolveApiBaseUrl,
   resolveWebSocketUrl,
+  setRuntimeConfig,
 } from "@/lib/api/base-url";
 
-function stubRuntimeConfig(config: unknown) {
-  vi.stubGlobal("document", {
-    getElementById: (id: string) =>
-      id === RUNTIME_CONFIG_SCRIPT_ID ? { textContent: JSON.stringify(config) } : null,
-  });
+function stubRuntimeConfig(config: { apiBaseUrl?: string }) {
+  setRuntimeConfig(config);
 }
 
 describe("API base URL resolution", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
+    setRuntimeConfig({});
   });
 
   it("defaults to the independent backend port", () => {
@@ -33,7 +30,7 @@ describe("API base URL resolution", () => {
     );
   });
 
-  it("uses runtime config injected by the Next.js server", () => {
+  it("uses the runtime config the web server generates", () => {
     stubRuntimeConfig({ apiBaseUrl: "http://api.example.test:6137" });
 
     expect(resolveApiBaseUrl()).toBe("http://api.example.test:6137/api/v1");

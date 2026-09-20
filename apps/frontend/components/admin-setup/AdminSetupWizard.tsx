@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useRouter } from "@/lib/navigation";
+import { useTranslations } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useSetupLayout } from "@/components/setup/SetupLayoutContext";
 import { AdminSetupFooter } from "./AdminSetupFooter";

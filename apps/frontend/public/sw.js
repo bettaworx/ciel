@@ -1,10 +1,9 @@
 // Service Worker for Ciel PWA
 // Implements hybrid caching strategy for optimal offline experience
 
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 const STATIC_CACHE = `ciel-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ciel-dynamic-${CACHE_VERSION}`;
-const RSC_CACHE = `ciel-rsc-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline";
 
 // Assets to precache on install
@@ -38,10 +37,10 @@ self.addEventListener("activate", (event) => {
               return (
                 (cacheName.startsWith("ciel-static-") ||
                   cacheName.startsWith("ciel-dynamic-") ||
+                  // Retired in the Vite migration; drop any left behind.
                   cacheName.startsWith("ciel-rsc-")) &&
                 cacheName !== STATIC_CACHE &&
-                cacheName !== DYNAMIC_CACHE &&
-                cacheName !== RSC_CACHE
+                cacheName !== DYNAMIC_CACHE
               );
             })
             .map((cacheName) => caches.delete(cacheName)),
@@ -79,25 +78,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // React Server Components requests (_rsc query param)
-  // Network First so client-side navigation always receives fresh server data.
-  if (url.searchParams.has("_rsc")) {
-    event.respondWith(
-      caches.open(RSC_CACHE).then(async (cache) => {
-        try {
-          const response = await fetch(request);
-          if (response.ok) {
-            cache.put(request, response.clone());
-          }
-          return response;
-        } catch {
-          return (
-            cache.match(request) ||
-            new Response("", { status: 503, statusText: "Service Unavailable" })
-          );
-        }
-      }),
-    );
+  // Cross-origin images - let the browser handle them. Media and link-preview
+  // thumbnails are served by the backend, so they would otherwise fall into the
+  // API/external branch below and be answered with a JSON error on failure.
+  if (request.destination === "image" && url.origin !== self.location.origin) {
     return;
   }
 
@@ -138,10 +122,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Next.js build assets (including JS/CSS) should always be fetched through the
-  // browser's normal cache semantics. Avoid SW-level caching so deploys don't keep
-  // serving stale application bundles.
-  if (url.pathname.startsWith("/_next/static/")) {
+  // Hashed build assets are already immutable and long-cached by the browser;
+  // keeping them out of the SW means a deploy is never served stale bundles.
+  if (url.pathname.startsWith("/assets/")) {
     event.respondWith(fetch(request));
     return;
   }
@@ -168,37 +151,6 @@ self.addEventListener("fetch", (event) => {
             console.error("Failed to fetch static asset:", request.url, error);
             return new Response("", { status: 503, statusText: "Service Unavailable" });
           });
-      }),
-    );
-    return;
-  }
-
-  // PWA icons - Stale-While-Revalidate with long-term fallback
-  if (url.pathname.startsWith("/pwa/icon-")) {
-    event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        const fetchPromise = fetch(request)
-          .then((response) => {
-            if (response.ok) {
-              const responseClone = response.clone();
-              caches.open(STATIC_CACHE).then((cache) => {
-                cache.put(request, responseClone);
-              });
-            }
-            if (response.status >= 500 && cachedResponse) {
-              return cachedResponse;
-            }
-            return response;
-          })
-          .catch(() => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            return new Response("", { status: 503, statusText: "Service Unavailable" });
-          });
-
-        // Return cached version immediately (if exists), then update in background
-        return cachedResponse || fetchPromise;
       }),
     );
     return;
@@ -234,7 +186,10 @@ self.addEventListener("fetch", (event) => {
                 display: "standalone",
                 background_color: "#f7f7f7",
                 theme_color: "#f7f7f7",
-                icons: [],
+                icons: [
+                  { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+                  { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
+                ],
               }),
               {
                 status: 200,

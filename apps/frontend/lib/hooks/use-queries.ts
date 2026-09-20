@@ -18,7 +18,6 @@ import { useSetAtom, useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { ERROR_CODES } from "@/lib/errors";
 import type { FollowTab } from "@/lib/follow-tabs";
-import type { OgpApiResponse } from "@/lib/ogp/types";
 
 export type PostThreadParams = {
   anchorNodeId?: string;
@@ -552,6 +551,7 @@ export function useUserPosts(
     mediaType?: "image" | "video" | "media";
     onlyReplies?: boolean;
     excludeForeignReplies?: boolean;
+    enabled?: boolean;
   },
 ) {
   const api = useApi();
@@ -572,7 +572,7 @@ export function useUserPosts(
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled: !!username,
+    enabled: !!username && (params?.enabled ?? true),
     staleTime: 1000 * 60, // 1分
   });
 }
@@ -1389,22 +1389,21 @@ export function useUpdateSignupSettings() {
 const OGP_STALE_TIME = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
- * Fetch OGP metadata for a URL via the frontend OGP preview endpoint.
+ * Fetch OGP metadata for a URL via the backend preview endpoint.
  *
  * - Only executes when `url` is non-null.
- * - Aggressively caches (24 h staleTime + gcTime).
+ * - Aggressively caches (24 h staleTime + gcTime); the backend caches too.
  * - Does not retry on failure (most OGP failures are permanent).
  */
 export function useOgp(url: string | null) {
+  const api = useApi();
+
   return useQuery({
     queryKey: queryKeys.ogp(url ?? ""),
     queryFn: async () => {
-      const res = await fetch(`/internal/ogp?url=${encodeURIComponent(url!)}`);
-      const json: OgpApiResponse = await res.json();
-      if (!res.ok || !json.data) {
-        throw new Error(json.error ?? "Failed to fetch OGP");
-      }
-      return json.data;
+      const result = await api.ogp(url!);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
     },
     enabled: !!url,
     staleTime: OGP_STALE_TIME,

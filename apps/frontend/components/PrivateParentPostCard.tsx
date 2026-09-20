@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Lock } from "lucide-react";
 import { PostPlaceholderCard } from "@/components/PostPlaceholderCard";
 import type { PostCardThreadLine } from "@/components/PostCard";

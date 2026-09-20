@@ -8,7 +8,7 @@ import ReactCrop, {
   centerCrop,
   makeAspectCrop,
 } from "react-image-crop";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { X, RotateCcw, FlipHorizontal2, BrushCleaning } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -493,7 +493,6 @@ export function ImageCropDialog({
             circularCrop={false}
             className="max-h-[52vh]"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               ref={imgRef}
               src={displaySrc}

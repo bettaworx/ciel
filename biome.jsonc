@@ -13,11 +13,11 @@
       // git worktree の実体（リポジトリ全体の複製）。.gitignore にも入れているが、
       // useIgnoreFile を切っても同じソースを二重に検査しないようここでも外す
       "!**/.claude/worktrees",
-      "!**/.next",
       "!**/dist",
       "!**/coverage",
       "!**/storybook-static",
-      "!apps/frontend/next-env.d.ts",
+      // TanStack Router の生成物
+      "!apps/frontend/routeTree.gen.ts",
       // openapi-typescript の生成物
       "!apps/frontend/lib/api/api.d.ts",
       // gen:licenses の生成物
@@ -43,7 +43,6 @@
   "linter": {
     "enabled": true,
     "domains": {
-      "next": "recommended",
       "react": "recommended",
       "test": "recommended"
     },
@@ -60,7 +59,7 @@
         "noNonNullAssertion": "off"
       },
       "correctness": {
-        // eslint-config-next の react-hooks/exhaustive-deps と同じ warn 扱いに合わせる
+        // React 本体の react-hooks/exhaustive-deps と同じ warn 扱いに合わせる
         "useExhaustiveDependencies": "warn"
       },
       // a11y は ESLint 時代に一度も検査されておらず既存違反が 33 件ある。

@@ -13,12 +13,8 @@
 # testing
 /coverage
 
-# next.js
-/.next/
-/out/
-
-# production
-/build
+# build output
+/dist/
 
 # misc
 .DS_Store
@@ -34,15 +30,15 @@ yarn-error.log*
 .env*
 !.env.example
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # storybook
 storybook-static/
+
+# TanStack Router generated route tree and plugin cache
+/routeTree.gen.ts
+/.tanstack/
 
 # OpenAPI generated types
 /lib/api/api.d.ts

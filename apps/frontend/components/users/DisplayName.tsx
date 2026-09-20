@@ -1,7 +1,7 @@
 "use client";
 
 import { Ban, Lock, VolumeX } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
 import { cn } from "@/lib/utils";

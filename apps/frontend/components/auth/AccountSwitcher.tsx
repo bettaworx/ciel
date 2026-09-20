@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Check, Plus } from "lucide-react";
 import type { AccountEntry } from "@/atoms/accounts";
 import { Button } from "@/components/ui/button";

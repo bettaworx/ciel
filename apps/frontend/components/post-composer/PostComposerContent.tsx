@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import {
   X,
   Image as ImageIcon,
@@ -456,7 +456,7 @@ export function PostComposerContent({
   /** OGP link preview */
   const ogpPreview = ogpUrl ? (
     <div className={s.contentPadding}>
-      <OgpCard url={ogpUrl} />
+      <OgpCard url={ogpUrl} variant="timeline" />
     </div>
   ) : null;
 

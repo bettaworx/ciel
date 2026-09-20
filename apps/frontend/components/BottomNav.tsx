@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, type ReactNode } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import Link from "@/components/ui/link";
+import { usePathname, useRouter } from "@/lib/navigation";
 import { useAtomValue } from "jotai";
 import { Home, Search, SquarePen, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { SidebarAvatar } from "@/components/SidebarAvatar";
 import { CreatePostDialog } from "@/components/CreatePostDialog";
 import { isAuthenticatedAtom } from "@/atoms/auth";
 import { useServerInfo } from "@/lib/hooks/use-queries";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 /**

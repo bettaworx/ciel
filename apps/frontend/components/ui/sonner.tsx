@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme } from "next-themes";
+import { useThemePreference } from "@/providers/theme-provider";
 import { Toaster as Sonner } from "sonner";
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
@@ -22,7 +22,7 @@ const toastSurfaceClassName =
   "w-full rounded-2xl border border-border bg-card text-card-foreground font-sans";
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const theme = useThemePreference();
   // Same breakpoint that swaps the sidebar for the bottom bar, so "mobile" here
   // means "the bottom bar is on screen" — which is what we need to avoid.
   const isDesktop = useMediaQuery("(min-width: 640px)");

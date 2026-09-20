@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Globe, ChevronLeft } from "lucide-react";
 import {

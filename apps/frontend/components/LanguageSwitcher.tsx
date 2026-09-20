@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { useTransition } from "react";
 import type { Locale } from "@/i18n/constants";
 import { Button } from "@/components/ui/button";

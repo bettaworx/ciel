@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations, useLocale } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";

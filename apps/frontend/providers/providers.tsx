@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Provider as JotaiProvider, useAtomValue } from "jotai";
-import { NextIntlClientProvider } from "next-intl";
+import { I18nextProvider } from "react-i18next";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { RealtimeProvider } from "@/providers/realtime-provider";
@@ -11,6 +11,7 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { authStatusAtom } from "@/atoms/auth";
 import { getClientLocale } from "@/i18n/client-locale";
 import { loadMessages } from "@/i18n/load-messages";
+import { i18next, initI18n } from "@/i18n";
 import type { Locale } from "@/i18n/constants";
 
 interface ProvidersProps {
@@ -76,12 +77,20 @@ export function Providers({ children }: ProvidersProps) {
     const resolvedLocale = getClientLocale();
     const requestId = localeRequestRef.current + 1;
     localeRequestRef.current = requestId;
-    loadMessages(resolvedLocale).then((loadedMessages) => {
-      if (localeRequestRef.current !== requestId) return;
-      document.documentElement.lang = resolvedLocale;
-      setLocale(resolvedLocale);
-      setMessages(loadedMessages);
-    });
+    loadMessages(resolvedLocale)
+      .then(async (loadedMessages) => {
+        if (localeRequestRef.current !== requestId) return null;
+        // i18next has to hold the new bundle before anything renders with it,
+        // or the first paint after a switch shows raw keys.
+        await initI18n(resolvedLocale, loadedMessages);
+        return loadedMessages;
+      })
+      .then((loadedMessages) => {
+        if (loadedMessages === null || localeRequestRef.current !== requestId) return;
+        document.documentElement.lang = resolvedLocale;
+        setLocale(resolvedLocale);
+        setMessages(loadedMessages);
+      });
   };
 
   useEffect(() => {
@@ -105,9 +114,9 @@ export function Providers({ children }: ProvidersProps) {
       <LoadingScreen isLoading={isLoading} />
       <JotaiProvider>
         <QueryClientProvider client={queryClient}>
-          <NextIntlClientProvider locale={locale} messages={messages}>
+          <I18nextProvider i18n={i18next}>
             <ProvidersWithAuth onAuthReady={handleAuthReady}>{children}</ProvidersWithAuth>
-          </NextIntlClientProvider>
+          </I18nextProvider>
         </QueryClientProvider>
       </JotaiProvider>
     </>
