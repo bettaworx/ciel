@@ -488,9 +488,9 @@ export function Lightbox({
   /**
    * Close by flying the image back into its thumbnail.
    *
-   * Radix drops the content the instant `open` goes false — there is no exit
-   * animation to wait on, since `tailwindcss-animate` is not installed — so the
-   * parent is only told once the morph has landed.
+   * The parent is only told once the morph has landed so the dialog stays open
+   * for the whole flight. After that, Radix runs the dialog's exit animation
+   * (provided by tailwindcss-animate) before unmounting.
    */
   const requestClose = useCallback(() => {
     if (phaseRef.current === "closing") return;
@@ -1015,6 +1015,7 @@ export function Lightbox({
         // would snap in and out around the morph. One dim layer only: the
         // backdrop below carries the whole /85 and fades with the image.
         overlayClassName="bg-transparent"
+        animate={false}
         className="!fixed !inset-0 !h-screen !w-screen !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-transparent !p-0 [&>button]:hidden"
       >
         <DialogTitle className="sr-only">{t("title")}</DialogTitle>
