@@ -46,6 +46,7 @@ export function ComposeCard({
   const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
   const composeCardRef = useRef<HTMLDivElement>(null);
   const hadTypedContentRef = useRef(false);
+  const pointerStartedInsideRef = useRef(false);
   const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
   const placeholder = placeholderOverride ?? generatedPlaceholder;
 
@@ -93,8 +94,21 @@ export function ComposeCard({
   useEffect(() => {
     if (!isExpanded) return;
 
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      pointerStartedInsideRef.current = !!target && !!composeCardRef.current?.contains(target);
+    };
+
     const handlePointerUp = (e: PointerEvent) => {
       const target = e.target as HTMLElement | null;
+
+      // If the pointer went down inside the card, the interaction started in
+      // our own UI (toolbar buttons, popover triggers, file inputs, etc.).
+      // Don't collapse even if pointerup lands on a portal, an overlay, or
+      // outside the card — otherwise empty composers close when opening the
+      // media picker or format menus.
+      if (pointerStartedInsideRef.current) return;
+
       if (!target || composeCardRef.current?.contains(target)) return;
 
       // Our own UI that portals to the body (format menus, upload sheet, crop
@@ -115,8 +129,12 @@ export function ComposeCard({
     // pointerup, not pointerdown: collapsing shrinks the card and shifts the
     // timeline, so it has to happen after the tap's target is settled. And not
     // click: iOS does not always bubble it up from non-interactive elements.
+    document.addEventListener("pointerdown", handlePointerDown, true);
     document.addEventListener("pointerup", handlePointerUp, true);
-    return () => document.removeEventListener("pointerup", handlePointerUp, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("pointerup", handlePointerUp, true);
+    };
   }, [isExpanded, compose.content, compose.images, compose.video]);
 
   if (!user) return null;
