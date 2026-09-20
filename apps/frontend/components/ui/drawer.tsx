@@ -66,7 +66,7 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 flex h-auto flex-col overflow-hidden rounded-t-[10px] border bg-card",
+        "fixed inset-x-0 bottom-0 z-50 flex h-auto flex-col overflow-hidden rounded-t-[10px] border shadow-lg bg-card",
         // The sheet stays pinned to the bottom and pads its content up over the
         // keyboard instead of moving. Shifting `bottom` would leave it short of
         // offscreen when vaul closes it with translate3d(0, 100%, 0).

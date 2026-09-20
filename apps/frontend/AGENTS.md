@@ -153,8 +153,8 @@ export function useCreatePost() {
 
 ### Design Philosophy
 
-**Flat Design**:
-- No shadows or heavy borders
+**Flat Design with Subtle Depth**:
+- Floating panels (dropdowns, popovers, select menus, tooltips, hover cards, dialogs, drawers, and toasts) use subtle shadows for depth
 - Use color contrast for depth and hierarchy
 - Clean, minimal aesthetic
 
@@ -212,7 +212,7 @@ export function useCreatePost() {
 - Always use shadcn/ui patterns for new components
 - Use CSS variables from `globals.css` for colors
 - **Never hardcode color values** (e.g., `bg-[#xxx]` is forbidden)
-- Maintain flat design - avoid adding shadows or heavy borders
+- Keep shadows subtle and reserve them for floating panels; avoid heavy borders
 - Use Tailwind utility classes, not inline styles
 
 **Utility Helper** (`lib/utils.ts`):

@@ -19,7 +19,7 @@ type ToasterProps = React.ComponentProps<typeof Sonner>;
  */
 // Background + outline only, like the dropdown panel — no shadow.
 const toastSurfaceClassName =
-  "w-full rounded-2xl border border-border bg-card text-card-foreground font-sans";
+  "w-full rounded-2xl border border-border shadow-lg bg-card text-card-foreground font-sans";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const theme = useThemePreference();
