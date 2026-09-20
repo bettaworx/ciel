@@ -117,3 +117,4 @@ idea
 
 # Claude Code が作る一時 worktree（リポジトリ全体の複製）
 .claude/worktrees/
+.claude/worktrees
