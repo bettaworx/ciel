@@ -119,7 +119,10 @@ function refreshSession(baseUrl: string): Promise<RefreshResult> {
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
-  const baseUrl = resolveApiBaseUrl(options.baseUrl);
+  // Resolve the base URL lazily so callers can create a client at module
+  // evaluation time (before /runtime-config.json has loaded) and still use
+  // the configured backend once the app starts.
+  const getBaseUrl = () => resolveApiBaseUrl(options.baseUrl);
 
   /**
    * Before declaring the server offline, confirm by hitting the health endpoint.
@@ -127,6 +130,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
    * NOT redirect to /offline if the server is actually still reachable.
    */
   async function confirmOffline(): Promise<void> {
+    const baseUrl = getBaseUrl();
     try {
       const res = await fetch(`${baseUrl}/health`, {
         method: "GET",
@@ -174,7 +178,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
   }
 
   async function attemptRefresh(): Promise<boolean> {
-    const result = await refreshSession(baseUrl);
+    const result = await refreshSession(getBaseUrl());
     return result.ok;
   }
 
@@ -195,6 +199,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
       credentials?: RequestCredentials;
     },
   ): Promise<ApiResult<T>> {
+    const baseUrl = getBaseUrl();
     const url = `${baseUrl}${path}`;
 
     const headers: Record<string, string> = {
@@ -247,6 +252,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
     path: string,
     init: { form: FormData; token?: string | null; headers?: Record<string, string> },
   ): Promise<ApiResult<T>> {
+    const baseUrl = getBaseUrl();
     const url = `${baseUrl}${path}`;
 
     const headers: Record<string, string> = {
@@ -292,7 +298,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
   }
 
   return {
-    baseUrl,
+    get baseUrl() {
+      return getBaseUrl();
+    },
 
     requestRaw: <T>(
       method: HttpMethod,
