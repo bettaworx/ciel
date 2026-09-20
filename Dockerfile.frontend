@@ -31,8 +31,10 @@ COPY packages/kotodoki ./packages/kotodoki
 
 WORKDIR /app/apps/frontend
 RUN corepack enable pnpm
+# The API types are not covered by a lifecycle script, so generate them first.
+# `build` then runs `prebuild` itself, which builds kotodoki and the licence
+# manifest — running gen:licenses here as well would just do it twice.
 RUN pnpm run gen:openapi
-RUN pnpm run gen:licenses
 RUN pnpm run build
 
 # The output is a static bundle, so the runtime is a web server and nothing

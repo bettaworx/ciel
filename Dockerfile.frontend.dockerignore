@@ -11,6 +11,8 @@
 **/.vscode
 **/.turbo
 **/coverage
+**/storybook-static
+**/.tanstack
 
 # The frontend image installs from the repository root workspace.
 apps/frontend/pnpm-lock.yaml
