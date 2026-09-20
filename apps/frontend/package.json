@@ -92,6 +92,7 @@
     "@storybook/react": "10.5.8",
     "@storybook/react-vite": "10.5.8",
     "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-router-devtools": "^1.167.2",
     "@tanstack/router-plugin": "^1.168.40",
     "@types/hammerjs": "^2.0.46",
     "@types/node": "^25",

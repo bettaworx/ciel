@@ -22,6 +22,18 @@ const backendOrigin = (process.env.INTERNAL_API_BASE_URL || "http://localhost:61
 );
 
 /**
+ * The dev server port, from the same FRONTEND_PORT the rest of the stack uses.
+ *
+ * strictPort matters more than it looks: the browser calls the backend
+ * cross-origin, and the backend matches ALLOWED_ORIGINS exactly. If Vite
+ * quietly moved to the next free port, every API call would fail CORS and the
+ * app would show the offline screen with no hint why. Failing to start is the
+ * kinder error — and the fix is to free the port, or set FRONTEND_PORT and
+ * ALLOWED_ORIGINS together.
+ */
+const port = Number(process.env.FRONTEND_PORT ?? 3000);
+
+/**
  * The manifest is served by the backend but must look same-origin to the
  * browser, or its relative start_url falls outside the app's scope. nginx does
  * this in production; dev and preview proxy it here.
@@ -56,8 +68,8 @@ export default defineConfig({
       process.env.npm_package_version ?? "0.0.0",
     ),
   },
-  server: { port: 3000, allowedHosts, proxy, fs: { allow: [workspaceRoot] } },
-  preview: { port: 3000, allowedHosts, proxy },
+  server: { port, strictPort: true, allowedHosts, proxy, fs: { allow: [workspaceRoot] } },
+  preview: { port, strictPort: true, allowedHosts, proxy },
   build: {
     sourcemap: false,
     // Chunk names stay stable across builds so long-lived caches keep working.
