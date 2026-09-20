@@ -544,6 +544,11 @@ func main() {
 		ModMedia:         modMediaSvc,
 	}
 	r.Get("/ws/events", handlers.NewWebSocketHandler(realtimeHub, tokenManager, handlers.WebSocketOptions{TrustProxy: trustProxy}))
+
+	// Web App Manifest (public). Served outside /api/v1 so the frontend's web
+	// server can proxy it at the same path and keep it same-origin for the
+	// browser, which start_url scoping requires.
+	r.Get("/pwa/manifest.json", apiServer.GetPwaManifest)
 	api.HandlerWithOptions(&apiServer, api.ChiServerOptions{
 		BaseURL:    "/api/v1",
 		BaseRouter: r,

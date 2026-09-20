@@ -70,14 +70,22 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Redirect /favicon.ico to /icon for dynamic favicon
-  async redirects() {
+  // The manifest is served by the backend now, and in production the
+  // frontend's own web server proxies it. Next has no equivalent, so keep the
+  // dev server working until the Vite migration provides its own proxy.
+  // ponytail: temporary — dies with this file.
+  async rewrites() {
+    const backendOrigin = (process.env.API_BASE_URL || "http://localhost:6137").replace(/\/+$/, "");
     return [
       {
-        source: "/favicon.ico",
-        destination: "/icon",
-        permanent: false,
+        source: "/pwa/manifest.json",
+        destination: `${backendOrigin}/pwa/manifest.json`,
       },
+    ];
+  },
+
+  async redirects() {
+    return [
       {
         source: "/.well-known/change-password",
         destination: "/settings/security",

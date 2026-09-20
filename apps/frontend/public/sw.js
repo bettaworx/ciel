@@ -180,37 +180,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // PWA icons - Stale-While-Revalidate with long-term fallback
-  if (url.pathname.startsWith("/pwa/icon-")) {
-    event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        const fetchPromise = fetch(request)
-          .then((response) => {
-            if (response.ok) {
-              const responseClone = response.clone();
-              caches.open(STATIC_CACHE).then((cache) => {
-                cache.put(request, responseClone);
-              });
-            }
-            if (response.status >= 500 && cachedResponse) {
-              return cachedResponse;
-            }
-            return response;
-          })
-          .catch(() => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            return new Response("", { status: 503, statusText: "Service Unavailable" });
-          });
-
-        // Return cached version immediately (if exists), then update in background
-        return cachedResponse || fetchPromise;
-      }),
-    );
-    return;
-  }
-
   // PWA Manifest - Stale-While-Revalidate
   if (url.pathname === "/pwa/manifest.json") {
     event.respondWith(
@@ -241,7 +210,10 @@ self.addEventListener("fetch", (event) => {
                 display: "standalone",
                 background_color: "#f7f7f7",
                 theme_color: "#f7f7f7",
-                icons: [],
+                icons: [
+                  { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+                  { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
+                ],
               }),
               {
                 status: 200,

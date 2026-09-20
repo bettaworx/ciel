@@ -9,6 +9,7 @@ import { ConfigWatcher } from "@/components/providers/ConfigWatcher";
 import { SetupRedirect } from "./SetupRedirect";
 import { DynamicTitle } from "@/components/DynamicTitle";
 import { ThemeColorMeta } from "@/components/ThemeColorMeta";
+import { FaviconLink } from "@/components/FaviconLink";
 import { KeyboardInset } from "@/components/KeyboardInset";
 import { RuntimeConfigScript } from "@/components/RuntimeConfigScript";
 import { RegisterServiceWorker } from "@/app/register-sw";
@@ -47,12 +48,12 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Ciel" />
-        <link rel="apple-touch-icon" href="/pwa/icon-192" />
       </head>
       <body className="antialiased" suppressHydrationWarning>
         <Providers>
           <DynamicTitle titleKey="meta.title" />
           <ThemeColorMeta />
+          <FaviconLink />
           <KeyboardInset />
           <RegisterServiceWorker />
           <AgreementCheckProvider>
