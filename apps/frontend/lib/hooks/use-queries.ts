@@ -67,7 +67,6 @@ export const queryKeys = {
   follows: ["follows"] as const,
   followList: (username: string, tab: FollowTab) => ["follows", username, tab] as const,
   followersYouFollowPreview: (username: string) => ["followersYouFollowPreview", username] as const,
-  reactions: (postId: string) => ["reactions", postId] as const,
   bookmarkLists: ["bookmarkLists"] as const,
   bookmarkListPosts: (listId: string) => ["bookmarkListPosts", listId] as const,
   agreementVersions: ["agreementVersions"] as const,
@@ -635,62 +634,6 @@ export function useUploadMedia() {
         throw new ApiHttpError(result.errorText, result.status, result.headers);
       }
       return result.data;
-    },
-  });
-}
-
-// Reaction counts
-export function useReactionCounts(postId: string | undefined) {
-  const api = useApi();
-
-  return useQuery({
-    queryKey: postId ? queryKeys.reactions(postId) : ["reactions", "null"],
-    queryFn: async () => {
-      if (!postId) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
-      const result = await api.reactionCounts(postId);
-      if (!result.ok) throw new Error(result.errorText);
-      return result.data;
-    },
-    enabled: !!postId,
-  });
-}
-
-// Add reaction mutation
-export function useAddReaction() {
-  const api = useApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ postId, emoji }: { postId: string; emoji: string }) => {
-      const result = await api.addReaction(postId, { emoji }); // Cookie-based auth
-      if (!result.ok) throw new Error(result.errorText);
-      return result.data;
-    },
-    onSuccess: (_, variables) => {
-      // Update reaction counts
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.reactions(variables.postId),
-      });
-    },
-  });
-}
-
-// Remove reaction mutation
-export function useRemoveReaction() {
-  const api = useApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ postId, emoji }: { postId: string; emoji: string }) => {
-      const result = await api.removeReaction(postId, emoji); // Cookie-based auth
-      if (!result.ok) throw new Error(result.errorText);
-      return result.data;
-    },
-    onSuccess: (_, variables) => {
-      // Update reaction counts
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.reactions(variables.postId),
-      });
     },
   });
 }
