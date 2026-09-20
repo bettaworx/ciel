@@ -36,22 +36,36 @@ if [ -n "$PUBLIC_ORIGIN" ] && [ "$PUBLIC_ORIGIN" != "$API_ORIGIN" ]; then
 fi
 
 # Third-party sources specific features need:
-#   cdn.jsdelivr.net    - Twemoji sprite sheets
-#   open.spotify.com    - Spotify embeds in link previews
+#   cdn.jsdelivr.net          - Twemoji sprite sheets
+#   open.spotify.com          - Spotify embeds in link previews
+#   youtube-nocookie.com      - YouTube embeds in link previews
+#   platform.x.com            - X (Twitter) embed script
+#   platform.twitter.com      - X (Twitter) embed script (legacy)
+#   syndication.twitter.com   - X (Twitter) embed data / iframe
+#   cdn.syndication.twimg.com - X (Twitter) embed data
+#   pbs.twimg.com             - X (Twitter) profile / media images
+#   abs.twimg.com             - X (Twitter) assets
+#   video.twimg.com           - X (Twitter) videos
 TWEMOJI="https://cdn.jsdelivr.net"
 SPOTIFY="https://open.spotify.com"
+YOUTUBE="https://www.youtube-nocookie.com"
+TWITTER_SCRIPT="https://platform.x.com https://platform.twitter.com https://syndication.twitter.com"
+TWITTER_CONNECT="https://cdn.syndication.twimg.com https://syndication.twitter.com"
+TWITTER_IMG="https://pbs.twimg.com https://abs.twimg.com https://cdn.syndication.twimg.com"
+TWITTER_MEDIA="https://video.twimg.com"
+TWITTER_FRAME="https://platform.twitter.com https://syndication.twitter.com"
 
 # Each directive can be overridden wholesale from the environment; the defaults
 # are what the app actually needs.
 CSP="default-src ${CSP_DEFAULT_SRC:-'self'}"
-CSP="$CSP; script-src ${CSP_SCRIPT_SRC:-'self'}"
+CSP="$CSP; script-src ${CSP_SCRIPT_SRC:-'self' $TWITTER_SCRIPT}"
 CSP="$CSP; style-src ${CSP_STYLE_SRC:-'self' 'unsafe-inline'}"
-CSP="$CSP; img-src ${CSP_IMG_SRC:-'self' data: blob: $TWEMOJI $BACKENDS}"
+CSP="$CSP; img-src ${CSP_IMG_SRC:-'self' data: blob: $TWEMOJI $TWITTER_IMG $BACKENDS}"
 CSP="$CSP; font-src ${CSP_FONT_SRC:-'self' data:}"
-CSP="$CSP; connect-src ${CSP_CONNECT_SRC:-'self' $SPOTIFY $BACKENDS $SOCKET_ORIGIN}"
-CSP="$CSP; media-src ${CSP_MEDIA_SRC:-'self' blob: $BACKENDS}"
+CSP="$CSP; connect-src ${CSP_CONNECT_SRC:-'self' $SPOTIFY $YOUTUBE $TWITTER_CONNECT $BACKENDS $SOCKET_ORIGIN}"
+CSP="$CSP; media-src ${CSP_MEDIA_SRC:-'self' blob: $TWITTER_MEDIA $BACKENDS}"
 CSP="$CSP; object-src ${CSP_OBJECT_SRC:-'none'}"
-CSP="$CSP; frame-src ${CSP_FRAME_SRC:-'self' $SPOTIFY}"
+CSP="$CSP; frame-src ${CSP_FRAME_SRC:-'self' $SPOTIFY $YOUTUBE $TWITTER_FRAME}"
 CSP="$CSP; base-uri ${CSP_BASE_URI:-'self'}"
 CSP="$CSP; form-action ${CSP_FORM_ACTION:-'self'}"
 CSP="$CSP; frame-ancestors ${CSP_FRAME_ANCESTORS:-'none'}"

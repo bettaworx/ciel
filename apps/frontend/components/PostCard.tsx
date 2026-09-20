@@ -1059,7 +1059,7 @@ export function PostCard({
   const mediaNode = (ogpUrl || previewMedia.length > 0) && (
     <div className={cn(verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : !isEmbedded && "mb-2 sm:mb-3")}>
       {/* OGP Link Preview – only when no media is attached */}
-      {ogpUrl && <OgpCard url={ogpUrl} />}
+      {ogpUrl && <OgpCard url={ogpUrl} variant={variant === "detail" ? "detail" : "timeline"} />}
 
       {/* Media: Images / Video via shared component */}
       <PostMediaPreview

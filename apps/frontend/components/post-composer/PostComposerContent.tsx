@@ -456,7 +456,7 @@ export function PostComposerContent({
   /** OGP link preview */
   const ogpPreview = ogpUrl ? (
     <div className={s.contentPadding}>
-      <OgpCard url={ogpUrl} />
+      <OgpCard url={ogpUrl} variant="timeline" />
     </div>
   ) : null;
 

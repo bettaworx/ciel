@@ -345,4 +345,22 @@ html[lang="th"] {
       transform: rotate(360deg);
     }
   }
+
+  /* X (Twitter) embed responsiveness.
+     widgets.js injects inline styles that fix the widget at 550px with margins.
+     These rules make the rendered card fill its container instead. */
+  .twitter-tweet,
+  .twitter-tweet-rendered {
+    /* biome-ignore lint/complexity/noImportantStyles: X widgets.js uses inline styles that can only be overridden with !important. */
+    margin: 0 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: X widgets.js uses inline styles that can only be overridden with !important. */
+    max-width: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: X widgets.js uses inline styles that can only be overridden with !important. */
+    width: 100% !important;
+  }
+
+  .twitter-tweet-rendered iframe {
+    /* biome-ignore lint/complexity/noImportantStyles: X widgets.js uses inline styles that can only be overridden with !important. */
+    width: 100% !important;
+  }
 }

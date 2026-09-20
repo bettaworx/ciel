@@ -46,17 +46,38 @@ function cspHeaderValue(): string {
   const backends = [...new Set(backendOrigins)].join(" ");
   const sockets = [...new Set(socketOrigins)].join(" ");
 
+  // Third-party sources specific features need:
+  //   cdn.jsdelivr.net          - Twemoji sprite sheets
+  //   open.spotify.com          - Spotify embeds in link previews
+  //   youtube-nocookie.com      - YouTube embeds in link previews
+  //   platform.x.com            - X (Twitter) embed script
+  //   platform.twitter.com      - X (Twitter) embed script (legacy)
+  //   syndication.twitter.com   - X (Twitter) embed data / iframe
+  //   cdn.syndication.twimg.com - X (Twitter) embed data
+  //   pbs.twimg.com             - X (Twitter) profile / media images
+  //   abs.twimg.com             - X (Twitter) assets
+  //   video.twimg.com           - X (Twitter) videos
+  const SPOTIFY = "https://open.spotify.com";
+  const YOUTUBE = "https://www.youtube-nocookie.com";
+  const TWITTER_SCRIPT =
+    "https://platform.x.com https://platform.twitter.com https://syndication.twitter.com";
+  const TWITTER_CONNECT = "https://cdn.syndication.twimg.com https://syndication.twitter.com";
+  const TWITTER_IMG =
+    "https://pbs.twimg.com https://abs.twimg.com https://cdn.syndication.twimg.com";
+  const TWITTER_MEDIA = "https://video.twimg.com";
+  const TWITTER_FRAME = "https://platform.twitter.com https://syndication.twitter.com";
+
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${TWITTER_SCRIPT}`,
     "style-src 'self' 'unsafe-inline'",
     // cdn.jsdelivr.net serves Twemoji sprites.
-    `img-src 'self' data: blob: https://cdn.jsdelivr.net ${backends}`,
+    `img-src 'self' data: blob: https://cdn.jsdelivr.net ${TWITTER_IMG} ${backends}`,
     "font-src 'self' data:",
-    `connect-src 'self' https://open.spotify.com ${backends} ${sockets}`,
-    `media-src 'self' blob: ${backends}`,
+    `connect-src 'self' ${SPOTIFY} ${YOUTUBE} ${TWITTER_CONNECT} ${backends} ${sockets}`,
+    `media-src 'self' blob: ${TWITTER_MEDIA} ${backends}`,
     "object-src 'none'",
-    "frame-src 'self' https://open.spotify.com",
+    `frame-src 'self' ${SPOTIFY} ${YOUTUBE} ${TWITTER_FRAME}`,
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
