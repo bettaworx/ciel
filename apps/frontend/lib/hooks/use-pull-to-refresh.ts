@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
+import { PullToRefreshGesture } from "@/lib/pull-to-refresh";
 
 type UsePullToRefreshOptions = {
   onRefresh: () => Promise<unknown>;
@@ -30,11 +31,10 @@ export function usePullToRefresh({
 }: UsePullToRefreshOptions): UsePullToRefreshResult {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dragDistance, setDragDistance] = useState(0);
-  const [isPulling, setIsPulling] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const startYRef = useRef(0);
-  const isTrackingRef = useRef(false);
-  const dragDistanceRef = useRef(0);
+  const gestureRef = useRef(new PullToRefreshGesture());
+  const refreshingRef = useRef(false);
+  const mountedRef = useRef(false);
 
   const getScrollTop = useCallback(() => {
     const container = containerRef.current;
@@ -44,84 +44,117 @@ export function usePullToRefresh({
     return window.scrollY || document.documentElement.scrollTop;
   }, []);
 
+  const rafRef = useRef<number | null>(null);
+
+  const resetGesture = useCallback(() => {
+    gestureRef.current.cancel();
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    setDragDistance(0);
+  }, []);
+
   const handleTouchStart = useCallback(
     (e: TouchEvent) => {
-      if (getScrollTop() > 0) return;
-      startYRef.current = e.touches[0].clientY;
-      isTrackingRef.current = true;
-      setIsPulling(true);
+      resetGesture();
+      if (refreshingRef.current || e.defaultPrevented || e.touches.length !== 1) return;
+      const container = containerRef.current;
+      if (!(e.target instanceof Element) || !container?.contains(e.target)) return;
+      // Leave editing and nested scroll areas to their own native gestures.
+      if (
+        e.target.closest(
+          "input, textarea, select, [contenteditable]:not([contenteditable='false'])",
+        )
+      ) {
+        return;
+      }
+      for (let element: Element | null = e.target; element; element = element.parentElement) {
+        if (element.scrollTop > 0) return;
+        if (element !== document.documentElement && element !== document.body) {
+          const { overflowY } = getComputedStyle(element);
+          if (/^(auto|scroll)$/.test(overflowY) && element.scrollHeight > element.clientHeight) {
+            return;
+          }
+        }
+      }
+      gestureRef.current.start(e.touches, getScrollTop());
     },
-    [getScrollTop],
+    [getScrollTop, resetGesture],
   );
 
   const handleTouchMove = useCallback(
     (e: TouchEvent) => {
-      if (!isTrackingRef.current) return;
-
-      const y = e.touches[0].clientY;
-      const diff = y - startYRef.current;
-
-      if (diff < 0) {
-        isTrackingRef.current = false;
-        setIsPulling(false);
-        dragDistanceRef.current = 0;
-        setDragDistance(0);
-        return;
+      const gesture = gestureRef.current;
+      const previousDistance = gesture.distance;
+      if (e.defaultPrevented) gesture.cancel();
+      else gesture.move(e.touches, getScrollTop(), maxDistance);
+      if (gesture.distance === previousDistance) return;
+      if (rafRef.current === null) {
+        rafRef.current = requestAnimationFrame(() => {
+          setDragDistance(gestureRef.current.distance);
+          rafRef.current = null;
+        });
       }
-
-      const damped = Math.min(diff * 0.5, maxDistance);
-      dragDistanceRef.current = damped;
-      setDragDistance(damped);
     },
-    [maxDistance],
+    [getScrollTop, maxDistance],
   );
 
-  const handleTouchEnd = useCallback(async () => {
-    if (!isTrackingRef.current) return;
-    isTrackingRef.current = false;
-    setIsPulling(false);
-
-    const currentDistance = dragDistanceRef.current;
-    dragDistanceRef.current = 0;
-    setDragDistance(0);
-
-    if (currentDistance >= threshold) {
+  const handleTouchEnd = useEffectEvent(async (e: TouchEvent) => {
+    if (e.defaultPrevented || e.touches.length !== 0 || getScrollTop() > 0) {
+      resetGesture();
+      return;
+    }
+    const shouldRefresh = gestureRef.current.release(threshold);
+    resetGesture();
+    if (shouldRefresh && !refreshingRef.current) {
+      refreshingRef.current = true;
       setIsRefreshing(true);
       const startTime = Date.now();
       try {
         await onRefresh();
+      } catch {
+        // Query errors are rendered by the caller; do not leak a rejected DOM event handler.
       } finally {
         const elapsed = Date.now() - startTime;
         const remaining = Math.max(0, 500 - elapsed);
         if (remaining > 0) {
           await new Promise((resolve) => setTimeout(resolve, remaining));
         }
-        setIsRefreshing(false);
+        refreshingRef.current = false;
+        if (mountedRef.current) setIsRefreshing(false);
       }
     }
-  }, [onRefresh, threshold]);
+  });
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    container.addEventListener("touchstart", handleTouchStart, { passive: true });
-    container.addEventListener("touchmove", handleTouchMove, { passive: true });
-    container.addEventListener("touchend", handleTouchEnd);
-    container.addEventListener("touchcancel", handleTouchEnd);
+    mountedRef.current = true;
+    const handleEnd = (e: TouchEvent) => {
+      void handleTouchEnd(e);
+    };
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleEnd, { passive: true });
+    window.addEventListener("touchcancel", resetGesture, { passive: true });
 
     return () => {
-      container.removeEventListener("touchstart", handleTouchStart);
-      container.removeEventListener("touchmove", handleTouchMove);
-      container.removeEventListener("touchend", handleTouchEnd);
-      container.removeEventListener("touchcancel", handleTouchEnd);
+      mountedRef.current = false;
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleEnd);
+      window.removeEventListener("touchcancel", resetGesture);
+      gestureRef.current.cancel();
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
-  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
+  }, [handleTouchStart, handleTouchMove, resetGesture]);
 
   return {
     containerRef,
     dragDistance,
-    isPulling,
+    isPulling: dragDistance > 0,
     isRefreshing,
     threshold,
   };

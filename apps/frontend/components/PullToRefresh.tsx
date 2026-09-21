@@ -26,10 +26,8 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
   const translateY = isRefreshing ? INDICATOR_HEIGHT : dragDistance;
 
   return (
-    <div
-      ref={containerRef}
-      className={cn("relative overflow-hidden overscroll-y-contain", className)}
-    >
+    // Clip the indicator without creating a scroll container that traps wheel/trackpad scrolling.
+    <div ref={containerRef} className={cn("relative overflow-clip", className)}>
       <div
         className="will-change-transform"
         style={{
