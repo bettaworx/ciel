@@ -22,6 +22,15 @@ func RequirePermission(authz *service.AuthzService, permissionID, scope string) 
 				writeUnauthorized(w)
 				return
 			}
+			// An OAuth token never inherits its owner's staff powers. The
+			// admin tree is already closed to OAuth in the scope middleware;
+			// this is the second lock, so that any future mount of
+			// RequirePermission is closed too. A user consented to an app
+			// posting for them, not to it moderating the instance.
+			if user.IsAPIToken() {
+				writeForbidden(w)
+				return
+			}
 			allowed, err := authz.HasPermission(r.Context(), user.ID, permissionID, scope)
 			if err != nil {
 				writeServiceError(w, err)

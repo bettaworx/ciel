@@ -590,11 +590,11 @@ func (s *AuthService) completeLogin(ctx context.Context, userID uuid.UUID, usern
 	if err != nil {
 		return api.LoginAuthenticated{}, api.StepupAuthenticated{}, "", err
 	}
-	user := mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, row.IsPrivate)
+	user := mapUserWithProfile(row.UserID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot})
 	return api.LoginAuthenticated{
 		Status:           api.LoginAuthenticatedStatusAuthenticated,
 		AccessToken:      token,
-		TokenType:        api.Bearer,
+		TokenType:        api.LoginAuthenticatedTokenTypeBearer,
 		ExpiresInSeconds: expiresIn,
 		User:             user,
 	}, api.StepupAuthenticated{}, rawRefresh, nil
@@ -629,8 +629,8 @@ func (s *AuthService) ResetUserMFA(ctx context.Context, actor auth.User, targetU
 	if err := s.tokens.InvalidateUserTokens(ctx, targetUserID.String()); err != nil {
 		slog.Warn("failed to invalidate tokens after MFA reset", "error", err, "user_id", targetUserID.String())
 	}
-	if err := s.store.Q.RevokeAllUserRefreshTokens(ctx, targetUserID); err != nil {
-		slog.Warn("failed to revoke refresh tokens after MFA reset", "error", err, "user_id", targetUserID.String())
+	if err := s.RevokeAllSessions(ctx, targetUserID); err != nil {
+		slog.Warn("failed to revoke sessions after MFA reset", "error", err, "user_id", targetUserID.String())
 	}
 	attrs := []slog.Attr{
 		slog.String("actor_user_id", actor.ID.String()),

@@ -48,6 +48,9 @@ export const NOTIFICATION_TAB_TYPES: Record<
 export const queryKeys = {
   me: ["me"] as const,
   mfa: ["mfa"] as const,
+  oauthClients: ["oauthClients"] as const,
+  oauthAuthorizations: ["oauthAuthorizations"] as const,
+  personalAccessTokens: ["personalAccessTokens"] as const,
   serverInfo: ["serverInfo"] as const,
   serverConfig: ["serverConfig"] as const,
   customEmojis: ["customEmojis"] as const,
@@ -720,6 +723,32 @@ export function useUpdatePrivacy() {
       queryClient.invalidateQueries({ queryKey: ["userPosts"] });
       queryClient.invalidateQueries({ queryKey: ["post"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+// The bot badge is a label, not a visibility change, so this invalidates far
+// less than useUpdatePrivacy: nothing the client holds becomes unreadable, only
+// the robot beside a name becomes stale. Those are the caches that render a
+// name — the profile, its posts, and any timeline already on screen.
+export function useUpdateBot() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const setAuth = useSetAtom(authAtom);
+
+  return useMutation({
+    mutationFn: async (isBot: boolean) => {
+      const result = await api.updateBot({ isBot });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (updatedUser) => {
+      setAuth((prev) => ({ ...prev, user: updatedUser }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
     },
   });
 }
@@ -1525,5 +1554,153 @@ export function useSearchUsers(query: string, enabled = true) {
     // on every attempt, and retrying only eats into the search rate limit.
     retry: false,
     staleTime: 1000 * 60,
+  });
+}
+
+// --- OAuth2 ------------------------------------------------------------
+//
+// Apps the account has registered, and apps the account has connected to. They
+// are separate lists on purpose: registering an app is a developer action, and
+// connecting one is something a user does to somebody else's app.
+
+export function useOAuthClients() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.oauthClients,
+    queryFn: async () => {
+      const result = await api.oauthClients();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.items;
+    },
+  });
+}
+
+export function useCreateOAuthClient() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: components["schemas"]["CreateOAuthClientRequest"]) => {
+      const result = await api.createOAuthClient(body);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthClients });
+    },
+  });
+}
+
+export function useDeleteOAuthClient() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (clientUuid: string) => {
+      const result = await api.deleteOAuthClient(clientUuid);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthClients });
+      // Deleting an app cascades to its tokens, so anyone who had connected it
+      // is disconnected too — including this account.
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthAuthorizations });
+    },
+  });
+}
+
+export function useRotateOAuthClientSecret() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      clientUuid,
+      stepupToken,
+    }: {
+      clientUuid: string;
+      stepupToken: string;
+    }) => {
+      const result = await api.rotateOAuthClientSecret(clientUuid, stepupToken);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthClients });
+    },
+  });
+}
+
+export function useOAuthAuthorizations() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.oauthAuthorizations,
+    queryFn: async () => {
+      const result = await api.oauthAuthorizations();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.items;
+    },
+  });
+}
+
+export function useRevokeOAuthAuthorization() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (clientId: string) => {
+      const result = await api.revokeOAuthAuthorization(clientId);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthAuthorizations });
+    },
+  });
+}
+
+// Personal access tokens: the account's own credentials, as opposed to a third
+// party's. Kept on their own keys so revoking one does not refetch the app
+// lists, which are a different thing entirely.
+
+export function usePersonalAccessTokens() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.personalAccessTokens,
+    queryFn: async () => {
+      const result = await api.personalAccessTokens();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.items;
+    },
+  });
+}
+
+export function useCreatePersonalAccessToken() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      body,
+      stepupToken,
+    }: {
+      body: components["schemas"]["CreatePersonalAccessTokenRequest"];
+      stepupToken: string;
+    }) => {
+      const result = await api.createPersonalAccessToken(body, stepupToken);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.personalAccessTokens });
+    },
+  });
+}
+
+export function useRevokePersonalAccessToken() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (tokenId: string) => {
+      const result = await api.revokePersonalAccessToken(tokenId);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.personalAccessTokens });
+    },
   });
 }

@@ -95,7 +95,7 @@ func (s *AuthService) ExchangeAccountToken(ctx context.Context, req api.SessionE
 	if row.RevokedAt.Valid {
 		logging.Audit(ctx, "auth.account_token.reuse", "failure",
 			slog.String("actor_user_id", row.UserID.String()))
-		if err := s.store.Q.RevokeAllUserRefreshTokens(ctx, row.UserID); err != nil {
+		if err := s.RevokeAllSessions(ctx, row.UserID); err != nil {
 			return AccountSession{}, err
 		}
 		return AccountSession{}, errAccountToken()
@@ -124,7 +124,7 @@ func (s *AuthService) ExchangeAccountToken(ctx context.Context, req api.SessionE
 	out := AccountSession{
 		User: mapUserWithProfile(userRow.ID, userRow.Username, userRow.CreatedAt, userRow.DisplayName, userRow.Bio,
 			userRow.AvatarMediaID, userRow.AvatarExt, userRow.BannerMediaID, userRow.BannerExt, userRow.BannerBlurhash,
-			userRow.TermsVersion, userRow.PrivacyVersion, userRow.TermsAcceptedAt, userRow.PrivacyAcceptedAt, userRow.IsPrivate),
+			userRow.TermsVersion, userRow.PrivacyVersion, userRow.TermsAcceptedAt, userRow.PrivacyAcceptedAt, ProfileFlags{IsPrivate: userRow.IsPrivate, IsBot: userRow.IsBot}),
 		AccessToken:      accessToken,
 		ExpiresInSeconds: expiresIn,
 	}

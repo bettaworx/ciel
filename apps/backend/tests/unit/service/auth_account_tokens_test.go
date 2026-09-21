@@ -80,8 +80,8 @@ func accountTokenRows(userID uuid.UUID, spki []byte, revoked bool, expiresAt tim
 }
 
 func accountTokenUserRows(userID uuid.UUID) *sqlmock.Rows {
-	return sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "is_private", "avatar_ext", "banner_ext", "banner_blurhash"}).
-		AddRow(userID, "alice", "Alice", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, time.Now().UTC(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, false, sql.NullString{}, sql.NullString{}, sql.NullString{})
+	return sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "is_private", "is_bot", "avatar_ext", "banner_ext", "banner_blurhash"}).
+		AddRow(userID, "alice", "Alice", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, time.Now().UTC(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, false, false, sql.NullString{}, sql.NullString{}, sql.NullString{})
 }
 
 func newAuthServiceWithMock(t *testing.T) (*service.AuthService, sqlmock.Sqlmock) {
@@ -199,6 +199,13 @@ func TestExchangeAccountToken_ReuseRevokesEverything(t *testing.T) {
 	mock.ExpectExec(`-- name: RevokeAllUserRefreshTokens`).
 		WithArgs(userID).
 		WillReturnResult(sqlmock.NewResult(0, 2))
+	// "Everything" includes the OAuth grants. They live in their own table with
+	// their own revoked_at, so revoking refresh tokens does not touch them, and
+	// a reuse that left every connected app running would not be cutting the
+	// account back to a password login at all.
+	mock.ExpectExec(`-- name: RevokeAllOAuthTokensForUser`).
+		WithArgs(userID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	_, err := svc.ExchangeAccountToken(context.Background(), accountTokenRequest(t, d, "tok", now, true), now)
 	assertServiceError(t, err, http.StatusUnauthorized, "unauthorized")

@@ -77,7 +77,7 @@ func TestAuthService_StepUpFinish_WrongNonce(t *testing.T) {
 
 	mock.ExpectQuery(`SELECT\s+u.id`).WithArgs(userID).WillReturnRows(
 		sqlmock.NewRows(authRowColumns()).
-			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, false, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, []byte("salt"), int32(100000), []byte{1, 2}, []byte{3, 4}),
+			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, false, false, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, []byte("salt"), int32(100000), []byte{1, 2}, []byte{3, 4}),
 	)
 
 	startResp, err := svc.StepUpStart(context.Background(), user, api.StepupStartRequest{ClientNonce: "cnonce"})
@@ -114,7 +114,7 @@ func TestAuthService_StepUpStart_AuditSuccess(t *testing.T) {
 
 	mock.ExpectQuery(`SELECT\s+u.id`).WithArgs(userID).WillReturnRows(
 		sqlmock.NewRows(authRowColumns()).
-			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, false, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
+			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, false, false, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
 	)
 
 	_, err := svc.StepUpStart(context.Background(), user, api.StepupStartRequest{ClientNonce: "cnonce"})
@@ -145,11 +145,11 @@ func TestAuthService_StepUpFinish_AuditSuccess(t *testing.T) {
 
 	mock.ExpectQuery(`SELECT\s+u.id`).WithArgs(userID).WillReturnRows(
 		sqlmock.NewRows(authRowColumns()).
-			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, false, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
+			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, false, false, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
 	)
 	mock.ExpectQuery(`SELECT\s+u.id`).WithArgs(userID).WillReturnRows(
 		sqlmock.NewRows(authRowColumns()).
-			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, false, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
+			AddRow(userID, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, created, false, false, sql.NullInt32{Valid: true, Int32: 1}, sql.NullInt32{Valid: true, Int32: 1}, sql.NullTime{}, sql.NullTime{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, salt, int32(iterations), storedKey, serverKey),
 	)
 	// MFA check after successful proof verification: no factors enrolled.
 	mock.ExpectQuery(`EXISTS\(SELECT 1 FROM auth_totp`).WithArgs(userID).WillReturnRows(

@@ -62,7 +62,7 @@ export function AccountSwitcherContent({
               <div className="flex-1 min-w-0 text-left">
                 <div className="text-sm font-semibold truncate">
                   {account.displayName ? (
-                    <DisplayName name={account.displayName} isPrivate={false} />
+                    <DisplayName name={account.displayName} isPrivate={false} isBot={false} />
                   ) : (
                     `@${account.username}`
                   )}

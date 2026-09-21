@@ -11,7 +11,7 @@ RETURNING id, name, created_at;
 -- name: CreateUser :one
 INSERT INTO users (username, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, username, display_name, bio, avatar_media_id, banner_media_id, created_at, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at, is_private;
+RETURNING id, username, display_name, bio, avatar_media_id, banner_media_id, created_at, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at, is_private, is_bot;
 
 -- name: GetUserByUsername :one
 SELECT
@@ -27,6 +27,7 @@ SELECT
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash
@@ -49,6 +50,7 @@ SELECT
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash
@@ -78,7 +80,8 @@ RETURNING
 	privacy_version,
 	terms_accepted_at,
 	privacy_accepted_at,
-	is_private;
+	is_private,
+	is_bot;
 
 -- name: UpdateUserProfile :one
 UPDATE users
@@ -97,7 +100,8 @@ RETURNING
 	privacy_version,
 	terms_accepted_at,
 	privacy_accepted_at,
-	is_private;
+	is_private,
+	is_bot;
 
 -- name: UpdateUserAvatar :one
 WITH prev AS (
@@ -107,7 +111,7 @@ updated AS (
 	UPDATE users AS u
 	SET avatar_media_id = $2
 	WHERE u.id = $1
-	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private
+	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private, u.is_bot
 )
 SELECT
 	updated.id,
@@ -122,6 +126,7 @@ SELECT
 	updated.terms_accepted_at,
 	updated.privacy_accepted_at,
 	updated.is_private,
+	updated.is_bot,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash,
@@ -138,7 +143,7 @@ updated AS (
 	UPDATE users AS u
 	SET banner_media_id = $2
 	WHERE u.id = $1
-	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private
+	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private, u.is_bot
 )
 SELECT
 	updated.id,
@@ -153,6 +158,7 @@ SELECT
 	updated.terms_accepted_at,
 	updated.privacy_accepted_at,
 	updated.is_private,
+	updated.is_bot,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash,
@@ -201,6 +207,7 @@ SELECT
 	u.banner_media_id,
 	u.created_at,
 	u.is_private,
+	u.is_bot,
 	u.terms_version,
 	u.privacy_version,
 	u.terms_accepted_at,
@@ -254,6 +261,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	-- True when this post is a reply whose parent the viewer may not see
 	-- because its author is private. Lets the client show a redacted parent
@@ -314,6 +322,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext
 FROM posts p
 JOIN users u ON u.id = p.user_id
@@ -381,6 +390,7 @@ SELECT
 	child.avatar_media_id,
 	child.user_created_at,
 	child.is_private,
+	child.is_bot,
 	child.avatar_ext,
 	requested.parent_id::uuid AS thread_parent_id
 FROM unnest(sqlc.arg('parent_ids')::uuid[]) WITH ORDINALITY AS requested(parent_id, parent_order)
@@ -400,6 +410,7 @@ JOIN LATERAL (
 		u.avatar_media_id,
 		u.created_at AS user_created_at,
 		u.is_private,
+		u.is_bot,
 		m.ext AS avatar_ext
 	FROM posts p
 	JOIN users u ON u.id = p.user_id
@@ -573,6 +584,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	-- True when this post is a reply whose parent the viewer may not see
 	-- because its author is private. Lets the client show a redacted parent
@@ -650,6 +662,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	-- True when this post is a reply whose parent the viewer may not see
 	-- because its author is private. Lets the client show a redacted parent
@@ -765,6 +778,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	-- True when this post is a reply whose parent the viewer may not see
 	-- because its author is private. Lets the client show a redacted parent
@@ -904,6 +918,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	pre.created_at AS reacted_at
 FROM post_reaction_events pre
@@ -1425,7 +1440,7 @@ WHERE expires_at IS NOT NULL AND expires_at <= NOW();
 -- name: SearchUsers :many
 SELECT id, username, display_name, bio, avatar_media_id, created_at,
        terms_version, privacy_version, terms_accepted_at, privacy_accepted_at,
-       is_private
+       is_private, is_bot
 FROM users
 WHERE (sqlc.narg('search')::text IS NULL 
        OR username ILIKE '%' || sqlc.narg('search') || '%'
@@ -2138,6 +2153,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	f.created_at AS requested_at
 FROM follows f
@@ -2160,6 +2176,12 @@ WHERE follower_id = sqlc.arg('follower_id')::uuid
 
 -- name: SetUserPrivate :exec
 UPDATE users SET is_private = sqlc.arg('is_private')::boolean
+WHERE id = sqlc.arg('id')::uuid;
+
+-- name: SetUserBot :exec
+-- No follow-graph fallout to clean up the way SetUserPrivate has: the bot flag
+-- is a label on the account and changes nothing about who may see what.
+UPDATE users SET is_bot = sqlc.arg('is_bot')::boolean
 WHERE id = sqlc.arg('id')::uuid;
 
 -- name: CanViewUser :one
@@ -2225,6 +2247,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	EXISTS (
@@ -2262,6 +2285,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	EXISTS (
@@ -2300,6 +2324,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	TRUE AS is_following,
@@ -2366,6 +2391,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	-- True when this post is a reply whose parent the viewer may not see
 	-- because its author is private. Lets the client show a redacted parent
@@ -2461,6 +2487,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	EXISTS (
 		SELECT 1 FROM follows vf
@@ -2717,6 +2744,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	am.created_at AS hidden_at
 FROM account_mutes am
@@ -2742,6 +2770,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	ab.created_at AS hidden_at
 FROM account_blocks ab
@@ -2769,3 +2798,197 @@ LIMIT sqlc.arg('limit');
 SELECT id FROM posts
 WHERE id = ANY(sqlc.arg('ids')::uuid[])
 	AND deleted_at IS NULL;
+
+-- ==================== OAuth2 ====================
+
+-- name: CountOAuthClientsByOwner :one
+SELECT count(*) FROM oauth_clients WHERE owner_user_id = $1;
+
+-- name: CreateOAuthClient :one
+-- The per-owner cap is enforced inside the INSERT rather than by reading the
+-- count first and then writing: two concurrent creates would both pass a
+-- separate check and both insert. When the cap is already reached the SELECT
+-- yields no row, the INSERT writes nothing, and sqlc reports no rows — which
+-- the service turns into the "too many clients" error.
+INSERT INTO oauth_clients (client_id, client_secret_hash, owner_user_id, name, website, redirect_uris, scopes)
+SELECT
+    sqlc.arg('client_id')::text,
+    sqlc.narg('client_secret_hash')::bytea,
+    sqlc.arg('owner_user_id')::uuid,
+    sqlc.arg('name')::text,
+    sqlc.narg('website')::text,
+    sqlc.arg('redirect_uris')::text[],
+    sqlc.arg('scopes')::text[]
+WHERE (
+    SELECT count(*) FROM oauth_clients WHERE owner_user_id = sqlc.arg('owner_user_id')::uuid
+) < sqlc.arg('max_clients')::bigint
+RETURNING id, client_id, client_secret_hash, owner_user_id, name, website, redirect_uris, scopes, created_at, updated_at;
+
+-- name: GetOAuthClientByClientID :one
+SELECT id, client_id, client_secret_hash, owner_user_id, name, website, redirect_uris, scopes, created_at, updated_at
+FROM oauth_clients
+WHERE client_id = $1;
+
+-- name: GetOAuthClientByIDForOwner :one
+SELECT id, client_id, client_secret_hash, owner_user_id, name, website, redirect_uris, scopes, created_at, updated_at
+FROM oauth_clients
+WHERE id = sqlc.arg('id')::uuid AND owner_user_id = sqlc.arg('owner_user_id')::uuid;
+
+-- name: ListOAuthClientsByOwner :many
+SELECT id, client_id, owner_user_id, name, website, redirect_uris, scopes,
+       (client_secret_hash IS NOT NULL)::boolean AS is_confidential,
+       created_at, updated_at
+FROM oauth_clients
+WHERE owner_user_id = $1
+ORDER BY created_at DESC, id DESC;
+
+-- name: RotateOAuthClientSecret :one
+UPDATE oauth_clients
+SET client_secret_hash = sqlc.arg('client_secret_hash')::bytea, updated_at = now()
+WHERE id = sqlc.arg('id')::uuid AND owner_user_id = sqlc.arg('owner_user_id')::uuid
+RETURNING id, client_id, owner_user_id, name, website, redirect_uris, scopes, created_at, updated_at;
+
+-- name: DeleteOAuthClient :execrows
+-- Owner-scoped on purpose: passing someone else's client id deletes nothing
+-- rather than reporting that it exists.
+DELETE FROM oauth_clients
+WHERE id = sqlc.arg('id')::uuid AND owner_user_id = sqlc.arg('owner_user_id')::uuid;
+
+-- name: CreateOAuthToken :one
+INSERT INTO oauth_tokens (
+    client_id, user_id, scopes, access_token_hash, access_expires_at,
+    refresh_token_hash, refresh_expires_at
+)
+VALUES (
+    sqlc.arg('client_id')::uuid,
+    sqlc.arg('user_id')::uuid,
+    sqlc.arg('scopes')::text[],
+    sqlc.arg('access_token_hash')::bytea,
+    sqlc.arg('access_expires_at')::timestamptz,
+    sqlc.narg('refresh_token_hash')::bytea,
+    sqlc.narg('refresh_expires_at')::timestamptz
+)
+RETURNING id, client_id, user_id, scopes, access_token_hash, access_expires_at,
+          refresh_token_hash, refresh_expires_at, revoked_at, created_at;
+
+-- name: GetOAuthAccessToken :one
+-- Joins the user so verification is one round trip: the middleware needs the
+-- username for the request context and would otherwise fetch it separately on
+-- every single API call.
+-- LEFT JOIN on the client, not JOIN: a personal access token has no client, and
+-- an inner join would drop those rows and report them as unknown tokens.
+SELECT t.id, t.client_id, t.user_id, t.scopes, t.access_expires_at, t.revoked_at,
+       c.client_id AS client_public_id,
+       u.username
+FROM oauth_tokens t
+LEFT JOIN oauth_clients c ON c.id = t.client_id
+JOIN users u ON u.id = t.user_id
+WHERE t.access_token_hash = $1;
+
+-- name: ConsumeOAuthRefreshToken :one
+-- Revokes the row and hands it back in one statement, so two concurrent
+-- refreshes cannot both succeed. A replay arrives after revoked_at is set,
+-- finds no row here, and is then looked up by PeekOAuthRefreshToken to tell a
+-- reuse apart from a token that never existed.
+UPDATE oauth_tokens
+SET revoked_at = now()
+WHERE refresh_token_hash = $1
+  AND revoked_at IS NULL
+  AND refresh_expires_at > now()
+RETURNING id, client_id, user_id, scopes, access_token_hash, access_expires_at,
+          refresh_token_hash, refresh_expires_at, revoked_at, created_at;
+
+-- name: PeekOAuthRefreshToken :one
+-- Reads a refresh token without consuming it, including already-revoked rows.
+-- Only used to detect reuse of a token that was already spent.
+SELECT id, client_id, user_id, scopes, revoked_at, refresh_expires_at
+FROM oauth_tokens
+WHERE refresh_token_hash = $1;
+
+-- name: RevokeOAuthGrant :execrows
+-- Revokes every live token a client holds for a user. Used both by the
+-- connected-apps revoke button and, on detecting a refresh token replay, to
+-- shut the whole grant down rather than just the replayed token.
+UPDATE oauth_tokens
+SET revoked_at = now()
+WHERE client_id = sqlc.arg('client_id')::uuid
+  AND user_id = sqlc.arg('user_id')::uuid
+  AND revoked_at IS NULL;
+
+-- name: RevokeOAuthTokenByAccessHash :execrows
+UPDATE oauth_tokens SET revoked_at = now()
+WHERE access_token_hash = $1 AND revoked_at IS NULL;
+
+-- name: RevokeOAuthTokenByRefreshHash :execrows
+UPDATE oauth_tokens SET revoked_at = now()
+WHERE refresh_token_hash = $1 AND revoked_at IS NULL;
+
+-- name: RevokeAllOAuthTokensForUser :execrows
+-- Called wherever the account's credentials change. A password reset that left
+-- every connected app running would defeat the point of the reset.
+UPDATE oauth_tokens SET revoked_at = now()
+WHERE user_id = $1 AND revoked_at IS NULL;
+
+-- name: ListOAuthAuthorizations :many
+-- The connected-apps list: one row per app that currently holds a live token,
+-- with the scopes and the time of the most recent grant.
+SELECT c.id AS client_uuid,
+       c.client_id,
+       c.name,
+       c.website,
+       c.owner_user_id,
+       max(t.created_at)::timestamptz AS authorized_at,
+       (array_agg(DISTINCT s ORDER BY s))::text[] AS scopes
+FROM oauth_tokens t
+JOIN oauth_clients c ON c.id = t.client_id
+CROSS JOIN LATERAL unnest(t.scopes) AS s
+WHERE t.user_id = $1
+  AND t.revoked_at IS NULL
+  AND t.access_expires_at > now()
+GROUP BY c.id, c.client_id, c.name, c.website, c.owner_user_id
+ORDER BY authorized_at DESC;
+
+-- name: DeleteExpiredOAuthTokens :execrows
+-- Rows are kept after revocation so a replayed refresh token is still
+-- recognisable, but not forever. Anything whose refresh window is long past can
+-- no longer be replayed into anything.
+DELETE FROM oauth_tokens
+WHERE access_expires_at < now() - INTERVAL '30 days'
+  AND (refresh_expires_at IS NULL OR refresh_expires_at < now() - INTERVAL '30 days');
+
+-- name: CreatePersonalAccessToken :one
+-- No refresh token: the owner can mint another whenever they like, so there is
+-- nothing for a refresh to buy that a second token does not.
+INSERT INTO oauth_tokens (client_id, user_id, name, scopes, access_token_hash, access_expires_at)
+VALUES (
+    NULL,
+    sqlc.arg('user_id')::uuid,
+    sqlc.arg('name')::text,
+    sqlc.arg('scopes')::text[],
+    sqlc.arg('access_token_hash')::bytea,
+    sqlc.arg('access_expires_at')::timestamptz
+)
+RETURNING id, user_id, name, scopes, access_expires_at, created_at;
+
+-- name: ListPersonalAccessTokens :many
+SELECT id, user_id, name, scopes, access_expires_at, created_at
+FROM oauth_tokens
+WHERE user_id = $1
+  AND client_id IS NULL
+  AND revoked_at IS NULL
+  AND access_expires_at > now()
+ORDER BY created_at DESC, id DESC;
+
+-- name: RevokePersonalAccessToken :execrows
+-- Scoped to the owner and to client_id IS NULL, so it can neither revoke
+-- somebody else's token nor be used to reach a token issued through an OAuth
+-- grant, which has its own revoke path.
+UPDATE oauth_tokens SET revoked_at = now()
+WHERE id = sqlc.arg('id')::uuid
+  AND user_id = sqlc.arg('user_id')::uuid
+  AND client_id IS NULL
+  AND revoked_at IS NULL;
+
+-- name: CountPersonalAccessTokens :one
+SELECT count(*) FROM oauth_tokens
+WHERE user_id = $1 AND client_id IS NULL AND revoked_at IS NULL AND access_expires_at > now();

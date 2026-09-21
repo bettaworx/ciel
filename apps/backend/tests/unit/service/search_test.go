@@ -66,11 +66,11 @@ func TestSearchUsersPreservesRelevanceOrder(t *testing.T) {
 	mock.ExpectQuery(`SELECT`).WillReturnRows(
 		sqlmock.NewRows([]string{
 			"id", "username", "display_name", "bio", "avatar_media_id",
-			"user_created_at", "is_private", "avatar_ext", "is_following", "is_followed_by", "is_blocked_by",
+			"user_created_at", "is_private", "is_bot", "avatar_ext", "is_following", "is_followed_by", "is_blocked_by",
 		}).
-			AddRow(third, "carol", nil, nil, nil, created, false, nil, false, false, false).
-			AddRow(first, "alice", nil, nil, nil, created, false, nil, false, false, false).
-			AddRow(second, "bob", nil, nil, nil, created, false, nil, false, false, false),
+			AddRow(third, "carol", nil, nil, nil, created, false, false, nil, false, false, false).
+			AddRow(first, "alice", nil, nil, nil, created, false, false, nil, false, false, false).
+			AddRow(second, "bob", nil, nil, nil, created, false, false, nil, false, false, false),
 	)
 
 	page, err := svc.SearchUsers(context.Background(), "someone", nil, nil, nil)
@@ -150,7 +150,7 @@ func TestSearchPassesParsedFiltersToProvider(t *testing.T) {
 
 	mock.ExpectQuery(`SELECT`).WillReturnRows(sqlmock.NewRows([]string{
 		"id", "username", "display_name", "bio", "avatar_media_id",
-		"user_created_at", "is_private", "avatar_ext", "is_following", "is_followed_by", "is_blocked_by",
+		"user_created_at", "is_private", "is_bot", "avatar_ext", "is_following", "is_followed_by", "is_blocked_by",
 	}))
 
 	if _, err := svc.SearchUsers(context.Background(), `since:2026-01-01 "a phrase" cat OR dog`, nil, nil, nil); err != nil {
@@ -202,13 +202,13 @@ func TestSearchPostsDropsHiddenAuthors(t *testing.T) {
 		sqlmock.NewRows([]string{
 			"id", "user_id", "content", "parent_id", "root_id", "reference_id",
 			"created_at", "deleted_at", "username", "display_name", "bio",
-			"avatar_media_id", "user_created_at", "is_private", "avatar_ext",
+			"avatar_media_id", "user_created_at", "is_private", "is_bot", "avatar_ext",
 			"parent_private", "parent_hidden",
 		}).
 			AddRow(hiddenPost, hiddenAuthor, "from a blocked account", nil, nil, nil,
-				created, nil, "mallory", nil, nil, nil, created, false, nil, false, false).
+				created, nil, "mallory", nil, nil, nil, created, false, false, nil, false, false).
 			AddRow(visiblePost, visibleAuthor, "an ordinary post", nil, nil, nil,
-				created, nil, "bob", nil, nil, nil, created, false, nil, false, false),
+				created, nil, "bob", nil, nil, nil, created, false, false, nil, false, false),
 	)
 	// Media, then the hidden-author lookup that stamps the flags, then the
 	// remaining hydration steps.

@@ -134,6 +134,39 @@
               $ref: ../schemas/common.yml#/components/schemas/Error
       '401':
         description: Unauthorized
+/me/bot:
+  patch:
+    tags:
+    - Users
+    summary: Mark the account as automated, or stop marking it
+    description: >-
+      Purely declarative. Turning this on grants and withholds nothing; it only
+      tells clients to draw a robot beside the display name so readers can tell
+      an automated poster from a person. Intended for accounts that run a bot,
+      alongside the OAuth2 clients that drive them.
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/user.yml#/components/schemas/UpdateBotRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/user.yml#/components/schemas/User
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
 /me/avatar:
   post:
     tags:

@@ -1,0 +1,348 @@
+components:
+  schemas:
+    OAuthScope:
+      type: string
+      description: >-
+        A permission an OAuth2 access token can carry. Deliberately coarse: a
+        scope is only useful if the person on the consent screen can tell what
+        it means. There is no admin scope and there will not be one — admin
+        endpoints are closed to OAuth tokens outright, so an administrator's bot
+        token is not an administrator.
+      enum:
+      - read:account
+      - write:account
+      - read:posts
+      - write:posts
+      - read:notifications
+      - write:notifications
+      - write:follows
+      - write:media
+    OAuthError:
+      type: object
+      description: >-
+        The error shape RFC 6749 §5.2 mandates, used by /oauth/token and
+        /oauth/revoke only. It is deliberately not this API's usual
+        {code, message}: every OAuth client library reads `error`, and would
+        report a perfectly descriptive Ciel error as an unparseable response.
+        Every other endpoint in this file uses the normal Error schema.
+      required:
+      - error
+      properties:
+        error:
+          type: string
+          enum:
+          - invalid_request
+          - invalid_client
+          - invalid_grant
+          - unauthorized_client
+          - unsupported_grant_type
+          - invalid_scope
+          - server_error
+        error_description:
+          type: string
+    OAuthAuthorizationInfo:
+      type: object
+      description: >-
+        What the consent screen needs in order to tell the user who is asking
+        and for what. Returned only once the client and redirect URI have been
+        checked, so anything rendered from this is attributable to a real
+        registered app.
+      required:
+      - clientId
+      - clientName
+      - ownerUsername
+      - scopes
+      properties:
+        clientId:
+          type: string
+        clientName:
+          type: string
+          maxLength: 60
+        website:
+          type: string
+          nullable: true
+          description: Where the app says it lives. Shown as an anti-phishing signal.
+        ownerUsername:
+          $ref: ./common.yml#/components/schemas/Username
+        ownerIsBot:
+          type: boolean
+        scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OAuthScope'
+    OAuthAuthorizeRequest:
+      type: object
+      description: >-
+        The user's decision, carried with the full parameter set the consent
+        screen displayed. The server re-validates all of it rather than trusting
+        a pending server-side record, so what is approved is exactly what was
+        shown.
+      required:
+      - clientId
+      - redirectUri
+      - scope
+      - responseType
+      - codeChallenge
+      - codeChallengeMethod
+      - approve
+      properties:
+        clientId:
+          type: string
+        redirectUri:
+          type: string
+        scope:
+          type: string
+          description: Space-delimited, per RFC 6749 §3.3.
+        responseType:
+          type: string
+          enum:
+          - code
+        codeChallenge:
+          type: string
+        codeChallengeMethod:
+          type: string
+          enum:
+          - S256
+          description: S256 only. `plain` is not implemented and is rejected.
+        state:
+          type: string
+          maxLength: 512
+          description: Opaque to the server. Echoed back on the redirect, never interpreted.
+        approve:
+          type: boolean
+          description: False sends the user back with error=access_denied.
+    OAuthAuthorizeResponse:
+      type: object
+      description: >-
+        Where to send the browser. The client performs the navigation rather
+        than the server answering 302, because the consent screen is a
+        single-page route and the decision arrives over fetch.
+      required:
+      - redirectUri
+      properties:
+        redirectUri:
+          type: string
+    OAuthTokenResponse:
+      type: object
+      description: RFC 6749 §5.1.
+      required:
+      - access_token
+      - token_type
+      - expires_in
+      - scope
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum:
+          - Bearer
+        expires_in:
+          type: integer
+        refresh_token:
+          type: string
+          description: >-
+            Absent for client_credentials, which RFC 6749 §4.4.3 says gets no
+            refresh token — the client can ask for another with the credentials
+            it already holds.
+        scope:
+          type: string
+          description: Space-delimited. May be narrower than requested, never wider.
+    OAuthClient:
+      type: object
+      required:
+      - id
+      - clientId
+      - name
+      - redirectUris
+      - scopes
+      - isConfidential
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        clientId:
+          type: string
+        name:
+          type: string
+          maxLength: 60
+        website:
+          type: string
+          nullable: true
+        redirectUris:
+          type: array
+          items:
+            type: string
+        scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OAuthScope'
+        isConfidential:
+          type: boolean
+          description: >-
+            Whether the client holds a secret. A public client cannot keep one
+            and so cannot use client_credentials; PKCE is required of both.
+        createdAt:
+          type: string
+          format: date-time
+    OAuthClientWithSecret:
+      type: object
+      description: >-
+        A client together with its secret. Returned by creation and rotation
+        only — the server stores a hash, so this response is the single moment
+        the secret exists anywhere it can be read.
+      required:
+      - client
+      properties:
+        client:
+          $ref: '#/components/schemas/OAuthClient'
+        clientSecret:
+          type: string
+          description: Absent for a public client. Shown once and never again.
+    OAuthClientPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OAuthClient'
+    CreateOAuthClientRequest:
+      type: object
+      required:
+      - name
+      - redirectUris
+      - scopes
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        website:
+          type: string
+          maxLength: 300
+        redirectUris:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            maxLength: 500
+          description: >-
+            Matched exactly at authorization time — no prefixes, no wildcards.
+            Must be https, or http on a loopback address for native apps.
+        scopes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OAuthScope'
+        confidential:
+          type: boolean
+          description: >-
+            Whether to issue a client secret. Set false for anything running on
+            a user's device, which cannot keep one.
+    OAuthAuthorization:
+      type: object
+      description: An app currently holding a live token for this account.
+      required:
+      - clientId
+      - clientName
+      - scopes
+      - authorizedAt
+      properties:
+        clientId:
+          type: string
+        clientName:
+          type: string
+        website:
+          type: string
+          nullable: true
+        scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OAuthScope'
+        authorizedAt:
+          type: string
+          format: date-time
+    OAuthAuthorizationPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OAuthAuthorization'
+    PersonalAccessToken:
+      type: object
+      description: >-
+        A token the account issued to itself. Same kind of credential an OAuth
+        grant produces, minus the app: the owner is both the party granting
+        access and the party using it, so there is no client and no consent
+        screen. Issuing one requires step-up authentication instead.
+      required:
+      - id
+      - name
+      - scopes
+      - expiresAt
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 60
+        scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OAuthScope'
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    PersonalAccessTokenWithSecret:
+      type: object
+      description: >-
+        A token together with its secret. Returned by creation only — the server
+        stores a hash, so this response is the single moment the secret exists
+        anywhere it can be read.
+      required:
+      - token
+      - accessToken
+      properties:
+        token:
+          $ref: '#/components/schemas/PersonalAccessToken'
+        accessToken:
+          type: string
+          description: >-
+            Send as an `Authorization: Bearer` header. Shown once.
+    PersonalAccessTokenPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonalAccessToken'
+    CreatePersonalAccessTokenRequest:
+      type: object
+      required:
+      - name
+      - scopes
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: What this token is for. Shown in the list; not sent anywhere.
+        scopes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OAuthScope'

@@ -628,6 +628,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
           <DisplayName
             name={user.displayName || `@${user.username}`}
             isPrivate={user.isPrivate}
+            isBot={user.isBot}
             isMuted={user.isMuted}
             isBlocked={user.isBlocking}
           />
@@ -910,6 +911,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                       <DisplayName
                         name={user.displayName || `@${user.username}`}
                         isPrivate={user.isPrivate}
+                        isBot={user.isBot}
                         isMuted={user.isMuted}
                         isBlocked={user.isBlocking}
                       />

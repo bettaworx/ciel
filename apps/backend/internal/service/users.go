@@ -61,7 +61,7 @@ func (s *UsersService) GetByUsername(ctx context.Context, username api.Username,
 		}
 		return api.User{}, err
 	}
-	out := mapUserWithProfile(user.ID, user.Username, user.CreatedAt, user.DisplayName, user.Bio, user.AvatarMediaID, user.AvatarExt, user.BannerMediaID, user.BannerExt, user.BannerBlurhash, user.TermsVersion, user.PrivacyVersion, user.TermsAcceptedAt, user.PrivacyAcceptedAt, user.IsPrivate)
+	out := mapUserWithProfile(user.ID, user.Username, user.CreatedAt, user.DisplayName, user.Bio, user.AvatarMediaID, user.AvatarExt, user.BannerMediaID, user.BannerExt, user.BannerBlurhash, user.TermsVersion, user.PrivacyVersion, user.TermsAcceptedAt, user.PrivacyAcceptedAt, ProfileFlags{IsPrivate: user.IsPrivate, IsBot: user.IsBot})
 	s.attachFollowStats(ctx, &out, viewer)
 	return out, nil
 }
@@ -78,7 +78,7 @@ func (s *UsersService) GetByID(ctx context.Context, userID uuid.UUID, viewer *uu
 		}
 		return api.User{}, err
 	}
-	out := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, row.IsPrivate)
+	out := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot})
 	s.attachFollowStats(ctx, &out, viewer)
 	return out, nil
 }
@@ -217,6 +217,25 @@ func (s *UsersService) SetPrivate(ctx context.Context, userID uuid.UUID, isPriva
 	return updated, nil
 }
 
+// SetBot marks the account as automated, or stops marking it.
+//
+// Deliberately far smaller than SetPrivate: the bot flag changes nothing about
+// who may see what, so there is no follow graph to reconcile, no cached
+// timeline to drop and no realtime event to publish. Every client that holds a
+// stale copy of the badge is showing a label that is a minute out of date, not
+// content it should no longer be able to see.
+func (s *UsersService) SetBot(ctx context.Context, userID uuid.UUID, isBot bool) (api.User, error) {
+	if s.store == nil {
+		return api.User{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+	}
+
+	if err := s.store.Q.SetUserBot(ctx, sqlc.SetUserBotParams{ID: userID, IsBot: isBot}); err != nil {
+		return api.User{}, err
+	}
+
+	return s.GetByID(ctx, userID, &userID)
+}
+
 // nullUUIDFromPtr converts an optional viewer id into a SQL nullable uuid.
 func nullUUIDFromPtr(id *uuid.UUID) uuid.NullUUID {
 	if id == nil {
@@ -257,7 +276,7 @@ func (s *UsersService) UpdateProfile(ctx context.Context, userID uuid.UUID, disp
 		return api.User{}, err
 	}
 	s.search.ReindexUser(ctx, userID)
-	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, sql.NullString{}, row.BannerMediaID, sql.NullString{}, sql.NullString{}, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, row.IsPrivate), nil
+	return mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, sql.NullString{}, row.BannerMediaID, sql.NullString{}, sql.NullString{}, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot}), nil
 }
 
 func (s *UsersService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarMediaID uuid.UUID) (api.User, *uuid.UUID, error) {
@@ -280,7 +299,7 @@ func (s *UsersService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avata
 		id := row.PreviousAvatarMediaID.UUID
 		previous = &id
 	}
-	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, row.IsPrivate)
+	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot})
 	return user, previous, nil
 }
 
@@ -304,7 +323,7 @@ func (s *UsersService) UpdateBanner(ctx context.Context, userID uuid.UUID, banne
 		id := row.PreviousBannerMediaID.UUID
 		previous = &id
 	}
-	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, row.IsPrivate)
+	user := mapUserWithProfile(row.ID, row.Username, row.CreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, row.BannerMediaID, row.BannerExt, row.BannerBlurhash, row.TermsVersion, row.PrivacyVersion, row.TermsAcceptedAt, row.PrivacyAcceptedAt, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot})
 	return user, previous, nil
 }
 
