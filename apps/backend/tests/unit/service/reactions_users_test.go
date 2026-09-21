@@ -37,9 +37,10 @@ func TestReactionsService_ListUsers(t *testing.T) {
 			"avatar_media_id",
 			"user_created_at",
 			"is_private",
+			"is_bot",
 			"avatar_ext",
 			"reacted_at",
-		}).AddRow(userID, "alice", "Alice", "", nil, userCreated, false, "", reactedAt))
+		}).AddRow(userID, "alice", "Alice", "", nil, userCreated, false, false, "", reactedAt))
 
 	page, err := svc.ListUsers(context.Background(), postID, api.Emoji("👍"), 2, nil, nil)
 	if err != nil {

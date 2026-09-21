@@ -23,7 +23,11 @@ CREATE TABLE IF NOT EXISTS users (
   privacy_accepted_at TIMESTAMPTZ,
   -- Private accounts: activity is visible only to accepted followers. Nothing
   -- is withheld at write time, so flipping back to false restores the history.
-  is_private BOOLEAN NOT NULL DEFAULT false
+  is_private BOOLEAN NOT NULL DEFAULT false,
+  -- Bot accounts: a label, not a permission. It grants and withholds nothing;
+  -- clients draw a robot beside the display name so an automated poster reads
+  -- as one. The account keeps every capability a person's account has.
+  is_bot BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS auth_credentials (

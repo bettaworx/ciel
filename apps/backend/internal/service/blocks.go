@@ -162,7 +162,7 @@ func (s *BlocksService) ListMutes(ctx context.Context, viewer uuid.UUID, limit *
 	items := make([]api.User, 0, len(rows))
 	for _, row := range rows {
 		u := mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, false, false, row.IsPrivate, &viewer)
+			row.AvatarMediaID, row.AvatarExt, false, false, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot}, &viewer)
 		// Every row on this page is muted by definition, and the query does not
 		// select the flag back out.
 		muted := true
@@ -197,7 +197,7 @@ func (s *BlocksService) ListBlocks(ctx context.Context, viewer uuid.UUID, limit 
 	items := make([]api.User, 0, len(rows))
 	for _, row := range rows {
 		u := mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, false, false, row.IsPrivate, &viewer)
+			row.AvatarMediaID, row.AvatarExt, false, false, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot}, &viewer)
 		blocking := true
 		u.IsBlocking = &blocking
 		items = append(items, u)

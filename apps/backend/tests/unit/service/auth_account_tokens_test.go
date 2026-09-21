@@ -80,8 +80,8 @@ func accountTokenRows(userID uuid.UUID, spki []byte, revoked bool, expiresAt tim
 }
 
 func accountTokenUserRows(userID uuid.UUID) *sqlmock.Rows {
-	return sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "is_private", "avatar_ext", "banner_ext", "banner_blurhash"}).
-		AddRow(userID, "alice", "Alice", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, time.Now().UTC(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, false, sql.NullString{}, sql.NullString{}, sql.NullString{})
+	return sqlmock.NewRows([]string{"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id", "created_at", "terms_version", "privacy_version", "terms_accepted_at", "privacy_accepted_at", "is_private", "is_bot", "avatar_ext", "banner_ext", "banner_blurhash"}).
+		AddRow(userID, "alice", "Alice", sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{}, time.Now().UTC(), int32(1), int32(1), sql.NullTime{}, sql.NullTime{}, false, false, sql.NullString{}, sql.NullString{}, sql.NullString{})
 }
 
 func newAuthServiceWithMock(t *testing.T) (*service.AuthService, sqlmock.Sqlmock) {

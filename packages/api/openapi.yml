@@ -237,6 +237,8 @@ paths:
     $ref: ./paths/users.yml#/~1me~1agreements
   /me/privacy:
     $ref: ./paths/users.yml#/~1me~1privacy
+  /me/bot:
+    $ref: ./paths/users.yml#/~1me~1bot
   /me/mutes:
     $ref: ./paths/blocks.yml#/~1me~1mutes
   /me/blocks:

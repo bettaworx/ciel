@@ -11,7 +11,7 @@ RETURNING id, name, created_at;
 -- name: CreateUser :one
 INSERT INTO users (username, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, username, display_name, bio, avatar_media_id, banner_media_id, created_at, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at, is_private;
+RETURNING id, username, display_name, bio, avatar_media_id, banner_media_id, created_at, terms_version, privacy_version, terms_accepted_at, privacy_accepted_at, is_private, is_bot;
 
 -- name: GetUserByUsername :one
 SELECT
@@ -27,6 +27,7 @@ SELECT
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash
@@ -49,6 +50,7 @@ SELECT
 	u.terms_accepted_at,
 	u.privacy_accepted_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash
@@ -78,7 +80,8 @@ RETURNING
 	privacy_version,
 	terms_accepted_at,
 	privacy_accepted_at,
-	is_private;
+	is_private,
+	is_bot;
 
 -- name: UpdateUserProfile :one
 UPDATE users
@@ -97,7 +100,8 @@ RETURNING
 	privacy_version,
 	terms_accepted_at,
 	privacy_accepted_at,
-	is_private;
+	is_private,
+	is_bot;
 
 -- name: UpdateUserAvatar :one
 WITH prev AS (
@@ -107,7 +111,7 @@ updated AS (
 	UPDATE users AS u
 	SET avatar_media_id = $2
 	WHERE u.id = $1
-	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private
+	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private, u.is_bot
 )
 SELECT
 	updated.id,
@@ -122,6 +126,7 @@ SELECT
 	updated.terms_accepted_at,
 	updated.privacy_accepted_at,
 	updated.is_private,
+	updated.is_bot,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash,
@@ -138,7 +143,7 @@ updated AS (
 	UPDATE users AS u
 	SET banner_media_id = $2
 	WHERE u.id = $1
-	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private
+	RETURNING u.id, u.username, u.display_name, u.bio, u.avatar_media_id, u.banner_media_id, u.created_at, u.terms_version, u.privacy_version, u.terms_accepted_at, u.privacy_accepted_at, u.is_private, u.is_bot
 )
 SELECT
 	updated.id,
@@ -153,6 +158,7 @@ SELECT
 	updated.terms_accepted_at,
 	updated.privacy_accepted_at,
 	updated.is_private,
+	updated.is_bot,
 	m.ext AS avatar_ext,
 	bm.ext AS banner_ext,
 	bm.blurhash AS banner_blurhash,
@@ -201,6 +207,7 @@ SELECT
 	u.banner_media_id,
 	u.created_at,
 	u.is_private,
+	u.is_bot,
 	u.terms_version,
 	u.privacy_version,
 	u.terms_accepted_at,
@@ -254,6 +261,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	-- True when this post is a reply whose parent the viewer may not see
 	-- because its author is private. Lets the client show a redacted parent
@@ -314,6 +322,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext
 FROM posts p
 JOIN users u ON u.id = p.user_id
@@ -381,6 +390,7 @@ SELECT
 	child.avatar_media_id,
 	child.user_created_at,
 	child.is_private,
+	child.is_bot,
 	child.avatar_ext,
 	requested.parent_id::uuid AS thread_parent_id
 FROM unnest(sqlc.arg('parent_ids')::uuid[]) WITH ORDINALITY AS requested(parent_id, parent_order)
@@ -400,6 +410,7 @@ JOIN LATERAL (
 		u.avatar_media_id,
 		u.created_at AS user_created_at,
 		u.is_private,
+		u.is_bot,
 		m.ext AS avatar_ext
 	FROM posts p
 	JOIN users u ON u.id = p.user_id
@@ -573,6 +584,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	-- True when this post is a reply whose parent the viewer may not see
 	-- because its author is private. Lets the client show a redacted parent
@@ -650,6 +662,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	-- True when this post is a reply whose parent the viewer may not see
 	-- because its author is private. Lets the client show a redacted parent
@@ -765,6 +778,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	-- True when this post is a reply whose parent the viewer may not see
 	-- because its author is private. Lets the client show a redacted parent
@@ -904,6 +918,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	pre.created_at AS reacted_at
 FROM post_reaction_events pre
@@ -1425,7 +1440,7 @@ WHERE expires_at IS NOT NULL AND expires_at <= NOW();
 -- name: SearchUsers :many
 SELECT id, username, display_name, bio, avatar_media_id, created_at,
        terms_version, privacy_version, terms_accepted_at, privacy_accepted_at,
-       is_private
+       is_private, is_bot
 FROM users
 WHERE (sqlc.narg('search')::text IS NULL 
        OR username ILIKE '%' || sqlc.narg('search') || '%'
@@ -2138,6 +2153,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	f.created_at AS requested_at
 FROM follows f
@@ -2160,6 +2176,12 @@ WHERE follower_id = sqlc.arg('follower_id')::uuid
 
 -- name: SetUserPrivate :exec
 UPDATE users SET is_private = sqlc.arg('is_private')::boolean
+WHERE id = sqlc.arg('id')::uuid;
+
+-- name: SetUserBot :exec
+-- No follow-graph fallout to clean up the way SetUserPrivate has: the bot flag
+-- is a label on the account and changes nothing about who may see what.
+UPDATE users SET is_bot = sqlc.arg('is_bot')::boolean
 WHERE id = sqlc.arg('id')::uuid;
 
 -- name: CanViewUser :one
@@ -2225,6 +2247,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	EXISTS (
@@ -2262,6 +2285,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	EXISTS (
@@ -2300,6 +2324,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	f.created_at AS followed_at,
 	TRUE AS is_following,
@@ -2366,6 +2391,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	-- True when this post is a reply whose parent the viewer may not see
 	-- because its author is private. Lets the client show a redacted parent
@@ -2461,6 +2487,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	EXISTS (
 		SELECT 1 FROM follows vf
@@ -2717,6 +2744,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	am.created_at AS hidden_at
 FROM account_mutes am
@@ -2742,6 +2770,7 @@ SELECT
 	u.avatar_media_id,
 	u.created_at AS user_created_at,
 	u.is_private,
+	u.is_bot,
 	m.ext AS avatar_ext,
 	ab.created_at AS hidden_at
 FROM account_blocks ab

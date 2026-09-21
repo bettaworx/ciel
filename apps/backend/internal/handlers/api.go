@@ -77,6 +77,7 @@ type publicUserResponse struct {
 	IsFollowedBy   *bool `json:"isFollowedBy,omitempty"`
 
 	IsPrivate         *bool `json:"isPrivate,omitempty"`
+	IsBot             *bool `json:"isBot,omitempty"`
 	FollowRequestSent *bool `json:"followRequestSent,omitempty"`
 
 	IsMuted     *bool `json:"isMuted,omitempty"`
@@ -104,6 +105,7 @@ func toPublicUserResponse(user api.User) publicUserResponse {
 		// to draw the lock and to offer "request" instead of "follow", and
 		// followRequestSent to show a request already sent.
 		IsPrivate:         user.IsPrivate,
+		IsBot:             user.IsBot,
 		FollowRequestSent: user.FollowRequestSent,
 
 		// This struct is an allow-list: a field missing here is silently dropped
@@ -404,6 +406,32 @@ func (h API) PatchMePrivacy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	updated, err := h.Users.SetPrivate(r.Context(), user.ID, req.IsPrivate)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+// PatchMeBot flips the account's bot label. No step-up: the flag grants nothing
+// and hides nothing, so an attacker who reached this endpoint has already won
+// something far worse than the right to draw a robot beside a name.
+func (h API) PatchMeBot(w http.ResponseWriter, r *http.Request) {
+	if h.Users == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "users not configured"})
+		return
+	}
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	var req api.UpdateBotRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "invalid json"})
+		return
+	}
+	updated, err := h.Users.SetBot(r.Context(), user.ID, req.IsBot)
 	if err != nil {
 		writeServiceError(w, err)
 		return

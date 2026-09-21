@@ -368,7 +368,7 @@ func (s *AuthService) Register(ctx context.Context, req api.RegisterRequest) (ap
 	}
 	s.search.ReindexUser(ctx, created.ID)
 
-	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt, created.IsPrivate), nil
+	return mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt, ProfileFlags{IsPrivate: created.IsPrivate, IsBot: created.IsBot}), nil
 }
 
 func (s *AuthService) LoginStart(ctx context.Context, req api.LoginStartRequest) (api.LoginStartResponse, error) {

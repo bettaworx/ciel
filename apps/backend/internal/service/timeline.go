@@ -352,7 +352,7 @@ func mapHomeTimelineRow(row sqlc.ListHomeTimelinePostsRow) api.Post {
 		ParentHidden:  &row.ParentHidden,
 		CreatedAt:     row.CreatedAt,
 		DeletedAt:     nil,
-		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
+		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot}),
 	}
 }
 
@@ -632,7 +632,7 @@ func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 		ParentHidden:  &row.ParentHidden,
 		CreatedAt:     row.CreatedAt,
 		DeletedAt:     nil,
-		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
+		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot}),
 	}
 }
 
@@ -650,6 +650,6 @@ func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 		ParentHidden:  &row.ParentHidden,
 		CreatedAt:     row.CreatedAt,
 		DeletedAt:     nil,
-		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, row.IsPrivate),
+		Author:        mapUserWithProfile(row.UserID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio, row.AvatarMediaID, row.AvatarExt, uuid.NullUUID{}, sql.NullString{}, sql.NullString{}, 0, 0, sql.NullTime{}, sql.NullTime{}, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot}),
 	}
 }

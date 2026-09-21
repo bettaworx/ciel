@@ -32,10 +32,11 @@ func expectGetUserByUsername(mock sqlmock.Sqlmock, id uuid.UUID, username string
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "username", "display_name", "bio", "avatar_media_id", "banner_media_id",
 			"created_at", "terms_version", "privacy_version", "terms_accepted_at",
-			"privacy_accepted_at", "is_private", "avatar_ext", "banner_ext", "banner_blurhash",
+			"privacy_accepted_at", "is_private", "is_bot", "avatar_ext", "banner_ext", "banner_blurhash",
 		}).AddRow(
 			id, username, sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, uuid.NullUUID{},
 			time.Unix(1_600_000_000, 0).UTC(), 1, 1, sql.NullTime{}, sql.NullTime{},
+			false,
 			false, sql.NullString{}, sql.NullString{}, sql.NullString{},
 		))
 }
@@ -351,13 +352,13 @@ func TestBookmarksService_ListPosts_DropsHiddenAuthors(t *testing.T) {
 		sqlmock.NewRows([]string{
 			"id", "user_id", "content", "parent_id", "root_id", "reference_id",
 			"created_at", "deleted_at", "username", "display_name", "bio",
-			"avatar_media_id", "user_created_at", "is_private", "avatar_ext",
+			"avatar_media_id", "user_created_at", "is_private", "is_bot", "avatar_ext",
 			"parent_private", "parent_hidden",
 		}).
 			AddRow(hiddenPost, hiddenAuthor, "saved before the block", nil, nil, nil,
-				created, nil, "mallory", nil, nil, nil, created, false, nil, false, false).
+				created, nil, "mallory", nil, nil, nil, created, false, false, nil, false, false).
 			AddRow(visiblePost, visibleAuthor, "an ordinary post", nil, nil, nil,
-				created, nil, "bob", nil, nil, nil, created, false, nil, false, false),
+				created, nil, "bob", nil, nil, nil, created, false, false, nil, false, false),
 	)
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
