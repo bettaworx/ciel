@@ -41,12 +41,26 @@ func runScope(t *testing.T, method, reqPath string, user *auth.User) (int, bool)
 	return rec.Code, reached
 }
 
-// oauthUser is a request authenticated by an access token carrying scopes.
+// oauthUser is a request authenticated by an OAuth access token.
 func oauthUser(scopes ...string) *auth.User {
 	return &auth.User{
 		ID:       uuid.New(),
 		Username: "bot",
+		TokenID:  uuid.New(),
 		ClientID: uuid.New(),
+		Scopes:   scopes,
+	}
+}
+
+// personalTokenUser is a request authenticated by a personal access token,
+// which has no client. It must be restricted exactly like an OAuth token —
+// everything below keys off TokenID, and a ClientID test would let these
+// through as first-party sessions.
+func personalTokenUser(scopes ...string) *auth.User {
+	return &auth.User{
+		ID:       uuid.New(),
+		Username: "bot",
+		TokenID:  uuid.New(),
 		Scopes:   scopes,
 	}
 }
@@ -250,5 +264,33 @@ func TestOAuthScope_DeniedRouteNamesNoScope(t *testing.T) {
 
 	if got := rec.Header().Get("WWW-Authenticate"); strings.Contains(got, "scope=") {
 		t.Errorf("WWW-Authenticate = %q, want no scope named", got)
+	}
+}
+
+// A personal access token has no client id. If anything decided "is this
+// scope-limited?" by looking at ClientID, these would all be treated as
+// first-party sessions — exempt from every scope check, the admin guard and
+// the step-up guard — and each personal token would carry full account access.
+func TestOAuthScope_PersonalTokensAreRestrictedLikeOAuthTokens(t *testing.T) {
+	readOnly := personalTokenUser(auth.ScopeReadPosts)
+
+	if code, reached := runScope(t, http.MethodGet, "/api/v1/timeline/home", readOnly); !reached || code != http.StatusOK {
+		t.Errorf("GET timeline with read:posts: status %d, want 200", code)
+	}
+	if code, reached := runScope(t, http.MethodPost, "/api/v1/posts", readOnly); reached || code != http.StatusForbidden {
+		t.Errorf("POST posts without write:posts: status %d reached %v, want 403", code, reached)
+	}
+
+	all := personalTokenUser(auth.AllScopes...)
+	for _, tc := range []struct{ method, path string }{
+		{http.MethodGet, "/api/v1/admin/users"},
+		{http.MethodPost, "/api/v1/auth/password/change"},
+		{http.MethodGet, "/api/v1/me/oauth/tokens"},
+		{http.MethodPost, "/api/v1/me/oauth/tokens"},
+		{http.MethodDelete, "/api/v1/me"},
+	} {
+		if code, reached := runScope(t, tc.method, tc.path, all); reached || code != http.StatusForbidden {
+			t.Errorf("%s %s: status %d reached %v, want 403", tc.method, tc.path, code, reached)
+		}
 	}
 }

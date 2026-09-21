@@ -310,7 +310,12 @@
         format: uuid
     - name: X-Stepup-Token
       in: header
-      required: true
+      # Optional in the schema, enforced in the handler — the same shape the
+      # other step-up endpoints use. Declaring it required makes the generated
+      # wrapper answer 400 before the handler runs, so a missing step-up would
+      # report as a malformed request instead of as the 401 that tells a client
+      # to go and re-authenticate.
+      required: false
       schema:
         type: string
     responses:
@@ -367,6 +372,99 @@
     responses:
       '204':
         description: Disconnected
+      '401':
+        description: Unauthorized
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/oauth/tokens:
+  get:
+    tags:
+    - OAuth2
+    summary: List this account's personal access tokens
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/PersonalAccessTokenPage
+      '401':
+        description: Unauthorized
+  post:
+    tags:
+    - OAuth2
+    summary: Issue a personal access token
+    description: >-
+      Requires step-up authentication. An OAuth grant is made deliberate by the
+      consent screen; here the owner is both parties, so re-authenticating is
+      the equivalent friction in front of minting a credential that acts as the
+      account.
+
+
+      The token is in the response and nowhere else afterwards.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      # Optional in the schema, enforced in the handler — the same shape the
+      # other step-up endpoints use. Declaring it required makes the generated
+      # wrapper answer 400 before the handler runs, so a missing step-up would
+      # report as a malformed request instead of as the 401 that tells a client
+      # to go and re-authenticate.
+      required: false
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/oauth.yml#/components/schemas/CreatePersonalAccessTokenRequest
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/PersonalAccessTokenWithSecret
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized or step-up required
+      '409':
+        description: This account has the maximum number of tokens
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/oauth/tokens/{tokenId}:
+  delete:
+    tags:
+    - OAuth2
+    summary: Revoke a personal access token
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: tokenId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Revoked
       '401':
         description: Unauthorized
       '404':

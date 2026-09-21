@@ -72,12 +72,15 @@ func TestRateLimit_OAuthEndpointsAreCapped(t *testing.T) {
 	}
 }
 
-// Registering apps is permanent for the server and cheap for the caller, so it
-// is capped per hour rather than per minute.
-func TestRateLimit_OAuthClientCreateIsCapped(t *testing.T) {
-	code := exhaust(t, http.MethodPost, "/api/v1/me/oauth/clients", "1.2.3.4:1234", 10)
-	if code != http.StatusTooManyRequests {
-		t.Errorf("request 11 got %d, want 429", code)
+// Registering an app and minting a personal access token are both permanent for
+// the server and cheap for the caller, so both are capped per hour rather than
+// per minute — and they share a bucket, so ten of either exhausts it.
+func TestRateLimit_OAuthCredentialCreationIsCapped(t *testing.T) {
+	for _, path := range []string{"/api/v1/me/oauth/clients", "/api/v1/me/oauth/tokens"} {
+		code := exhaust(t, http.MethodPost, path, "1.2.3.4:1234", 10)
+		if code != http.StatusTooManyRequests {
+			t.Errorf("POST %s: request 11 got %d, want 429", path, code)
+		}
 	}
 }
 

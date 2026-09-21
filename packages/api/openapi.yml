@@ -258,6 +258,10 @@ paths:
     $ref: ./paths/oauth.yml#/~1me~1oauth~1authorizations
   /me/oauth/authorizations/{clientId}:
     $ref: ./paths/oauth.yml#/~1me~1oauth~1authorizations~1{clientId}
+  /me/oauth/tokens:
+    $ref: ./paths/oauth.yml#/~1me~1oauth~1tokens
+  /me/oauth/tokens/{tokenId}:
+    $ref: ./paths/oauth.yml#/~1me~1oauth~1tokens~1{tokenId}
   /me/mutes:
     $ref: ./paths/blocks.yml#/~1me~1mutes
   /me/blocks:

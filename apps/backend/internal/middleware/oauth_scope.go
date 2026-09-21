@@ -122,7 +122,7 @@ func OAuthScope() func(http.Handler) http.Handler {
 			// Anonymous requests and first-party sessions are not scope
 			// limited. Handlers still do their own authentication; this
 			// middleware only narrows what an app may do on someone's behalf.
-			if !ok || !user.IsOAuth() {
+			if !ok || !user.IsAPIToken() {
 				next.ServeHTTP(w, r)
 				return
 			}

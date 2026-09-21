@@ -98,12 +98,17 @@ func (s *OAuthService) VerifyAccessToken(ctx context.Context, raw string) (auth.
 		return auth.User{}, auth.ErrUnauthorized
 	}
 
-	return auth.User{
+	out := auth.User{
 		ID:       row.UserID,
 		Username: row.Username,
-		ClientID: row.ClientID,
+		TokenID:  row.ID,
 		Scopes:   row.Scopes,
-	}, nil
+	}
+	// Absent for a personal access token, which has no app behind it.
+	if row.ClientID.Valid {
+		out.ClientID = row.ClientID.UUID
+	}
+	return out, nil
 }
 
 // AuthorizationRequest is a parsed and validated /oauth/authorize request.
@@ -274,9 +279,11 @@ func (s *OAuthService) RefreshToken(ctx context.Context, clientID, clientSecret,
 		}
 		return TokenGrant{}, errServerError("could not read the refresh token")
 	}
-	if row.ClientID != client.ID {
-		// Someone else's refresh token. It is already revoked by the consume
-		// above, which is the right outcome regardless.
+	if !row.ClientID.Valid || row.ClientID.UUID != client.ID {
+		// Someone else's refresh token, or a personal token's row — which has
+		// no client and no refresh token, so naming one here is nonsense. It is
+		// already revoked by the consume above, which is the right outcome
+		// either way.
 		return TokenGrant{}, errInvalidGrant("refresh token was issued to a different client")
 	}
 
@@ -312,10 +319,16 @@ func (s *OAuthService) handleRefreshMiss(ctx context.Context, hash []byte) error
 		return errInvalidGrant("refresh token is invalid or expired")
 	}
 	if peek.RevokedAt.Valid {
-		_, _ = s.store.Q.RevokeOAuthGrant(ctx, sqlc.RevokeOAuthGrantParams{
-			ClientID: peek.ClientID,
-			UserID:   peek.UserID,
-		})
+		// A grant is a (client, user) pair, so there is nothing wider to revoke
+		// for a row with no client. Personal tokens cannot reach this path —
+		// they are issued without a refresh token — but the guard keeps the
+		// reuse response from depending on that staying true.
+		if peek.ClientID.Valid {
+			_, _ = s.store.Q.RevokeOAuthGrant(ctx, sqlc.RevokeOAuthGrantParams{
+				ClientID: peek.ClientID.UUID,
+				UserID:   peek.UserID,
+			})
+		}
 		return errInvalidGrant("refresh token has already been used; the grant has been revoked")
 	}
 	return errInvalidGrant("refresh token is invalid or expired")

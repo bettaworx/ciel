@@ -607,3 +607,199 @@ func TestOAuth_SweeperKeepsRowsReuseDetectionNeeds(t *testing.T) {
 		}
 	}
 }
+
+// ---- Personal access tokens ----------------------------------------------
+
+const patPassword = "Password123!"
+
+// createPersonalToken mints a token, taking the step-up the endpoint requires.
+func createPersonalToken(t *testing.T, app *testApp, authz map[string]string, username, name string, scopes []string) api.PersonalAccessTokenWithSecret {
+	t.Helper()
+	headers := stepupHeaders(t, app, authz, username, patPassword)
+	resp := postJSON(t, app.Server.Client(), app.Server.URL+"/api/v1/me/oauth/tokens", map[string]any{
+		"name":   name,
+		"scopes": scopes,
+	}, headers)
+	if resp.StatusCode != http.StatusCreated {
+		body := decodeJSON[map[string]any](t, resp)
+		t.Fatalf("create personal token: expected 201, got %d (%v)", resp.StatusCode, body)
+	}
+	return decodeJSON[api.PersonalAccessTokenWithSecret](t, resp)
+}
+
+// A personal token is the same credential an OAuth grant produces, minus the
+// app. It has to work against the API and be limited to its scopes — and it has
+// no client id, which is exactly what makes it the interesting case: anything
+// deciding "is this scope-limited?" by looking at the client would let these
+// through as full first-party sessions.
+func TestOAuth_PersonalAccessTokenWorksAndIsScopeLimited(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	user := registerUser(t, app.Server.Client(), app.Server.URL, "botowner", patPassword)
+	authz := issueBearer(t, app.TokenManager, user)
+
+	issued := createPersonalToken(t, app, authz, "botowner", "my bot", []string{auth.ScopeReadPosts})
+	if !strings.HasPrefix(issued.AccessToken, "ciel_at_") {
+		t.Fatalf("token = %q, want the ciel_at_ prefix the middleware keys off", issued.AccessToken)
+	}
+	if issued.Token.Name != "my bot" {
+		t.Errorf("name = %q, want %q", issued.Token.Name, "my bot")
+	}
+
+	tokenAuthz := map[string]string{"Authorization": "Bearer " + issued.AccessToken}
+
+	// In scope.
+	ok := get(t, app.Server.Client(), app.Server.URL+"/api/v1/timeline", tokenAuthz)
+	if ok.StatusCode != http.StatusOK {
+		t.Errorf("GET timeline with read:posts: got %d, want 200", ok.StatusCode)
+	}
+	_ = ok.Body.Close()
+
+	// Out of scope.
+	posted := postJSON(t, app.Server.Client(), app.Server.URL+"/api/v1/posts",
+		map[string]any{"content": "hello"}, tokenAuthz)
+	_ = posted.Body.Close()
+	if posted.StatusCode != http.StatusForbidden {
+		t.Errorf("POST posts without write:posts: got %d, want 403", posted.StatusCode)
+	}
+
+	// Closed outright. If the token were mistaken for a first-party session
+	// these would all be 200, and a personal token would be a full account
+	// credential rather than a scoped one.
+	for _, path := range []string{
+		"/api/v1/admin/users",
+		"/api/v1/me/oauth/tokens",
+		"/api/v1/me/oauth/clients",
+	} {
+		resp := get(t, app.Server.Client(), app.Server.URL+path, tokenAuthz)
+		if resp.StatusCode != http.StatusForbidden {
+			t.Errorf("GET %s with a personal token: got %d, want 403", path, resp.StatusCode)
+		}
+		_ = resp.Body.Close()
+	}
+}
+
+// Minting a credential that acts as the whole account is gated the same way
+// changing the password is.
+func TestOAuth_PersonalAccessTokenRequiresStepup(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	user := registerUser(t, app.Server.Client(), app.Server.URL, "botowner", patPassword)
+	authz := issueBearer(t, app.TokenManager, user)
+
+	resp := postJSON(t, app.Server.Client(), app.Server.URL+"/api/v1/me/oauth/tokens", map[string]any{
+		"name":   "no step-up",
+		"scopes": []string{auth.ScopeReadPosts},
+	}, authz)
+	_ = resp.Body.Close()
+	if resp.StatusCode == http.StatusCreated {
+		t.Fatal("a token was issued without step-up")
+	}
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("got %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestOAuth_PersonalAccessTokenListAndRevoke(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	user := registerUser(t, app.Server.Client(), app.Server.URL, "botowner", patPassword)
+	authz := issueBearer(t, app.TokenManager, user)
+
+	issued := createPersonalToken(t, app, authz, "botowner", "my bot", []string{auth.ScopeReadPosts})
+
+	listed := get(t, app.Server.Client(), app.Server.URL+"/api/v1/me/oauth/tokens", authz)
+	page := decodeJSON[api.PersonalAccessTokenPage](t, listed)
+	if len(page.Items) != 1 || page.Items[0].Name != "my bot" {
+		t.Fatalf("listed tokens = %+v, want one named \"my bot\"", page.Items)
+	}
+
+	req, err := http.NewRequest(http.MethodDelete,
+		app.Server.URL+"/api/v1/me/oauth/tokens/"+issued.Token.Id.String(), nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	for k, v := range authz {
+		req.Header.Set(k, v)
+	}
+	delResp, err := app.Server.Client().Do(req)
+	if err != nil {
+		t.Fatalf("revoke: %v", err)
+	}
+	_ = delResp.Body.Close()
+	if delResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("revoke: got %d, want 204", delResp.StatusCode)
+	}
+
+	after := get(t, app.Server.Client(), app.Server.URL+"/api/v1/timeline",
+		map[string]string{"Authorization": "Bearer " + issued.AccessToken})
+	_ = after.Body.Close()
+	if after.StatusCode != http.StatusUnauthorized {
+		t.Errorf("revoked token still works: got %d, want 401", after.StatusCode)
+	}
+
+	emptied := get(t, app.Server.Client(), app.Server.URL+"/api/v1/me/oauth/tokens", authz)
+	emptyPage := decodeJSON[api.PersonalAccessTokenPage](t, emptied)
+	if len(emptyPage.Items) != 0 {
+		t.Errorf("after revoking, listed %d tokens, want 0", len(emptyPage.Items))
+	}
+}
+
+// One account must not be able to revoke another's token, and must not be told
+// whether it exists.
+func TestOAuth_PersonalAccessTokenRevokeIsOwnerScoped(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	owner := registerUser(t, app.Server.Client(), app.Server.URL, "botowner", patPassword)
+	ownerAuthz := issueBearer(t, app.TokenManager, owner)
+	issued := createPersonalToken(t, app, ownerAuthz, "botowner", "my bot", []string{auth.ScopeReadPosts})
+
+	other := registerUser(t, app.Server.Client(), app.Server.URL, "someoneelse", patPassword)
+	otherAuthz := issueBearer(t, app.TokenManager, other)
+
+	req, err := http.NewRequest(http.MethodDelete,
+		app.Server.URL+"/api/v1/me/oauth/tokens/"+issued.Token.Id.String(), nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	for k, v := range otherAuthz {
+		req.Header.Set(k, v)
+	}
+	resp, err := app.Server.Client().Do(req)
+	if err != nil {
+		t.Fatalf("revoke: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("revoking another account's token: got %d, want 404", resp.StatusCode)
+	}
+
+	// And the owner's token still works.
+	still := get(t, app.Server.Client(), app.Server.URL+"/api/v1/timeline",
+		map[string]string{"Authorization": "Bearer " + issued.AccessToken})
+	_ = still.Body.Close()
+	if still.StatusCode != http.StatusOK {
+		t.Errorf("owner's token after a foreign revoke attempt: got %d, want 200", still.StatusCode)
+	}
+}
+
+// Personal tokens are not OAuth grants, so they must not appear in the list of
+// connected apps — that list is about third parties with access.
+func TestOAuth_PersonalTokensAreNotConnectedApps(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	user := registerUser(t, app.Server.Client(), app.Server.URL, "botowner", patPassword)
+	authz := issueBearer(t, app.TokenManager, user)
+	createPersonalToken(t, app, authz, "botowner", "my bot", []string{auth.ScopeReadPosts})
+
+	listed := get(t, app.Server.Client(), app.Server.URL+"/api/v1/me/oauth/authorizations", authz)
+	page := decodeJSON[api.OAuthAuthorizationPage](t, listed)
+	if len(page.Items) != 0 {
+		t.Errorf("connected apps = %d, want 0 — a personal token has no app", len(page.Items))
+	}
+}

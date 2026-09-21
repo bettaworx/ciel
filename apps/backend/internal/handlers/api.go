@@ -1314,7 +1314,7 @@ func requireStepup(w http.ResponseWriter, r *http.Request, tokens *auth.TokenMan
 	// deletion and client secret rotation, because every one of them funnels
 	// through here. Guarding the call sites instead would leave whichever one
 	// is added next unguarded.
-	if user.IsOAuth() {
+	if user.IsAPIToken() {
 		logging.Audit(r.Context(), "auth.stepup.use", "denied_oauth", auditAttrs...)
 		writeJSON(w, http.StatusForbidden, api.Error{Code: "forbidden", Message: "not available to OAuth tokens"})
 		return false

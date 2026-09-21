@@ -102,7 +102,9 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		// Its read half is reachable before sign-in, so it keys on the IP and
 		// is capped nearer the token endpoint than the consent POST.
 		{routeKey: "oauth_authorize_info", limit: 60, window: 1 * time.Minute, subject: subjectIP},
-		// Registering apps is cheap for the user and permanent for us, and the
+		// Registering an app and minting a personal token both create something
+		// long-lived, and share a bucket because they are the same action from
+		// the server's point of view. Cheap for the user, permanent for us; the
 		// per-account cap is a ceiling rather than a rate.
 		{routeKey: "oauth_client_create", limit: 10, window: 1 * time.Hour, subject: subjectUser},
 	}
@@ -398,6 +400,8 @@ func classifyOAuthRoute(method, path string) string {
 	case path == "/api/v1/oauth/authorize":
 		return "oauth_authorize"
 	case path == "/api/v1/me/oauth/clients":
+		return "oauth_client_create"
+	case path == "/api/v1/me/oauth/tokens":
 		return "oauth_client_create"
 	default:
 		return ""

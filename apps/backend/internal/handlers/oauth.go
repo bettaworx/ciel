@@ -393,7 +393,7 @@ func (h API) oauthCaller(w http.ResponseWriter, r *http.Request) (auth.User, boo
 	// Belt and braces with the scope middleware, which already denies
 	// /me/oauth to OAuth tokens. Repeated here because the consequence of this
 	// one route being reachable is a token that can widen itself.
-	if user.IsOAuth() {
+	if user.IsAPIToken() {
 		writeJSON(w, http.StatusForbidden, api.Error{Code: "forbidden", Message: "not available to OAuth tokens"})
 		return auth.User{}, false
 	}
@@ -435,4 +435,86 @@ func nullStringPtr(v sql.NullString) *string {
 	}
 	out := v.String
 	return &out
+}
+
+// ---- Personal access tokens ---------------------------------------------
+
+func (h API) GetMeOauthTokens(w http.ResponseWriter, r *http.Request) {
+	user, ok := h.oauthCaller(w, r)
+	if !ok {
+		return
+	}
+	tokens, err := h.OAuth.ListPersonalAccessTokens(r.Context(), user.ID)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	items := make([]api.PersonalAccessToken, 0, len(tokens))
+	for _, tok := range tokens {
+		items = append(items, toAPIPersonalToken(tok))
+	}
+	writeJSON(w, http.StatusOK, api.PersonalAccessTokenPage{Items: items})
+}
+
+func (h API) PostMeOauthTokens(w http.ResponseWriter, r *http.Request, _ api.PostMeOauthTokensParams) {
+	user, ok := h.oauthCaller(w, r)
+	if !ok {
+		return
+	}
+	if h.Tokens == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "token manager not configured"})
+		return
+	}
+	// An OAuth grant is made deliberate by the consent screen. Here the owner
+	// is both parties, so there is nobody to ask — re-authenticating is the
+	// equivalent friction in front of minting a credential that acts as the
+	// whole account.
+	if !requireStepup(w, r, h.Tokens, h.Redis, user, "personal_access_token_create", stepupSingleUse) {
+		return
+	}
+
+	var body api.CreatePersonalAccessTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "invalid json"})
+		return
+	}
+
+	scopes := make([]string, 0, len(body.Scopes))
+	for _, s := range body.Scopes {
+		scopes = append(scopes, string(s))
+	}
+
+	issued, err := h.OAuth.CreatePersonalAccessToken(r.Context(), user.ID, body.Name, scopes)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	// The secret is in this response and nowhere else afterwards.
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusCreated, api.PersonalAccessTokenWithSecret{
+		Token:       toAPIPersonalToken(issued.Token),
+		AccessToken: issued.Secret,
+	})
+}
+
+func (h API) DeleteMeOauthTokensTokenId(w http.ResponseWriter, r *http.Request, tokenId openapi_types.UUID) {
+	user, ok := h.oauthCaller(w, r)
+	if !ok {
+		return
+	}
+	if err := h.OAuth.RevokePersonalAccessToken(r.Context(), user.ID, tokenId); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func toAPIPersonalToken(tok service.PersonalAccessToken) api.PersonalAccessToken {
+	return api.PersonalAccessToken{
+		Id:        openapi_types.UUID(tok.ID),
+		Name:      tok.Name,
+		Scopes:    toAPIScopes(tok.Scopes),
+		ExpiresAt: tok.ExpiresAt,
+		CreatedAt: tok.CreatedAt,
+	}
 }

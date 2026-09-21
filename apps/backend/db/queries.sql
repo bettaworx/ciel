@@ -2875,11 +2875,13 @@ RETURNING id, client_id, user_id, scopes, access_token_hash, access_expires_at,
 -- Joins the user so verification is one round trip: the middleware needs the
 -- username for the request context and would otherwise fetch it separately on
 -- every single API call.
+-- LEFT JOIN on the client, not JOIN: a personal access token has no client, and
+-- an inner join would drop those rows and report them as unknown tokens.
 SELECT t.id, t.client_id, t.user_id, t.scopes, t.access_expires_at, t.revoked_at,
        c.client_id AS client_public_id,
        u.username
 FROM oauth_tokens t
-JOIN oauth_clients c ON c.id = t.client_id
+LEFT JOIN oauth_clients c ON c.id = t.client_id
 JOIN users u ON u.id = t.user_id
 WHERE t.access_token_hash = $1;
 
@@ -2953,3 +2955,40 @@ ORDER BY authorized_at DESC;
 DELETE FROM oauth_tokens
 WHERE access_expires_at < now() - INTERVAL '30 days'
   AND (refresh_expires_at IS NULL OR refresh_expires_at < now() - INTERVAL '30 days');
+
+-- name: CreatePersonalAccessToken :one
+-- No refresh token: the owner can mint another whenever they like, so there is
+-- nothing for a refresh to buy that a second token does not.
+INSERT INTO oauth_tokens (client_id, user_id, name, scopes, access_token_hash, access_expires_at)
+VALUES (
+    NULL,
+    sqlc.arg('user_id')::uuid,
+    sqlc.arg('name')::text,
+    sqlc.arg('scopes')::text[],
+    sqlc.arg('access_token_hash')::bytea,
+    sqlc.arg('access_expires_at')::timestamptz
+)
+RETURNING id, user_id, name, scopes, access_expires_at, created_at;
+
+-- name: ListPersonalAccessTokens :many
+SELECT id, user_id, name, scopes, access_expires_at, created_at
+FROM oauth_tokens
+WHERE user_id = $1
+  AND client_id IS NULL
+  AND revoked_at IS NULL
+  AND access_expires_at > now()
+ORDER BY created_at DESC, id DESC;
+
+-- name: RevokePersonalAccessToken :execrows
+-- Scoped to the owner and to client_id IS NULL, so it can neither revoke
+-- somebody else's token nor be used to reach a token issued through an OAuth
+-- grant, which has its own revoke path.
+UPDATE oauth_tokens SET revoked_at = now()
+WHERE id = sqlc.arg('id')::uuid
+  AND user_id = sqlc.arg('user_id')::uuid
+  AND client_id IS NULL
+  AND revoked_at IS NULL;
+
+-- name: CountPersonalAccessTokens :one
+SELECT count(*) FROM oauth_tokens
+WHERE user_id = $1 AND client_id IS NULL AND revoked_at IS NULL AND access_expires_at > now();

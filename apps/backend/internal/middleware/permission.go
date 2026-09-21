@@ -27,7 +27,7 @@ func RequirePermission(authz *service.AuthzService, permissionID, scope string) 
 			// this is the second lock, so that any future mount of
 			// RequirePermission is closed too. A user consented to an app
 			// posting for them, not to it moderating the instance.
-			if user.IsOAuth() {
+			if user.IsAPIToken() {
 				writeForbidden(w)
 				return
 			}

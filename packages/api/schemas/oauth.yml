@@ -275,3 +275,74 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OAuthAuthorization'
+    PersonalAccessToken:
+      type: object
+      description: >-
+        A token the account issued to itself. Same kind of credential an OAuth
+        grant produces, minus the app: the owner is both the party granting
+        access and the party using it, so there is no client and no consent
+        screen. Issuing one requires step-up authentication instead.
+      required:
+      - id
+      - name
+      - scopes
+      - expiresAt
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 60
+        scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OAuthScope'
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    PersonalAccessTokenWithSecret:
+      type: object
+      description: >-
+        A token together with its secret. Returned by creation only — the server
+        stores a hash, so this response is the single moment the secret exists
+        anywhere it can be read.
+      required:
+      - token
+      - accessToken
+      properties:
+        token:
+          $ref: '#/components/schemas/PersonalAccessToken'
+        accessToken:
+          type: string
+          description: >-
+            Send as an `Authorization: Bearer` header. Shown once.
+    PersonalAccessTokenPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonalAccessToken'
+    CreatePersonalAccessTokenRequest:
+      type: object
+      required:
+      - name
+      - scopes
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: What this token is for. Shown in the list; not sent anywhere.
+        scopes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OAuthScope'

@@ -431,10 +431,15 @@ CREATE INDEX IF NOT EXISTS idx_oauth_clients_owner
 -- reason the old hash is kept instead of rotated in place.
 CREATE TABLE IF NOT EXISTS oauth_tokens (
   id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id          UUID        NOT NULL REFERENCES oauth_clients(id) ON DELETE CASCADE,
+  -- NULL for a personal access token, which has no client: the owner is both
+  -- the party granting access and the party using it.
+  client_id          UUID        REFERENCES oauth_clients(id) ON DELETE CASCADE,
   -- Always set. For client_credentials this is the client's owner: that grant
   -- has no end user, and the owner is the account the token acts as.
   user_id            UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- What the owner called a personal token. NULL for tokens from an OAuth
+  -- grant, where the client's name is the label instead.
+  name               TEXT,
   scopes             TEXT[]      NOT NULL,
   access_token_hash  BYTEA       NOT NULL UNIQUE,
   access_expires_at  TIMESTAMPTZ NOT NULL,
@@ -453,6 +458,10 @@ CREATE INDEX IF NOT EXISTS idx_oauth_tokens_user_client
 -- Drives the sweeper.
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expires
   ON oauth_tokens (access_expires_at) WHERE revoked_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_personal
+  ON oauth_tokens (user_id, created_at DESC)
+  WHERE client_id IS NULL AND revoked_at IS NULL;
 
 -- Notifications delivered to a user (reaction, mention, reply, boost, ...)
 CREATE TABLE IF NOT EXISTS notifications (
