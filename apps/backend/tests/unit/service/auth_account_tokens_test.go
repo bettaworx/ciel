@@ -199,6 +199,13 @@ func TestExchangeAccountToken_ReuseRevokesEverything(t *testing.T) {
 	mock.ExpectExec(`-- name: RevokeAllUserRefreshTokens`).
 		WithArgs(userID).
 		WillReturnResult(sqlmock.NewResult(0, 2))
+	// "Everything" includes the OAuth grants. They live in their own table with
+	// their own revoked_at, so revoking refresh tokens does not touch them, and
+	// a reuse that left every connected app running would not be cutting the
+	// account back to a password login at all.
+	mock.ExpectExec(`-- name: RevokeAllOAuthTokensForUser`).
+		WithArgs(userID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	_, err := svc.ExchangeAccountToken(context.Background(), accountTokenRequest(t, d, "tok", now, true), now)
 	assertServiceError(t, err, http.StatusUnauthorized, "unauthorized")

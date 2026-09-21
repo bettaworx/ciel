@@ -594,7 +594,7 @@ func (s *AuthService) completeLogin(ctx context.Context, userID uuid.UUID, usern
 	return api.LoginAuthenticated{
 		Status:           api.LoginAuthenticatedStatusAuthenticated,
 		AccessToken:      token,
-		TokenType:        api.Bearer,
+		TokenType:        api.LoginAuthenticatedTokenTypeBearer,
 		ExpiresInSeconds: expiresIn,
 		User:             user,
 	}, api.StepupAuthenticated{}, rawRefresh, nil
@@ -629,8 +629,8 @@ func (s *AuthService) ResetUserMFA(ctx context.Context, actor auth.User, targetU
 	if err := s.tokens.InvalidateUserTokens(ctx, targetUserID.String()); err != nil {
 		slog.Warn("failed to invalidate tokens after MFA reset", "error", err, "user_id", targetUserID.String())
 	}
-	if err := s.store.Q.RevokeAllUserRefreshTokens(ctx, targetUserID); err != nil {
-		slog.Warn("failed to revoke refresh tokens after MFA reset", "error", err, "user_id", targetUserID.String())
+	if err := s.RevokeAllSessions(ctx, targetUserID); err != nil {
+		slog.Warn("failed to revoke sessions after MFA reset", "error", err, "user_id", targetUserID.String())
 	}
 	attrs := []slog.Attr{
 		slog.String("actor_user_id", actor.ID.String()),

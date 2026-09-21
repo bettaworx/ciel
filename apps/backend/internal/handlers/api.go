@@ -42,6 +42,7 @@ type API struct {
 	OGP           *service.OGPService
 	Setup         *service.SetupService
 	Agreements    *service.AgreementsService
+	OAuth         *service.OAuthService
 	Tokens        *auth.TokenManager
 	Redis         *redis.Client
 
@@ -326,7 +327,7 @@ func (h API) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 	// Best-effort: cookie clearing is the primary mechanism; DB revocation is defence-in-depth.
 	if h.Auth != nil {
 		if user, ok := auth.UserFromContext(r.Context()); ok {
-			if err := h.Auth.RevokeAllRefreshTokens(r.Context(), user.ID); err != nil {
+			if err := h.Auth.RevokeAllSessions(r.Context(), user.ID); err != nil {
 				slog.Warn("failed to revoke refresh tokens on logout", "error", err, "user_id", user.ID)
 			}
 		}
@@ -485,7 +486,7 @@ func (h API) PatchMeUsername(w http.ResponseWriter, r *http.Request, _ api.Patch
 	writeJSON(w, http.StatusOK, mustLoginAuthenticated(api.LoginAuthenticated{
 		Status:           api.LoginAuthenticatedStatusAuthenticated,
 		AccessToken:      token,
-		TokenType:        api.Bearer,
+		TokenType:        api.LoginAuthenticatedTokenTypeBearer,
 		ExpiresInSeconds: expiresIn,
 		User:             updatedUser,
 	}))
@@ -608,7 +609,7 @@ func (h API) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request, _ ap
 	writeJSON(w, http.StatusOK, mustLoginAuthenticated(api.LoginAuthenticated{
 		Status:           api.LoginAuthenticatedStatusAuthenticated,
 		AccessToken:      token,
-		TokenType:        api.Bearer,
+		TokenType:        api.LoginAuthenticatedTokenTypeBearer,
 		ExpiresInSeconds: expiresIn,
 		User:             updatedUser,
 	}))
@@ -1300,6 +1301,24 @@ func checkStepupTokenReplay(w http.ResponseWriter, r *http.Request, rdb *redis.C
 func requireStepup(w http.ResponseWriter, r *http.Request, tokens *auth.TokenManager, rdb *redis.Client, user auth.User, action string, maxUses int) bool {
 	// Step 1: Setup audit logging attributes
 	auditAttrs := stepupAuditAttrs(r, user, action)
+
+	// Step 0: an OAuth token can never satisfy a step-up, whatever it presents.
+	//
+	// Step-up means "prove you are the account holder, now" — it exists so that
+	// a stolen session cannot change the password or delete the account. An app
+	// acting on the user's behalf is not the account holder and has no password
+	// to re-enter, so there is nothing it could present that would mean what
+	// step-up is asking for.
+	//
+	// This one check covers the username change, the password change, account
+	// deletion and client secret rotation, because every one of them funnels
+	// through here. Guarding the call sites instead would leave whichever one
+	// is added next unguarded.
+	if user.IsOAuth() {
+		logging.Audit(r.Context(), "auth.stepup.use", "denied_oauth", auditAttrs...)
+		writeJSON(w, http.StatusForbidden, api.Error{Code: "forbidden", Message: "not available to OAuth tokens"})
+		return false
+	}
 
 	// Step 2: Validate token manager is configured
 	if !validateStepupTokenManager(w, r, tokens, auditAttrs) {

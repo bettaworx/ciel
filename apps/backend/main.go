@@ -224,8 +224,11 @@ func main() {
 	}
 	r.Use(middleware.SecurityHeaders(isProduction))
 	r.Use(middleware.CORS())
-	r.Use(middleware.OptionalAuth(tokenManager))
-	r.Use(middleware.AccessLog(middleware.AccessLogOptions{TrustProxy: trustProxy}))
+	// OptionalAuth and AccessLog are mounted further down, once the store and
+	// the OAuth service exist: OptionalAuth needs the OAuth verifier to resolve
+	// opaque access tokens, and AccessLog reads the user it puts in the
+	// context. Chi applies middleware in Use order, not in the order routes are
+	// registered, and no route is registered until well below this point.
 
 	var store *repository.Store
 	var redisClient *redis.Client
@@ -286,6 +289,24 @@ func main() {
 	slog.Info("loaded server config", "path", configPath)
 
 	authzSvc := service.NewAuthzService(store)
+
+	// Authorization codes are Redis-only: single use has to be atomic, and
+	// GETDEL is what provides that. Without Redis the authorize endpoint
+	// reports itself unavailable rather than minting codes nothing can redeem.
+	oauthSvc := service.NewOAuthService(store, auth.NewAuthorizationCodeStore(redisClient))
+	if redisClient == nil {
+		slog.Warn("OAuth2 authorization disabled; Redis not available")
+	}
+
+	// Identify the caller before anything that reads the caller. AccessLog
+	// attributes lines to a user, AccessControl applies per-user bans, and
+	// RateLimit buckets per user — all three read what OptionalAuth put in the
+	// context, so they must come after it.
+	r.Use(middleware.OptionalAuth(tokenManager, oauthSvc))
+	r.Use(middleware.AccessLog(middleware.AccessLogOptions{TrustProxy: trustProxy}))
+	// Immediately after authentication: everything below this point can assume
+	// an OAuth token has already been refused anything outside its scopes.
+	r.Use(middleware.OAuthScope())
 
 	// Security middlewares (no-op if Redis is disabled/unreachable).
 	r.Use(middleware.AccessControl(redisClient, middleware.AccessControlOptions{TrustProxy: trustProxy}))
@@ -525,6 +546,7 @@ func main() {
 		OGP:           ogpSvc,
 		Setup:         setupSvc,
 		Agreements:    agreementsSvc,
+		OAuth:         oauthSvc,
 		Tokens:        tokenManager,
 		Redis:         redisClient,
 

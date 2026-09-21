@@ -35,6 +35,7 @@ tags:
 - name: Emojis
 - name: Notifications
 - name: OGP
+- name: OAuth2
 components:
   securitySchemes:
     bearerAuth:
@@ -239,6 +240,24 @@ paths:
     $ref: ./paths/users.yml#/~1me~1privacy
   /me/bot:
     $ref: ./paths/users.yml#/~1me~1bot
+  /oauth/authorize/info:
+    $ref: ./paths/oauth.yml#/~1oauth~1authorize~1info
+  /oauth/authorize:
+    $ref: ./paths/oauth.yml#/~1oauth~1authorize
+  /oauth/token:
+    $ref: ./paths/oauth.yml#/~1oauth~1token
+  /oauth/revoke:
+    $ref: ./paths/oauth.yml#/~1oauth~1revoke
+  /me/oauth/clients:
+    $ref: ./paths/oauth.yml#/~1me~1oauth~1clients
+  /me/oauth/clients/{clientUuid}:
+    $ref: ./paths/oauth.yml#/~1me~1oauth~1clients~1{clientUuid}
+  /me/oauth/clients/{clientUuid}/secret:
+    $ref: ./paths/oauth.yml#/~1me~1oauth~1clients~1{clientUuid}~1secret
+  /me/oauth/authorizations:
+    $ref: ./paths/oauth.yml#/~1me~1oauth~1authorizations
+  /me/oauth/authorizations/{clientId}:
+    $ref: ./paths/oauth.yml#/~1me~1oauth~1authorizations~1{clientId}
   /me/mutes:
     $ref: ./paths/blocks.yml#/~1me~1mutes
   /me/blocks:

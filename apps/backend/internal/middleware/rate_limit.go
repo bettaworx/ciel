@@ -90,6 +90,18 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		// every instance instead of one process.
 		{routeKey: "ogp", limit: 30, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "ogp_image", limit: 60, window: 1 * time.Minute, subject: subjectIP},
+		// OAuth2. /oauth/token is the one that matters: it takes a client
+		// secret and a PKCE verifier and says whether they were right, which is
+		// an online guessing oracle if it is left unthrottled. Per-IP, because
+		// the caller is an app's back end and has no user session.
+		{routeKey: "oauth_token", limit: 30, window: 1 * time.Minute, subject: subjectIP},
+		{routeKey: "oauth_revoke", limit: 30, window: 1 * time.Minute, subject: subjectIP},
+		// The consent screen is driven by a signed-in browser, so these key on
+		// the user and can be looser without helping an attacker.
+		{routeKey: "oauth_authorize", limit: 60, window: 1 * time.Minute, subject: subjectUser},
+		// Registering apps is cheap for the user and permanent for us, and the
+		// per-account cap is a ceiling rather than a rate.
+		{routeKey: "oauth_client_create", limit: 10, window: 1 * time.Hour, subject: subjectUser},
 	}
 
 	return func(next http.Handler) http.Handler {
@@ -358,6 +370,28 @@ func classifyRoute(r *http.Request) string {
 	if route := classifyOgpRoute(method, path); route != "" {
 		return route
 	}
+	if route := classifyOAuthRoute(method, path); route != "" {
+		return route
+	}
 
 	return ""
+}
+
+// classifyOAuthRoute classifies the OAuth2 endpoints.
+func classifyOAuthRoute(method, path string) string {
+	if method != http.MethodPost {
+		return ""
+	}
+	switch path {
+	case "/api/v1/oauth/token":
+		return "oauth_token"
+	case "/api/v1/oauth/revoke":
+		return "oauth_revoke"
+	case "/api/v1/oauth/authorize":
+		return "oauth_authorize"
+	case "/api/v1/me/oauth/clients":
+		return "oauth_client_create"
+	default:
+		return ""
+	}
 }

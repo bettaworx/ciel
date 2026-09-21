@@ -2798,3 +2798,158 @@ LIMIT sqlc.arg('limit');
 SELECT id FROM posts
 WHERE id = ANY(sqlc.arg('ids')::uuid[])
 	AND deleted_at IS NULL;
+
+-- ==================== OAuth2 ====================
+
+-- name: CountOAuthClientsByOwner :one
+SELECT count(*) FROM oauth_clients WHERE owner_user_id = $1;
+
+-- name: CreateOAuthClient :one
+-- The per-owner cap is enforced inside the INSERT rather than by reading the
+-- count first and then writing: two concurrent creates would both pass a
+-- separate check and both insert. When the cap is already reached the SELECT
+-- yields no row, the INSERT writes nothing, and sqlc reports no rows — which
+-- the service turns into the "too many clients" error.
+INSERT INTO oauth_clients (client_id, client_secret_hash, owner_user_id, name, website, redirect_uris, scopes)
+SELECT
+    sqlc.arg('client_id')::text,
+    sqlc.narg('client_secret_hash')::bytea,
+    sqlc.arg('owner_user_id')::uuid,
+    sqlc.arg('name')::text,
+    sqlc.narg('website')::text,
+    sqlc.arg('redirect_uris')::text[],
+    sqlc.arg('scopes')::text[]
+WHERE (
+    SELECT count(*) FROM oauth_clients WHERE owner_user_id = sqlc.arg('owner_user_id')::uuid
+) < sqlc.arg('max_clients')::bigint
+RETURNING id, client_id, client_secret_hash, owner_user_id, name, website, redirect_uris, scopes, created_at, updated_at;
+
+-- name: GetOAuthClientByClientID :one
+SELECT id, client_id, client_secret_hash, owner_user_id, name, website, redirect_uris, scopes, created_at, updated_at
+FROM oauth_clients
+WHERE client_id = $1;
+
+-- name: GetOAuthClientByIDForOwner :one
+SELECT id, client_id, client_secret_hash, owner_user_id, name, website, redirect_uris, scopes, created_at, updated_at
+FROM oauth_clients
+WHERE id = sqlc.arg('id')::uuid AND owner_user_id = sqlc.arg('owner_user_id')::uuid;
+
+-- name: ListOAuthClientsByOwner :many
+SELECT id, client_id, owner_user_id, name, website, redirect_uris, scopes,
+       (client_secret_hash IS NOT NULL)::boolean AS is_confidential,
+       created_at, updated_at
+FROM oauth_clients
+WHERE owner_user_id = $1
+ORDER BY created_at DESC, id DESC;
+
+-- name: RotateOAuthClientSecret :one
+UPDATE oauth_clients
+SET client_secret_hash = sqlc.arg('client_secret_hash')::bytea, updated_at = now()
+WHERE id = sqlc.arg('id')::uuid AND owner_user_id = sqlc.arg('owner_user_id')::uuid
+RETURNING id, client_id, owner_user_id, name, website, redirect_uris, scopes, created_at, updated_at;
+
+-- name: DeleteOAuthClient :execrows
+-- Owner-scoped on purpose: passing someone else's client id deletes nothing
+-- rather than reporting that it exists.
+DELETE FROM oauth_clients
+WHERE id = sqlc.arg('id')::uuid AND owner_user_id = sqlc.arg('owner_user_id')::uuid;
+
+-- name: CreateOAuthToken :one
+INSERT INTO oauth_tokens (
+    client_id, user_id, scopes, access_token_hash, access_expires_at,
+    refresh_token_hash, refresh_expires_at
+)
+VALUES (
+    sqlc.arg('client_id')::uuid,
+    sqlc.arg('user_id')::uuid,
+    sqlc.arg('scopes')::text[],
+    sqlc.arg('access_token_hash')::bytea,
+    sqlc.arg('access_expires_at')::timestamptz,
+    sqlc.narg('refresh_token_hash')::bytea,
+    sqlc.narg('refresh_expires_at')::timestamptz
+)
+RETURNING id, client_id, user_id, scopes, access_token_hash, access_expires_at,
+          refresh_token_hash, refresh_expires_at, revoked_at, created_at;
+
+-- name: GetOAuthAccessToken :one
+-- Joins the user so verification is one round trip: the middleware needs the
+-- username for the request context and would otherwise fetch it separately on
+-- every single API call.
+SELECT t.id, t.client_id, t.user_id, t.scopes, t.access_expires_at, t.revoked_at,
+       c.client_id AS client_public_id,
+       u.username
+FROM oauth_tokens t
+JOIN oauth_clients c ON c.id = t.client_id
+JOIN users u ON u.id = t.user_id
+WHERE t.access_token_hash = $1;
+
+-- name: ConsumeOAuthRefreshToken :one
+-- Revokes the row and hands it back in one statement, so two concurrent
+-- refreshes cannot both succeed. A replay arrives after revoked_at is set,
+-- finds no row here, and is then looked up by PeekOAuthRefreshToken to tell a
+-- reuse apart from a token that never existed.
+UPDATE oauth_tokens
+SET revoked_at = now()
+WHERE refresh_token_hash = $1
+  AND revoked_at IS NULL
+  AND refresh_expires_at > now()
+RETURNING id, client_id, user_id, scopes, access_token_hash, access_expires_at,
+          refresh_token_hash, refresh_expires_at, revoked_at, created_at;
+
+-- name: PeekOAuthRefreshToken :one
+-- Reads a refresh token without consuming it, including already-revoked rows.
+-- Only used to detect reuse of a token that was already spent.
+SELECT id, client_id, user_id, scopes, revoked_at, refresh_expires_at
+FROM oauth_tokens
+WHERE refresh_token_hash = $1;
+
+-- name: RevokeOAuthGrant :execrows
+-- Revokes every live token a client holds for a user. Used both by the
+-- connected-apps revoke button and, on detecting a refresh token replay, to
+-- shut the whole grant down rather than just the replayed token.
+UPDATE oauth_tokens
+SET revoked_at = now()
+WHERE client_id = sqlc.arg('client_id')::uuid
+  AND user_id = sqlc.arg('user_id')::uuid
+  AND revoked_at IS NULL;
+
+-- name: RevokeOAuthTokenByAccessHash :execrows
+UPDATE oauth_tokens SET revoked_at = now()
+WHERE access_token_hash = $1 AND revoked_at IS NULL;
+
+-- name: RevokeOAuthTokenByRefreshHash :execrows
+UPDATE oauth_tokens SET revoked_at = now()
+WHERE refresh_token_hash = $1 AND revoked_at IS NULL;
+
+-- name: RevokeAllOAuthTokensForUser :execrows
+-- Called wherever the account's credentials change. A password reset that left
+-- every connected app running would defeat the point of the reset.
+UPDATE oauth_tokens SET revoked_at = now()
+WHERE user_id = $1 AND revoked_at IS NULL;
+
+-- name: ListOAuthAuthorizations :many
+-- The connected-apps list: one row per app that currently holds a live token,
+-- with the scopes and the time of the most recent grant.
+SELECT c.id AS client_uuid,
+       c.client_id,
+       c.name,
+       c.website,
+       c.owner_user_id,
+       max(t.created_at)::timestamptz AS authorized_at,
+       (array_agg(DISTINCT s ORDER BY s))::text[] AS scopes
+FROM oauth_tokens t
+JOIN oauth_clients c ON c.id = t.client_id
+CROSS JOIN LATERAL unnest(t.scopes) AS s
+WHERE t.user_id = $1
+  AND t.revoked_at IS NULL
+  AND t.access_expires_at > now()
+GROUP BY c.id, c.client_id, c.name, c.website, c.owner_user_id
+ORDER BY authorized_at DESC;
+
+-- name: DeleteExpiredOAuthTokens :execrows
+-- Rows are kept after revocation so a replayed refresh token is still
+-- recognisable, but not forever. Anything whose refresh window is long past can
+-- no longer be replayed into anything.
+DELETE FROM oauth_tokens
+WHERE access_expires_at < now() - INTERVAL '30 days'
+  AND (refresh_expires_at IS NULL OR refresh_expires_at < now() - INTERVAL '30 days');

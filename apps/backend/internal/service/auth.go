@@ -432,13 +432,27 @@ func (s *AuthService) IssueRefreshTokenForUser(ctx context.Context, userID uuid.
 	return s.issueRefreshToken(ctx, userID)
 }
 
-// RevokeAllRefreshTokens revokes all active refresh tokens for a user.
-// Called on logout to ensure stolen tokens cannot be reused after the user signs out.
-func (s *AuthService) RevokeAllRefreshTokens(ctx context.Context, userID uuid.UUID) error {
+// RevokeAllSessions revokes everything that can currently act as this account:
+// its refresh tokens and every OAuth2 grant it has issued.
+//
+// Every path that takes an account back — logout, password change, disabling
+// MFA, deleting the account — goes through here rather than calling the query
+// directly. A password reset that revoked the browser's session but left the
+// connected apps running would not actually be a reset, and the way that bug
+// happens is one of five call sites being written without the second step.
+func (s *AuthService) RevokeAllSessions(ctx context.Context, userID uuid.UUID) error {
 	if s.store == nil {
 		return nil
 	}
-	return s.store.Q.RevokeAllUserRefreshTokens(ctx, userID)
+	if err := s.store.Q.RevokeAllUserRefreshTokens(ctx, userID); err != nil {
+		return err
+	}
+	// OAuth tokens are their own table with their own revoked_at, so the
+	// refresh token revocation above does not touch them.
+	if _, err := s.store.Q.RevokeAllOAuthTokensForUser(ctx, userID); err != nil {
+		return err
+	}
+	return nil
 }
 
 // issueRefreshToken generates a new opaque refresh token, stores its hash in the DB,
@@ -770,9 +784,9 @@ func (s *AuthService) ChangePassword(ctx context.Context, user auth.User, req ap
 		// Don't fail the password change if token invalidation fails
 	}
 
-	// Revoke all refresh tokens for this user
-	if err := s.store.Q.RevokeAllUserRefreshTokens(ctx, user.ID); err != nil {
-		slog.Warn("failed to revoke refresh tokens after password change", "error", err, "user_id", user.ID.String())
+	// Revoke every refresh token and OAuth grant for this user
+	if err := s.RevokeAllSessions(ctx, user.ID); err != nil {
+		slog.Warn("failed to revoke sessions after password change", "error", err, "user_id", user.ID.String())
 		// Don't fail the password change if refresh token revocation fails
 	}
 
@@ -793,9 +807,10 @@ func (s *AuthService) DeleteAccount(ctx context.Context, user auth.User) error {
 		// Continue with account deletion even if token invalidation fails
 	}
 
-	// Revoke all refresh tokens (ON DELETE CASCADE also handles this, but explicit revocation is belt-and-suspenders)
-	if err := s.store.Q.RevokeAllUserRefreshTokens(ctx, user.ID); err != nil {
-		slog.Warn("failed to revoke refresh tokens before account deletion", "error", err, "user_id", user.ID.String())
+	// Revoke refresh tokens and OAuth grants (ON DELETE CASCADE also handles
+	// this, but explicit revocation is belt-and-suspenders)
+	if err := s.RevokeAllSessions(ctx, user.ID); err != nil {
+		slog.Warn("failed to revoke sessions before account deletion", "error", err, "user_id", user.ID.String())
 	}
 
 	// The reactions have to go first and in the same transaction: post_reaction_counts

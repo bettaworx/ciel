@@ -83,7 +83,7 @@ func newTestApp(t *testing.T) *testApp {
 	cacheImpl := cache.NewRedisCache(rdb)
 
 	r := chi.NewRouter()
-	r.Use(middleware.OptionalAuth(tokenManager))
+	r.Use(middleware.OptionalAuth(tokenManager, nil))
 	r.Use(middleware.AccessControl(rdb, middleware.AccessControlOptions{TrustProxy: false}))
 	r.Use(middleware.RateLimit(rdb, middleware.RateLimitOptions{TrustProxy: false}))
 	authzSvc := service.NewAuthzService(store)

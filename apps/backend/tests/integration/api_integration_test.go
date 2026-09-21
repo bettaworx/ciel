@@ -110,7 +110,7 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 	t.Cleanup(hubCancel)
 
 	r := chi.NewRouter()
-	r.Use(middleware.OptionalAuth(tokenManager))
+	r.Use(middleware.OptionalAuth(tokenManager, nil))
 	r.Use(middleware.AccessControl(rdb, middleware.AccessControlOptions{TrustProxy: false}))
 	r.Use(middleware.RateLimit(rdb, middleware.RateLimitOptions{TrustProxy: false}))
 	authzSvc := service.NewAuthzService(store)

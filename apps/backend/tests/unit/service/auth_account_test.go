@@ -46,6 +46,13 @@ func TestAuthService_ChangePassword_Success(t *testing.T) {
 	mock.ExpectExec(`UPDATE refresh_tokens`).
 		WithArgs(userID).
 		WillReturnResult(sqlmock.NewResult(0, 0))
+	// A password change has to take the account back from everything currently
+	// holding it, and OAuth grants are the half that a refresh-token revocation
+	// does not reach. Without this the reset leaves every connected app running
+	// with the credentials the user just replaced.
+	mock.ExpectExec(`UPDATE oauth_tokens`).
+		WithArgs(userID).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err = svc.ChangePassword(context.Background(), auth.User{ID: userID, Username: "alice"}, api.PasswordChangeRequest{
 		NewPassword: "NewPassword123!",
