@@ -109,7 +109,11 @@ export function DesktopUserMenu({
             }
             label={
               user.displayName ? (
-                <DisplayName name={user.displayName} isPrivate={user.isPrivate} isBot={user.isBot} />
+                <DisplayName
+                  name={user.displayName}
+                  isPrivate={user.isPrivate}
+                  isBot={user.isBot}
+                />
               ) : (
                 `@${user.username}`
               )
@@ -169,7 +173,11 @@ export function DesktopUserMenu({
                         <div className="flex flex-col flex-1 min-w-0">
                           <span className="text-sm font-semibold truncate">
                             {account.displayName ? (
-                              <DisplayName name={account.displayName} isPrivate={false} isBot={false} />
+                              <DisplayName
+                                name={account.displayName}
+                                isPrivate={false}
+                                isBot={false}
+                              />
                             ) : (
                               `@${account.username}`
                             )}
