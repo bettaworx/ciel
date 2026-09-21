@@ -1,7 +1,9 @@
 "use client";
 
 import { User as UserIcon } from "lucide-react";
+import { useEffect } from "react";
 import { useTranslations } from "@/lib/i18n";
+import { isCreatePostShortcut } from "@/lib/create-post-shortcut";
 import { useAtomValue } from "jotai";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -29,6 +31,27 @@ interface CreatePostDialogProps {
 export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) {
   const t = useTranslations();
   const user = useAtomValue(userAtom);
+
+  useEffect(() => {
+    if (open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (!isCreatePostShortcut(event, target)) return;
+      // Leave keyboard interaction inside other overlays to their own controls.
+      if (
+        target?.closest('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      onOpenChange(true);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onOpenChange]);
 
   // Use shared composition logic
   const compose = useComposePost({
