@@ -88,7 +88,7 @@ func mapUserWithProfile(id uuid.UUID, username string, createdAt time.Time, disp
 }
 
 func sanitizeDisplayName(input string) string {
-	cleaned := sanitizeProfileText(input, false)
+	cleaned := profileURLPattern.ReplaceAllString(sanitizeProfileText(input, false), "")
 	fields := strings.Fields(cleaned)
 	if len(fields) == 0 {
 		return ""
@@ -104,7 +104,6 @@ func sanitizeBio(input string) string {
 func sanitizeProfileText(input string, allowNewlines bool) string {
 	out := strings.TrimSpace(input)
 	out = profileTagPattern.ReplaceAllString(out, "")
-	out = profileURLPattern.ReplaceAllString(out, "")
 	out = stripProfileControl(out, allowNewlines)
 	if !allowNewlines {
 		out = strings.ReplaceAll(out, "\n", " ")
