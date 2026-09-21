@@ -104,27 +104,20 @@ export function mergeTimelineOwnerThreads(
 
     const visitedReplyIds = new Set<string>();
 
-    function flattenThread(reply: Post, chainAuthorId: string): Post[] {
+    function flattenThread(reply: Post): Post[] {
       if (visitedReplyIds.has(reply.id)) {
-        return [];
-      }
-      if (reply.author?.id !== chainAuthorId) {
         return [];
       }
       visitedReplyIds.add(reply.id);
 
       const children = childrenByParent.get(reply.id) ?? [];
-      return [reply, ...children.flatMap((childReply) => flattenThread(childReply, chainAuthorId))];
+      return [reply, ...children.flatMap(flattenThread)];
     }
 
     skippedPostIds.add(rootId);
 
     for (const threadRootReply of threadRootReplies) {
-      const chainAuthorId = threadRootReply.author?.id;
-      if (!chainAuthorId) {
-        continue;
-      }
-      const threadReplies = flattenThread(threadRootReply, chainAuthorId);
+      const threadReplies = flattenThread(threadRootReply);
       if (threadReplies.length === 0) {
         continue;
       }

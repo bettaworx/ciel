@@ -435,7 +435,7 @@ describe("mergeTimelineOwnerThreads", () => {
     expect(itemIds(items)).toEqual(["merged:root:other-reply-3"]);
   });
 
-  it("stops non-owner chain traversal at author boundary", () => {
+  it("keeps a mixed-author reply chain in one timeline item", () => {
     const third = { id: "third-id", username: "third" };
     const root = post("root", owner);
     const otherReply = post("other-reply", other, {
@@ -454,10 +454,10 @@ describe("mergeTimelineOwnerThreads", () => {
       new Map([[root.id, root]]),
     );
 
-    expect(itemIds(items)).toEqual(["post:third-reply", "thread:root:other-reply"]);
+    expect(itemIds(items)).toEqual(["thread:root:other-reply,third-reply"]);
   });
 
-  it("does not group owner replies that are not connected to the owner thread chain", () => {
+  it("keeps replies connected through another author in the same timeline item", () => {
     const root = post("root", owner);
     const otherReply = post("other-reply", other, {
       parentId: root.id,
@@ -475,7 +475,33 @@ describe("mergeTimelineOwnerThreads", () => {
       new Map([[root.id, root]]),
     );
 
-    expect(itemIds(items)).toEqual(["post:owner-under-other", "thread:root:other-reply"]);
+    expect(itemIds(items)).toEqual(["thread:root:other-reply,owner-under-other"]);
+  });
+
+  it("collapses a long alternating-author conversation into one timeline item", () => {
+    const root = post("root", owner);
+    const otherReply1 = post("other-reply-1", other, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const ownerReply = post("owner-reply", owner, {
+      parentId: otherReply1.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+    const otherReply2 = post("other-reply-2", other, {
+      parentId: ownerReply.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:03:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads(
+      [otherReply2, ownerReply, otherReply1, root],
+      new Map([[root.id, root]]),
+    );
+
+    expect(itemIds(items)).toEqual(["merged:root:other-reply-2"]);
   });
 
   it("keeps multiple owner threads under one root independent", () => {
