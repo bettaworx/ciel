@@ -1,12 +1,6 @@
 export type Season = "spring" | "summer" | "autumn" | "winter";
 
-export type DayPeriod =
-  | "late_night"
-  | "morning"
-  | "noon"
-  | "afternoon"
-  | "evening"
-  | "night";
+export type DayPeriod = "late_night" | "morning" | "noon" | "afternoon" | "evening" | "night";
 
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -148,8 +142,5 @@ export type SelectPhraseOptions = {
 export type Kotodoki = {
   resolveContext(input?: KotodokiInput): ResolvedKotodokiContext;
   getMatchingPhrases(input?: KotodokiInput): readonly PhraseEntry[];
-  selectPhrase(
-    input?: KotodokiInput,
-    options?: SelectPhraseOptions,
-  ): KotodokiSelection;
+  selectPhrase(input?: KotodokiInput, options?: SelectPhraseOptions): KotodokiSelection;
 };

@@ -1,10 +1,7 @@
 import { parse as parseTwemoji } from "@twemoji/parser";
 
 import type { PublicEmoji } from "@/lib/custom-emojis";
-import {
-  buildTwemojiUrl,
-  type TwemojiAssetType,
-} from "./constants";
+import { buildTwemojiUrl, type TwemojiAssetType } from "./constants";
 import type { EmojiItem } from "./types";
 
 const emojiSrcCache = new Map<string, string | null>();
@@ -44,8 +41,7 @@ export function normalizeTwemojiEmoji(emoji: string): string | null {
 
   const withoutVariationSelectors = emoji.replace(/\uFE0F/g, "");
   const normalized =
-    withoutVariationSelectors !== emoji &&
-    isSingleTwemojiEmoji(withoutVariationSelectors)
+    withoutVariationSelectors !== emoji && isSingleTwemojiEmoji(withoutVariationSelectors)
       ? withoutVariationSelectors
       : null;
 
@@ -53,10 +49,7 @@ export function normalizeTwemojiEmoji(emoji: string): string | null {
   return normalized;
 }
 
-export function getEmojiSrc(
-  emoji: string,
-  assetType: TwemojiAssetType = "svg",
-): string | null {
+export function getEmojiSrc(emoji: string, assetType: TwemojiAssetType = "svg"): string | null {
   const cacheKey = `${assetType}:${emoji}`;
   const cached = emojiSrcCache.get(cacheKey);
   if (cached !== undefined) {
@@ -76,10 +69,7 @@ export function buildEmojiSearchText(label: string, shortcode?: string): string 
   return `${label} ${shortcode ?? ""}`.trim().toLowerCase();
 }
 
-export function createCustomEmojiItem(
-  emoji: PublicEmoji,
-  index: number,
-): EmojiItem {
+export function createCustomEmojiItem(emoji: PublicEmoji, index: number): EmojiItem {
   const label = emoji.name || emoji.shortcode;
 
   return {
@@ -93,9 +83,7 @@ export function createCustomEmojiItem(
   };
 }
 
-export function dedupeCustomEmojis(
-  emojis: PublicEmoji[] | undefined,
-): PublicEmoji[] {
+export function dedupeCustomEmojis(emojis: PublicEmoji[] | undefined): PublicEmoji[] {
   if (!emojis || emojis.length === 0) {
     return [];
   }

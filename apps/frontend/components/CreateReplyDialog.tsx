@@ -1,7 +1,7 @@
 "use client";
 
 import { User as UserIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { useAtomValue } from "jotai";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -40,13 +40,10 @@ export function CreateReplyDialog({
 
   const avatarElement = (
     <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
-      {user?.avatarUrl ? (
-        <AvatarImage src={user.avatarUrl} alt={user?.username} />
-      ) : (
-        <AvatarFallback>
-          <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-        </AvatarFallback>
-      )}
+      <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.username} />
+      <AvatarFallback>
+        <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+      </AvatarFallback>
     </Avatar>
   );
 

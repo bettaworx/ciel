@@ -24,11 +24,27 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 export interface TransformedImage {
-  dataUrl: string;
+  /** Object URL — revoke it once it has been replaced. */
+  url: string;
   width: number;
   height: number;
 }
 
+/**
+ * iOS Safari refuses to back a canvas larger than this, and does it silently:
+ * the canvas stays blank and toBlob/toDataURL hand back nothing usable. A 48MP
+ * iPhone photo is well past it.
+ */
+const MAX_CANVAS_PIXELS = 16_777_216;
+
+/**
+ * Render the rotate/flip preview.
+ *
+ * The result feeds the crop UI, and the crop is re-derived from the displayed
+ * image's natural size, so clamping here costs nothing downstream. It also hands
+ * back an object URL rather than a data URL: at full resolution the base64 of a
+ * phone photo runs to tens of megabytes of string.
+ */
 export async function buildTransformedImage(
   originalImg: HTMLImageElement,
   transform: Transform,
@@ -37,8 +53,11 @@ export async function buildTransformedImage(
   const W = originalImg.naturalWidth;
   const H = originalImg.naturalHeight;
   const rotated90 = transform.rotation === 90 || transform.rotation === 270;
-  const canvasW = rotated90 ? H : W;
-  const canvasH = rotated90 ? W : H;
+  const scale = Math.min(1, Math.sqrt(MAX_CANVAS_PIXELS / (W * H)));
+  const drawW = Math.max(1, Math.round(W * scale));
+  const drawH = Math.max(1, Math.round(H * scale));
+  const canvasW = rotated90 ? drawH : drawW;
+  const canvasH = rotated90 ? drawW : drawH;
 
   const canvas = document.createElement("canvas");
   canvas.width = canvasW;
@@ -50,12 +69,15 @@ export async function buildTransformedImage(
   ctx.translate(canvasW / 2, canvasH / 2);
   if (transform.flipH) ctx.scale(-1, 1);
   ctx.rotate((-transform.rotation * Math.PI) / 180);
-  ctx.drawImage(originalImg, -W / 2, -H / 2);
+  ctx.drawImage(originalImg, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
 
   const outputMime = mimeType === "image/jpeg" ? "image/jpeg" : "image/png";
-  const dataUrl = canvas.toDataURL(outputMime, 0.95);
-  return { dataUrl, width: canvasW, height: canvasH };
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, outputMime, 0.95),
+  );
+  if (!blob) throw new Error("Canvas toBlob failed");
+  return { url: URL.createObjectURL(blob), width: canvasW, height: canvasH };
 }
 
 export function rotateCropCCW90(crop: PercentCrop): PercentCrop {

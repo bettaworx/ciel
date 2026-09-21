@@ -1,4 +1,6 @@
 import { cn } from "@/lib/utils";
+import { useMemo, useRef, useState } from "react";
+import { PageChromeContext } from "@/components/shared/PageChromeContext";
 
 interface PageContainerProps {
   children: React.ReactNode;
@@ -76,20 +78,31 @@ export function PageContainer({
   header,
 }: PageContainerProps) {
   const hasPadding = padding !== "none";
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [toolbarAttached, setToolbarAttached] = useState(false);
+  const chrome = useMemo(
+    () => ({ headerRef, toolbarAttached, setToolbarAttached }),
+    [toolbarAttached],
+  );
 
   return (
-    <Component
-      className={cn(
-        "ciel-page-container container mx-auto",
-        maxWidthClasses[maxWidth],
-        hasPadding && horizontalPaddingClasses[padding],
-        hasPadding && !header && "pt-3",
-        hasPadding && "pb-3",
-        className,
-      )}
-    >
-      {header}
-      {children}
-    </Component>
+    <PageChromeContext.Provider value={chrome}>
+      <Component
+        className={cn(
+          "ciel-page-container container mx-auto",
+          header
+            ? "[--page-toolbar-offset:var(--page-header-height)] [--page-toolbar-padding-top:0px]"
+            : "[--page-toolbar-offset:0px] [--page-toolbar-padding-top:0.75rem]",
+          maxWidthClasses[maxWidth],
+          hasPadding && horizontalPaddingClasses[padding],
+          hasPadding && !header && "pt-3",
+          hasPadding && "pb-3",
+          className,
+        )}
+      >
+        {header}
+        {children}
+      </Component>
+    </PageChromeContext.Provider>
   );
 }

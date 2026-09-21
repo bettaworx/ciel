@@ -17,9 +17,7 @@ export function normalizeCustomEmojiShortcode(value: string): string {
   return trimmed.replace(/^:+|:+$/g, "");
 }
 
-export function buildCustomEmojiMap(
-  emojis: PublicEmoji[] | undefined,
-): Map<string, PublicEmoji> {
+export function buildCustomEmojiMap(emojis: PublicEmoji[] | undefined): Map<string, PublicEmoji> {
   return new Map((emojis ?? []).map((emoji) => [emoji.shortcode, emoji]));
 }
 

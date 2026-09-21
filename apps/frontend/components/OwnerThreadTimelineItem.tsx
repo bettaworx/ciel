@@ -1,11 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import {
-  PostCard,
-  PostTreeActionButton,
-  type PostCardThreadLine,
-} from "@/components/PostCard";
+import { useTranslations } from "@/lib/i18n";
+import { PostCard, PostTreeActionButton, type PostCardThreadLine } from "@/components/PostCard";
 import type { components } from "@/lib/api/api";
 
 type Post = components["schemas"]["Post"];
@@ -17,12 +13,11 @@ type OwnerThreadTimelineItemProps = {
   isLast: boolean;
   onUserClick: (username: string) => void;
   onShowThread: () => void;
+  /** Passed through to every card: this whole thread is by one author. */
+  skipHiddenCushion?: boolean;
 };
 
-function getReplyThreadLine(
-  hasPrevious: boolean,
-  hasNext: boolean,
-): PostCardThreadLine {
+function getReplyThreadLine(hasPrevious: boolean, hasNext: boolean): PostCardThreadLine {
   if (hasPrevious && hasNext) return "both";
   if (hasPrevious) return "above";
   if (hasNext) return "below";
@@ -36,6 +31,7 @@ export function OwnerThreadTimelineItem({
   isLast,
   onUserClick,
   onShowThread,
+  skipHiddenCushion,
 }: OwnerThreadTimelineItemProps) {
   const t = useTranslations();
   const hasRowsAfterRoot = isMerged || replies.length > 0;
@@ -47,6 +43,7 @@ export function OwnerThreadTimelineItem({
         onUserClick={onUserClick}
         isLast={!hasRowsAfterRoot && isLast}
         threadLine={hasRowsAfterRoot ? "below" : "none"}
+        skipHiddenCushion={skipHiddenCushion}
       />
       {isMerged && (
         <PostTreeActionButton
@@ -67,6 +64,7 @@ export function OwnerThreadTimelineItem({
             onUserClick={onUserClick}
             isLast={!hasNext && isLast}
             threadLine={getReplyThreadLine(hasPrevious, hasNext)}
+            skipHiddenCushion={skipHiddenCushion}
           />
         );
       })}

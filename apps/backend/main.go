@@ -12,6 +12,10 @@ import (
 	"strings"
 	"time"
 
+	// The runtime image is bare alpine with no tzdata package, so carry the zone
+	// database in the binary: notification grouping resolves IANA zone names.
+	_ "time/tzdata"
+
 	"backend/internal/api"
 	"backend/internal/auth"
 	"backend/internal/cache"
@@ -20,14 +24,18 @@ import (
 	"backend/internal/handlers"
 	"backend/internal/logging"
 	"backend/internal/middleware"
+	"backend/internal/ogp"
 	"backend/internal/realtime"
 	"backend/internal/repository"
+	"backend/internal/search"
 	"backend/internal/service"
 	"backend/internal/service/admin"
 	"backend/internal/service/moderation"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
@@ -70,6 +78,19 @@ func main() {
 			hint:      "set a simple passphrase for initial server setup",
 			forbidden: []string{},
 		},
+	}
+
+	// The search engine's API key is only required when search is switched on.
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("SEARCH_PROVIDER")), "meilisearch") {
+		requiredSecrets["MEILISEARCH_API_KEY"] = struct {
+			minLength int
+			hint      string
+			forbidden []string
+		}{
+			minLength: 16,
+			hint:      "must match MEILI_MASTER_KEY; generate with: openssl rand -base64 32",
+			forbidden: []string{"replace", "changeme", "masterkey", "meili-key"},
+		}
 	}
 
 	// In production, additional secrets are required
@@ -187,6 +208,9 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
+	// Outermost, so an early rejection anywhere below still lets an in-flight
+	// upload finish and read the real status instead of a connection reset.
+	r.Use(middleware.DrainRequestBody)
 
 	// JWT_SECRET is now validated above - no fallback to ephemeral secret
 	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
@@ -200,8 +224,11 @@ func main() {
 	}
 	r.Use(middleware.SecurityHeaders(isProduction))
 	r.Use(middleware.CORS())
-	r.Use(middleware.OptionalAuth(tokenManager))
-	r.Use(middleware.AccessLog(middleware.AccessLogOptions{TrustProxy: trustProxy}))
+	// OptionalAuth and AccessLog are mounted further down, once the store and
+	// the OAuth service exist: OptionalAuth needs the OAuth verifier to resolve
+	// opaque access tokens, and AccessLog reads the user it puts in the
+	// context. Chi applies middleware in Use order, not in the order routes are
+	// registered, and no route is registered until well below this point.
 
 	var store *repository.Store
 	var redisClient *redis.Client
@@ -263,6 +290,24 @@ func main() {
 
 	authzSvc := service.NewAuthzService(store)
 
+	// Authorization codes are Redis-only: single use has to be atomic, and
+	// GETDEL is what provides that. Without Redis the authorize endpoint
+	// reports itself unavailable rather than minting codes nothing can redeem.
+	oauthSvc := service.NewOAuthService(store, auth.NewAuthorizationCodeStore(redisClient))
+	if redisClient == nil {
+		slog.Warn("OAuth2 authorization disabled; Redis not available")
+	}
+
+	// Identify the caller before anything that reads the caller. AccessLog
+	// attributes lines to a user, AccessControl applies per-user bans, and
+	// RateLimit buckets per user — all three read what OptionalAuth put in the
+	// context, so they must come after it.
+	r.Use(middleware.OptionalAuth(tokenManager, oauthSvc))
+	r.Use(middleware.AccessLog(middleware.AccessLogOptions{TrustProxy: trustProxy}))
+	// Immediately after authentication: everything below this point can assume
+	// an OAuth token has already been refused anything outside its scopes.
+	r.Use(middleware.OAuthScope())
+
 	// Security middlewares (no-op if Redis is disabled/unreachable).
 	r.Use(middleware.AccessControl(redisClient, middleware.AccessControlOptions{TrustProxy: trustProxy}))
 	r.Use(middleware.RateLimit(redisClient, middleware.RateLimitOptions{TrustProxy: trustProxy}))
@@ -287,7 +332,65 @@ func main() {
 	authSvc.SetConfigManager(configMgr)
 	authSvc.SetPublisher(realtimeHub)
 
-	// Periodically clean up expired refresh tokens from the database
+	// --- Two-factor authentication wiring (TOTP + WebAuthn + backup codes) ---
+	var mfaBox *auth.SecretBox
+	if keyB64 := os.Getenv("TOTP_ENCRYPTION_KEY"); keyB64 != "" {
+		box, err := auth.NewSecretBoxFromBase64(keyB64)
+		if err != nil {
+			slog.Error("invalid TOTP_ENCRYPTION_KEY", "error", err)
+			os.Exit(1)
+		}
+		mfaBox = box
+		slog.Info("TOTP secret encryption enabled")
+	} else {
+		slog.Warn("TOTP_ENCRYPTION_KEY not set; TOTP enrollment disabled (generate with: openssl rand -base64 32)")
+	}
+
+	var mfaSessionStore auth.MfaSessionStore
+	var totpSetupStore auth.TotpSetupStore
+	var webauthnSessionStore auth.WebAuthnSessionStore
+	var mfaAttemptLimiter auth.AttemptLimiter
+	if redisClient != nil {
+		mfaSessionStore = auth.NewRedisMfaSessionStore(redisClient, 5*time.Minute)
+		totpSetupStore = auth.NewRedisTotpSetupStore(redisClient, 10*time.Minute)
+		webauthnSessionStore = auth.NewRedisWebAuthnSessionStore(redisClient, 5*time.Minute)
+		mfaAttemptLimiter = auth.NewRedisAttemptLimiter(redisClient)
+	} else {
+		mfaSessionStore = auth.NewMemoryMfaSessionStore()
+		totpSetupStore = auth.NewMemoryTotpSetupStore()
+		webauthnSessionStore = auth.NewMemoryWebAuthnSessionStore()
+		mfaAttemptLimiter = auth.NewMemoryAttemptLimiter()
+		slog.Warn("Redis not available; using in-memory MFA session stores")
+	}
+
+	var webauthnInstance *webauthn.WebAuthn
+	// The RP ID is the host of PUBLIC_BASE_URL, i.e. this server address. It
+	// doubles as the TOTP issuer so an authenticator entry names the instance
+	// it belongs to rather than the software.
+	var totpIssuer string
+	if waCfg, err := auth.WebAuthnConfigFromEnv(); err != nil {
+		slog.Warn("WebAuthn configuration invalid; passkeys disabled", "error", err)
+	} else {
+		totpIssuer = waCfg.RPID
+		if wa, err := auth.NewWebAuthn(waCfg); err != nil {
+			slog.Warn("failed to initialize WebAuthn; passkeys disabled", "error", err)
+		} else {
+			webauthnInstance = wa
+			slog.Info("WebAuthn enabled", "rp_id", waCfg.RPID, "origins", waCfg.RPOrigins)
+		}
+	}
+
+	authSvc.SetMFA(
+		mfaBox,
+		mfaSessionStore,
+		totpSetupStore,
+		webauthnInstance,
+		webauthnSessionStore,
+		mfaAttemptLimiter,
+		totpIssuer,
+	)
+
+	// Periodically clean up expired tokens and stale notifications
 	if store != nil {
 		go func() {
 			ticker := time.NewTicker(24 * time.Hour)
@@ -295,6 +398,18 @@ func main() {
 			for range ticker.C {
 				if err := store.Q.DeleteExpiredRefreshTokens(context.Background()); err != nil {
 					slog.Warn("failed to delete expired refresh tokens", "error", err)
+				}
+				// OAuth rows outlive their usefulness by design: a revoked
+				// refresh token is kept so that replaying it is recognisable as
+				// a reuse rather than as an unknown token. That only has to
+				// hold while the token could plausibly be replayed, so the
+				// query drops rows whose refresh window closed a month ago.
+				// Without this the table only ever grows.
+				if _, err := store.Q.DeleteExpiredOAuthTokens(context.Background()); err != nil {
+					slog.Warn("failed to delete expired oauth tokens", "error", err)
+				}
+				if err := store.Q.DeleteOldNotifications(context.Background()); err != nil {
+					slog.Warn("failed to delete old notifications", "error", err)
 				}
 			}
 		}()
@@ -342,8 +457,43 @@ func main() {
 	postsSvc := service.NewPostsService(store, cacheImpl, realtimeHub)
 	timelineSvc := service.NewTimelineService(store, cacheImpl)
 	reactionsSvc := service.NewReactionsService(store, cacheImpl, realtimeHub)
+	notificationsSvc := service.NewNotificationsService(store)
+	followsSvc := service.NewFollowsService(store, cacheImpl, realtimeHub)
+	blocksSvc := service.NewBlocksService(store, cacheImpl, realtimeHub)
+	bookmarksSvc := service.NewBookmarksService(store, postsSvc)
+	postsSvc.SetBookmarksService(bookmarksSvc)
 	postsSvc.SetReactionsService(reactionsSvc)
+	postsSvc.SetNotificationsService(notificationsSvc)
+	reactionsSvc.SetNotificationsService(notificationsSvc)
+	authSvc.SetReactionsService(reactionsSvc)
+	notificationsSvc.SetPostsService(postsSvc)
 	timelineSvc.SetReactionsService(reactionsSvc)
+	timelineSvc.SetPostsService(postsSvc)
+	followsSvc.SetNotificationsService(notificationsSvc)
+	followsSvc.SetUsersService(usersSvc)
+	blocksSvc.SetUsersService(usersSvc)
+
+	// Search. An unset SEARCH_PROVIDER yields a no-op provider: indexing calls
+	// become no-ops and the /search routes answer 503, like the other optional
+	// dependencies.
+	searchProvider, err := search.New()
+	if err != nil {
+		slog.Error("search provider unavailable; search will be disabled", "error", err)
+		searchProvider = search.NoOp{}
+	}
+	searchSvc := service.NewSearchService(store, searchProvider)
+	searchSvc.SetPostsService(postsSvc)
+	postsSvc.SetSearchService(searchSvc)
+	usersSvc.SetSearchService(searchSvc)
+	usersSvc.SetCache(cacheImpl)
+	usersSvc.SetPublisher(realtimeHub)
+	authSvc.SetSearchService(searchSvc)
+	modPostsSvc.SetSearchService(searchSvc)
+	adminProfileSvc.SetSearchService(searchSvc)
+	if searchSvc.Enabled() {
+		slog.Info("search enabled", "provider", searchProvider.Name())
+		searchSvc.StartBackfill(context.Background(), cacheImpl, os.Getenv("SEARCH_BACKFILL") == "force")
+	}
 
 	mediaDir := os.Getenv("MEDIA_DIR")
 	if mediaDir == "" {
@@ -368,6 +518,7 @@ func main() {
 
 	mediaSvc := service.NewMediaService(store, absMediaDir, configMgr.Get().Media, mediaInitErr)
 	emojiSvc := service.NewEmojiService(store, mediaSvc, cacheImpl)
+	ogpSvc := service.NewOGPService(ogp.NewClient(), cacheImpl)
 
 	// Public media routes (authentication bypassed in OptionalAuth middleware)
 	r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
@@ -380,25 +531,33 @@ func main() {
 
 	// Video and thumbnail routes
 	r.Get("/media/{mediaId}/video.mp4", mediaSvc.ServeVideo)
+	r.Get("/media/{mediaId}/video.webm", mediaSvc.ServeVideo)
 	r.Get("/media/{mediaId}/thumbnail.webp", mediaSvc.ServeThumbnail)
 
 	// Emoji image route (public, no auth required)
 	r.Get("/emoji/{emojiId}/image.webp", mediaSvc.ServeEmojiImage)
 
 	apiServer := handlers.API{
-		Auth:       authSvc,
-		Admin:      adminSvc,
-		Authz:      authzSvc,
-		Users:      usersSvc,
-		Posts:      postsSvc,
-		Timeline:   timelineSvc,
-		Reactions:  reactionsSvc,
-		Media:      mediaSvc,
-		Emojis:     emojiSvc,
-		Setup:      setupSvc,
-		Agreements: agreementsSvc,
-		Tokens:     tokenManager,
-		Redis:      redisClient,
+		Auth:          authSvc,
+		Admin:         adminSvc,
+		Authz:         authzSvc,
+		Users:         usersSvc,
+		Follows:       followsSvc,
+		Blocks:        blocksSvc,
+		Posts:         postsSvc,
+		Timeline:      timelineSvc,
+		Search:        searchSvc,
+		Reactions:     reactionsSvc,
+		Bookmarks:     bookmarksSvc,
+		Notifications: notificationsSvc,
+		Media:         mediaSvc,
+		Emojis:        emojiSvc,
+		OGP:           ogpSvc,
+		Setup:         setupSvc,
+		Agreements:    agreementsSvc,
+		OAuth:         oauthSvc,
+		Tokens:        tokenManager,
+		Redis:         redisClient,
 
 		// Admin services
 		AdminInvites:    adminInvitesSvc,
@@ -416,6 +575,11 @@ func main() {
 		ModMedia:         modMediaSvc,
 	}
 	r.Get("/ws/events", handlers.NewWebSocketHandler(realtimeHub, tokenManager, handlers.WebSocketOptions{TrustProxy: trustProxy}))
+
+	// Web App Manifest (public). Served outside /api/v1 so the frontend's web
+	// server can proxy it at the same path and keep it same-origin for the
+	// browser, which start_url scoping requires.
+	r.Get("/pwa/manifest.json", apiServer.GetPwaManifest)
 	api.HandlerWithOptions(&apiServer, api.ChiServerOptions{
 		BaseURL:    "/api/v1",
 		BaseRouter: r,

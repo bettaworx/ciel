@@ -41,6 +41,7 @@ export const Password: Story = {
   },
 };
 
+// biome-ignore lint/suspicious/noShadowRestrictedNames: Storybook のストーリー名がそのまま export 名になるため Number のままにする
 export const Number: Story = {
   args: {
     type: "number",

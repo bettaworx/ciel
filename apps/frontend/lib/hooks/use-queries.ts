@@ -1,20 +1,23 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   useQuery,
   useMutation,
   useQueryClient,
   useInfiniteQuery,
+  type InfiniteData,
 } from "@tanstack/react-query";
 import { useApi } from "@/lib/api/use-api";
 import type { components } from "@/lib/api/api";
 import { ApiHttpError } from "@/lib/api/client";
 import { collectOwnerReplyThreadChunk } from "@/lib/post-thread";
+import { toMediaRequirements } from "@/lib/media/requirements";
+import { normalizeForUpload } from "@/lib/media/normalize";
 import { useSetAtom, useAtomValue } from "jotai";
 import { authAtom } from "@/atoms/auth";
 import { ERROR_CODES } from "@/lib/errors";
-import type { OgpApiResponse } from "@/lib/ogp/types";
+import type { FollowTab } from "@/lib/follow-tabs";
 
 export type PostThreadParams = {
   anchorNodeId?: string;
@@ -23,23 +26,52 @@ export type PostThreadParams = {
   childLimit?: number;
 };
 
+type NotificationType = components["schemas"]["NotificationType"];
+type UnreadCount = components["schemas"]["UnreadCount"];
+type UsersPage = components["schemas"]["UsersPage"];
+type UserSearchPage = components["schemas"]["UserSearchPage"];
+
+/** Notification list tabs. "mentions" covers everything addressed at you. */
+export type NotificationTab = "all" | "mentions";
+
+export const NOTIFICATION_TAB_TYPES: Record<
+  NotificationTab,
+  readonly NotificationType[] | undefined
+> = {
+  all: undefined,
+  // A reply that also @-mentions you is stored as a single `reply` notification,
+  // so the mentions tab has to ask for both types.
+  mentions: ["mention", "reply"],
+};
+
 // Query keys
 export const queryKeys = {
   me: ["me"] as const,
+  mfa: ["mfa"] as const,
+  oauthClients: ["oauthClients"] as const,
+  oauthAuthorizations: ["oauthAuthorizations"] as const,
+  personalAccessTokens: ["personalAccessTokens"] as const,
   serverInfo: ["serverInfo"] as const,
   serverConfig: ["serverConfig"] as const,
   customEmojis: ["customEmojis"] as const,
   adminSettings: ["adminSettings"] as const,
+  // Prefix shared by every feed, so invalidating it refreshes all of them.
   timeline: ["timeline"] as const,
+  globalTimeline: ["timeline", "global"] as const,
+  homeTimeline: ["timeline", "home"] as const,
   post: (id: string) => ["post", id] as const,
   postContext: (id: string) => ["postContext", id] as const,
-  postThread: (id: string, params?: PostThreadParams) =>
-    ["postThread", id, params ?? {}] as const,
+  postThread: (id: string, params?: PostThreadParams) => ["postThread", id, params ?? {}] as const,
   replies: (postId: string) => ["replies", postId] as const,
   ownerReplyThread: (postId: string) => ["ownerReplyThread", postId] as const,
   user: (username: string) => ["user", username] as const,
   userPosts: (username: string) => ["userPosts", username] as const,
-  reactions: (postId: string) => ["reactions", postId] as const,
+  // Prefix shared by every follow list, so one follow can patch all of them.
+  follows: ["follows"] as const,
+  followList: (username: string, tab: FollowTab) => ["follows", username, tab] as const,
+  followersYouFollowPreview: (username: string) => ["followersYouFollowPreview", username] as const,
+  bookmarkLists: ["bookmarkLists"] as const,
+  bookmarkListPosts: (listId: string) => ["bookmarkListPosts", listId] as const,
   agreementVersions: ["agreementVersions"] as const,
   latestAgreement: (type: "terms" | "privacy", language: string) =>
     ["latestAgreement", type, language] as const,
@@ -50,18 +82,26 @@ export const queryKeys = {
     language?: "en" | "ja";
     type?: "terms" | "privacy";
   }) => ["adminAgreementDocuments", params] as const,
-  adminAgreementDocument: (id: string) =>
-    ["adminAgreementDocument", id] as const,
+  adminAgreementDocument: (id: string) => ["adminAgreementDocument", id] as const,
   adminAgreementHistory: (type: "terms" | "privacy", language: "en" | "ja") =>
     ["adminAgreementHistory", type, language] as const,
   adminInviteCodes: (params?: { limit?: number; offset?: number }) =>
     ["adminInviteCodes", params] as const,
   adminInviteCode: (id: string) => ["adminInviteCode", id] as const,
-  adminInviteUsageHistory: (id: string) =>
-    ["adminInviteUsageHistory", id] as const,
-  adminEmojis: (params?: { limit?: number; offset?: number }) =>
-    ["adminEmojis", params] as const,
+  adminInviteUsageHistory: (id: string) => ["adminInviteUsageHistory", id] as const,
+  adminEmojis: (params?: { limit?: number; offset?: number }) => ["adminEmojis", params] as const,
   ogp: (url: string) => ["ogp", url] as const,
+  notifications: (tab: NotificationTab) => ["notifications", tab] as const,
+  notificationsUnread: ["notificationsUnread"] as const,
+  followRequests: ["followRequests"] as const,
+  // Prefix shared by both settings lists, so muting or blocking anyone marks
+  // them stale without naming which one changed.
+  hidden: ["hidden"] as const,
+  hiddenList: (kind: "mutes" | "blocks") => ["hidden", kind] as const,
+  searchPosts: (query: string) => ["search", "posts", query] as const,
+  // Prefix shared by every user search, so one follow can patch all of them.
+  searchUsersAll: ["search", "users"] as const,
+  searchUsers: (query: string) => ["search", "users", query] as const,
 };
 
 // Current user
@@ -139,46 +179,32 @@ export function useCustomEmojis() {
 export function useMediaLimits() {
   const { data: serverConfig } = useServerConfig();
 
-  return {
-    maxUploadSizeMB: serverConfig?.mediaLimits?.maxUploadSizeMB ?? 15,
-    maxUploadSizeBytes:
-      (serverConfig?.mediaLimits?.maxUploadSizeMB ?? 15) * 1024 * 1024,
-    allowedExtensions: serverConfig?.mediaLimits?.allowedExtensions ?? [
-      "png",
-      "jpg",
-      "jpeg",
-      "webp",
-      "gif",
-    ],
-    postStaticMaxSize: serverConfig?.mediaLimits?.post?.static?.maxSize ?? 2048,
-    postGifMaxSize: serverConfig?.mediaLimits?.post?.gif?.maxSize ?? 1024,
-    avatarSize: serverConfig?.mediaLimits?.avatar?.size ?? 400,
-    serverIconStaticSize:
-      serverConfig?.mediaLimits?.serverIcon?.static?.size ?? 512,
-    serverIconGifMaxSize:
-      serverConfig?.mediaLimits?.serverIcon?.gif?.maxSize ?? 512,
-    // Video limits
-    videoMaxUploadSizeMB:
-      serverConfig?.mediaLimits?.video?.maxUploadSizeMB ?? 100,
-    videoMaxUploadSizeBytes:
-      (serverConfig?.mediaLimits?.video?.maxUploadSizeMB ?? 100) * 1024 * 1024,
-    videoMaxDurationSeconds:
-      serverConfig?.mediaLimits?.video?.maxDurationSeconds ?? 300,
-    videoMaxSize: serverConfig?.mediaLimits?.video?.maxSize ?? 1920,
-    // Post content limits
-    maxPostContentLength: serverConfig?.maxPostContentLength ?? 1000,
-  };
+  // One derivation, in lib/media/requirements.ts. Everything the client decides
+  // about media — which files may go up untouched, how far a conversion may
+  // scale, what counts as too long — reads from what the server said, so the two
+  // cannot drift apart the way a second hardcoded copy would.
+  return useMemo(() => {
+    const requirements = toMediaRequirements(serverConfig);
+    return {
+      ...requirements,
+      // Megabytes for the messages that quote a limit back to the poster.
+      maxUploadSizeMB: Math.round(requirements.maxImageBytes / 1024 / 1024),
+      videoMaxUploadSizeMB: Math.round(requirements.maxVideoBytes / 1024 / 1024),
+      maxPostContentLength: serverConfig?.maxPostContentLength ?? 1000,
+    };
+  }, [serverConfig]);
 }
 
 // Timeline with infinite scroll
-export function useTimeline(params?: { limit?: number }) {
+export function useTimeline(params?: { limit?: number; enabled?: boolean }) {
   const api = useApi();
+  const { enabled = true, ...queryParams } = params ?? {};
 
   return useInfiniteQuery({
-    queryKey: [...queryKeys.timeline, params],
+    queryKey: [...queryKeys.globalTimeline, queryParams],
     queryFn: async ({ pageParam }) => {
       const result = await api.timeline({
-        limit: params?.limit ?? 30,
+        limit: queryParams.limit ?? 30,
         cursor: pageParam ?? null,
       });
       if (!result.ok) throw new Error(result.errorText);
@@ -187,24 +213,23 @@ export function useTimeline(params?: { limit?: number }) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 1000 * 60, // 1分
+    enabled,
   });
 }
 
-// Replies to a post with infinite scroll
-export function useReplies(
-  postId: string | undefined,
-  params?: { limit?: number },
-) {
+// Home timeline (posts by you and everyone you follow) with infinite scroll.
+//
+// `enabled` lets the caller keep both timeline hooks mounted and only run the
+// one being shown — hooks cannot be called conditionally.
+export function useHomeTimeline(params?: { limit?: number; enabled?: boolean }) {
   const api = useApi();
+  const { enabled = true, ...queryParams } = params ?? {};
 
   return useInfiniteQuery({
-    queryKey: postId
-      ? [...queryKeys.replies(postId), params]
-      : ["replies", "null"],
+    queryKey: [...queryKeys.homeTimeline, queryParams],
     queryFn: async ({ pageParam }) => {
-      if (!postId) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
-      const result = await api.listReplies(postId, {
-        limit: params?.limit ?? 30,
+      const result = await api.homeTimeline({
+        limit: queryParams.limit ?? 30,
         cursor: pageParam ?? null,
       });
       if (!result.ok) throw new Error(result.errorText);
@@ -212,9 +237,8 @@ export function useReplies(
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    maxPages: 5,
-    enabled: !!postId,
     staleTime: 1000 * 60, // 1分
+    enabled,
   });
 }
 
@@ -249,10 +273,7 @@ export function usePostContext(postId: string | undefined) {
   });
 }
 
-export function usePostThread(
-  postId: string | undefined,
-  params?: PostThreadParams,
-) {
+export function usePostThread(postId: string | undefined, params?: PostThreadParams) {
   const api = useApi();
   const fetchPostThreadSlice = useCallback(
     async (targetPostId: string, sliceParams?: PostThreadParams) => {
@@ -264,9 +285,7 @@ export function usePostThread(
   );
 
   const query = useQuery({
-    queryKey: postId
-      ? queryKeys.postThread(postId, params)
-      : ["postThread", "null"],
+    queryKey: postId ? queryKeys.postThread(postId, params) : ["postThread", "null"],
     queryFn: async () => {
       if (!postId) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
       return fetchPostThreadSlice(postId, params);
@@ -284,22 +303,21 @@ export function usePostThread(
 export function useOwnerReplyThread(post: components["schemas"]["Post"] | undefined) {
   const api = useApi();
   const fetchOwnerReplyThreadChunk = useCallback(
-    async (
-      parentPost: components["schemas"]["Post"],
-      visitedPostIds?: Iterable<string>,
-    ) =>
-      collectOwnerReplyThreadChunk(parentPost, async (parentId, params) => {
-        const result = await api.listReplies(parentId, params);
-        if (!result.ok) throw new Error(result.errorText);
-        return result.data;
-      }, { visitedPostIds }),
+    async (parentPost: components["schemas"]["Post"], visitedPostIds?: Iterable<string>) =>
+      collectOwnerReplyThreadChunk(
+        parentPost,
+        async (parentId, params) => {
+          const result = await api.listReplies(parentId, params);
+          if (!result.ok) throw new Error(result.errorText);
+          return result.data;
+        },
+        { visitedPostIds },
+      ),
     [api],
   );
 
   const query = useQuery({
-    queryKey: post
-      ? queryKeys.ownerReplyThread(post.id)
-      : ["ownerReplyThread", "null"],
+    queryKey: post ? queryKeys.ownerReplyThread(post.id) : ["ownerReplyThread", "null"],
     queryFn: async () => {
       if (!post) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
       return fetchOwnerReplyThreadChunk(post);
@@ -330,17 +348,218 @@ export function useUser(username: string | undefined) {
   });
 }
 
+// Flips one user's follow state wherever a paged list of users is cached, so
+// every button showing that user updates at once. Shared by the follow lists
+// and the search results, whose pages differ in everything but `items`.
+function patchFollowedUser<TPage extends { items: components["schemas"]["User"][] }>(
+  cached: InfiniteData<TPage> | undefined,
+  username: string,
+  isFollowing: boolean,
+): InfiniteData<TPage> | undefined {
+  if (!cached) return cached;
+  return {
+    ...cached,
+    pages: cached.pages.map((page) => ({
+      ...page,
+      items: page.items.map((item) =>
+        item.username === username ? { ...item, isFollowing } : item,
+      ),
+    })),
+  };
+}
+
+// Follow / unfollow a user.
+//
+// The endpoints return the updated user, so the profile cache is written
+// directly from the response instead of being refetched.
+function useFollowMutation(follow: boolean) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const result = follow ? await api.followUser(username) : await api.unfollowUser(username);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (user, username) => {
+      queryClient.setQueryData(queryKeys.user(username), user);
+      // Following changes who appears in the home timeline.
+      queryClient.invalidateQueries({ queryKey: queryKeys.homeTimeline });
+      // Patch the button state in every loaded follow list so it flips without
+      // waiting on a refetch...
+      queryClient.setQueriesData<InfiniteData<UsersPage>>({ queryKey: queryKeys.follows }, (old) =>
+        patchFollowedUser(old, username, follow),
+      );
+      // ...and in search results, which show the same button. Following someone
+      // does not change whether they match the query, so unlike the follow
+      // lists these only need the patch, never a refetch.
+      queryClient.setQueriesData<InfiniteData<UserSearchPage>>(
+        { queryKey: queryKeys.searchUsersAll },
+        (old) => patchFollowedUser(old, username, follow),
+      );
+      // ...but the lists also gained or lost a member, which no patch can fake:
+      // mark them stale so revisiting one refetches instead of serving a list
+      // the new follow is missing from.
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      // Follower/following counts, and who shows up in the facepile.
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({
+        queryKey: ["followersYouFollowPreview"],
+      });
+    },
+  });
+}
+
+export function useFollowUser() {
+  return useFollowMutation(true);
+}
+
+export function useUnfollowUser() {
+  return useFollowMutation(false);
+}
+
+// Mute / unmute / block / unblock.
+//
+// Every feed and list changes membership here, and no patch can fake that: a
+// muted author's posts leave both timelines, their name leaves the follow and
+// reaction lists and user search, and their notifications stop appearing. So
+// this invalidates broadly rather than editing caches in place. The profile
+// itself is written straight from the response, as follow does.
+//
+// Blocking additionally severs both follows, which is why it invalidates the
+// follow lists and the facepile that muting leaves alone.
+function useHideMutation(kind: "mute" | "block", on: boolean) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const call =
+        kind === "mute"
+          ? on
+            ? api.muteUser
+            : api.unmuteUser
+          : on
+            ? api.blockUser
+            : api.unblockUser;
+      const result = await call(username);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (user, username) => {
+      queryClient.setQueryData(queryKeys.user(username), user);
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: queryKeys.userPosts(username) });
+      // Individually cached posts carry the author flags that draw the indicator
+      // and the reveal cushion. Timeline reply parents and boosted posts are
+      // fetched this way, so without this they keep rendering uncushioned until
+      // the entry expires.
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+      queryClient.invalidateQueries({ queryKey: ["replies"] });
+      queryClient.invalidateQueries({ queryKey: ["postThread"] });
+      queryClient.invalidateQueries({ queryKey: ["postContext"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.searchUsersAll });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notificationsUnread });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hidden });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({
+        queryKey: ["followersYouFollowPreview"],
+      });
+    },
+  });
+}
+
+export function useMuteUser() {
+  return useHideMutation("mute", true);
+}
+
+export function useUnmuteUser() {
+  return useHideMutation("mute", false);
+}
+
+export function useBlockUser() {
+  return useHideMutation("block", true);
+}
+
+export function useUnblockUser() {
+  return useHideMutation("block", false);
+}
+
+// The settings lists of muted and blocked accounts, with infinite scroll.
+export function useHiddenList(kind: "mutes" | "blocks") {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.hiddenList(kind),
+    queryFn: async ({ pageParam }: { pageParam?: string | null }) => {
+      const result = await api.hiddenList(kind, { limit: 30, cursor: pageParam });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (last: UsersPage) => last.nextCursor ?? undefined,
+  });
+}
+
+// One of the three follow lists, with infinite scroll.
+export function useFollowList(username: string | undefined, tab: FollowTab) {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: username ? queryKeys.followList(username, tab) : ["follows", "null", tab],
+    queryFn: async ({ pageParam }) => {
+      if (!username) throw new Error(ERROR_CODES.USERNAME_REQUIRED);
+      const result = await api.followList(username, tab, {
+        limit: 30,
+        cursor: pageParam ?? null,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: !!username,
+    staleTime: 1000 * 60,
+  });
+}
+
+// The first few known followers plus a total, for the profile card facepile.
+export function useFollowersYouFollowPreview(username: string | undefined, enabled: boolean) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.followersYouFollowPreview(username ?? ""),
+    queryFn: async () => {
+      if (!username) throw new Error(ERROR_CODES.USERNAME_REQUIRED);
+      const result = await api.followList(username, "followers_you_follow", {
+        limit: 3,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    enabled: enabled && !!username,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 // User posts with infinite scroll
 export function useUserPosts(
   username: string | undefined,
-  params?: { limit?: number; mediaType?: "image" | "video" | "media"; onlyReplies?: boolean; excludeForeignReplies?: boolean },
+  params?: {
+    limit?: number;
+    mediaType?: "image" | "video" | "media";
+    onlyReplies?: boolean;
+    excludeForeignReplies?: boolean;
+    enabled?: boolean;
+  },
 ) {
   const api = useApi();
 
   return useInfiniteQuery({
-    queryKey: username
-      ? [...queryKeys.userPosts(username), params]
-      : ["userPosts", "null"],
+    queryKey: username ? [...queryKeys.userPosts(username), params] : ["userPosts", "null"],
     queryFn: async ({ pageParam }) => {
       if (!username) throw new Error(ERROR_CODES.USERNAME_REQUIRED);
       const result = await api.userPosts(username, {
@@ -355,7 +574,7 @@ export function useUserPosts(
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled: !!username,
+    enabled: !!username && (params?.enabled ?? true),
     staleTime: 1000 * 60, // 1分
   });
 }
@@ -422,74 +641,6 @@ export function useUploadMedia() {
   });
 }
 
-// Reaction counts
-export function useReactionCounts(postId: string | undefined) {
-  const api = useApi();
-
-  return useQuery({
-    queryKey: postId ? queryKeys.reactions(postId) : ["reactions", "null"],
-    queryFn: async () => {
-      if (!postId) throw new Error(ERROR_CODES.POST_ID_REQUIRED);
-      const result = await api.reactionCounts(postId);
-      if (!result.ok) throw new Error(result.errorText);
-      return result.data;
-    },
-    enabled: !!postId,
-  });
-}
-
-// Add reaction mutation
-export function useAddReaction() {
-  const api = useApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      postId,
-      emoji,
-    }: {
-      postId: string;
-      emoji: string;
-    }) => {
-      const result = await api.addReaction(postId, { emoji }); // Cookie-based auth
-      if (!result.ok) throw new Error(result.errorText);
-      return result.data;
-    },
-    onSuccess: (_, variables) => {
-      // Update reaction counts
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.reactions(variables.postId),
-      });
-    },
-  });
-}
-
-// Remove reaction mutation
-export function useRemoveReaction() {
-  const api = useApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      postId,
-      emoji,
-    }: {
-      postId: string;
-      emoji: string;
-    }) => {
-      const result = await api.removeReaction(postId, emoji); // Cookie-based auth
-      if (!result.ok) throw new Error(result.errorText);
-      return result.data;
-    },
-    onSuccess: (_, variables) => {
-      // Update reaction counts
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.reactions(variables.postId),
-      });
-    },
-  });
-}
-
 // Update profile mutation
 export function useUpdateProfile() {
   const api = useApi();
@@ -514,6 +665,127 @@ export function useUpdateProfile() {
   });
 }
 
+// Change the account's username. Requires a step-up token.
+//
+// The username is a JWT claim, so the server re-issues the auth cookie and
+// returns the fresh session — hence the LoginFinishResponse shape rather than a
+// bare User. Throws ApiHttpError so the caller can tell 409 (taken) from 401
+// (step-up expired) apart.
+export function useUpdateUsername() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const setAuth = useSetAtom(authAtom);
+
+  return useMutation({
+    mutationFn: async ({ username, stepupToken }: { username: string; stepupToken: string }) => {
+      const result = await api.updateUsername({ username }, stepupToken);
+      if (!result.ok) {
+        throw new ApiHttpError(result.errorText, result.status, result.headers);
+      }
+      return result.data;
+    },
+    onSuccess: (session) => {
+      setAuth((prev) => ({
+        ...prev,
+        user: session.user,
+      }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+    },
+  });
+}
+
+// Turns the account's private mode on or off.
+//
+// The invalidation list is deliberately wide. Every cached feed, profile and
+// post the client is holding was fetched under the old visibility, and the
+// default staleTime is a minute with no refetch on window focus — so without
+// this a tab left open would keep rendering the old state for up to a minute
+// after the switch. Server responses are already correct; this is what makes the
+// screen agree with them straight away.
+export function useUpdatePrivacy() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const setAuth = useSetAtom(authAtom);
+
+  return useMutation({
+    mutationFn: async (isPrivate: boolean) => {
+      const result = await api.updatePrivacy({ isPrivate });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (updatedUser) => {
+      setAuth((prev) => ({ ...prev, user: updatedUser }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      queryClient.invalidateQueries({ queryKey: queryKeys.followRequests });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+// The bot badge is a label, not a visibility change, so this invalidates far
+// less than useUpdatePrivacy: nothing the client holds becomes unreadable, only
+// the robot beside a name becomes stale. Those are the caches that render a
+// name — the profile, its posts, and any timeline already on screen.
+export function useUpdateBot() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const setAuth = useSetAtom(authAtom);
+
+  return useMutation({
+    mutationFn: async (isBot: boolean) => {
+      const result = await api.updateBot({ isBot });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (updatedUser) => {
+      setAuth((prev) => ({ ...prev, user: updatedUser }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+    },
+  });
+}
+
+// Approving or declining both refresh the same set: the request list shrinks,
+// and the requester's follow state on any profile the client is holding changes.
+function useFollowRequestDecision(decide: "accept" | "reject") {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const result =
+        decide === "accept"
+          ? await api.acceptFollowRequest(username)
+          : await api.rejectFollowRequest(username);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (user) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.followRequests });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows });
+      queryClient.invalidateQueries({ queryKey: queryKeys.user(user.username) });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notificationsUnread });
+    },
+  });
+}
+
+export function useAcceptFollowRequest() {
+  return useFollowRequestDecision("accept");
+}
+
+export function useRejectFollowRequest() {
+  return useFollowRequestDecision("reject");
+}
+
 // Agreement versions (public endpoint)
 export function useAgreementVersions(options?: { enabled?: boolean }) {
   const api = useApi();
@@ -532,11 +804,7 @@ export function useAgreementVersions(options?: { enabled?: boolean }) {
 }
 
 // Latest agreement document (public endpoint)
-export function useLatestAgreement(
-  type: "terms" | "privacy",
-  language: string,
-  enabled = true,
-) {
+export function useLatestAgreement(type: "terms" | "privacy", language: string, enabled = true) {
   const api = useApi();
 
   return useQuery({
@@ -557,9 +825,7 @@ export function useAcceptAgreements() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["AcceptAgreementsRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["AcceptAgreementsRequest"]) => {
       const result = await api.acceptAgreements(body);
       if (!result.ok) throw new Error(result.errorText);
     },
@@ -576,9 +842,7 @@ export function useUpdateAgreementVersions() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["UpdateAgreementVersionsRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["UpdateAgreementVersionsRequest"]) => {
       const result = await api.adminUpdateAgreementVersions(body);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -590,16 +854,39 @@ export function useUpdateAgreementVersions() {
   });
 }
 
+/**
+ * A face and a header are looked at far more than any single post image, and
+ * the server crops them down to 400x400 / 1500x500 anyway, so they are worth
+ * the largest, least compressed intermediate the server will accept.
+ *
+ * Passing this explicitly also matters for a second reason: without it these two
+ * uploads are the only ones normalized blind by requestForm(), which knows
+ * neither the server's limits nor what to fall back to when the browser has no
+ * WebP encoder.
+ */
+function avatarNormalizeOptions(limits: ReturnType<typeof useMediaLimits>) {
+  return {
+    imageMode: "quality" as const,
+    limits,
+    acceptedTypes: limits.imageMimeTypes,
+    maxBytes: limits.maxImageBytes,
+  };
+}
+
 // Update avatar mutation
 export function useUpdateAvatar() {
   const api = useApi();
   const queryClient = useQueryClient();
   const setAuth = useSetAtom(authAtom);
+  const limits = useMediaLimits();
 
   return useMutation({
     mutationFn: async (file: File) => {
-      const result = await api.updateAvatar(file); // Cookie-based auth
-      if (!result.ok) throw new Error(result.errorText);
+      const normalized = await normalizeForUpload(file, avatarNormalizeOptions(limits));
+      const result = await api.updateAvatar(normalized); // Cookie-based auth
+      if (!result.ok) {
+        throw new ApiHttpError(result.errorText, result.status, result.headers);
+      }
       return result.data;
     },
     onSuccess: async (updatedUser) => {
@@ -619,11 +906,15 @@ export function useUpdateBanner() {
   const api = useApi();
   const queryClient = useQueryClient();
   const setAuth = useSetAtom(authAtom);
+  const limits = useMediaLimits();
 
   return useMutation({
     mutationFn: async (file: File) => {
-      const result = await api.updateBanner(file);
-      if (!result.ok) throw new Error(result.errorText);
+      const normalized = await normalizeForUpload(file, avatarNormalizeOptions(limits));
+      const result = await api.updateBanner(normalized);
+      if (!result.ok) {
+        throw new ApiHttpError(result.errorText, result.status, result.headers);
+      }
       return result.data;
     },
     onSuccess: async (updatedUser) => {
@@ -678,10 +969,7 @@ export function useAdminAgreementDocument(documentId: string | undefined) {
 }
 
 // Get agreement history (admin only)
-export function useAdminAgreementHistory(
-  type: "terms" | "privacy",
-  language: "en" | "ja",
-) {
+export function useAdminAgreementHistory(type: "terms" | "privacy", language: "en" | "ja") {
   const api = useApi();
 
   return useQuery({
@@ -701,9 +989,7 @@ export function useAdminCreateAgreementDocument() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["CreateAgreementDocumentRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["CreateAgreementDocumentRequest"]) => {
       const result = await api.adminCreateAgreementDocument(body);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -723,9 +1009,7 @@ export function useAdminUpdateAgreementDocument(documentId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["UpdateAgreementDocumentRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["UpdateAgreementDocumentRequest"]) => {
       const result = await api.adminUpdateAgreementDocument(documentId, body);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -753,7 +1037,7 @@ export function useAdminPublishAgreementDocument() {
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
     },
-    onSuccess: (data, documentId) => {
+    onSuccess: (_data, documentId) => {
       // Invalidate agreement documents list and single document
       queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === "adminAgreementDocuments",
@@ -810,10 +1094,7 @@ export function useAdminDuplicateAgreementDocument(documentId: string) {
 
 // ==================== Admin - Emojis ====================
 
-export function useAdminEmojis(params?: {
-  limit?: number;
-  offset?: number;
-}) {
+export function useAdminEmojis(params?: { limit?: number; offset?: number }) {
   const api = useApi();
 
   return useQuery({
@@ -886,10 +1167,7 @@ export function useAdminDeleteEmoji() {
 // ==================== Admin - Invite Codes ====================
 
 // List invite codes (admin only)
-export function useAdminInviteCodes(params?: {
-  limit?: number;
-  offset?: number;
-}) {
+export function useAdminInviteCodes(params?: { limit?: number; offset?: number }) {
   const api = useApi();
 
   return useQuery({
@@ -908,9 +1186,7 @@ export function useAdminInviteCode(inviteId: string | undefined) {
   const api = useApi();
 
   return useQuery({
-    queryKey: inviteId
-      ? queryKeys.adminInviteCode(inviteId)
-      : ["adminInviteCode", "null"],
+    queryKey: inviteId ? queryKeys.adminInviteCode(inviteId) : ["adminInviteCode", "null"],
     queryFn: async () => {
       if (!inviteId) throw new Error("Invite ID required");
       const result = await api.adminGetInviteCode(inviteId);
@@ -945,9 +1221,7 @@ export function useAdminCreateInviteCode() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["CreateInviteCodeRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["CreateInviteCodeRequest"]) => {
       const result = await api.adminCreateInviteCode(body);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -967,9 +1241,7 @@ export function useAdminUpdateInviteCode(inviteId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      body: components["schemas"]["UpdateInviteCodeRequest"],
-    ) => {
+    mutationFn: async (body: components["schemas"]["UpdateInviteCodeRequest"]) => {
       const result = await api.adminUpdateInviteCode(inviteId, body);
       if (!result.ok) throw new Error(result.errorText);
       return result.data;
@@ -996,7 +1268,7 @@ export function useAdminDisableInviteCode() {
       const result = await api.adminDisableInviteCode(inviteId);
       if (!result.ok) throw new Error(result.errorText);
     },
-    onSuccess: (data, inviteId) => {
+    onSuccess: (_data, inviteId) => {
       // Invalidate invite codes list and single invite
       queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === "adminInviteCodes",
@@ -1089,22 +1361,21 @@ export function useUpdateSignupSettings() {
 const OGP_STALE_TIME = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
- * Fetch OGP metadata for a URL via the frontend OGP preview endpoint.
+ * Fetch OGP metadata for a URL via the backend preview endpoint.
  *
  * - Only executes when `url` is non-null.
- * - Aggressively caches (24 h staleTime + gcTime).
+ * - Aggressively caches (24 h staleTime + gcTime); the backend caches too.
  * - Does not retry on failure (most OGP failures are permanent).
  */
 export function useOgp(url: string | null) {
+  const api = useApi();
+
   return useQuery({
     queryKey: queryKeys.ogp(url ?? ""),
     queryFn: async () => {
-      const res = await fetch(`/internal/ogp?url=${encodeURIComponent(url!)}`);
-      const json: OgpApiResponse = await res.json();
-      if (!res.ok || !json.data) {
-        throw new Error(json.error ?? "Failed to fetch OGP");
-      }
-      return json.data;
+      const result = await api.ogp(url!);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
     },
     enabled: !!url,
     staleTime: OGP_STALE_TIME,
@@ -1112,5 +1383,324 @@ export function useOgp(url: string | null) {
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+/** Notification list for the given tab, paged by cursor. */
+export function useNotifications(tab: NotificationTab) {
+  const api = useApi();
+  const authState = useAtomValue(authAtom);
+  const shouldFetch = authState.status === "ready" && authState.user !== null;
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.notifications(tab),
+    queryFn: async ({ pageParam }) => {
+      const result = await api.notifications({
+        limit: 30,
+        cursor: pageParam ?? null,
+        types: NOTIFICATION_TAB_TYPES[tab],
+        // Groups are cut at the day boundary; read inside queryFn so the zone is
+        // the browser's, not the rendering server's.
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: shouldFetch,
+    staleTime: 1000 * 30,
+  });
+}
+
+/**
+ * Unread badge count. Kept fresh by the realtime `notification_created` event
+ * and by mark-as-read, so it does not need to poll.
+ */
+export function useUnreadNotificationCount() {
+  const api = useApi();
+  const authState = useAtomValue(authAtom);
+  const shouldFetch = authState.status === "ready" && authState.user !== null;
+
+  return useQuery({
+    queryKey: queryKeys.notificationsUnread,
+    queryFn: async () => {
+      const result = await api.unreadNotificationCount();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    enabled: shouldFetch,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/** Marks the given notifications read, or every unread one when `ids` is omitted. */
+export function useMarkNotificationsRead() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids?: readonly string[]) => {
+      const result = await api.markNotificationsRead(ids);
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (unread, ids) => {
+      queryClient.setQueryData<UnreadCount>(queryKeys.notificationsUnread, unread);
+      markNotificationsReadInCache(queryClient, ids);
+    },
+  });
+}
+
+/**
+ * Stamps `readAt` on cached notifications so the unread highlight clears without
+ * refetching. Passing no ids marks every cached notification read.
+ */
+export function markNotificationsReadInCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  ids?: readonly string[],
+) {
+  const idSet = ids ? new Set(ids) : null;
+  const readAt = new Date().toISOString();
+
+  queryClient.setQueriesData<{
+    pages?: Array<{ items?: components["schemas"]["Notification"][] }>;
+  }>({ predicate: (query) => query.queryKey[0] === "notifications" }, (payload) => {
+    if (!payload || !Array.isArray(payload.pages)) return payload;
+    let changed = false;
+    const pages = payload.pages.map((page) => {
+      if (!page || !Array.isArray(page.items)) return page;
+      let pageChanged = false;
+      const items = page.items.map((item) => {
+        if (item.readAt || (idSet && !idSet.has(item.id))) return item;
+        pageChanged = true;
+        return { ...item, readAt };
+      });
+      if (!pageChanged) return page;
+      changed = true;
+      return { ...page, items };
+    });
+    return changed ? { ...payload, pages } : payload;
+  });
+}
+
+const SEARCH_PAGE_SIZE = 30;
+
+/** The API rejects offsets past this, so stop paging instead of asking for a 400. */
+const MAX_SEARCH_OFFSET = 1000;
+
+/**
+ * Works out the next offset from what the page reports about itself.
+ *
+ * Counting the returned items would be wrong: hydration drops posts deleted or
+ * hidden since they were indexed, so a short page is not necessarily the last
+ * one. The echoed offset and limit describe the window that was asked for,
+ * which is what has to advance.
+ */
+function nextSearchOffset(page: { offset: number; limit: number; estimatedTotal: number }) {
+  const next = page.offset + page.limit;
+  if (next >= page.estimatedTotal || next > MAX_SEARCH_OFFSET) return undefined;
+  return next;
+}
+
+/** Post search results, newest first. Pass enabled: false for the hidden tab. */
+export function useSearchPosts(query: string, enabled = true) {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.searchPosts(query),
+    queryFn: async ({ pageParam }) => {
+      const result = await api.searchPosts({
+        q: query,
+        limit: SEARCH_PAGE_SIZE,
+        offset: pageParam,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: nextSearchOffset,
+    enabled: enabled && query.length > 0,
+    // A rejected query syntax and an unconfigured engine both fail the same way
+    // on every attempt, and retrying only eats into the search rate limit.
+    retry: false,
+    staleTime: 1000 * 60,
+  });
+}
+
+/** User search results in relevance order. */
+export function useSearchUsers(query: string, enabled = true) {
+  const api = useApi();
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.searchUsers(query),
+    queryFn: async ({ pageParam }) => {
+      const result = await api.searchUsers({
+        q: query,
+        limit: SEARCH_PAGE_SIZE,
+        offset: pageParam,
+      });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: nextSearchOffset,
+    enabled: enabled && query.length > 0,
+    // A rejected query syntax and an unconfigured engine both fail the same way
+    // on every attempt, and retrying only eats into the search rate limit.
+    retry: false,
+    staleTime: 1000 * 60,
+  });
+}
+
+// --- OAuth2 ------------------------------------------------------------
+//
+// Apps the account has registered, and apps the account has connected to. They
+// are separate lists on purpose: registering an app is a developer action, and
+// connecting one is something a user does to somebody else's app.
+
+export function useOAuthClients() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.oauthClients,
+    queryFn: async () => {
+      const result = await api.oauthClients();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.items;
+    },
+  });
+}
+
+export function useCreateOAuthClient() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: components["schemas"]["CreateOAuthClientRequest"]) => {
+      const result = await api.createOAuthClient(body);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthClients });
+    },
+  });
+}
+
+export function useDeleteOAuthClient() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (clientUuid: string) => {
+      const result = await api.deleteOAuthClient(clientUuid);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthClients });
+      // Deleting an app cascades to its tokens, so anyone who had connected it
+      // is disconnected too — including this account.
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthAuthorizations });
+    },
+  });
+}
+
+export function useRotateOAuthClientSecret() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      clientUuid,
+      stepupToken,
+    }: {
+      clientUuid: string;
+      stepupToken: string;
+    }) => {
+      const result = await api.rotateOAuthClientSecret(clientUuid, stepupToken);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthClients });
+    },
+  });
+}
+
+export function useOAuthAuthorizations() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.oauthAuthorizations,
+    queryFn: async () => {
+      const result = await api.oauthAuthorizations();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.items;
+    },
+  });
+}
+
+export function useRevokeOAuthAuthorization() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (clientId: string) => {
+      const result = await api.revokeOAuthAuthorization(clientId);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthAuthorizations });
+    },
+  });
+}
+
+// Personal access tokens: the account's own credentials, as opposed to a third
+// party's. Kept on their own keys so revoking one does not refetch the app
+// lists, which are a different thing entirely.
+
+export function usePersonalAccessTokens() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.personalAccessTokens,
+    queryFn: async () => {
+      const result = await api.personalAccessTokens();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.items;
+    },
+  });
+}
+
+export function useCreatePersonalAccessToken() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      body,
+      stepupToken,
+    }: {
+      body: components["schemas"]["CreatePersonalAccessTokenRequest"];
+      stepupToken: string;
+    }) => {
+      const result = await api.createPersonalAccessToken(body, stepupToken);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.personalAccessTokens });
+    },
+  });
+}
+
+export function useRevokePersonalAccessToken() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (tokenId: string) => {
+      const result = await api.revokePersonalAccessToken(tokenId);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.personalAccessTokens });
+    },
   });
 }

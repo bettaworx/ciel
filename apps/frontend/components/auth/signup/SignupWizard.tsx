@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslations, useLocale } from "next-intl";
+import { useRouter } from "@/lib/navigation";
+import { useTranslations, useLocale } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useAgreementVersions } from "@/lib/hooks/use-queries";
@@ -14,11 +14,7 @@ import { UsernameStep } from "@/components/auth/signup/UsernameStep";
 import { PasswordStep } from "@/components/auth/signup/PasswordStep";
 import { InviteCodeStep } from "@/components/auth/signup/InviteCodeStep";
 import { ChevronLeft } from "lucide-react";
-import {
-  type SignupStep,
-  getSignupStepIndex,
-  getSignupStepByIndex,
-} from "@/lib/config/auth-steps";
+import type { SignupStep } from "@/lib/config/auth-steps";
 import type { AnimationDirection } from "@/lib/config/setup-animation";
 import { createApiClient } from "@/lib/api/client";
 import type { components } from "@/lib/api/api";
@@ -54,7 +50,7 @@ export function SignupWizard() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Agreement acceptance state
@@ -90,8 +86,8 @@ export function SignupWizard() {
     const loadAgreementContent = async () => {
       try {
         const [termsRes, privacyRes] = await Promise.all([
-          apiClient.getLatestAgreement('terms', locale),
-          apiClient.getLatestAgreement('privacy', locale),
+          apiClient.getLatestAgreement("terms", locale),
+          apiClient.getLatestAgreement("privacy", locale),
         ]);
 
         if (termsRes.ok) {
@@ -215,7 +211,7 @@ export function SignupWizard() {
       } else {
         toast.error(t("signup.failed"));
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error(t("error.generic"));
     } finally {
       setLoading(false);
@@ -241,7 +237,7 @@ export function SignupWizard() {
         // Show invite-specific error message
         toast.error(t("signup.wizard.inviteCode.invalid"));
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error(t("error.generic"));
     } finally {
       setLoading(false);
@@ -286,27 +282,21 @@ export function SignupWizard() {
         );
 
       case "username":
-        return (
-          <UsernameStep onNext={handleUsernameNext} initialValue={username} />
-        );
+        return <UsernameStep onNext={handleUsernameNext} initialValue={username} />;
 
       case "password":
         return (
           <PasswordStep
             username={username}
             onSubmit={
-              serverInfo && !serverInfo.signupEnabled
-                ? handlePasswordNext
-                : handlePasswordSubmit
+              serverInfo && !serverInfo.signupEnabled ? handlePasswordNext : handlePasswordSubmit
             }
             loading={loading}
           />
         );
 
       case "invite-code":
-        return (
-          <InviteCodeStep onSubmit={handleInviteCodeSubmit} loading={loading} />
-        );
+        return <InviteCodeStep onSubmit={handleInviteCodeSubmit} loading={loading} />;
 
       default:
         return null;
@@ -430,11 +420,7 @@ export function SignupWizard() {
             disabled={loading}
             className="bg-c-1 text-c-foreground hover:bg-c-2 transition-colors duration-160 ease"
           >
-            {loading
-              ? t("loading")
-              : isInviteOnly
-                ? t("setup.next")
-                : t("signup.createAccount")}
+            {loading ? t("loading") : isInviteOnly ? t("setup.next") : t("signup.createAccount")}
           </Button>
         </div>
       );

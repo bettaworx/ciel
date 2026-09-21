@@ -74,43 +74,82 @@ func writeTempGIF(t *testing.T, w, h, frames int) string {
 	return f.Name()
 }
 
-func TestValidateImageFile_PNG(t *testing.T) {
-	path := writeTempPNG(t, 100, 80)
+func TestValidateImageFile_AcceptedFormats(t *testing.T) {
+	cases := map[string]struct {
+		path   string
+		format string
+	}{
+		"png":  {writeTempPNG(t, 100, 80), "png"},
+		"jpeg": {writeTempJPEG(t, 200, 150), "jpeg"},
+	}
 
-	info, err := validateImageFile(path, testMediaConfig())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if info.Width != 100 {
-		t.Errorf("expected width=100, got %d", info.Width)
-	}
-	if info.Height != 80 {
-		t.Errorf("expected height=80, got %d", info.Height)
-	}
-	if info.Format != "png" {
-		t.Errorf("expected format=png, got %q", info.Format)
-	}
-	if info.Animated {
-		t.Error("expected Animated=false for PNG")
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			info, err := validateImageFile(tc.path, testMediaConfig())
+			if err != nil {
+				t.Fatalf("expected %s to be accepted, got %v", name, err)
+			}
+			if info.Format != tc.format {
+				t.Errorf("expected format=%s, got %q", tc.format, info.Format)
+			}
+			if info.Animated {
+				t.Errorf("expected Animated=false for %s", name)
+			}
+		})
 	}
 }
 
-func TestValidateImageFile_JPEG(t *testing.T) {
-	path := writeTempJPEG(t, 200, 150)
+// A valid file in a format outside the allowlist is still refused, so the
+// accepted set stays exactly the one config declares.
+func TestValidateImageFile_RejectsFormatsOutsideTheAllowlist(t *testing.T) {
+	path := writeTempPNG(t, 8, 8)
+	saved := allowedImageFormats
+	allowedImageFormats = map[string]struct{}{"webp": {}}
+	t.Cleanup(func() { allowedImageFormats = saved })
 
-	info, err := validateImageFile(path, testMediaConfig())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if _, err := validateImageFile(path, testMediaConfig()); err == nil {
+		t.Fatal("expected a format outside the allowlist to be rejected")
 	}
-	if info.Width != 200 {
-		t.Errorf("expected width=200, got %d", info.Width)
-	}
-	if info.Height != 150 {
-		t.Errorf("expected height=150, got %d", info.Height)
-	}
-	if info.Format != "jpeg" {
-		t.Errorf("expected format=jpeg, got %q", info.Format)
-	}
+}
+
+// The budget is total decoded area, so it must let an ordinary animation past
+// and only stop one whose frames add up to more than the cap. A byte-counting
+// heuristic used to fail the first of these: 0x2C is common inside LZW data, so
+// a 51-frame GIF looked like tens of thousands of frames.
+func TestCheckGifFrameBudget(t *testing.T) {
+	t.Run("ordinary animation passes", func(t *testing.T) {
+		// 1280x720 x 51 frames is ~47 megapixels, well inside the cap, but has
+		// enough compressed data to trip a naive separator-byte count.
+		path := writeTempGIF(t, 1280, 720, 51)
+		if err := checkGifFrameBudget(path); err != nil {
+			t.Fatalf("expected a 51-frame 1280x720 gif to pass, got %v", err)
+		}
+	})
+
+	t.Run("single frame passes", func(t *testing.T) {
+		if err := checkGifFrameBudget(writeTempGIF(t, 64, 64, 1)); err != nil {
+			t.Fatalf("expected a single-frame gif to pass, got %v", err)
+		}
+	})
+
+	t.Run("oversized animation is rejected", func(t *testing.T) {
+		// 4000x4000 x 32 frames is ~512 megapixels, past maxGifFramePixels.
+		path := writeTempGIF(t, 4000, 4000, 32)
+		if err := checkGifFrameBudget(path); err == nil {
+			t.Fatal("expected a gif over the pixel budget to be rejected")
+		}
+	})
+
+	t.Run("garbage does not hang or panic", func(t *testing.T) {
+		f := filepath.Join(t.TempDir(), "junk.gif")
+		if err := os.WriteFile(f, []byte("GIF89a not really a gif at all"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		// Malformed input is the decoder's to reject; this must simply return.
+		if err := checkGifFrameBudget(f); err != nil {
+			t.Fatalf("expected malformed input to be left to the decoder, got %v", err)
+		}
+	})
 }
 
 func TestValidateImageFile_GIF_Static(t *testing.T) {

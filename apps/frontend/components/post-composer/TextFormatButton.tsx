@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { applyFormatToTextarea } from "./applyFormat";
@@ -144,12 +144,8 @@ export function removeDecoration(
       selected.endsWith(suffix) &&
       selected.length >= prefix.length + suffix.length
     ) {
-      const inner = selected.slice(
-        prefix.length,
-        selected.length - suffix.length,
-      );
-      const newValue =
-        content.slice(0, selectionStart) + inner + content.slice(selectionEnd);
+      const inner = selected.slice(prefix.length, selected.length - suffix.length);
+      const newValue = content.slice(0, selectionStart) + inner + content.slice(selectionEnd);
       return {
         newValue,
         newStart: selectionStart,
@@ -186,11 +182,9 @@ export function removeDecoration(
   const closeIdx = selectionEnd + closeRelIdx;
 
   // Remove closing suffix first (higher index → doesn't shift earlier positions)
-  let newValue =
-    content.slice(0, closeIdx) + content.slice(closeIdx + suffix.length);
+  let newValue = content.slice(0, closeIdx) + content.slice(closeIdx + suffix.length);
   // Then remove opening prefix
-  newValue =
-    newValue.slice(0, openIdx) + newValue.slice(openIdx + prefix.length);
+  newValue = newValue.slice(0, openIdx) + newValue.slice(openIdx + prefix.length);
 
   return {
     newValue,
@@ -255,7 +249,14 @@ export function TextFormatButton({
       // Allow callers to fully override the insertion logic (e.g. for <center>).
       const override = onInsert?.(value, selectionStart, selectionEnd);
       if (override !== null && override !== undefined) {
-        applyFormatToTextarea(textarea, override.newValue, override.newStart, override.newEnd, setContent, setSelectionRange);
+        applyFormatToTextarea(
+          textarea,
+          override.newValue,
+          override.newStart,
+          override.newEnd,
+          setContent,
+          setSelectionRange,
+        );
         return;
       }
 
@@ -270,30 +271,30 @@ export function TextFormatButton({
         // If the selection is wrapped in <center>...</center> and the current
         // decoration is NOT center itself, the decoration must go *inside*
         // <center> so that <center> remains the outermost HTML wrapper.
-        if (prefix !== "<center>" && selected.startsWith("<center>") && selected.endsWith("</center>")) {
+        if (
+          prefix !== "<center>" &&
+          selected.startsWith("<center>") &&
+          selected.endsWith("</center>")
+        ) {
           const inner = selected.slice("<center>".length, selected.length - "</center>".length);
           newValue =
             value.slice(0, selectionStart) +
-            "<center>" + prefix + inner + suffix + "</center>" +
+            "<center>" +
+            prefix +
+            inner +
+            suffix +
+            "</center>" +
             value.slice(selectionEnd);
           newStart = selectionStart + "<center>".length + prefix.length;
           newEnd = newStart + inner.length;
         } else {
           newValue =
-            value.slice(0, selectionStart) +
-            prefix +
-            selected +
-            suffix +
-            value.slice(selectionEnd);
+            value.slice(0, selectionStart) + prefix + selected + suffix + value.slice(selectionEnd);
           newStart = selectionStart + prefix.length;
           newEnd = selectionEnd + prefix.length;
         }
       } else {
-        newValue =
-          value.slice(0, selectionStart) +
-          prefix +
-          suffix +
-          value.slice(selectionStart);
+        newValue = value.slice(0, selectionStart) + prefix + suffix + value.slice(selectionStart);
         newStart = selectionStart + prefix.length;
         newEnd = newStart;
       }
@@ -311,7 +312,9 @@ export function TextFormatButton({
       aria-label={ariaLabel}
       aria-pressed={isActive}
       className={cn(
-        isActive && "text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15",
+        isActive
+          ? "text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15"
+          : "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
         className,
       )}
     >

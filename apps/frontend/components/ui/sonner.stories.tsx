@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, userEvent, within } from "storybook/test";
 import { toast } from "sonner";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/providers/theme-provider";
 import { Button } from "./button";
 import { Toaster } from "./sonner";
 
@@ -11,7 +11,7 @@ const meta = {
   tags: ["autodocs"],
   decorators: [
     (Story) => (
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <ThemeProvider>
         <Story />
         <Toaster />
       </ThemeProvider>
@@ -30,19 +30,27 @@ export const Default: Story = {
       </Button>
       <Button
         variant="outline"
-        onClick={() =>
-          toast.success("Success", { description: "Operation completed." })
-        }
+        onClick={() => toast.success("Success", { description: "Operation completed." })}
       >
         Success
       </Button>
       <Button
         variant="outline"
-        onClick={() =>
-          toast.error("Error", { description: "Something went wrong." })
-        }
+        onClick={() => toast.error("Error", { description: "Something went wrong." })}
       >
         Error
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => toast.info("Heads up", { description: "Something worth knowing." })}
+      >
+        Info
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => toast.warning("Careful", { description: "This needs attention." })}
+      >
+        Warning
       </Button>
       <Button
         variant="outline"
@@ -55,16 +63,24 @@ export const Default: Story = {
       >
         With Action
       </Button>
+      <Button
+        variant="outline"
+        onClick={() =>
+          toast.error("Upload failed", {
+            description:
+              "The file could not be processed because the server rejected it. Try a smaller image, or check your connection and attempt the upload again.",
+          })
+        }
+      >
+        Long Description
+      </Button>
     </div>
   ),
 };
 
 export const ToastTest: Story = {
   render: () => (
-    <Button
-      variant="outline"
-      onClick={() => toast("Test notification")}
-    >
+    <Button variant="outline" onClick={() => toast("Test notification")}>
       Trigger Toast
     </Button>
   ),

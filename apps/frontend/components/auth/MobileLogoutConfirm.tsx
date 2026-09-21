@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -18,11 +18,7 @@ interface MobileLogoutConfirmProps {
   onConfirm: () => void;
 }
 
-export function MobileLogoutConfirm({
-  open,
-  onOpenChange,
-  onConfirm,
-}: MobileLogoutConfirmProps) {
+export function MobileLogoutConfirm({ open, onOpenChange, onConfirm }: MobileLogoutConfirmProps) {
   const t = useTranslations();
 
   return (
@@ -30,17 +26,11 @@ export function MobileLogoutConfirm({
       <DrawerContent>
         <DrawerHeader className="text-center">
           <DrawerTitle>{t("logoutConfirm.title")}</DrawerTitle>
-          <DrawerDescription>
-            {t("logoutConfirm.description")}
-          </DrawerDescription>
+          <DrawerDescription>{t("logoutConfirm.description")}</DrawerDescription>
         </DrawerHeader>
 
         <DrawerFooter className="pt-2">
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            className="w-full"
-          >
+          <Button variant="destructive" onClick={onConfirm} className="w-full">
             {t("logoutConfirm.confirm")}
           </Button>
 

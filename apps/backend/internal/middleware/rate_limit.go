@@ -57,9 +57,13 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		{routeKey: "auth_login_finish", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "auth_stepup_start", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "auth_stepup_finish", limit: 10, window: 1 * time.Minute, subject: subjectIP},
-		// Media upload: per-user, low frequency + daily cap.
-		{routeKey: "media_upload", limit: 10, window: 10 * time.Minute, subject: subjectUser},
-		{routeKey: "media_upload", limit: 50, window: 24 * time.Hour, subject: subjectUser},
+		// Account switching: one request per listed account when the menu opens,
+		// so the cap has to clear a handful of accounts a few times a minute.
+		{routeKey: "auth_session_exchange", limit: 60, window: 1 * time.Minute, subject: subjectIP},
+		// Media upload: per-user, per-file. A post can carry four images, so the
+		// window has to hold several full posts, not several files.
+		{routeKey: "media_upload", limit: 40, window: 10 * time.Minute, subject: subjectUser},
+		{routeKey: "media_upload", limit: 200, window: 24 * time.Hour, subject: subjectUser},
 		// Avatar upload: per-user, modest limits.
 		{routeKey: "avatar_upload", limit: 5, window: 10 * time.Minute, subject: subjectUser},
 		{routeKey: "avatar_upload", limit: 20, window: 24 * time.Hour, subject: subjectUser},
@@ -76,6 +80,33 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		{routeKey: "users_posts_get", limit: 120, window: 1 * time.Minute, subject: subjectIP},
 		// Public media delivery (GET /media/*): very loose, per-IP.
 		{routeKey: "media_get", limit: 600, window: 1 * time.Minute, subject: subjectIP},
+		// Search: per-user, since the routes require authentication. Each hit
+		// costs a search-engine query plus a hydration round trip, so this is
+		// tighter than a timeline read.
+		{routeKey: "search", limit: 60, window: 1 * time.Minute, subject: subjectUser},
+		// Link previews: per-IP, because the routes are public. Each miss costs
+		// an outbound fetch, so these match the limits the old frontend-side
+		// in-process limiter used — except that Redis makes them hold across
+		// every instance instead of one process.
+		{routeKey: "ogp", limit: 30, window: 1 * time.Minute, subject: subjectIP},
+		{routeKey: "ogp_image", limit: 60, window: 1 * time.Minute, subject: subjectIP},
+		// OAuth2. /oauth/token is the one that matters: it takes a client
+		// secret and a PKCE verifier and says whether they were right, which is
+		// an online guessing oracle if it is left unthrottled. Per-IP, because
+		// the caller is an app's back end and has no user session.
+		{routeKey: "oauth_token", limit: 30, window: 1 * time.Minute, subject: subjectIP},
+		{routeKey: "oauth_revoke", limit: 30, window: 1 * time.Minute, subject: subjectIP},
+		// The consent screen is driven by a signed-in browser, so these key on
+		// the user and can be looser without helping an attacker.
+		{routeKey: "oauth_authorize", limit: 60, window: 1 * time.Minute, subject: subjectUser},
+		// Its read half is reachable before sign-in, so it keys on the IP and
+		// is capped nearer the token endpoint than the consent POST.
+		{routeKey: "oauth_authorize_info", limit: 60, window: 1 * time.Minute, subject: subjectIP},
+		// Registering an app and minting a personal token both create something
+		// long-lived, and share a bucket because they are the same action from
+		// the server's point of view. Cheap for the user, permanent for us; the
+		// per-account cap is a ceiling rather than a rate.
+		{routeKey: "oauth_client_create", limit: 10, window: 1 * time.Hour, subject: subjectUser},
 	}
 
 	return func(next http.Handler) http.Handler {
@@ -220,6 +251,8 @@ func classifyAuthRoute(method, path string) string {
 		return "auth_stepup_start"
 	case "/api/v1/auth/stepup/finish":
 		return "auth_stepup_finish"
+	case "/api/v1/auth/session/exchange":
+		return "auth_session_exchange"
 	default:
 		return ""
 	}
@@ -284,6 +317,31 @@ func classifyTimelineRoute(method, path string) string {
 	return ""
 }
 
+// classifySearchRoute classifies search routes. Both post and user search hit
+// the same engine, so they share one budget.
+func classifySearchRoute(method, path string) string {
+	if method == http.MethodGet && strings.HasPrefix(path, "/api/v1/search/") {
+		return "search"
+	}
+	return ""
+}
+
+// classifyOgpRoute classifies link-preview routes
+func classifyOgpRoute(method, path string) string {
+	if method != http.MethodGet {
+		return ""
+	}
+
+	switch path {
+	case "/api/v1/ogp":
+		return "ogp"
+	case "/api/v1/ogp/image":
+		return "ogp_image"
+	default:
+		return ""
+	}
+}
+
 // classifyRoute maps request paths to stable route keys for rate limiting / access control.
 // This is intentionally simple prefix matching so it works in global chi middlewares.
 func classifyRoute(r *http.Request) string {
@@ -311,6 +369,41 @@ func classifyRoute(r *http.Request) string {
 	if route := classifyTimelineRoute(method, path); route != "" {
 		return route
 	}
+	if route := classifySearchRoute(method, path); route != "" {
+		return route
+	}
+	if route := classifyOgpRoute(method, path); route != "" {
+		return route
+	}
+	if route := classifyOAuthRoute(method, path); route != "" {
+		return route
+	}
 
 	return ""
+}
+
+// classifyOAuthRoute classifies the OAuth2 endpoints.
+func classifyOAuthRoute(method, path string) string {
+	switch {
+	case method == http.MethodGet && path == "/api/v1/oauth/authorize/info":
+		// Public and unauthenticated — the consent screen calls it before the
+		// user has decided anything — and it looks a client up by client_id.
+		// That makes it the one OAuth endpoint an anonymous caller can use to
+		// probe which client_ids exist, so it is capped like the rest.
+		return "oauth_authorize_info"
+	case method != http.MethodPost:
+		return ""
+	case path == "/api/v1/oauth/token":
+		return "oauth_token"
+	case path == "/api/v1/oauth/revoke":
+		return "oauth_revoke"
+	case path == "/api/v1/oauth/authorize":
+		return "oauth_authorize"
+	case path == "/api/v1/me/oauth/clients":
+		return "oauth_client_create"
+	case path == "/api/v1/me/oauth/tokens":
+		return "oauth_client_create"
+	default:
+		return ""
+	}
 }

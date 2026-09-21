@@ -2,11 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { expect, userEvent, within } from "storybook/test";
 import { ChevronsUpDown } from "lucide-react";
 import { Button } from "./button";
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "./collapsible";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./collapsible";
 
 const meta = {
   title: "UI/Collapsible",
@@ -29,16 +25,10 @@ export const Default: Story = {
           </Button>
         </CollapsibleTrigger>
       </div>
-      <div className="rounded-md border px-4 py-3 text-sm">
-        @radix-ui/primitives
-      </div>
+      <div className="rounded-md border px-4 py-3 text-sm">@radix-ui/primitives</div>
       <CollapsibleContent className="space-y-2">
-        <div className="rounded-md border px-4 py-3 text-sm">
-          @radix-ui/colors
-        </div>
-        <div className="rounded-md border px-4 py-3 text-sm">
-          @stitches/react
-        </div>
+        <div className="rounded-md border px-4 py-3 text-sm">@radix-ui/colors</div>
+        <div className="rounded-md border px-4 py-3 text-sm">@stitches/react</div>
       </CollapsibleContent>
     </Collapsible>
   ),
@@ -57,12 +47,8 @@ export const DefaultOpen: Story = {
         </CollapsibleTrigger>
       </div>
       <CollapsibleContent className="space-y-2">
-        <div className="rounded-md border px-4 py-3 text-sm">
-          Notifications
-        </div>
-        <div className="rounded-md border px-4 py-3 text-sm">
-          Privacy
-        </div>
+        <div className="rounded-md border px-4 py-3 text-sm">Notifications</div>
+        <div className="rounded-md border px-4 py-3 text-sm">Privacy</div>
       </CollapsibleContent>
     </Collapsible>
   ),
@@ -77,9 +63,7 @@ export const ToggleTest: Story = {
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="rounded-md border px-4 py-3 text-sm">
-          Hidden content revealed!
-        </div>
+        <div className="rounded-md border px-4 py-3 text-sm">Hidden content revealed!</div>
       </CollapsibleContent>
     </Collapsible>
   ),

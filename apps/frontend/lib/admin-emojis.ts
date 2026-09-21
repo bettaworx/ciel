@@ -32,9 +32,7 @@ export function getAdminEmojiFormDefaults(
   };
 }
 
-export function buildAdminEmojiCreateFormData(
-  values: AdminEmojiFormValues,
-): FormData {
+export function buildAdminEmojiCreateFormData(values: AdminEmojiFormValues): FormData {
   if (!values.imageFile) {
     throw new Error("image file is required");
   }
@@ -50,13 +48,11 @@ export function buildAdminEmojiCreateFormData(
   if (category) form.set("category", category);
   if (license) form.set("license", license);
 
-  form.set("image", values.imageFile, values.imageFile.name);
+  form.set("image", values.imageFile);
   return form;
 }
 
-export function buildAdminEmojiUpdateFormData(
-  values: AdminEmojiFormValues,
-): FormData {
+export function buildAdminEmojiUpdateFormData(values: AdminEmojiFormValues): FormData {
   const form = new FormData();
   const shortcode = values.shortcode.trim();
   const name = trimOptional(values.name);
@@ -75,7 +71,7 @@ export function buildAdminEmojiUpdateFormData(
   form.set("setLicense", "true");
 
   if (values.imageFile) {
-    form.set("image", values.imageFile, values.imageFile.name);
+    form.set("image", values.imageFile);
   }
 
   return form;

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -9,15 +10,38 @@ import (
 	"backend/internal/auth"
 )
 
-func OptionalAuth(tokenManager *auth.TokenManager) func(http.Handler) http.Handler {
+// OAuthAccessTokenPrefix marks a bearer token as an opaque OAuth2 access token
+// rather than a session JWT.
+//
+// The prefix exists so the two can be told apart before either is validated. A
+// "try to parse it as a JWT, fall back to a database lookup" scheme would turn
+// every malformed Authorization header on the internet into a Postgres round
+// trip; this costs one string comparison. It also means a JWT can never be
+// mistaken for an OAuth token or the reverse, whatever either happens to
+// contain.
+const OAuthAccessTokenPrefix = "ciel_at_"
+
+// OAuthVerifier resolves an opaque OAuth2 access token into the user it acts
+// for and the scopes it carries. Implemented by the OAuth service; nil when the
+// server is running without OAuth support.
+type OAuthVerifier interface {
+	VerifyAccessToken(ctx context.Context, raw string) (auth.User, error)
+}
+
+// The OAuth branch below is reachable only from the Authorization header. The
+// session cookie is never routed to it: if it were, planting a stolen access
+// token in ciel_auth would upgrade it into a full first-party session, since
+// everything downstream keys off auth.UserFromContext and a cookie session is
+// not scope limited.
+
+func OptionalAuth(tokenManager *auth.TokenManager, verifier OAuthVerifier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Skip auth for public media endpoints
-			if strings.HasPrefix(r.URL.Path, "/media/") {
-				next.ServeHTTP(w, r)
-				return
-			}
-
+			// /media/ used to skip auth entirely. It cannot any more: media
+			// attached to a private user's post is only served to their accepted
+			// followers, and that decision needs to know who is asking. Auth here
+			// is still optional — an anonymous request simply gets the strictest
+			// answer, exactly as before for everything that is public.
 			// Try to get token from cookie first
 			var token string
 			var isCookieAuth bool
@@ -40,6 +64,25 @@ func OptionalAuth(tokenManager *auth.TokenManager) func(http.Handler) http.Handl
 			}
 
 			if token == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// An OAuth access token, but only from the header — see
+			// resolveToken's note on why the cookie must never reach here.
+			if !isCookieAuth && strings.HasPrefix(token, OAuthAccessTokenPrefix) {
+				if verifier == nil {
+					logUnauthorized(r, "oauth_not_configured", "bearer", nil)
+					writeInvalidToken(w)
+					return
+				}
+				user, err := verifier.VerifyAccessToken(r.Context(), token)
+				if err != nil {
+					logUnauthorized(r, "oauth_token_invalid", "bearer", err)
+					writeInvalidToken(w)
+					return
+				}
+				r = r.WithContext(auth.WithUser(r.Context(), user))
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -107,6 +150,16 @@ func RequireAuth(tokenManager *auth.TokenManager) func(http.Handler) http.Handle
 				return
 			}
 
+			// This path is only reached when OptionalAuth did not run, and the
+			// only mount is RequireAdminAccess, which is closed to OAuth tokens
+			// anyway. Refusing here rather than verifying keeps that true even
+			// if the middleware is ever mounted somewhere else.
+			if strings.HasPrefix(token, OAuthAccessTokenPrefix) {
+				logUnauthorized(r, "oauth_token_on_first_party_route", "bearer", nil)
+				writeInvalidToken(w)
+				return
+			}
+
 			user, err := tokenManager.Parse(token)
 			if err != nil {
 				authSource := "bearer"
@@ -131,6 +184,14 @@ func writeUnauthorized(w http.ResponseWriter) {
 		"code":    "unauthorized",
 		"message": "unauthorized",
 	})
+}
+
+// writeInvalidToken answers a bearer token that did not validate, with the
+// challenge RFC 6750 §3 asks for. The session paths keep their bare 401: they
+// are consumed by this app's own client, which has never read the header.
+func writeInvalidToken(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", `Bearer realm="ciel", error="invalid_token"`)
+	writeUnauthorized(w)
 }
 
 func logUnauthorized(r *http.Request, reason string, authSource string, err error) {

@@ -1,0 +1,82 @@
+# 開発用: DB / Redis / Meilisearch だけをコンテナで起動します。
+# frontend / backend は `pnpm dev` でネイティブ起動し、localhost 経由で接続します。
+#
+#   cp docker-compose.dev.yml.example docker-compose.dev.yml
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# 各サービスの認証情報はルートの .env から読み込みます
+# (ネイティブ起動の backend も同じ .env を読むため、値のズレが起きません)。
+name: ciel-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ciel-dev-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ciel}
+      POSTGRES_USER: ${POSTGRES_USER:-ciel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env file}
+    ports:
+      # SECURITY: Bind to localhost only to prevent external access
+      - "${BIND_ADDR:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ciel} -d ${POSTGRES_DB:-ciel}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: ciel-dev-redis
+    command: >
+      sh -c "
+      if [ -n \"$$REDIS_PASSWORD\" ]; then
+        redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes
+      else
+        echo 'WARNING: Redis running without password (development only)'
+        redis-server --appendonly yes
+      fi
+      "
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: >
+        sh -c "
+        if [ -n \"$$REDIS_PASSWORD\" ]; then
+          redis-cli -a \"$$REDIS_PASSWORD\" ping
+        else
+          redis-cli ping
+        fi
+        "
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.53
+    container_name: ciel-dev-meilisearch
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY must be set in .env file}
+      # development にすると http://localhost:7700 の検索プレビュー UI が使えます
+      MEILI_ENV: ${MEILI_ENV:-development}
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${MEILI_PORT:-7700}:7700"
+    volumes:
+      - meili_data:/meili_data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:7700/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  db_data:
+  redis_data:
+  meili_data:

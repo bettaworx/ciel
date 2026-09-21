@@ -31,13 +31,10 @@ export function resolveKotodokiContext(
 ): ResolvedKotodokiContext {
   const locale = input.locale ?? options.defaultLocale ?? DEFAULT_LOCALE;
   const region = (input.region ?? options.defaultRegion ?? DEFAULT_REGION).toUpperCase();
-  const timezone =
-    input.timezone ?? options.defaultTimezone ?? getSystemTimezone();
+  const timezone = input.timezone ?? options.defaultTimezone ?? getSystemTimezone();
   const instant = normalizeInstant(input.datetime);
   const parts = getZonedDateParts(instant, timezone);
-  const datasets = options.catalog
-    ? getAllDatasets(options.catalog, options.categories)
-    : [];
+  const datasets = options.catalog ? getAllDatasets(options.catalog, options.categories) : [];
   const holidays = resolveHolidays(datasets, parts, locale, region);
 
   return {

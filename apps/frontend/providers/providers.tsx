@@ -1,112 +1,124 @@
-'use client';
+"use client";
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Provider as JotaiProvider, useAtomValue } from 'jotai';
-import { NextIntlClientProvider } from 'next-intl';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ThemeProvider } from '@/providers/theme-provider';
-import { RealtimeProvider } from '@/providers/realtime-provider';
-import { AuthInitProvider } from '@/providers/auth-init-provider';
-import { LoadingScreen } from '@/components/LoadingScreen';
-import { authStatusAtom } from '@/atoms/auth';
-import { getClientLocale } from '@/i18n/client-locale';
-import { loadMessages } from '@/i18n/load-messages';
-import type { Locale } from '@/i18n/constants';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Provider as JotaiProvider, useAtomValue } from "jotai";
+import { I18nextProvider } from "react-i18next";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ThemeProvider } from "@/providers/theme-provider";
+import { RealtimeProvider } from "@/providers/realtime-provider";
+import { AuthInitProvider } from "@/providers/auth-init-provider";
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { authStatusAtom } from "@/atoms/auth";
+import { getClientLocale } from "@/i18n/client-locale";
+import { loadMessages } from "@/i18n/load-messages";
+import { i18next, initI18n } from "@/i18n";
+import type { Locale } from "@/i18n/constants";
 
 interface ProvidersProps {
-	children: ReactNode;
+  children: ReactNode;
 }
 
 /**
  * Inner component that monitors auth initialization status
  * Must be inside JotaiProvider to use atoms
  */
-function ProvidersWithAuth({ children, onAuthReady }: { children: ReactNode; onAuthReady: () => void }) {
-	const authStatus = useAtomValue(authStatusAtom);
-	const hasNotifiedRef = useRef(false);
+function ProvidersWithAuth({
+  children,
+  onAuthReady,
+}: {
+  children: ReactNode;
+  onAuthReady: () => void;
+}) {
+  const authStatus = useAtomValue(authStatusAtom);
+  const hasNotifiedRef = useRef(false);
 
-	useEffect(() => {
-		// Wait for auth to be ready (either authenticated or not)
-		if ((authStatus === 'ready' || authStatus === 'error') && !hasNotifiedRef.current) {
-			hasNotifiedRef.current = true;
-			onAuthReady();
-		}
-	}, [authStatus, onAuthReady]);
+  useEffect(() => {
+    // Wait for auth to be ready (either authenticated or not)
+    if ((authStatus === "ready" || authStatus === "error") && !hasNotifiedRef.current) {
+      hasNotifiedRef.current = true;
+      onAuthReady();
+    }
+  }, [authStatus, onAuthReady]);
 
-	return (
-		<ThemeProvider>
-			<AuthInitProvider>
-				<RealtimeProvider>{children}</RealtimeProvider>
-			</AuthInitProvider>
-		</ThemeProvider>
-	);
+  return (
+    <ThemeProvider>
+      <AuthInitProvider>
+        <RealtimeProvider>{children}</RealtimeProvider>
+      </AuthInitProvider>
+    </ThemeProvider>
+  );
 }
 
 export function Providers({ children }: ProvidersProps) {
-	const [queryClient] = useState(
-		() =>
-			new QueryClient({
-				defaultOptions: {
-					queries: {
-						staleTime: 1000 * 60, // 1分
-						refetchOnWindowFocus: false,
-					},
-				},
-			})
-	);
-	const [locale, setLocale] = useState<Locale | null>(null);
-	const [messages, setMessages] = useState<Record<string, string> | null>(null);
-	const [isAuthReady, setIsAuthReady] = useState(false);
-	const localeRequestRef = useRef(0);
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 1000 * 60, // 1分
+            refetchOnWindowFocus: false,
+          },
+        },
+      }),
+  );
+  const [locale, setLocale] = useState<Locale | null>(null);
+  const [messages, setMessages] = useState<Record<string, string> | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const localeRequestRef = useRef(0);
 
-	// Combined loading state: both locale/messages AND auth must be ready
-	const isLoading = !locale || !messages || !isAuthReady;
+  // Combined loading state: both locale/messages AND auth must be ready
+  const isLoading = !locale || !messages || !isAuthReady;
 
-	const handleAuthReady = useCallback(() => {
-		setIsAuthReady(true);
-	}, []);
+  const handleAuthReady = useCallback(() => {
+    setIsAuthReady(true);
+  }, []);
 
-	const refreshLocale = () => {
-		const resolvedLocale = getClientLocale();
-		const requestId = localeRequestRef.current + 1;
-		localeRequestRef.current = requestId;
-		loadMessages(resolvedLocale).then((loadedMessages) => {
-			if (localeRequestRef.current !== requestId) return;
-			document.documentElement.lang = resolvedLocale;
-			setLocale(resolvedLocale);
-			setMessages(loadedMessages);
-		});
-	};
+  const refreshLocale = () => {
+    const resolvedLocale = getClientLocale();
+    const requestId = localeRequestRef.current + 1;
+    localeRequestRef.current = requestId;
+    loadMessages(resolvedLocale)
+      .then(async (loadedMessages) => {
+        if (localeRequestRef.current !== requestId) return null;
+        // i18next has to hold the new bundle before anything renders with it,
+        // or the first paint after a switch shows raw keys.
+        await initI18n(resolvedLocale, loadedMessages);
+        return loadedMessages;
+      })
+      .then((loadedMessages) => {
+        if (loadedMessages === null || localeRequestRef.current !== requestId) return;
+        document.documentElement.lang = resolvedLocale;
+        setLocale(resolvedLocale);
+        setMessages(loadedMessages);
+      });
+  };
 
-	useEffect(() => {
-		refreshLocale();
-		const handleLocaleChange = () => {
-			refreshLocale();
-		};
-		window.addEventListener('ciel:locale-change', handleLocaleChange);
-		return () => {
-			window.removeEventListener('ciel:locale-change', handleLocaleChange);
-		};
-	}, []);
+  useEffect(() => {
+    refreshLocale();
+    const handleLocaleChange = () => {
+      refreshLocale();
+    };
+    window.addEventListener("ciel:locale-change", handleLocaleChange);
+    return () => {
+      window.removeEventListener("ciel:locale-change", handleLocaleChange);
+    };
+  }, []);
 
-	// Show loading screen until both locale AND auth are ready
-	if (!locale || !messages) {
-		return <LoadingScreen isLoading={true} />;
-	}
+  // Show loading screen until both locale AND auth are ready
+  if (!locale || !messages) {
+    return <LoadingScreen isLoading={true} />;
+  }
 
-	return (
-		<>
-			<LoadingScreen isLoading={isLoading} />
-			<JotaiProvider>
-				<QueryClientProvider client={queryClient}>
-					<NextIntlClientProvider locale={locale} messages={messages}>
-						<ProvidersWithAuth onAuthReady={handleAuthReady}>
-							{children}
-						</ProvidersWithAuth>
-					</NextIntlClientProvider>
-				</QueryClientProvider>
-			</JotaiProvider>
-		</>
-	);
+  return (
+    <>
+      <LoadingScreen isLoading={isLoading} />
+      <JotaiProvider>
+        <QueryClientProvider client={queryClient}>
+          <I18nextProvider i18n={i18next}>
+            <ProvidersWithAuth onAuthReady={handleAuthReady}>{children}</ProvidersWithAuth>
+          </I18nextProvider>
+        </QueryClientProvider>
+      </JotaiProvider>
+    </>
+  );
 }
-

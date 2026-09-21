@@ -8,10 +8,7 @@ import { getEmojiSrc } from "@/lib/emoji-picker/helpers";
 // Skin tone preference (0 = default, 1-5 = light to dark)
 // ---------------------------------------------------------------------------
 
-export const emojiSkinToneAtom = atomWithStorage<number>(
-  "ciel-emoji-skin-tone",
-  0,
-);
+export const emojiSkinToneAtom = atomWithStorage<number>("ciel-emoji-skin-tone", 0);
 
 export function useEmojiSkinTone() {
   return useAtomValue(emojiSkinToneAtom);
@@ -72,8 +69,7 @@ export function normalizeRecentEmojiKey(emoji: string): string {
   }
 
   const withoutVariationSelectors = emoji.replace(/\uFE0F/g, "");
-  const canonicalWithoutVariationSelectors =
-    RECENT_EMOJI_CANONICAL_MAP[withoutVariationSelectors];
+  const canonicalWithoutVariationSelectors = RECENT_EMOJI_CANONICAL_MAP[withoutVariationSelectors];
   if (canonicalWithoutVariationSelectors) {
     return canonicalWithoutVariationSelectors;
   }
@@ -120,10 +116,7 @@ export function useSetRecentEmojis() {
 }
 
 /** Push an emoji to the front of the recent list, deduplicating. */
-export function addRecentEmoji(
-  prev: string[],
-  emoji: string,
-): string[] {
+export function addRecentEmoji(prev: string[], emoji: string): string[] {
   const current = normalizeRecentEmojis(prev);
   const next = [emoji, ...current.filter((e) => e !== emoji)];
   return next.slice(0, MAX_RECENT);

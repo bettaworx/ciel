@@ -84,7 +84,7 @@ func NewWebSocketHandler(hub *realtime.Hub, tokenManager *auth.TokenManager, opt
 			slog.Info("websocket connected (anonymous)", "remote", r.RemoteAddr)
 		}
 
-		realtime.NewClient(hub, conn, func() {
+		realtime.NewClient(hub, conn, userID, func() {
 			limiter.release(ip)
 		}).Run()
 	}

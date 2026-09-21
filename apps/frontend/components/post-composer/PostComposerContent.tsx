@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import {
   X,
   Image as ImageIcon,
@@ -29,14 +29,16 @@ import { CodeFormatButton } from "./CodeFormatButton";
 import { SizeFormatButton } from "./SizeFormatButton";
 import { LinkFormatButton } from "./LinkFormatButton";
 import { FormatOverflowMenu } from "./FormatOverflowMenu";
+import { MediaUploadOverflowMenu } from "./MediaUploadOverflowMenu";
 import { ComposerEmojiPicker } from "./ComposerEmojiPicker";
 import { insertCenterDecoration } from "./centerDecoration";
-import {
-  ACCEPTED_IMAGE_TYPES,
-  ACCEPTED_VIDEO_TYPES,
-} from "./constants";
+import { ACCEPTED_IMAGE_ACCEPT, ACCEPTED_VIDEO_ACCEPT } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
 import { useComposerPlaceholder } from "./useComposerPlaceholder";
+import { PostCard } from "@/components/PostCard";
+import type { components } from "@/lib/api/api";
+
+type Post = components["schemas"]["Post"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,14 +55,14 @@ interface PostComposerContentProps {
   onClose?: () => void;
   /** (dialog only) Whether the close button should be disabled */
   closeDisabled?: boolean;
-  /** (card only) Called when the textarea loses focus */
-  onBlur?: () => void;
   /** Reuse a parent-selected placeholder so collapsed and expanded card states match. */
   placeholder?: string;
   /** Override the submit button label (defaults to createPost.post). */
   submitLabel?: string;
   /** Override the submitting button label (defaults to createPost.posting). */
   submittingLabel?: string;
+  /** When set, renders a non-interactive embedded PostCard preview below the media area. */
+  quotedPost?: Post;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,10 +108,10 @@ export function PostComposerContent({
   avatar,
   onClose,
   closeDisabled,
-  onBlur,
   placeholder: placeholderOverride,
   submitLabel,
   submittingLabel,
+  quotedPost,
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
@@ -161,6 +163,7 @@ export function PostComposerContent({
     handleCropOpen,
     handleCropDialogOpenChange,
     handleCropComplete,
+    handleQualityChange,
     handlePost,
     // Mutations
     createPostMutation,
@@ -205,8 +208,7 @@ export function PostComposerContent({
       };
 
       setSelectionRange((current) =>
-        current.start === nextSelectionRange.start &&
-        current.end === nextSelectionRange.end
+        current.start === nextSelectionRange.start && current.end === nextSelectionRange.end
           ? current
           : nextSelectionRange,
       );
@@ -273,23 +275,31 @@ export function PostComposerContent({
     <div className="flex items-center gap-1">
       <MediaUploadButton
         inputRef={imageFileInputRef}
-        accept={ACCEPTED_IMAGE_TYPES.join(",")}
+        accept={ACCEPTED_IMAGE_ACCEPT}
         multiple
         disabled={isImageUploadDisabled}
         onChange={handleImageSelect}
         icon={ImageIcon}
         ariaLabel={t("createPost.uploadImage")}
-        className={s.toolbarButton}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
       <MediaUploadButton
         inputRef={videoFileInputRef}
-        accept={ACCEPTED_VIDEO_TYPES.join(",")}
+        accept={ACCEPTED_VIDEO_ACCEPT}
         disabled={isVideoUploadDisabled}
         onChange={handleImageSelect}
         icon={VideoIcon}
         ariaLabel={t("createPost.uploadVideo")}
-        className={s.toolbarButton}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+      <MediaUploadOverflowMenu
+        imageFileInputRef={imageFileInputRef}
+        videoFileInputRef={videoFileInputRef}
+        isImageUploadDisabled={isImageUploadDisabled}
+        isVideoUploadDisabled={isVideoUploadDisabled}
+        className={cn(s.toolbarButton, "sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
       <ComposerEmojiPicker
@@ -428,7 +438,6 @@ export function PostComposerContent({
         onChange={handleContentChange}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
-        onBlur={onBlur}
         placeholder={placeholder}
         className={`flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0`}
         maxLength={maxContentLength}
@@ -447,7 +456,7 @@ export function PostComposerContent({
   /** OGP link preview */
   const ogpPreview = ogpUrl ? (
     <div className={s.contentPadding}>
-      <OgpCard url={ogpUrl} />
+      <OgpCard url={ogpUrl} variant="timeline" />
     </div>
   ) : null;
 
@@ -460,9 +469,19 @@ export function PostComposerContent({
           editable
           onRemove={handleRemoveMedia}
           onCrop={handleCropOpen}
+          onQualityChange={handleQualityChange}
         />
       </div>
     ) : null;
+
+  /** Quoted post preview (non-interactive) */
+  const quotedPostPreview = quotedPost ? (
+    <div className={s.contentPadding}>
+      <div className="pointer-events-none select-none">
+        <PostCard post={quotedPost} variant="embedded" isLast />
+      </div>
+    </div>
+  ) : null;
 
   /** Drag & drop overlay */
   const dragOverlay =
@@ -470,9 +489,7 @@ export function PostComposerContent({
       <div className="absolute inset-0 z-10 bg-background/90 border-2 border-dashed border-c-1 rounded-xl flex items-center justify-center pointer-events-none">
         <div className="text-center">
           <ImageIcon className="w-12 h-12 mx-auto mb-2 text-c-1" />
-          <p className="text-lg font-medium text-foreground">
-            {t("createPost.dropMedia")}
-          </p>
+          <p className="text-lg font-medium text-foreground">{t("createPost.dropMedia")}</p>
         </div>
       </div>
     ) : null;
@@ -505,6 +522,7 @@ export function PostComposerContent({
             {textareaRow}
             {ogpPreview}
             {mediaPreview}
+            {quotedPostPreview}
           </div>
 
           {/* Upload & format buttons */}
@@ -544,12 +562,11 @@ export function PostComposerContent({
           {textareaRow}
           {ogpPreview}
           {mediaPreview}
+          {quotedPostPreview}
         </div>
 
         {/* Actions bar: upload (left) + counter & post (right) */}
-        <div
-          className={cn("flex items-center justify-between", s.contentPadding)}
-        >
+        <div className={cn("flex items-center justify-between", s.contentPadding)}>
           <div>{uploadButtons}</div>
           <div className="flex flex-row gap-3">
             {formatButtons}

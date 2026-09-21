@@ -1,0 +1,212 @@
+/bookmarks/lists:
+  get:
+    tags:
+    - Bookmarks
+    summary: List the caller's bookmark lists
+    description: Default list first, then oldest created first.
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/bookmark.yml#/components/schemas/BookmarkListsResponse
+      '401':
+        description: Unauthorized
+  post:
+    tags:
+    - Bookmarks
+    summary: Create a bookmark list
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/bookmark.yml#/components/schemas/CreateBookmarkListRequest
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/bookmark.yml#/components/schemas/BookmarkList
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '409':
+        description: The caller already has the maximum number of lists
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/bookmarks/lists/{listId}:
+  patch:
+    tags:
+    - Bookmarks
+    summary: Rename a bookmark list or change its icon
+    description: Works on the default list too; only deletion is blocked there.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: listId
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/bookmark.yml#/components/schemas/BookmarkListId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/bookmark.yml#/components/schemas/UpdateBookmarkListRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/bookmark.yml#/components/schemas/BookmarkList
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+  delete:
+    tags:
+    - Bookmarks
+    summary: Delete a bookmark list
+    description: Deletes the list and its bookmarks. The default list cannot be deleted.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: listId
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/bookmark.yml#/components/schemas/BookmarkListId
+    responses:
+      '204':
+        description: Deleted
+      '401':
+        description: Unauthorized
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '409':
+        description: The default list cannot be deleted
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/bookmarks/lists/{listId}/posts:
+  get:
+    tags:
+    - Bookmarks
+    summary: List posts saved in a bookmark list
+    description: Most recently bookmarked first.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: listId
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/bookmark.yml#/components/schemas/BookmarkListId
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+    - name: cursor
+      in: query
+      required: false
+      description: Cursor returned by previous call.
+      schema:
+        type: string
+        nullable: true
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/post.yml#/components/schemas/UserPostsPage
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/posts/{postId}/bookmarks:
+  put:
+    tags:
+    - Bookmarks
+    summary: Set which of the caller's lists hold this post
+    description: Replaces the whole set, so an empty listIds removes the bookmark.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: postId
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/common.yml#/components/schemas/PostId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/bookmark.yml#/components/schemas/SetPostBookmarksRequest
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/bookmark.yml#/components/schemas/PostBookmarks
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '404':
+        description: Post or list not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

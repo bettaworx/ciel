@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useServerConfig } from '@/lib/hooks/use-queries';
+import { useEffect } from "react";
+import { useRouter } from "@/lib/navigation";
+import { useServerConfig } from "@/lib/hooks/use-queries";
 
 /**
  * ConfigWatcher monitors server configuration changes and updates the UI.
@@ -17,11 +17,11 @@ export function ConfigWatcher() {
   useEffect(() => {
     if (!serverConfig?.configVersion) return;
 
-    const stored = localStorage.getItem('lastConfigVersion');
+    const stored = localStorage.getItem("lastConfigVersion");
     const currentVersion = String(serverConfig.configVersion);
 
     if (stored && stored !== currentVersion) {
-      console.log('[ConfigWatcher] Server config updated, refreshing...', {
+      console.log("[ConfigWatcher] Server config updated, refreshing...", {
         old: stored,
         new: currentVersion,
       });
@@ -33,13 +33,13 @@ export function ConfigWatcher() {
       const link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
       if (link) {
         const url = new URL(link.href, window.location.origin);
-        url.searchParams.set('v', currentVersion);
+        url.searchParams.set("v", currentVersion);
         link.href = url.toString();
       }
     }
 
     // Store current version
-    localStorage.setItem('lastConfigVersion', currentVersion);
+    localStorage.setItem("lastConfigVersion", currentVersion);
   }, [serverConfig?.configVersion, router]);
 
   return null;

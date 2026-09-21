@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { useRef, useEffect, useState } from "react";
 import { animate } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
@@ -40,7 +40,7 @@ export function SetupProgress({ currentStep, totalSteps }: SetupProgressProps) {
       // Desktop: Animate progress (0.4s)
       const animation = animate(progressRef.current.value, targetProgress, {
         duration: 0.4,
-        ease: (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2),
+        ease: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
         onUpdate: (value) => {
           progressRef.current.value = value;
           setAnimatedProgress(value);

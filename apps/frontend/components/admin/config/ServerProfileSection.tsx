@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ export function ServerProfileSection({ serverInfo }: ServerProfileSectionProps) 
 
   const handleIconFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
+    if (!file?.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onloadend = () => {
       setCropImageSrc(reader.result as string);
@@ -164,10 +164,7 @@ export function ServerProfileSection({ serverInfo }: ServerProfileSectionProps) 
         {/* Save Button */}
         {hasChanges && (
           <div className="flex justify-end">
-            <Button
-              onClick={handleSave}
-              disabled={updateProfileMutation.isPending}
-            >
+            <Button onClick={handleSave} disabled={updateProfileMutation.isPending}>
               {updateProfileMutation.isPending ? t("saving") : t("save")}
             </Button>
           </div>

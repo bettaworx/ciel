@@ -8,10 +8,7 @@ export interface EmojiSuggestionMatch {
   end: number;
 }
 
-export function getEmojiSuggestionMatch(
-  text: string,
-  caret: number,
-): EmojiSuggestionMatch | null {
+export function getEmojiSuggestionMatch(text: string, caret: number): EmojiSuggestionMatch | null {
   if (caret < 3 || caret > text.length) {
     return null;
   }
@@ -81,10 +78,7 @@ export function applyEmojiSuggestion(
   shortcode: string,
 ): { nextValue: string; caret: number } {
   const replacement = `:${shortcode}:`;
-  const nextValue =
-    text.slice(0, match.start) +
-    replacement +
-    text.slice(match.end);
+  const nextValue = text.slice(0, match.start) + replacement + text.slice(match.end);
 
   return {
     nextValue,

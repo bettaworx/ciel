@@ -1,0 +1,89 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    // vcs.useIgnoreFile はルートの .gitignore しか読まない。apps/frontend/.gitignore
+    // にしか書かれていないビルド成果物・生成物はここで明示的に外す。
+    "includes": [
+      "**",
+      // git worktree の実体（リポジトリ全体の複製）。.gitignore にも入れているが、
+      // useIgnoreFile を切っても同じソースを二重に検査しないようここでも外す
+      "!**/.claude/worktrees",
+      "!**/dist",
+      "!**/coverage",
+      "!**/storybook-static",
+      // TanStack Router の生成物
+      "!apps/frontend/routeTree.gen.ts",
+      // openapi-typescript の生成物
+      "!apps/frontend/lib/api/api.d.ts",
+      // gen:licenses の生成物
+      "!apps/frontend/public/licenses.json"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "css": {
+    // apps/frontend/app/globals.css は Tailwind v4 の @theme / @apply を使う
+    "parser": { "tailwindDirectives": true }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "domains": {
+      "react": "recommended",
+      "test": "recommended"
+    },
+    "rules": {
+      "preset": "recommended",
+      "suspicious": {
+        // 旧 eslint.config.mjs から引き継ぎ (@typescript-eslint/no-explicit-any)
+        "noExplicitAny": "off",
+        // ESLint 時代は未検査。11 件あり、既存分を直すまで CI は落とさない
+        "noArrayIndexKey": "warn"
+      },
+      "style": {
+        // 既存コードは ! を意図的に使う。noExplicitAny を off にしている方針と揃える
+        "noNonNullAssertion": "off"
+      },
+      "correctness": {
+        // React 本体の react-hooks/exhaustive-deps と同じ warn 扱いに合わせる
+        "useExhaustiveDependencies": "warn"
+      },
+      // a11y は ESLint 時代に一度も検査されておらず既存違反が 33 件ある。
+      // 消すのではなく warn に落として可視化し、別タスクで解消する。
+      "a11y": {
+        "noNoninteractiveElementToInteractiveRole": "warn",
+        "useAriaPropsSupportedByRole": "warn",
+        "noStaticElementInteractions": "warn",
+        "useFocusableInteractive": "warn",
+        "useKeyWithClickEvents": "warn",
+        "noLabelWithoutControl": "warn",
+        "useSemanticElements": "warn",
+        "noSvgWithoutTitle": "warn",
+        "useValidAnchor": "warn",
+        "useButtonType": "warn"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        // import 並べ替えは副作用 import の順序を壊しうるため初回は無効
+        "organizeImports": "off"
+      }
+    }
+  }
+}

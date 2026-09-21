@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import { useAtomValue } from 'jotai';
-import { authStatusAtom, userAtom } from '@/atoms/auth';
-import { useAuth } from '@/lib/hooks/use-auth';
-import { useSessionRefresh } from '@/lib/hooks/use-session-refresh';
-import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from "react";
+import { useAtomValue } from "jotai";
+import { authStatusAtom, userAtom } from "@/atoms/auth";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { useSessionRefresh } from "@/lib/hooks/use-session-refresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * AuthInitProvider initializes authentication state on app startup.
@@ -14,54 +14,48 @@ import { useQueryClient } from '@tanstack/react-query';
  * Automatically refreshes the session for authenticated users.
  */
 export function AuthInitProvider({ children }: { children: React.ReactNode }) {
-	const { initAuth } = useAuth();
-	const authStatus = useAtomValue(authStatusAtom);
-	const user = useAtomValue(userAtom);
-	const queryClient = useQueryClient();
-	const prevUserIdRef = useRef<string | null>(null);
+  const { initAuth } = useAuth();
+  const authStatus = useAtomValue(authStatusAtom);
+  const user = useAtomValue(userAtom);
+  const queryClient = useQueryClient();
+  const prevUserIdRef = useRef<string | null>(null);
 
-	// Automatically refresh session for authenticated users
-	useSessionRefresh();
+  // Automatically refresh session for authenticated users
+  useSessionRefresh();
 
-	useEffect(() => {
-		// Only initialize if status is idle (not already initialized)
-		if (authStatus === 'idle') {
-			initAuth();
-		}
-	}, [authStatus, initAuth]);
+  useEffect(() => {
+    // Only initialize if status is idle (not already initialized)
+    if (authStatus === "idle") {
+      initAuth();
+    }
+  }, [authStatus, initAuth]);
 
-	// Clear reaction cache when user ID changes (login/logout/session expired)
-	useEffect(() => {
-		const currentUserId = user?.id || null;
-		
-		// Only invalidate if userId actually changed
-		if (prevUserIdRef.current !== currentUserId) {
-			queryClient.removeQueries({
-				predicate: (query) =>
-					Array.isArray(query.queryKey) &&
-					query.queryKey[0] === 'reactionSelf',
-			});
+  // Clear reaction cache when user ID changes (login/logout/session expired)
+  useEffect(() => {
+    const currentUserId = user?.id || null;
 
-			// Invalidate post caches because reactedByCurrentUser is user-specific.
-			queryClient.invalidateQueries({
-				predicate: (query) =>
-					Array.isArray(query.queryKey) &&
-					(
-						query.queryKey[0] === 'timeline' ||
-						query.queryKey[0] === 'userPosts' ||
-						query.queryKey[0] === 'post' ||
-						query.queryKey[0] === 'reactions' ||
-						(
-							query.queryKey.length >= 3 &&
-							query.queryKey[0] === 'posts' &&
-							query.queryKey[2] === 'reactions'
-						)
-					),
-			});
-			
-			prevUserIdRef.current = currentUserId;
-		}
-	}, [user?.id, queryClient]);
+    // Only invalidate if userId actually changed
+    if (prevUserIdRef.current !== currentUserId) {
+      queryClient.removeQueries({
+        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "reactionSelf",
+      });
 
-	return <>{children}</>;
+      // Invalidate post caches because reactedByCurrentUser is user-specific.
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          (query.queryKey[0] === "timeline" ||
+            query.queryKey[0] === "userPosts" ||
+            query.queryKey[0] === "post" ||
+            query.queryKey[0] === "reactions" ||
+            (query.queryKey.length >= 3 &&
+              query.queryKey[0] === "posts" &&
+              query.queryKey[2] === "reactions")),
+      });
+
+      prevUserIdRef.current = currentUserId;
+    }
+  }, [user?.id, queryClient]);
+
+  return <>{children}</>;
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { User as UserIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useEffect } from "react";
+import { useTranslations } from "@/lib/i18n";
+import { isCreatePostShortcut } from "@/lib/create-post-shortcut";
 import { useAtomValue } from "jotai";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -26,12 +28,30 @@ interface CreatePostDialogProps {
  * - Ctrl/Cmd + Enter to post
  * - Responsive layout (600px desktop, full-width mobile with margins)
  */
-export function CreatePostDialog({
-  open,
-  onOpenChange,
-}: CreatePostDialogProps) {
+export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) {
   const t = useTranslations();
   const user = useAtomValue(userAtom);
+
+  useEffect(() => {
+    if (open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (!isCreatePostShortcut(event, target)) return;
+      // Leave keyboard interaction inside other overlays to their own controls.
+      if (
+        target?.closest('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      onOpenChange(true);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onOpenChange]);
 
   // Use shared composition logic
   const compose = useComposePost({
@@ -49,13 +69,10 @@ export function CreatePostDialog({
   // Static (non-interactive) avatar for the dialog
   const avatarElement = (
     <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
-      {user?.avatarUrl ? (
-        <AvatarImage src={user.avatarUrl} alt={user?.username} />
-      ) : (
-        <AvatarFallback>
-          <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-        </AvatarFallback>
-      )}
+      <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.username} />
+      <AvatarFallback>
+        <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+      </AvatarFallback>
     </Avatar>
   );
 

@@ -37,7 +37,7 @@ describe("emoji-picker recent emojis", () => {
 
     expect(next[0]).toBe("🎉");
     expect(next.slice(1)).toEqual(
-      DEFAULT_RECENT_EMOJIS.filter((emoji) => emoji !== "🎉").slice(0, MAX_RECENT - 1),
+      DEFAULT_RECENT_EMOJIS.filter((emoji: string) => emoji !== "🎉").slice(0, MAX_RECENT - 1),
     );
   });
 

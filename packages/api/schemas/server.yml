@@ -50,6 +50,11 @@ components:
           type: string
           description: Semantic version of the server (e.g. "0.1.0")
           example: 0.1.0
+        searchEnabled:
+          type: boolean
+          description: Whether full-text search is configured. When false, the
+            /search endpoints return 503 and clients should hide search entry
+            points.
         stats:
           $ref: '#/components/schemas/ServerStats'
     ServerStats:

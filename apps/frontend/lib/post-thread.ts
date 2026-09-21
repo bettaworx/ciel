@@ -104,30 +104,20 @@ export function mergeTimelineOwnerThreads(
 
     const visitedReplyIds = new Set<string>();
 
-    function flattenThread(reply: Post, chainAuthorId: string): Post[] {
+    function flattenThread(reply: Post): Post[] {
       if (visitedReplyIds.has(reply.id)) {
-        return [];
-      }
-      if (reply.author?.id !== chainAuthorId) {
         return [];
       }
       visitedReplyIds.add(reply.id);
 
       const children = childrenByParent.get(reply.id) ?? [];
-      return [
-        reply,
-        ...children.flatMap((childReply) => flattenThread(childReply, chainAuthorId)),
-      ];
+      return [reply, ...children.flatMap(flattenThread)];
     }
 
     skippedPostIds.add(rootId);
 
     for (const threadRootReply of threadRootReplies) {
-      const chainAuthorId = threadRootReply.author?.id;
-      if (!chainAuthorId) {
-        continue;
-      }
-      const threadReplies = flattenThread(threadRootReply, chainAuthorId);
+      const threadReplies = flattenThread(threadRootReply);
       if (threadReplies.length === 0) {
         continue;
       }
@@ -136,18 +126,12 @@ export function mergeTimelineOwnerThreads(
         skippedPostIds.add(reply.id);
       }
 
-      const isMerged =
-        threadReplies.length + 1 > TIMELINE_OWNER_THREAD_MAX_VISIBLE_POSTS;
-      const latestReply = threadReplies
-        .slice()
-        .sort(comparePostsOldestFirst)
-        .at(-1);
+      const isMerged = threadReplies.length + 1 > TIMELINE_OWNER_THREAD_MAX_VISIBLE_POSTS;
+      const latestReply = threadReplies.slice().sort(comparePostsOldestFirst).at(-1);
       if (!latestReply) {
         continue;
       }
-      const visibleReplies = isMerged
-        ? [latestReply]
-        : threadReplies;
+      const visibleReplies = isMerged ? [latestReply] : threadReplies;
 
       threadByLatestPostId.set(latestReply.id, {
         rootId,
@@ -206,10 +190,7 @@ export async function collectOwnerReplyThreadChunk(
     return { replies: [], continuationParentIds: [] };
   }
 
-  const depthLimit = Math.max(
-    1,
-    Math.floor(options.depthLimit ?? OWNER_REPLY_THREAD_CHUNK_DEPTH),
-  );
+  const depthLimit = Math.max(1, Math.floor(options.depthLimit ?? OWNER_REPLY_THREAD_CHUNK_DEPTH));
   const visitedPostIds = new Set<string>(options.visitedPostIds ?? []);
   visitedPostIds.add(rootPost.id);
   const collected: Post[] = [];
@@ -233,15 +214,10 @@ export async function collectOwnerReplyThreadChunk(
 
   async function hasUnvisitedOwnerReply(parentId: string): Promise<boolean> {
     const replies = await fetchAllDirectReplies(parentId);
-    return replies.some(
-      (reply) => !visitedPostIds.has(reply.id) && reply.author?.id === ownerId,
-    );
+    return replies.some((reply) => !visitedPostIds.has(reply.id) && reply.author?.id === ownerId);
   }
 
-  async function visitOwnerReplies(
-    parentId: string,
-    depth: number,
-  ): Promise<void> {
+  async function visitOwnerReplies(parentId: string, depth: number): Promise<void> {
     const replies = await fetchAllDirectReplies(parentId);
 
     for (const reply of replies) {
@@ -256,10 +232,7 @@ export async function collectOwnerReplyThreadChunk(
 
       collected.push(reply);
       if (depth >= depthLimit) {
-        if (
-          reply.replyCount > 0 &&
-          (await hasUnvisitedOwnerReply(reply.id))
-        ) {
+        if (reply.replyCount > 0 && (await hasUnvisitedOwnerReply(reply.id))) {
           continuationParentIds.add(reply.id);
         }
         continue;
@@ -276,19 +249,13 @@ export async function collectOwnerReplyThreadChunk(
   };
 }
 
-export function groupOwnerReplyThreads(
-  rootPostId: string,
-  replies: Post[],
-): Post[][] {
+export function groupOwnerReplyThreads(rootPostId: string, replies: Post[]): Post[][] {
   const replyIds = new Set(replies.map((reply) => reply.id));
   const childrenByParent = new Map<string, Post[]>();
 
   for (const reply of replies) {
     const parentId = reply.parentId ?? rootPostId;
-    const groupParentId =
-      parentId === rootPostId || replyIds.has(parentId)
-        ? parentId
-        : rootPostId;
+    const groupParentId = parentId === rootPostId || replyIds.has(parentId) ? parentId : rootPostId;
     const children = childrenByParent.get(groupParentId) ?? [];
     children.push(reply);
     childrenByParent.set(groupParentId, children);
@@ -304,9 +271,7 @@ export function groupOwnerReplyThreads(
     if (visited.has(post.id)) return [];
     visited.add(post.id);
 
-    const descendants = childrenByParent
-      .get(post.id)
-      ?.flatMap((child) => flattenFrom(child));
+    const descendants = childrenByParent.get(post.id)?.flatMap((child) => flattenFrom(child));
 
     return [post, ...(descendants ?? [])];
   }
@@ -324,8 +289,6 @@ function comparePostsOldestFirst(a: Post, b: Post): number {
   return a.id.localeCompare(b.id);
 }
 
-function isThreadReply(
-  post: Post,
-): post is Post & { parentId: string; rootId: string } {
+function isThreadReply(post: Post): post is Post & { parentId: string; rootId: string } {
   return Boolean(post.parentId && post.rootId);
 }

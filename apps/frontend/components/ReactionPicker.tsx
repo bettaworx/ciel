@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Smile } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { usePathname, useSearchParams } from "next/navigation";
+import { Plus } from "lucide-react";
+import { useTranslations } from "@/lib/i18n";
+import { usePathname, useSearchParams } from "@/lib/navigation";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import {
   EmojiPicker,
   EmojiPickerSearch,
@@ -13,17 +12,8 @@ import {
   EmojiPickerFooter,
   type EmojiSelectEvent,
 } from "@/components/ui/emoji-picker";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 
 interface ReactionPickerProps {
@@ -36,18 +26,13 @@ interface ReactionPickerProps {
  * デスクトップ: Popover表示
  * モバイル: Drawer表示
  */
-export function ReactionPicker({
-  onEmojiSelect,
-  disabled,
-}: ReactionPickerProps) {
+export function ReactionPicker({ onEmojiSelect, disabled }: ReactionPickerProps) {
   const t = useTranslations("postCard");
   const [open, setOpen] = React.useState(false);
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
-
-  useBodyScrollLock(open);
 
   React.useEffect(() => {
     setOpen(false);
@@ -73,7 +58,7 @@ export function ReactionPicker({
             className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
             aria-label={t("addReaction")}
           >
-            <Smile className="h-5 w-5 sm:h-5 sm:w-5" />
+            <Plus className="h-5 w-5 sm:h-5 sm:w-5" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-fit overflow-hidden p-0" align="start">
@@ -102,21 +87,21 @@ export function ReactionPicker({
           className="h-8 w-8 p-0 text-muted-foreground transition-colors duration-160 ease hover:text-foreground"
           aria-label={t("addReaction")}
         >
-          <Smile className="h-5 w-5 sm:h-5 sm:w-5" />
+          <Plus className="h-5 w-5 sm:h-5 sm:w-5" />
         </Button>
       </DrawerTrigger>
       <DrawerContent>
         <div className="w-full flex flex-col">
           <DrawerTitle className="sr-only">{t("addReaction")}</DrawerTitle>
           <EmojiPicker
-            className="w-full h-[400px] border-0"
+            // Never taller than what the software keyboard leaves: the
+            // picker's search field is the first thing pushed off otherwise.
+            // The 8rem covers the sheet's handle and safe-area inset.
+            className="w-full h-[min(400px,calc(100dvh-var(--keyboard-inset,0px)-8rem))] border-0"
             columns={8}
             onEmojiSelect={handleEmojiSelect}
           >
-            <EmojiPickerSearch
-              className="w-full"
-              placeholder={t("searchEmoji")}
-            />
+            <EmojiPickerSearch className="w-full" placeholder={t("searchEmoji")} />
             <EmojiPickerContent className="w-full" />
             <EmojiPickerFooter className="w-full" />
           </EmojiPicker>

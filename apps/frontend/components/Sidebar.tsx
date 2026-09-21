@@ -1,10 +1,21 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import Image from "@/components/ui/image";
+import { usePathname, useRouter } from "@/lib/navigation";
 import { useAtomValue, useAtom } from "jotai";
-import { Home, SquarePen, Pin, PinOff, Info } from "lucide-react";
+import {
+  Home,
+  Search,
+  SquarePen,
+  Pin,
+  PinOff,
+  Info,
+  Bell,
+  Bookmark,
+  User,
+  Settings,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,16 +25,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarAvatar } from "@/components/SidebarAvatar";
 import { SidebarActionButton } from "@/components/SidebarActionButton";
+import { NotificationBadge } from "@/components/notifications/NotificationBadge";
 import { CreatePostDialog } from "@/components/CreatePostDialog";
-import { isAuthenticatedAtom } from "@/atoms/auth";
-import {
-  sidebarPinnedAtom,
-  sidebarExpandedAtom,
-  sidebarMenuOpenAtom,
-} from "@/atoms/sidebar";
-import { useServerInfo } from "@/lib/hooks/use-queries";
+import { isAuthenticatedAtom, userAtom } from "@/atoms/auth";
+import { sidebarPinnedAtom, sidebarExpandedAtom, sidebarMenuOpenAtom } from "@/atoms/sidebar";
+import { useServerInfo, useUnreadNotificationCount } from "@/lib/hooks/use-queries";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { motion, useAnimate } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -32,12 +40,23 @@ export function Sidebar() {
   const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
   const isAuthenticated = useAtomValue(isAuthenticatedAtom);
+  const user = useAtomValue(userAtom);
   const router = useRouter();
   const [isPinned, setIsPinned] = useAtom(sidebarPinnedAtom);
   const [, setIsExpanded] = useAtom(sidebarExpandedAtom);
-  const isMenuOpen = useAtomValue(sidebarMenuOpenAtom);
+  const [isMenuOpen, setIsMenuOpen] = useAtom(sidebarMenuOpenAtom);
   const { data: serverInfo } = useServerInfo();
+  const { data: unread } = useUnreadNotificationCount();
+  const unreadCount = unread?.count ?? 0;
+  // Show while the server info is still loading and hide only once search is
+  // known to be off, so the nav does not grow an extra item after mount.
+  const showSearch = serverInfo?.searchEnabled !== false;
   const canExpand = useMediaQuery("(min-width: 1280px)");
+  // ServerInfo carries no host, so read it off the browser. In an effect to
+  // keep the SSR markup and the hydrated markup identical.
+  const [host, setHost] = useState("");
+  useEffect(() => setHost(window.location.host), []);
+  const t = useTranslations();
   const tNav = useTranslations("nav");
   const tCreatePost = useTranslations("createPost");
 
@@ -48,13 +67,29 @@ export function Sidebar() {
     setIsExpanded(isExpanded);
   }, [isExpanded, setIsExpanded]);
 
+  const asideRef = useRef<HTMLElement>(null);
+
+  // An open menu covers the sidebar and blocks pointer events, so mouseleave
+  // never fires and the hover state goes stale. Rather than assume the pointer
+  // left, ask the DOM once the menu is gone — otherwise closing the menu with
+  // the pointer still on the sidebar collapses it, and navigating away from a
+  // menu item leaves it stuck open. A frame's delay lets the overlay release
+  // pointer events first, without which nothing can match :hover.
   const prevIsMenuOpenRef = useRef(isMenuOpen);
   useEffect(() => {
-    if (prevIsMenuOpenRef.current && !isMenuOpen && !isPinned) {
-      setIsHovered(false);
+    if (prevIsMenuOpenRef.current && !isMenuOpen) {
+      const frame = requestAnimationFrame(() =>
+        setIsHovered(asideRef.current?.matches(":hover") ?? false),
+      );
+      prevIsMenuOpenRef.current = isMenuOpen;
+      return () => cancelAnimationFrame(frame);
     }
     prevIsMenuOpenRef.current = isMenuOpen;
-  }, [isMenuOpen, isPinned]);
+  }, [isMenuOpen]);
+
+  useEffect(() => {
+    router.prefetch("/");
+  }, [router]);
 
   const [pinIconRef, animatePinIcon] = useAnimate();
   const hoverBg = "hover:bg-sidebar-hover";
@@ -69,23 +104,16 @@ export function Sidebar() {
 
   const handlePinToggle = () => {
     const y = isPinned ? -3 : 3;
-    animatePinIcon(
-      pinIconRef.current,
-      { y: [0, y, 0] },
-      { duration: 0.2, ease: "circOut" },
-    );
+    animatePinIcon(pinIconRef.current, { y: [0, y, 0] }, { duration: 0.2, ease: "circOut" });
     setIsPinned(!isPinned);
   };
 
   return (
     <>
       <motion.aside
+        ref={asideRef}
         animate={{ width: isExpanded ? 256 : 72 }}
-        transition={
-          canExpand
-            ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
-            : { duration: 0 }
-        }
+        transition={canExpand ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }}
         className="fixed left-0 top-0 h-dvh flex flex-col p-3 z-40 gap-3 overflow-hidden"
         onMouseEnter={(e) => {
           if (isMenuOpen && !isPinned) {
@@ -94,33 +122,56 @@ export function Sidebar() {
             setIsHovered(true);
           }
         }}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseLeave={() => {
+          // An opening menu blanks body pointer-events, which fires a bogus
+          // mouseleave. Trusting it collapses the sidebar for a frame once the
+          // menu closes, until the :hover re-check above expands it again.
+          if (!isMenuOpen) setIsHovered(false);
+        }}
       >
-        <div className="flex items-center h-12 gap-3">
-          <DropdownMenu>
+        <div className="flex items-center justify-between h-12 gap-3">
+          {/* Radix owns the open state; mirror it so the sidebar stays
+              expanded while the dropdown is up. */}
+          <DropdownMenu onOpenChange={setIsMenuOpen}>
             <DropdownMenuTrigger asChild>
-              <div
-                className={cn(
-                  "flex items-center justify-center w-[48px] h-[48px] rounded-2xl cursor-pointer shrink-0 overflow-hidden",
-                  hoverBg,
-                )}
+              <SidebarActionButton
+                icon={
+                  <motion.div
+                    initial={false}
+                    animate={{
+                      width: isExpanded ? 36 : 48,
+                      height: isExpanded ? 36 : 48,
+                      borderRadius: isExpanded ? "12px" : "16px",
+                    }}
+                    transition={
+                      canExpand ? { duration: 0.2, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }
+                    }
+                    className={cn("shrink-0 overflow-hidden", isExpanded ? "h-9 w-9" : "h-12 w-12")}
+                  >
+                    {serverInfo?.serverIconUrl ? (
+                      <Image
+                        src={serverInfo.serverIconUrl}
+                        alt="Server icon"
+                        width={48}
+                        height={48}
+                        unoptimized
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-primary" />
+                    )}
+                  </motion.div>
+                }
+                label={serverInfo?.serverName || host}
+                subLabel={serverInfo?.serverName ? host : undefined}
+                textWidth={128}
+                isExpanded={isExpanded}
+                canAnimate={canExpand}
+                className="w-auto"
                 aria-label={tNav("serverInfo")}
-              >
-                {serverInfo?.serverIconUrl ? (
-                  <Image
-                    src={serverInfo.serverIconUrl}
-                    alt="Server icon"
-                    width={48}
-                    height={48}
-                    unoptimized
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-primary rounded-2xl" />
-                )}
-              </div>
+              />
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start">
+            <DropdownMenuContent side="bottom" align="start">
               <DropdownMenuItem onClick={() => router.push("/about")}>
                 <Info className="w-4 h-4" />
                 {tNav("serverInfo")}
@@ -134,38 +185,26 @@ export function Sidebar() {
 
           <motion.div
             animate={{ opacity: isTopControlsVisible ? 1 : 0 }}
-            transition={
-              canExpand
-                ? { duration: 0.15, ease: "easeInOut" }
-                : { duration: 0 }
-            }
+            transition={canExpand ? { duration: 0.15, ease: "easeInOut" } : { duration: 0 }}
             className="flex items-center shrink-0 gap-2 justify-start"
             style={{ pointerEvents: isTopControlsVisible ? "auto" : "none" }}
           >
             <Button
               variant="ghost"
               rounded="md"
-              className={cn(
-                "w-10 h-10 transition-none",
-                isPinned && "bg-accent/60",
-                hoverBg,
-              )}
+              className={cn("w-10 h-10 transition-none", isPinned && "bg-accent/60", hoverBg)}
               onClick={handlePinToggle}
               aria-label={tNav(isPinned ? "unpinSidebar" : "pinSidebar")}
               tabIndex={isTopControlsVisible ? 0 : -1}
             >
               <span ref={pinIconRef} className="flex">
-                {isPinned ? (
-                  <PinOff className="w-4 h-4" />
-                ) : (
-                  <Pin className="w-4 h-4" />
-                )}
+                {isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
               </span>
             </Button>
           </motion.div>
         </div>
 
-        <div className="flex flex-col gap-3 grow">
+        <div className="flex flex-col gap-1.5 grow justify-center">
           <SidebarActionButton
             onClick={handleHomeClick}
             icon={<Home className="w-5 h-5 shrink-0" />}
@@ -175,9 +214,75 @@ export function Sidebar() {
             canAnimate={canExpand}
             hoverBg={hoverBg}
           />
-        </div>
-
-        <div className="flex flex-col gap-3">
+          {isAuthenticated && showSearch && (
+            <SidebarActionButton
+              href="/search"
+              icon={<Search className="w-5 h-5 shrink-0" />}
+              label={tNav("search")}
+              isActive={pathname === "/search"}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
+          {isAuthenticated && (
+            <SidebarActionButton
+              href="/notifications"
+              icon={
+                <span className="relative flex shrink-0">
+                  <Bell className="w-5 h-5" />
+                  {/* A dot while collapsed, because the count shows up once the
+                      sidebar expands. Where it can never expand, that count is
+                      unreachable, so put the number on the icon instead. */}
+                  {!isExpanded && (
+                    <NotificationBadge
+                      variant={canExpand ? "dot" : "count"}
+                      className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 ring-2 ring-background"
+                    />
+                  )}
+                </span>
+              }
+              label={tNav("notifications")}
+              trailingIcon={isExpanded && unreadCount > 0 ? <NotificationBadge /> : undefined}
+              isActive={pathname === "/notifications"}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
+          {isAuthenticated && (
+            <SidebarActionButton
+              href="/bookmarks"
+              icon={<Bookmark className="w-5 h-5 shrink-0" />}
+              label={tNav("bookmarks")}
+              isActive={pathname.startsWith("/bookmarks")}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
+          {isAuthenticated && user && (
+            <SidebarActionButton
+              href={`/users/${user.username}`}
+              icon={<User className="w-5 h-5 shrink-0" />}
+              label={t("profile")}
+              isActive={pathname === `/users/${user.username}`}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
+          {isAuthenticated && (
+            <SidebarActionButton
+              href="/settings"
+              icon={<Settings className="w-5 h-5 shrink-0" />}
+              label={t("settings.title")}
+              isActive={pathname.startsWith("/settings")}
+              isExpanded={isExpanded}
+              canAnimate={canExpand}
+              hoverBg={hoverBg}
+            />
+          )}
           {isAuthenticated && (
             <SidebarActionButton
               icon={<SquarePen className="w-5 h-5 shrink-0" />}
@@ -188,19 +293,13 @@ export function Sidebar() {
               onClick={() => setIsPostDialogOpen(true)}
             />
           )}
-          <SidebarAvatar
-            isExpanded={isExpanded}
-            isPinned={isPinned}
-            canAnimate={canExpand}
-          />
         </div>
+
+        <SidebarAvatar isExpanded={isExpanded} isPinned={isPinned} canAnimate={canExpand} />
       </motion.aside>
 
       {isAuthenticated && (
-        <CreatePostDialog
-          open={isPostDialogOpen}
-          onOpenChange={setIsPostDialogOpen}
-        />
+        <CreatePostDialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen} />
       )}
     </>
   );

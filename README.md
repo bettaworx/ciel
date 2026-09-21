@@ -46,9 +46,9 @@ browsers can reach. A host-level reverse proxy is optional deployment
 infrastructure, not required by the application containers.
 
 The frontend container does not proxy backend REST or WebSocket traffic. Browser
-clients call the backend directly using `API_BASE_URL`; the Next.js server uses
-`INTERNAL_API_BASE_URL` only for server-rendered assets such as icons and the
-web app manifest.
+clients call the backend directly using `API_BASE_URL`; the frontend web server uses
+`INTERNAL_API_BASE_URL` for one thing only — proxying the web app manifest, which
+has to look same-origin to the browser.
 
 Operational settings are provided at runtime through Docker Compose and `.env`.
 Build provenance is the exception: frontend and backend images intentionally
@@ -59,6 +59,24 @@ Edit `.env` and set the required secrets (passwords, JWT secret, etc.):
 ```bash
 nano .env
 ```
+
+### Search
+
+Full-text search for posts and users is served by a Meilisearch container
+declared in `docker-compose.yml`. Set `MEILI_MASTER_KEY` (16 characters or
+more) and the matching `MEILISEARCH_API_KEY` in `.env`:
+
+```bash
+openssl rand -base64 32
+```
+
+On first start the backend creates the indexes and loads every existing post
+and user into them; afterwards the index is kept up to date as content changes.
+Set `SEARCH_BACKFILL=force` to reindex everything on the next start, which is
+how a drifted index is repaired.
+
+To run without search, set `SEARCH_PROVIDER=none`. The `/search/*` endpoints
+then return 503 and nothing is indexed; the rest of the server is unaffected.
 
 Build the images:
 
@@ -96,6 +114,58 @@ docker compose run --rm backend /app/migrate-db down 1
 # Roll back all migrations
 docker compose run --rm backend /app/migrate-db down -all
 ```
+
+## Local development (native apps, containerized dependencies)
+
+For day-to-day development, run the frontend and backend natively and keep only
+PostgreSQL, Redis and Meilisearch in containers.
+
+**Prerequisites:** Docker, Go, pnpm
+
+```bash
+cp .env.example .env
+cp docker-compose.dev.yml.example docker-compose.dev.yml
+cp apps/backend/config/config.yaml.example apps/backend/config/config.yaml
+```
+
+`.env.example` is written for the all-in-Docker setup, so its connection
+strings use compose service names. For native development, point them at
+`localhost` instead:
+
+```dotenv
+DATABASE_URL=postgres://ciel:your-password@localhost:5432/ciel?sslmode=disable
+REDIS_ADDR=redis://:your-password@localhost:6379
+MEILISEARCH_HOST=http://localhost:7700
+```
+
+Set the remaining secrets in `.env` as usual (`POSTGRES_PASSWORD`,
+`REDIS_PASSWORD`, `MEILI_MASTER_KEY`, `MEILISEARCH_API_KEY`, `JWT_SECRET`,
+`REALTIME_SIGNING_SECRET`, `INITIAL_SETUP_PASSWORD`). The dev compose file reads
+the same `.env`, so the containers and the native backend always agree on
+credentials.
+
+Start the dependencies:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+```
+
+Apply migrations (run once on first setup, and after pulling new migrations):
+
+```bash
+pnpm run migrate:up
+```
+
+Start the frontend and backend natively:
+
+```bash
+pnpm dev
+```
+
+Frontend: <http://localhost:3000> — backend: <http://localhost:6137>
+
+Stop the dependencies with `docker compose -f docker-compose.dev.yml down`, or
+`down -v` to also discard the database, Redis and search data.
 
 # License
 [MIT License](https://opensource.org/license/MIT)

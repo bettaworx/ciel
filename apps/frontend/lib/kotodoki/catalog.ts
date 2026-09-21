@@ -15,6 +15,4 @@ export const greetDatasetCollection = {
   datasets: greetDatasets,
 } satisfies KotodokiDatasetCollection;
 
-export const frontendKotodokiCatalog = createDatasetCatalog([
-  greetDatasetCollection,
-]);
+export const frontendKotodokiCatalog = createDatasetCatalog([greetDatasetCollection]);
