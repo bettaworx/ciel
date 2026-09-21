@@ -16,6 +16,7 @@ import { OwnerThreadTimelineItem } from "@/components/OwnerThreadTimelineItem";
 import { WelcomeCard } from "@/components/WelcomeCard";
 import { ComposeCard } from "@/components/ComposeCard";
 import { TimelineSwitcher } from "@/components/TimelineSwitcher";
+import { StickyPageToolbar } from "@/components/shared/StickyPageToolbar";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Spinner } from "@/components/ui/spinner";
@@ -145,9 +146,19 @@ export function HomePage() {
 
   return (
     <PageContainer maxWidth="2xl">
-      <div className="space-y-3">
-        {auth.user ? <ComposeCard /> : <WelcomeCard />}
-        {auth.user && <TimelineSwitcher value={scope} onChange={setStoredScope} />}
+      <div>
+        {auth.user ? (
+          <ComposeCard />
+        ) : (
+          <div className="mb-3">
+            <WelcomeCard />
+          </div>
+        )}
+        {auth.user && (
+          <StickyPageToolbar>
+            <TimelineSwitcher value={scope} onChange={setStoredScope} />
+          </StickyPageToolbar>
+        )}
         <PullToRefresh onRefresh={refetch}>
           <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
             {isLoading ? (
@@ -193,11 +204,13 @@ export function HomePage() {
           </div>
         </PullToRefresh>
 
-        <InfiniteScrollTrigger
-          sentinelRef={infiniteScrollRef}
-          hasNextPage={Boolean(hasNextPage)}
-          isFetchingNextPage={isFetchingNextPage}
-        />
+        <div className="mt-3">
+          <InfiniteScrollTrigger
+            sentinelRef={infiniteScrollRef}
+            hasNextPage={Boolean(hasNextPage)}
+            isFetchingNextPage={isFetchingNextPage}
+          />
+        </div>
       </div>
     </PageContainer>
   );

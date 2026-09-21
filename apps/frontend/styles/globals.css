@@ -48,6 +48,8 @@
 }
 
 :root {
+  --page-header-height: 4rem;
+
   /* Typography tokens: update families by role, not by vendor name. */
   --font-fallback-sans: sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI";
   --font-fallback-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
@@ -300,6 +302,36 @@ html[lang="th"] {
 }
 
 @layer components {
+  /* Keep the visible top corners rounded as cards scroll under the toolbar. */
+  [data-slot="sticky-page-toolbar"]::after {
+    --corner-radius: var(--radius-xl);
+    content: "";
+    position: absolute;
+    top: 100%;
+    inset-inline: 0;
+    height: var(--corner-radius);
+    pointer-events: none;
+    background:
+      radial-gradient(
+        circle at bottom right,
+        transparent var(--corner-radius),
+        var(--background) calc(var(--corner-radius) + 0.5px)
+      )
+      left / var(--corner-radius) 100% no-repeat,
+      radial-gradient(
+        circle at bottom left,
+        transparent var(--corner-radius),
+        var(--background) calc(var(--corner-radius) + 0.5px)
+      )
+      right / var(--corner-radius) 100% no-repeat;
+  }
+
+  @media (min-width: 640px) {
+    [data-slot="sticky-page-toolbar"]::after {
+      --corner-radius: 1rem;
+    }
+  }
+
   .toaster {
     --offset-top: 1rem;
     --offset-bottom: 1rem;

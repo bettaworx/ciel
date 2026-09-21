@@ -5,6 +5,7 @@ import { useTranslations } from "@/lib/i18n";
 import { Bell, CheckCheck } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { StickyPageToolbar } from "@/components/shared/StickyPageToolbar";
 import { DynamicTitle } from "@/components/DynamicTitle";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -90,28 +91,30 @@ export function NotificationsPage() {
     >
       <DynamicTitle title={t("title")} />
       <Tabs value={tab} onValueChange={(value) => setTab(value as NotificationTab)}>
-        <div className="flex items-center gap-2">
-          <TabsList className="flex-1">
-            <TabsTrigger value="all">{t("tabs.all")}</TabsTrigger>
-            <TabsTrigger value="mentions">{t("tabs.mentions")}</TabsTrigger>
-          </TabsList>
-          <Button
-            variant="ghost"
-            // Match TabsList's surface and shape so the row reads as one control.
-            className="h-12 w-12 shrink-0 rounded-2xl bg-card hover:bg-card-hover"
-            aria-label={t("markAllRead")}
-            title={t("markAllRead")}
-            disabled={unreadCount === 0 || markAllRead.isPending}
-            onClick={() => markAllRead.mutate(undefined)}
-          >
-            <CheckCheck className="h-5 w-5" />
-          </Button>
-        </div>
+        <StickyPageToolbar>
+          <div className="flex items-center gap-2">
+            <TabsList className="flex-1">
+              <TabsTrigger value="all">{t("tabs.all")}</TabsTrigger>
+              <TabsTrigger value="mentions">{t("tabs.mentions")}</TabsTrigger>
+            </TabsList>
+            <Button
+              variant="ghost"
+              // Match TabsList's surface and shape so the row reads as one control.
+              className="h-12 w-12 shrink-0 rounded-2xl bg-card hover:bg-card-hover"
+              aria-label={t("markAllRead")}
+              title={t("markAllRead")}
+              disabled={unreadCount === 0 || markAllRead.isPending}
+              onClick={() => markAllRead.mutate(undefined)}
+            >
+              <CheckCheck className="h-5 w-5" />
+            </Button>
+          </div>
+        </StickyPageToolbar>
 
-        <TabsContent value="all" className="mt-3">
+        <TabsContent value="all" className="mt-0">
           <NotificationList tab="all" />
         </TabsContent>
-        <TabsContent value="mentions" className="mt-3">
+        <TabsContent value="mentions" className="mt-0">
           <NotificationList tab="mentions" />
         </TabsContent>
       </Tabs>

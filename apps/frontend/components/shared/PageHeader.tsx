@@ -4,6 +4,8 @@ import { useRouter } from "@/lib/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useContext } from "react";
+import { PageChromeContext } from "@/components/shared/PageChromeContext";
 
 type PageHeaderProps = {
   children: React.ReactNode;
@@ -24,13 +26,17 @@ type PageHeaderProps = {
 
 export function PageHeader({ children, backHref, showBackButton = true, action }: PageHeaderProps) {
   const router = useRouter();
+  const chrome = useContext(PageChromeContext);
 
   return (
     <div
-      className="sticky top-0 z-20 pointer-events-none h-16"
+      ref={chrome?.headerRef}
+      data-slot="page-header"
+      className="sticky top-0 z-20 pointer-events-none h-[var(--page-header-height)]"
       style={{
-        background:
-          "linear-gradient(to bottom, var(--background) 0%, var(--background) 80%, transparent 100%)",
+        background: chrome?.toolbarAttached
+          ? "var(--background)"
+          : "linear-gradient(to bottom, var(--background) 0%, var(--background) 80%, transparent 100%)",
       }}
     >
       <div

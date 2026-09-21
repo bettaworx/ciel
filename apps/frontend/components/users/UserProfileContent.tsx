@@ -74,6 +74,7 @@ function describeSaveFailure(error: unknown): string | null {
   return null;
 }
 import { PageHeader } from "@/components/shared/PageHeader";
+import { StickyPageToolbar } from "@/components/shared/StickyPageToolbar";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
 import { useInfiniteScroll } from "@/lib/hooks/use-infinite-scroll";
 import { useOwnerThreadTimelineItems } from "@/lib/hooks/use-owner-thread-timeline-items";
@@ -1060,13 +1061,15 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as typeof activeTab)}
             >
-              <TabsList className="mb-3 w-full">
-                <TabsTrigger value="posts">{t("user.posts")}</TabsTrigger>
-                <TabsTrigger value="replies">{t("user.replies")}</TabsTrigger>
-                <TabsTrigger value="media">{t("user.media")}</TabsTrigger>
-              </TabsList>
+              <StickyPageToolbar>
+                <TabsList className="w-full">
+                  <TabsTrigger value="posts">{t("user.posts")}</TabsTrigger>
+                  <TabsTrigger value="replies">{t("user.replies")}</TabsTrigger>
+                  <TabsTrigger value="media">{t("user.media")}</TabsTrigger>
+                </TabsList>
+              </StickyPageToolbar>
 
-              <TabsContent value="posts">
+              <TabsContent value="posts" className="mt-0">
                 <ProfileTabContent
                   isLoading={postsLoading}
                   error={postsError}
@@ -1105,7 +1108,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                 </ProfileTabContent>
               </TabsContent>
 
-              <TabsContent value="replies">
+              <TabsContent value="replies" className="mt-0">
                 <ProfileTabContent
                   isLoading={repliesLoading}
                   error={repliesError}
@@ -1144,7 +1147,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
                 </ProfileTabContent>
               </TabsContent>
 
-              <TabsContent value="media">
+              <TabsContent value="media" className="mt-0">
                 <ProfileTabContent
                   isLoading={mediaLoading}
                   error={mediaError}
