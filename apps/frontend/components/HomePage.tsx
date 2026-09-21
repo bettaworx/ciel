@@ -17,6 +17,7 @@ import { WelcomeCard } from "@/components/WelcomeCard";
 import { ComposeCard } from "@/components/ComposeCard";
 import { TimelineSwitcher } from "@/components/TimelineSwitcher";
 import { InfiniteScrollTrigger } from "@/components/InfiniteScrollTrigger";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Repeat2 } from "lucide-react";
@@ -130,9 +131,8 @@ export function HomePage() {
   // the visible one is allowed to fetch.
   const globalTimeline = useTimeline({ enabled: !showingHome });
   const homeTimeline = useHomeTimeline({ enabled: showingHome });
-  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = showingHome
-    ? homeTimeline
-    : globalTimeline;
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
+    showingHome ? homeTimeline : globalTimeline;
 
   const posts = useMemo(() => data?.pages.flatMap((page) => page.items ?? []) ?? [], [data]);
   const timelineItems = useOwnerThreadTimelineItems(posts);
@@ -148,48 +148,50 @@ export function HomePage() {
       <div className="space-y-3">
         {auth.user ? <ComposeCard /> : <WelcomeCard />}
         {auth.user && <TimelineSwitcher value={scope} onChange={setStoredScope} />}
-        <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Spinner variant="theme" label={t("loading")} />
-            </div>
-          ) : error ? (
-            <div className="p-6 text-center">
-              <p className="text-destructive">
-                {t("error.title")}: {error.message}
+        <PullToRefresh onRefresh={refetch}>
+          <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Spinner variant="theme" label={t("loading")} />
+              </div>
+            ) : error ? (
+              <div className="p-6 text-center">
+                <p className="text-destructive">
+                  {t("error.title")}: {error.message}
+                </p>
+              </div>
+            ) : posts.length === 0 ? (
+              <p className="text-muted-foreground p-3">
+                {showingHome ? t("timeline.noHomePosts") : t("timeline.noPosts")}
               </p>
-            </div>
-          ) : posts.length === 0 ? (
-            <p className="text-muted-foreground p-3">
-              {showingHome ? t("timeline.noHomePosts") : t("timeline.noPosts")}
-            </p>
-          ) : (
-            timelineItems.map((item, index) =>
-              item.type === "post" ? (
-                <TimelinePostItem
-                  key={item.post.id}
-                  post={item.post}
-                  onUserClick={(username) => router.push(`/users/${username}`)}
-                  isLast={index === timelineItems.length - 1}
-                />
-              ) : (
-                <OwnerThreadTimelineItem
-                  key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
-                  rootPost={item.rootPost}
-                  replies={item.replies}
-                  isMerged={item.isMerged}
-                  onUserClick={(username) => router.push(`/users/${username}`)}
-                  onShowThread={() =>
-                    router.push(
-                      `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
-                    )
-                  }
-                  isLast={index === timelineItems.length - 1}
-                />
-              ),
-            )
-          )}
-        </div>
+            ) : (
+              timelineItems.map((item, index) =>
+                item.type === "post" ? (
+                  <TimelinePostItem
+                    key={item.post.id}
+                    post={item.post}
+                    onUserClick={(username) => router.push(`/users/${username}`)}
+                    isLast={index === timelineItems.length - 1}
+                  />
+                ) : (
+                  <OwnerThreadTimelineItem
+                    key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
+                    rootPost={item.rootPost}
+                    replies={item.replies}
+                    isMerged={item.isMerged}
+                    onUserClick={(username) => router.push(`/users/${username}`)}
+                    onShowThread={() =>
+                      router.push(
+                        `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
+                      )
+                    }
+                    isLast={index === timelineItems.length - 1}
+                  />
+                ),
+              )
+            )}
+          </div>
+        </PullToRefresh>
 
         <InfiniteScrollTrigger
           sentinelRef={infiniteScrollRef}

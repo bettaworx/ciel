@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { FollowButton } from "@/components/users/FollowButton";
 import { PageContainer } from "@/components/PageContainer";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { ApiHttpError } from "@/lib/api/client";
 import { MediaNormalizeError, isImageFile } from "@/lib/media/normalize";
@@ -330,6 +331,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    refetch: refetchPosts,
   } = useUserPosts(username, { excludeForeignReplies: true, enabled: activeTab === "posts" });
   const {
     data: repliesData,
@@ -338,6 +340,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     fetchNextPage: fetchNextRepliesPage,
     hasNextPage: hasNextRepliesPage,
     isFetchingNextPage: isFetchingNextRepliesPage,
+    refetch: refetchReplies,
   } = useUserPosts(username, { onlyReplies: true, enabled: activeTab === "replies" });
   const {
     data: mediaData,
@@ -346,6 +349,7 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     fetchNextPage: fetchNextMediaPage,
     hasNextPage: hasNextMediaPage,
     isFetchingNextPage: isFetchingNextMediaPage,
+    refetch: refetchMedia,
   } = useUserPosts(username, { mediaType: "media", enabled: activeTab === "media" });
 
   // Edit mode state
@@ -410,6 +414,12 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
     isFetchingNextPage: isFetchingNextMediaPage,
     fetchNextPage: fetchNextMediaPage,
   });
+
+  const handleRefresh = useCallback(() => {
+    if (activeTab === "posts") return refetchPosts();
+    if (activeTab === "replies") return refetchReplies();
+    return refetchMedia();
+  }, [activeTab, refetchPosts, refetchReplies, refetchMedia]);
 
   const bannerBlurhashDataUrl = useMemo(
     () => getBlurhashDataUrl(user?.bannerBlurhash),
@@ -624,536 +634,541 @@ export function UserProfileContent({ username }: UserProfileContentProps) {
         </PageHeader>
       }
     >
-      <div>
-        {/* User Profile Header */}
-        <div className="select-none bg-card rounded-2xl overflow-hidden mb-3">
-          {/* Banner */}
-          <div
-            className={`w-full aspect-[3/1] bg-muted relative overflow-hidden ${isEditing ? "cursor-pointer" : ""}`}
-            onClick={isEditing ? () => bannerFileInputRef.current?.click() : undefined}
-          >
-            {!isEditing && user.bannerUrl && bannerBlurhashDataUrl && (
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div>
+          {/* User Profile Header */}
+          <div className="select-none bg-card rounded-2xl overflow-hidden mb-3">
+            {/* Banner */}
+            <div
+              className={`w-full aspect-[3/1] bg-muted relative overflow-hidden ${isEditing ? "cursor-pointer" : ""}`}
+              onClick={isEditing ? () => bannerFileInputRef.current?.click() : undefined}
+            >
+              {!isEditing && user.bannerUrl && bannerBlurhashDataUrl && (
+                <img
+                  src={bannerBlurhashDataUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                />
+              )}
               <img
-                src={bannerBlurhashDataUrl}
+                src={
+                  (isEditing ? bannerPreview || user.bannerUrl : user.bannerUrl) ||
+                  DEFAULT_BANNER_URL
+                }
                 alt=""
-                aria-hidden="true"
-                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                className="relative w-full h-full object-cover"
               />
-            )}
-            <img
-              src={
-                (isEditing ? bannerPreview || user.bannerUrl : user.bannerUrl) || DEFAULT_BANNER_URL
-              }
-              alt=""
-              className="relative w-full h-full object-cover"
-            />
-            {isEditing && (
-              <input
-                ref={bannerFileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleBannerFileSelect}
-                className="hidden"
-              />
-            )}
-            <div className="absolute top-3 right-3">
-              {isEditing ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    bannerFileInputRef.current?.click();
-                  }}
-                  disabled={isSaving}
-                  className="bg-black/50 text-white hover:bg-black/85 hover:text-white"
-                >
-                  {t("settings.profile.banner.change")}
-                </Button>
-              ) : isDesktop ? (
-                <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      aria-label={t("user.moreActions")}
-                      className="bg-black/50 text-white hover:bg-black/85 hover:text-white"
-                    >
-                      <MoreHorizontal className="w-3.5 h-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={handleShareProfile}>
-                      <Share className="w-4 h-4" />
-                      {t("user.shareProfile")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={handleCopyUserId}>
-                      <Clipboard className="w-4 h-4" />
-                      {t("user.copyUserId")}
-                    </DropdownMenuItem>
-                    {hideActions.map((action) => (
-                      <DropdownMenuItem
-                        key={action.key}
-                        onSelect={action.run}
-                        className={
-                          action.destructive ? "text-destructive focus:text-destructive" : undefined
-                        }
-                      >
-                        {action.icon}
-                        {action.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
-                  <DrawerTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      aria-label={t("user.moreActions")}
-                      className="bg-black/50 text-white hover:bg-black/85 hover:text-white"
-                    >
-                      <MoreHorizontal className="w-3.5 h-3.5" />
-                    </Button>
-                  </DrawerTrigger>
-                  <DrawerContent>
-                    <div className="flex flex-col gap-2 p-2 pb-3">
+              {isEditing && (
+                <input
+                  ref={bannerFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBannerFileSelect}
+                  className="hidden"
+                />
+              )}
+              <div className="absolute top-3 right-3">
+                {isEditing ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      bannerFileInputRef.current?.click();
+                    }}
+                    disabled={isSaving}
+                    className="bg-black/50 text-white hover:bg-black/85 hover:text-white"
+                  >
+                    {t("settings.profile.banner.change")}
+                  </Button>
+                ) : isDesktop ? (
+                  <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+                    <DropdownMenuTrigger asChild>
                       <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-2"
-                        onClick={handleShareProfile}
+                        variant="secondary"
+                        size="icon"
+                        aria-label={t("user.moreActions")}
+                        className="bg-black/50 text-white hover:bg-black/85 hover:text-white"
                       >
+                        <MoreHorizontal className="w-3.5 h-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={handleShareProfile}>
                         <Share className="w-4 h-4" />
                         {t("user.shareProfile")}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-2"
-                        onClick={handleCopyUserId}
-                      >
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={handleCopyUserId}>
                         <Clipboard className="w-4 h-4" />
                         {t("user.copyUserId")}
-                      </Button>
+                      </DropdownMenuItem>
                       {hideActions.map((action) => (
-                        <Button
+                        <DropdownMenuItem
                           key={action.key}
-                          variant="ghost"
+                          onSelect={action.run}
                           className={
                             action.destructive
-                              ? "w-full justify-start gap-2 text-destructive"
-                              : "w-full justify-start gap-2"
+                              ? "text-destructive focus:text-destructive"
+                              : undefined
                           }
-                          onClick={() => {
-                            // Blocking opens its own confirmation; two stacked
-                            // drawers trap the dismiss.
-                            setMenuOpen(false);
-                            action.run();
-                          }}
                         >
                           {action.icon}
                           {action.label}
-                        </Button>
+                        </DropdownMenuItem>
                       ))}
-                    </div>
-                  </DrawerContent>
-                </Drawer>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+                    <DrawerTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        aria-label={t("user.moreActions")}
+                        className="bg-black/50 text-white hover:bg-black/85 hover:text-white"
+                      >
+                        <MoreHorizontal className="w-3.5 h-3.5" />
+                      </Button>
+                    </DrawerTrigger>
+                    <DrawerContent>
+                      <div className="flex flex-col gap-2 p-2 pb-3">
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start gap-2"
+                          onClick={handleShareProfile}
+                        >
+                          <Share className="w-4 h-4" />
+                          {t("user.shareProfile")}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start gap-2"
+                          onClick={handleCopyUserId}
+                        >
+                          <Clipboard className="w-4 h-4" />
+                          {t("user.copyUserId")}
+                        </Button>
+                        {hideActions.map((action) => (
+                          <Button
+                            key={action.key}
+                            variant="ghost"
+                            className={
+                              action.destructive
+                                ? "w-full justify-start gap-2 text-destructive"
+                                : "w-full justify-start gap-2"
+                            }
+                            onClick={() => {
+                              // Blocking opens its own confirmation; two stacked
+                              // drawers trap the dismiss.
+                              setMenuOpen(false);
+                              action.run();
+                            }}
+                          >
+                            {action.icon}
+                            {action.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </DrawerContent>
+                  </Drawer>
+                )}
+              </div>
+              {showsFollowsYouBadge && (
+                <div className="absolute top-3 left-3 border-transparent bg-black/50 text-white shadow-none rounded-full text-xs py-1.5 px-3">
+                  {t("user.followsYou")}
+                </div>
               )}
             </div>
-            {showsFollowsYouBadge && (
-              <div className="absolute top-3 left-3 border-transparent bg-black/50 text-white shadow-none rounded-full text-xs py-1.5 px-3">
-                {t("user.followsYou")}
-              </div>
-            )}
-          </div>
 
-          <div className="px-3">
-            {/* Avatar row + action buttons */}
-            <div className="flex items-start h-12 sm:h-16 mb-3">
-              <div className="relative shrink-0">
-                {isEditing && (
-                  <input
-                    ref={avatarFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarFileSelect}
-                    className="hidden"
-                  />
-                )}
+            <div className="px-3">
+              {/* Avatar row + action buttons */}
+              <div className="flex items-start h-12 sm:h-16 mb-3">
+                <div className="relative shrink-0">
+                  {isEditing && (
+                    <input
+                      ref={avatarFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarFileSelect}
+                      className="hidden"
+                    />
+                  )}
 
-                <Avatar
-                  className={`h-24 w-24 sm:h-32 sm:w-32 -mt-12 sm:-mt-16 rounded-[24px] sm:rounded-[32px] ring-4 ring-card ${isEditing ? "cursor-pointer" : ""}`}
-                  onClick={isEditing ? () => avatarFileInputRef.current?.click() : undefined}
-                >
-                  <AvatarImage
-                    src={
-                      (isEditing ? avatarPreview || user.avatarUrl : user.avatarUrl) ?? undefined
-                    }
-                    alt={user.username}
-                  />
-                  <AvatarFallback className="rounded-[24px] sm:rounded-[32px]">
-                    <User className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground" />
-                  </AvatarFallback>
-                </Avatar>
-
-                {isEditing && (
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      avatarFileInputRef.current?.click();
-                    }}
-                    disabled={isSaving}
-                    className="absolute bottom-1 right-1 sm:hidden bg-black/50 text-white hover:bg-black/85 hover:text-white"
-                    aria-label={t("settings.profile.avatar.change")}
+                  <Avatar
+                    className={`h-24 w-24 sm:h-32 sm:w-32 -mt-12 sm:-mt-16 rounded-[24px] sm:rounded-[32px] ring-4 ring-card ${isEditing ? "cursor-pointer" : ""}`}
+                    onClick={isEditing ? () => avatarFileInputRef.current?.click() : undefined}
                   >
-                    <Upload className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
+                    <AvatarImage
+                      src={
+                        (isEditing ? avatarPreview || user.avatarUrl : user.avatarUrl) ?? undefined
+                      }
+                      alt={user.username}
+                    />
+                    <AvatarFallback className="rounded-[24px] sm:rounded-[32px]">
+                      <User className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
 
-              {/* Action row — justify-between, fills remaining width */}
-              <div className="flex-1 pl-3 gap-2 pt-3 flex items-center justify-between">
-                {/* Left: avatar change button (edit mode only) */}
-                <div>
                   {isEditing && (
                     <Button
                       type="button"
                       variant="default"
-                      onClick={() => avatarFileInputRef.current?.click()}
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        avatarFileInputRef.current?.click();
+                      }}
                       disabled={isSaving}
-                      className="hidden sm:inline-flex"
+                      className="absolute bottom-1 right-1 sm:hidden bg-black/50 text-white hover:bg-black/85 hover:text-white"
+                      aria-label={t("settings.profile.avatar.change")}
                     >
-                      {t("settings.profile.avatar.change")}
+                      <Upload className="w-4 h-4" />
                     </Button>
                   )}
                 </div>
 
-                {/* Right: follow (others) / pencil / cancel + save */}
-                <div className="flex items-center gap-2">
-                  <FollowButton
-                    username={username}
-                    isFollowing={isFollowing}
-                    isFollowedBy={isFollowedBy}
-                    isPrivate={user.isPrivate}
-                    followRequestSent={user.followRequestSent}
-                    isBlockedBy={user.isBlockedBy}
-                    isBlocking={user.isBlocking}
-                  />
-                  {isOwnProfile && !isEditing && (
-                    <Button variant="default" size="icon" onClick={handleEditStart}>
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
-                  {isOwnProfile && isEditing && (
-                    <>
+                {/* Action row — justify-between, fills remaining width */}
+                <div className="flex-1 pl-3 gap-2 pt-3 flex items-center justify-between">
+                  {/* Left: avatar change button (edit mode only) */}
+                  <div>
+                    {isEditing && (
                       <Button
+                        type="button"
                         variant="default"
-                        size="icon"
-                        className="md:w-auto md:px-3"
-                        onClick={handleEditCancel}
+                        onClick={() => avatarFileInputRef.current?.click()}
                         disabled={isSaving}
+                        className="hidden sm:inline-flex"
                       >
-                        <X className="w-4 h-4 md:mr-1" />
-                        <span className="hidden md:inline">
-                          {t("settings.profile.avatar.cancel")}
-                        </span>
+                        {t("settings.profile.avatar.change")}
                       </Button>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={handleSave}
-                        disabled={isSaving || !canSaveProfile}
-                      >
-                        <Save className="w-4 h-4 mr-1" />
-                        {isSaving
-                          ? t("settings.profile.saving")
-                          : t("settings.profile.saveChanges")}
+                    )}
+                  </div>
+
+                  {/* Right: follow (others) / pencil / cancel + save */}
+                  <div className="flex items-center gap-2">
+                    <FollowButton
+                      username={username}
+                      isFollowing={isFollowing}
+                      isFollowedBy={isFollowedBy}
+                      isPrivate={user.isPrivate}
+                      followRequestSent={user.followRequestSent}
+                      isBlockedBy={user.isBlockedBy}
+                      isBlocking={user.isBlocking}
+                    />
+                    {isOwnProfile && !isEditing && (
+                      <Button variant="default" size="icon" onClick={handleEditStart}>
+                        <Pencil className="w-3.5 h-3.5" />
                       </Button>
-                    </>
-                  )}
+                    )}
+                    {isOwnProfile && isEditing && (
+                      <>
+                        <Button
+                          variant="default"
+                          size="icon"
+                          className="md:w-auto md:px-3"
+                          onClick={handleEditCancel}
+                          disabled={isSaving}
+                        >
+                          <X className="w-4 h-4 md:mr-1" />
+                          <span className="hidden md:inline">
+                            {t("settings.profile.avatar.cancel")}
+                          </span>
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={handleSave}
+                          disabled={isSaving || !canSaveProfile}
+                        >
+                          <Save className="w-4 h-4 mr-1" />
+                          {isSaving
+                            ? t("settings.profile.saving")
+                            : t("settings.profile.saveChanges")}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* User Info */}
-            <div className="select-text flex flex-col gap-2 pb-3">
-              <div className="flex flex-col gap-1">
-                {isEditing ? (
-                  <Input
-                    value={editDisplayName}
-                    onChange={(e) => setEditDisplayName(e.target.value)}
-                    placeholder={t("settings.profile.displayName.placeholder")}
-                    maxLength={50}
-                    className="text-base font-bold md:text-xl"
-                    disabled={isSaving}
-                  />
-                ) : (
-                  <h1 className="text-xl font-bold text-foreground">
-                    <DisplayName
-                      name={user.displayName || `@${user.username}`}
-                      isPrivate={user.isPrivate}
-                      isMuted={user.isMuted}
-                      isBlocked={user.isBlocking}
+              {/* User Info */}
+              <div className="select-text flex flex-col gap-2 pb-3">
+                <div className="flex flex-col gap-1">
+                  {isEditing ? (
+                    <Input
+                      value={editDisplayName}
+                      onChange={(e) => setEditDisplayName(e.target.value)}
+                      placeholder={t("settings.profile.displayName.placeholder")}
+                      maxLength={50}
+                      className="text-base font-bold md:text-xl"
+                      disabled={isSaving}
                     />
-                  </h1>
-                )}
-                {user.displayName && (
-                  <p className="text-sm text-muted-foreground">@{user.username}</p>
-                )}
-              </div>
+                  ) : (
+                    <h1 className="text-xl font-bold text-foreground">
+                      <DisplayName
+                        name={user.displayName || `@${user.username}`}
+                        isPrivate={user.isPrivate}
+                        isMuted={user.isMuted}
+                        isBlocked={user.isBlocking}
+                      />
+                    </h1>
+                  )}
+                  {user.displayName && (
+                    <p className="text-sm text-muted-foreground">@{user.username}</p>
+                  )}
+                </div>
 
-              <div>
-                {isEditing ? (
-                  <Textarea
-                    value={editBio}
-                    onChange={(e) => setEditBio(e.target.value)}
-                    placeholder={t("settings.profile.bio.placeholder")}
-                    maxLength={200}
-                    rows={3}
-                    className="resize-none text-sm"
-                    disabled={isSaving}
-                  />
-                ) : (
-                  <>
-                    {/* Withheld across a block in either direction, and the
+                <div>
+                  {isEditing ? (
+                    <Textarea
+                      value={editBio}
+                      onChange={(e) => setEditBio(e.target.value)}
+                      placeholder={t("settings.profile.bio.placeholder")}
+                      maxLength={200}
+                      rows={3}
+                      className="resize-none text-sm"
+                      disabled={isSaving}
+                    />
+                  ) : (
+                    <>
+                      {/* Withheld across a block in either direction, and the
                         empty-bio placeholder goes with it: the server blanks the
                         text, so "No bio yet" would be the page inventing a fact
                         about an account it is not showing. */}
-                    {!bioWithheld && user.bio && (
-                      <div className="text-sm text-foreground leading-relaxed">
-                        <MfmRenderer text={user.bio} allowList={BIO_ALLOW_LIST} />
-                      </div>
-                    )}
-                    {!bioWithheld && !user.bio && (
-                      <p className="text-muted-foreground italic">{t("user.noBio")}</p>
-                    )}
-                  </>
-                )}
-              </div>
+                      {!bioWithheld && user.bio && (
+                        <div className="text-sm text-foreground leading-relaxed">
+                          <MfmRenderer text={user.bio} allowList={BIO_ALLOW_LIST} />
+                        </div>
+                      )}
+                      {!bioWithheld && !user.bio && (
+                        <p className="text-muted-foreground italic">{t("user.noBio")}</p>
+                      )}
+                    </>
+                  )}
+                </div>
 
-              {!isEditing && (
-                <div className="flex flex-col gap-2">
-                  {/* The server omits both counts for a private account the
+                {!isEditing && (
+                  <div className="flex flex-col gap-2">
+                    {/* The server omits both counts for a private account the
                       viewer may not see. Nothing is rendered then — falling back
                       to 0 would state a number the API deliberately withheld,
                       and the links lead to lists that are refused anyway. */}
-                  {hasFollowCounts && (
-                    <div className="flex items-center gap-4 text-sm">
-                      <Link
-                        href={`/users/${encodeURIComponent(username)}/following`}
-                        className="text-muted-foreground hover:underline"
-                      >
-                        <span className="font-bold text-foreground">{user.followingCount}</span>{" "}
-                        {t("user.followingCount")}
-                      </Link>
-                      <Link
-                        href={`/users/${encodeURIComponent(username)}/followers`}
-                        className="text-muted-foreground hover:underline"
-                      >
-                        <span className="font-bold text-foreground">{user.followersCount}</span>{" "}
-                        {t("user.followersCount")}
-                      </Link>
-                    </div>
-                  )}
-
-                  {knownFollowerCount > 0 && knownFollowers && (
-                    <Link
-                      href={`/users/${encodeURIComponent(username)}/followers_you_follow`}
-                      className="flex items-center gap-2 text-sm text-muted-foreground hover:underline"
-                    >
-                      <div className="flex -space-x-2">
-                        {knownFollowers.items.map((known) => (
-                          <Avatar key={known.id} className="h-5 w-5 ring-2 ring-card">
-                            <AvatarImage
-                              src={known.avatarUrl ?? undefined}
-                              alt={known.displayName || `@${known.username}`}
-                            />
-                            <AvatarFallback className="text-[10px]">
-                              {(known.displayName || known.username).charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                        ))}
+                    {hasFollowCounts && (
+                      <div className="flex items-center gap-4 text-sm">
+                        <Link
+                          href={`/users/${encodeURIComponent(username)}/following`}
+                          className="text-muted-foreground hover:underline"
+                        >
+                          <span className="font-bold text-foreground">{user.followingCount}</span>{" "}
+                          {t("user.followingCount")}
+                        </Link>
+                        <Link
+                          href={`/users/${encodeURIComponent(username)}/followers`}
+                          className="text-muted-foreground hover:underline"
+                        >
+                          <span className="font-bold text-foreground">{user.followersCount}</span>{" "}
+                          {t("user.followersCount")}
+                        </Link>
                       </div>
-                      <span className="truncate">
-                        {knownFollowerCount > 1
-                          ? t("user.followedByMany", {
-                              name:
-                                knownFollowers.items[0]?.displayName ||
-                                `@${knownFollowers.items[0]?.username}`,
-                              count: knownFollowerCount - 1,
-                            })
-                          : t("user.followedByOne", {
-                              name:
-                                knownFollowers.items[0]?.displayName ||
-                                `@${knownFollowers.items[0]?.username}`,
-                            })}
-                      </span>
-                    </Link>
-                  )}
-                </div>
-              )}
+                    )}
+
+                    {knownFollowerCount > 0 && knownFollowers && (
+                      <Link
+                        href={`/users/${encodeURIComponent(username)}/followers_you_follow`}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:underline"
+                      >
+                        <div className="flex -space-x-2">
+                          {knownFollowers.items.map((known) => (
+                            <Avatar key={known.id} className="h-5 w-5 ring-2 ring-card">
+                              <AvatarImage
+                                src={known.avatarUrl ?? undefined}
+                                alt={known.displayName || `@${known.username}`}
+                              />
+                              <AvatarFallback className="text-[10px]">
+                                {(known.displayName || known.username).charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          ))}
+                        </div>
+                        <span className="truncate">
+                          {knownFollowerCount > 1
+                            ? t("user.followedByMany", {
+                                name:
+                                  knownFollowers.items[0]?.displayName ||
+                                  `@${knownFollowers.items[0]?.username}`,
+                                count: knownFollowerCount - 1,
+                              })
+                            : t("user.followedByOne", {
+                                name:
+                                  knownFollowers.items[0]?.displayName ||
+                                  `@${knownFollowers.items[0]?.username}`,
+                              })}
+                        </span>
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* A private account still shows its profile above; only the activity
+          {/* A private account still shows its profile above; only the activity
             below is withheld. The server already returns nothing here, so this
             is purely to explain the emptiness rather than to enforce it. */}
-        {isBlockedByUser ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-center">
-            <Ban className="h-8 w-8 text-destructive" />
-            <p className="font-medium text-foreground">{t("user.blockedByUser")}</p>
-            <p className="text-sm text-muted-foreground">{t("user.blockedByUserDescription")}</p>
-          </div>
-        ) : isActivityHidden ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-center">
-            <Lock className="h-8 w-8 text-muted-foreground" />
-            <p className="font-medium text-foreground">{t("user.privatePostsHidden")}</p>
-            <p className="text-sm text-muted-foreground">
-              {t("user.privatePostsHiddenDescription")}
-            </p>
-          </div>
-        ) : showHiddenGate ? (
-          /* One gate for the whole tab strip. Opening it shows the posts as
+          {isBlockedByUser ? (
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <Ban className="h-8 w-8 text-destructive" />
+              <p className="font-medium text-foreground">{t("user.blockedByUser")}</p>
+              <p className="text-sm text-muted-foreground">{t("user.blockedByUserDescription")}</p>
+            </div>
+          ) : isActivityHidden ? (
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <Lock className="h-8 w-8 text-muted-foreground" />
+              <p className="font-medium text-foreground">{t("user.privatePostsHidden")}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("user.privatePostsHiddenDescription")}
+              </p>
+            </div>
+          ) : showHiddenGate ? (
+            /* One gate for the whole tab strip. Opening it shows the posts as
              normal — cushioning every row underneath would ask the same
              question again for every scroll. */
-          <div className="flex flex-col items-center gap-2 py-12 text-center">
-            {visibility.gate === "blocked" ? (
-              <Ban className="h-8 w-8 text-destructive" />
-            ) : (
-              <VolumeX className="h-8 w-8 text-destructive" />
-            )}
-            <p className="font-medium text-foreground">
-              {visibility.gate === "blocked"
-                ? t("user.blockedPostsHidden")
-                : t("user.mutedPostsHidden")}
-            </p>
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0 text-muted-foreground"
-              onClick={() => setProfileRevealed(true)}
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              {visibility.gate === "blocked" ? (
+                <Ban className="h-8 w-8 text-destructive" />
+              ) : (
+                <VolumeX className="h-8 w-8 text-destructive" />
+              )}
+              <p className="font-medium text-foreground">
+                {visibility.gate === "blocked"
+                  ? t("user.blockedPostsHidden")
+                  : t("user.mutedPostsHidden")}
+              </p>
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-muted-foreground"
+                onClick={() => setProfileRevealed(true)}
+              >
+                {t("postCard.hiddenPost.reveal")}
+              </Button>
+            </div>
+          ) : (
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as typeof activeTab)}
             >
-              {t("postCard.hiddenPost.reveal")}
-            </Button>
-          </div>
-        ) : (
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => setActiveTab(value as typeof activeTab)}
-          >
-            <TabsList className="mb-3 w-full">
-              <TabsTrigger value="posts">{t("user.posts")}</TabsTrigger>
-              <TabsTrigger value="replies">{t("user.replies")}</TabsTrigger>
-              <TabsTrigger value="media">{t("user.media")}</TabsTrigger>
-            </TabsList>
+              <TabsList className="mb-3 w-full">
+                <TabsTrigger value="posts">{t("user.posts")}</TabsTrigger>
+                <TabsTrigger value="replies">{t("user.replies")}</TabsTrigger>
+                <TabsTrigger value="media">{t("user.media")}</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="posts">
-              <ProfileTabContent
-                isLoading={postsLoading}
-                error={postsError}
-                isEmpty={posts.length === 0}
-                emptyMessage={t("user.noPosts")}
-                sentinelRef={postsInfiniteScrollRef}
-                hasNextPage={Boolean(hasNextPage)}
-                isFetchingNextPage={isFetchingNextPage}
-              >
-                {postItems.map((item, index) =>
-                  item.type === "post" ? (
-                    <ProfilePostItem
-                      key={item.post.id}
-                      post={item.post}
+              <TabsContent value="posts">
+                <ProfileTabContent
+                  isLoading={postsLoading}
+                  error={postsError}
+                  isEmpty={posts.length === 0}
+                  emptyMessage={t("user.noPosts")}
+                  sentinelRef={postsInfiniteScrollRef}
+                  hasNextPage={Boolean(hasNextPage)}
+                  isFetchingNextPage={isFetchingNextPage}
+                >
+                  {postItems.map((item, index) =>
+                    item.type === "post" ? (
+                      <ProfilePostItem
+                        key={item.post.id}
+                        post={item.post}
+                        onUserClick={(username) => router.push(`/users/${username}`)}
+                        isLast={index === postItems.length - 1}
+                        revealHidden={hiddenByViewer}
+                      />
+                    ) : (
+                      <OwnerThreadTimelineItem
+                        key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
+                        rootPost={item.rootPost}
+                        replies={item.replies}
+                        isMerged={item.isMerged}
+                        onUserClick={(username) => router.push(`/users/${username}`)}
+                        onShowThread={() =>
+                          router.push(
+                            `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
+                          )
+                        }
+                        isLast={index === postItems.length - 1}
+                        skipHiddenCushion={hiddenByViewer}
+                      />
+                    ),
+                  )}
+                </ProfileTabContent>
+              </TabsContent>
+
+              <TabsContent value="replies">
+                <ProfileTabContent
+                  isLoading={repliesLoading}
+                  error={repliesError}
+                  isEmpty={replies.length === 0}
+                  emptyMessage={t("user.noReplies")}
+                  sentinelRef={repliesInfiniteScrollRef}
+                  hasNextPage={Boolean(hasNextRepliesPage)}
+                  isFetchingNextPage={isFetchingNextRepliesPage}
+                >
+                  {replyItems.map((item, index) =>
+                    item.type === "post" ? (
+                      <ProfilePostItem
+                        key={item.post.id}
+                        post={item.post}
+                        onUserClick={(username) => router.push(`/users/${username}`)}
+                        isLast={index === replyItems.length - 1}
+                        revealHidden={hiddenByViewer}
+                      />
+                    ) : (
+                      <OwnerThreadTimelineItem
+                        key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
+                        rootPost={item.rootPost}
+                        replies={item.replies}
+                        isMerged={item.isMerged}
+                        onUserClick={(username) => router.push(`/users/${username}`)}
+                        onShowThread={() =>
+                          router.push(
+                            `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
+                          )
+                        }
+                        isLast={index === replyItems.length - 1}
+                        skipHiddenCushion={hiddenByViewer}
+                      />
+                    ),
+                  )}
+                </ProfileTabContent>
+              </TabsContent>
+
+              <TabsContent value="media">
+                <ProfileTabContent
+                  isLoading={mediaLoading}
+                  error={mediaError}
+                  isEmpty={media.length === 0}
+                  emptyMessage={t("user.noMedia")}
+                  sentinelRef={mediaInfiniteScrollRef}
+                  hasNextPage={Boolean(hasNextMediaPage)}
+                  isFetchingNextPage={isFetchingNextMediaPage}
+                >
+                  {media.map((post, index) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
                       onUserClick={(username) => router.push(`/users/${username}`)}
-                      isLast={index === postItems.length - 1}
-                      revealHidden={hiddenByViewer}
-                    />
-                  ) : (
-                    <OwnerThreadTimelineItem
-                      key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
-                      rootPost={item.rootPost}
-                      replies={item.replies}
-                      isMerged={item.isMerged}
-                      onUserClick={(username) => router.push(`/users/${username}`)}
-                      onShowThread={() =>
-                        router.push(
-                          `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
-                        )
-                      }
-                      isLast={index === postItems.length - 1}
+                      isLast={index === media.length - 1}
                       skipHiddenCushion={hiddenByViewer}
                     />
-                  ),
-                )}
-              </ProfileTabContent>
-            </TabsContent>
-
-            <TabsContent value="replies">
-              <ProfileTabContent
-                isLoading={repliesLoading}
-                error={repliesError}
-                isEmpty={replies.length === 0}
-                emptyMessage={t("user.noReplies")}
-                sentinelRef={repliesInfiniteScrollRef}
-                hasNextPage={Boolean(hasNextRepliesPage)}
-                isFetchingNextPage={isFetchingNextRepliesPage}
-              >
-                {replyItems.map((item, index) =>
-                  item.type === "post" ? (
-                    <ProfilePostItem
-                      key={item.post.id}
-                      post={item.post}
-                      onUserClick={(username) => router.push(`/users/${username}`)}
-                      isLast={index === replyItems.length - 1}
-                      revealHidden={hiddenByViewer}
-                    />
-                  ) : (
-                    <OwnerThreadTimelineItem
-                      key={`${item.rootPost.id}:${item.replies.map((reply) => reply.id).join(":")}`}
-                      rootPost={item.rootPost}
-                      replies={item.replies}
-                      isMerged={item.isMerged}
-                      onUserClick={(username) => router.push(`/users/${username}`)}
-                      onShowThread={() =>
-                        router.push(
-                          `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
-                        )
-                      }
-                      isLast={index === replyItems.length - 1}
-                      skipHiddenCushion={hiddenByViewer}
-                    />
-                  ),
-                )}
-              </ProfileTabContent>
-            </TabsContent>
-
-            <TabsContent value="media">
-              <ProfileTabContent
-                isLoading={mediaLoading}
-                error={mediaError}
-                isEmpty={media.length === 0}
-                emptyMessage={t("user.noMedia")}
-                sentinelRef={mediaInfiniteScrollRef}
-                hasNextPage={Boolean(hasNextMediaPage)}
-                isFetchingNextPage={isFetchingNextMediaPage}
-              >
-                {media.map((post, index) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onUserClick={(username) => router.push(`/users/${username}`)}
-                    isLast={index === media.length - 1}
-                    skipHiddenCushion={hiddenByViewer}
-                  />
-                ))}
-              </ProfileTabContent>
-            </TabsContent>
-          </Tabs>
-        )}
-      </div>
+                  ))}
+                </ProfileTabContent>
+              </TabsContent>
+            </Tabs>
+          )}
+        </div>
+      </PullToRefresh>
 
       {cropDialogOpen && cropImageSrc && pendingCropFile && (
         <ImageCropDialog

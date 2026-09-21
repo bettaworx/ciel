@@ -586,6 +586,11 @@
       "global": "Global"
     }
   },
+  "pullToRefresh": {
+    "pull": "Pull to reload",
+    "release": "Release to reload",
+    "refreshing": "Reloading…"
+  },
   "search": {
     "title": "Search",
     "placeholder": "Search posts and users",
