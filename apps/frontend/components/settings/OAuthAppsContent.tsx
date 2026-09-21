@@ -27,13 +27,17 @@ import {
 } from "@/lib/hooks/use-queries";
 
 /**
- * Settings → Account → OAuth2 apps.
+ * Settings → Account → Apps.
  *
  * Two lists that look similar and mean opposite things, so they are kept
- * visually apart: the apps this account has *registered* (a developer action),
- * and the apps this account has *connected to* (something the user did to
- * somebody else's app). Revoking in the second list does not delete anything in
- * the first.
+ * visually apart: the apps this account has *connected to* (somebody else's
+ * app, acting on your behalf) and the apps this account has *registered* (a
+ * developer action). Disconnecting in the first does not delete anything in
+ * the second.
+ *
+ * Connected comes first because it is the list almost everyone opens this page
+ * for — "what has access to my account, and how do I stop it". Registering an
+ * app is the rarer, developer-side task, so it sits below.
  */
 export function OAuthAppsContent() {
   const t = useTranslations();
@@ -43,8 +47,8 @@ export function OAuthAppsContent() {
       <PageHeader backHref="/settings/account">{t("settings.account.apps.title")}</PageHeader>
       <div className="space-y-6">
         <p className="text-sm text-muted-foreground">{t("settings.account.apps.description")}</p>
-        <RegisteredApps />
         <ConnectedApps />
+        <RegisteredApps />
       </div>
     </>
   );
@@ -63,7 +67,7 @@ function RegisteredApps() {
         <h2 className="text-sm font-medium text-muted-foreground">
           {t("settings.account.apps.yourApps")}
         </h2>
-        <Button size="sm" variant="outline" onClick={() => setCreating((v) => !v)}>
+        <Button size="sm" variant="contrast" onClick={() => setCreating((v) => !v)}>
           <Plus className="h-4 w-4" />
           {t("settings.account.apps.create")}
         </Button>
@@ -199,15 +203,14 @@ function AppCard({
 
       <div className="flex flex-wrap gap-2">
         {client.isConfidential && (
-          <Button size="sm" variant="outline" onClick={handleRotate} disabled={rotate.isPending}>
+          <Button size="sm" variant="contrast" onClick={handleRotate} disabled={rotate.isPending}>
             <KeyRound className="h-4 w-4" />
             {t("settings.account.apps.rotateSecret")}
           </Button>
         )}
         <Button
           size="sm"
-          variant="outline"
-          className="text-destructive"
+          variant="destructive"
           onClick={handleDelete}
           disabled={deleteClient.isPending}
         >
@@ -384,8 +387,8 @@ function ConnectedApps() {
               </div>
               <Button
                 size="sm"
-                variant="outline"
-                className="shrink-0 text-destructive"
+                variant="destructive"
+                className="shrink-0"
                 disabled={revoke.isPending}
                 onClick={() =>
                   revoke.mutate(auth.clientId, {

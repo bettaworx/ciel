@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "@/lib/i18n";
-import { Bot, KeyRound, Trash2, UserPen } from "lucide-react";
+import { Bot, LayoutGrid, Trash2, UserPen } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import {
@@ -50,7 +50,7 @@ export function AccountSettingsContent() {
             disabled={!me || updateBot.isPending}
           />
           <SettingsRow
-            icon={KeyRound}
+            icon={LayoutGrid}
             label={t("settings.account.apps.title")}
             href="/settings/account/apps"
           />

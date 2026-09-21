@@ -263,7 +263,7 @@
         "error": "設定を変更できませんでした"
       },
       "apps": {
-        "title": "OAuth2 アプリ",
+        "title": "アプリ",
         "description": "Bot やツールに、このアカウントの権限を絞って渡せます。",
         "yourApps": "登録したアプリ",
         "noApps": "まだアプリを登録していません",
@@ -623,7 +623,7 @@
       "settingsAccount": "アカウント",
       "settingsAccountUsername": "ユーザー名を変更",
       "settingsAccountDelete": "アカウントを削除",
-      "settingsAccountApps": "OAuth2 アプリ",
+      "settingsAccountApps": "アプリ",
       "oauthAuthorize": "アクセスの許可",
       "setup": "プロフィール設定",
       "adminSetup": "サーバー初期設定",

@@ -263,7 +263,7 @@
         "error": "Could not change the setting"
       },
       "apps": {
-        "title": "OAuth2 apps",
+        "title": "Apps",
         "description": "Give a bot or tool access to this account, limited to what it needs.",
         "yourApps": "Your apps",
         "noApps": "You have not registered any apps yet",
@@ -623,7 +623,7 @@
       "settingsAccount": "Account",
       "settingsAccountUsername": "Change username",
       "settingsAccountDelete": "Delete account",
-      "settingsAccountApps": "OAuth2 apps",
+      "settingsAccountApps": "Apps",
       "oauthAuthorize": "Authorize access",
       "setup": "Setup Profile",
       "adminSetup": "Server Setup",

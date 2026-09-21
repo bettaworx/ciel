@@ -163,7 +163,7 @@ export function ConsentScreen({ params }: { params: ConsentParams }) {
           {/* Deny is not a dead end: the app is told, or it waits for a
               callback that never arrives. */}
           <Button
-            variant="outline"
+            variant="contrast"
             className="flex-1"
             disabled={submitting}
             onClick={() => decide(false)}
