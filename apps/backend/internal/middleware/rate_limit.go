@@ -99,6 +99,9 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		// The consent screen is driven by a signed-in browser, so these key on
 		// the user and can be looser without helping an attacker.
 		{routeKey: "oauth_authorize", limit: 60, window: 1 * time.Minute, subject: subjectUser},
+		// Its read half is reachable before sign-in, so it keys on the IP and
+		// is capped nearer the token endpoint than the consent POST.
+		{routeKey: "oauth_authorize_info", limit: 60, window: 1 * time.Minute, subject: subjectIP},
 		// Registering apps is cheap for the user and permanent for us, and the
 		// per-account cap is a ceiling rather than a rate.
 		{routeKey: "oauth_client_create", limit: 10, window: 1 * time.Hour, subject: subjectUser},
@@ -379,17 +382,22 @@ func classifyRoute(r *http.Request) string {
 
 // classifyOAuthRoute classifies the OAuth2 endpoints.
 func classifyOAuthRoute(method, path string) string {
-	if method != http.MethodPost {
+	switch {
+	case method == http.MethodGet && path == "/api/v1/oauth/authorize/info":
+		// Public and unauthenticated — the consent screen calls it before the
+		// user has decided anything — and it looks a client up by client_id.
+		// That makes it the one OAuth endpoint an anonymous caller can use to
+		// probe which client_ids exist, so it is capped like the rest.
+		return "oauth_authorize_info"
+	case method != http.MethodPost:
 		return ""
-	}
-	switch path {
-	case "/api/v1/oauth/token":
+	case path == "/api/v1/oauth/token":
 		return "oauth_token"
-	case "/api/v1/oauth/revoke":
+	case path == "/api/v1/oauth/revoke":
 		return "oauth_revoke"
-	case "/api/v1/oauth/authorize":
+	case path == "/api/v1/oauth/authorize":
 		return "oauth_authorize"
-	case "/api/v1/me/oauth/clients":
+	case path == "/api/v1/me/oauth/clients":
 		return "oauth_client_create"
 	default:
 		return ""

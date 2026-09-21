@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -517,5 +518,92 @@ func TestOAuth_UnregisteredRedirectURIIsRefused(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("unregistered redirect_uri: got %d, want 400", resp.StatusCode)
+	}
+}
+
+// The sweeper keeps oauth_tokens from growing without bound, but it is the one
+// place that can delete a row reuse detection still needs: a revoked refresh
+// token is kept precisely so that replaying it is recognisable as a reuse
+// rather than as an unknown token. Deleting too eagerly turns a detected theft
+// back into a silent "invalid token".
+func TestOAuth_SweeperKeepsRowsReuseDetectionNeeds(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	user := registerUser(t, app.Server.Client(), app.Server.URL, "botowner", "Password123!")
+	authz := issueBearer(t, app.TokenManager, user)
+	created := createClient(t, app, authz, []string{auth.ScopeReadPosts}, true)
+
+	ctx := t.Context()
+	var clientUUID string
+	if err := app.SQLDB.QueryRowContext(ctx,
+		`SELECT id FROM oauth_clients WHERE client_id = $1`, created.Client.ClientId,
+	).Scan(&clientUUID); err != nil {
+		t.Fatalf("look up client: %v", err)
+	}
+
+	// Each row is named for what it is, and inserted with the access and
+	// refresh expiries that decide whether it should survive.
+	rows := []struct {
+		name          string
+		accessAge     string
+		refreshExpiry string // SQL expression, or "NULL"
+		wantKept      bool
+	}{
+		{"live token", "now() + INTERVAL '1 hour'", "now() + INTERVAL '60 days'", true},
+		{
+			"recently expired, refresh still open",
+			"now() - INTERVAL '2 days'", "now() + INTERVAL '30 days'", true,
+		},
+		{
+			// The case that matters: long past its access expiry, but the
+			// refresh token could still be presented, so the row has to stay.
+			"access long expired, refresh still open",
+			"now() - INTERVAL '40 days'", "now() + INTERVAL '10 days'", true,
+		},
+		{
+			"both long expired",
+			"now() - INTERVAL '40 days'", "now() - INTERVAL '40 days'", false,
+		},
+		{
+			// client_credentials issues no refresh token, so nothing can be
+			// replayed and the row is only history.
+			"client_credentials, long expired",
+			"now() - INTERVAL '40 days'", "NULL", false,
+		},
+	}
+
+	for i, row := range rows {
+		_, err := app.SQLDB.ExecContext(ctx, `
+			INSERT INTO oauth_tokens (client_id, user_id, scopes, access_token_hash, access_expires_at, refresh_token_hash, refresh_expires_at)
+			VALUES ($1, $2, ARRAY['read:posts'], $3, `+row.accessAge+`, $4, `+row.refreshExpiry+`)`,
+			clientUUID, user.Id,
+			[]byte("access-"+strconv.Itoa(i)),
+			[]byte("refresh-"+strconv.Itoa(i)),
+		)
+		if err != nil {
+			t.Fatalf("insert %q: %v", row.name, err)
+		}
+	}
+
+	if _, err := app.SQLDB.ExecContext(ctx, `
+		DELETE FROM oauth_tokens
+		WHERE access_expires_at < now() - INTERVAL '30 days'
+		  AND (refresh_expires_at IS NULL OR refresh_expires_at < now() - INTERVAL '30 days')`); err != nil {
+		t.Fatalf("sweep: %v", err)
+	}
+
+	for i, row := range rows {
+		var count int
+		if err := app.SQLDB.QueryRowContext(ctx,
+			`SELECT count(*) FROM oauth_tokens WHERE access_token_hash = $1`,
+			[]byte("access-"+strconv.Itoa(i)),
+		).Scan(&count); err != nil {
+			t.Fatalf("count %q: %v", row.name, err)
+		}
+		kept := count == 1
+		if kept != row.wantKept {
+			t.Errorf("%s: kept=%v, want %v", row.name, kept, row.wantKept)
+		}
 	}
 }

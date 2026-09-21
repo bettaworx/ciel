@@ -390,7 +390,7 @@ func main() {
 		totpIssuer,
 	)
 
-	// Periodically clean up expired refresh tokens and stale notifications
+	// Periodically clean up expired tokens and stale notifications
 	if store != nil {
 		go func() {
 			ticker := time.NewTicker(24 * time.Hour)
@@ -398,6 +398,15 @@ func main() {
 			for range ticker.C {
 				if err := store.Q.DeleteExpiredRefreshTokens(context.Background()); err != nil {
 					slog.Warn("failed to delete expired refresh tokens", "error", err)
+				}
+				// OAuth rows outlive their usefulness by design: a revoked
+				// refresh token is kept so that replaying it is recognisable as
+				// a reuse rather than as an unknown token. That only has to
+				// hold while the token could plausibly be replayed, so the
+				// query drops rows whose refresh window closed a month ago.
+				// Without this the table only ever grows.
+				if _, err := store.Q.DeleteExpiredOAuthTokens(context.Background()); err != nil {
+					slog.Warn("failed to delete expired oauth tokens", "error", err)
 				}
 				if err := store.Q.DeleteOldNotifications(context.Background()); err != nil {
 					slog.Warn("failed to delete old notifications", "error", err)
