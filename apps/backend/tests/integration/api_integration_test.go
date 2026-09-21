@@ -109,8 +109,15 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 	go hub.Run(hubCtx)
 	t.Cleanup(hubCancel)
 
+	oauthSvc := service.NewOAuthService(store, auth.NewAuthorizationCodeStore(rdb))
+
 	r := chi.NewRouter()
-	r.Use(middleware.OptionalAuth(tokenManager, nil))
+	// Mirrors main.go: authenticate, then enforce scopes, then everything that
+	// reads the caller. Wiring the verifier and OAuthScope here is what puts
+	// the authorization boundary itself under test rather than just the
+	// handlers behind it.
+	r.Use(middleware.OptionalAuth(tokenManager, oauthSvc))
+	r.Use(middleware.OAuthScope())
 	r.Use(middleware.AccessControl(rdb, middleware.AccessControlOptions{TrustProxy: false}))
 	r.Use(middleware.RateLimit(rdb, middleware.RateLimitOptions{TrustProxy: false}))
 	authzSvc := service.NewAuthzService(store)
@@ -164,6 +171,7 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 		Media:         mediaSvc,
 		Tokens:        tokenManager,
 		Redis:         rdb,
+		OAuth:         oauthSvc,
 	}
 	api.HandlerFromMuxWithBaseURL(&apiServer, r, "/api/v1")
 
@@ -204,6 +212,8 @@ func resetDB(ctx context.Context, db *sql.DB) error {
 		media,
 		posts,
 		auth_credentials,
+		oauth_tokens,
+		oauth_clients,
 		users
 	RESTART IDENTITY CASCADE;`)
 	if err != nil {
