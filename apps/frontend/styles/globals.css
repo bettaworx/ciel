@@ -1,8 +1,8 @@
 @import "tailwindcss";
-@plugin "tailwindcss-animate";
 @import "./fonts.css";
 @import "../components/mfm/mfm.css";
 @import "react-image-crop/dist/ReactCrop.css";
+@plugin "tailwindcss-animate";
 
 @theme {
   --radius: 0.625rem;
