@@ -34,6 +34,7 @@ export function AccountCard() {
             <DisplayName
               name={user.displayName || `@${user.username}`}
               isPrivate={user.isPrivate}
+              isBot={user.isBot}
             />
           </div>
           {user.displayName && (

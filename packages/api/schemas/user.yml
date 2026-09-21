@@ -74,6 +74,15 @@ components:
             creates a follow request instead of a follow. Clients show a lock
             beside the display name wherever the name stands on its own, but not
             where it is substituted into a sentence such as notification text.
+        isBot:
+          type: boolean
+          description: >-
+            Whether this account has marked itself as automated. It is a label
+            and nothing else: a bot account keeps every capability a person's
+            account has, and no endpoint behaves differently because of it.
+            Clients draw a robot beside the display name in the same places as
+            the private lock — wherever the name stands on its own, but not
+            where it is substituted into a sentence such as notification text.
         followRequestSent:
           type: boolean
           description: >-
@@ -156,6 +165,13 @@ components:
       - isPrivate
       properties:
         isPrivate:
+          type: boolean
+    UpdateBotRequest:
+      type: object
+      required:
+      - isBot
+      properties:
+        isBot:
           type: boolean
     FollowRequestsPage:
       type: object

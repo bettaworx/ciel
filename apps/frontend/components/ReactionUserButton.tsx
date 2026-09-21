@@ -43,6 +43,7 @@ export function ReactionUserButton({ user, className }: ReactionUserButtonProps)
           <DisplayName
             name={displayName}
             isPrivate={user.isPrivate}
+            isBot={user.isBot}
             isMuted={user.isMuted}
             isBlocked={user.isBlocking}
           />

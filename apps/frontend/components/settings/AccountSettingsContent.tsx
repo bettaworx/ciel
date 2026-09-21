@@ -1,24 +1,60 @@
 "use client";
 
 import { useTranslations } from "@/lib/i18n";
-import { Trash2, UserPen } from "lucide-react";
+import { Bot, LayoutGrid, Trash2, UserPen } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { SettingsRowGroup } from "@/components/settings/SettingsRow";
+import {
+  SettingsRow,
+  SettingsRowGroup,
+  SettingsSwitchRow,
+} from "@/components/settings/SettingsRow";
 import { StepupRow } from "@/components/settings/StepupRow";
+import { useMe, useUpdateBot } from "@/lib/hooks/use-queries";
 
 /**
  * Account settings: the identity of the account itself.
  *
- * Nothing here can be touched before re-authenticating, so both rows raise the
- * step-up prompt in place and only then navigate.
+ * Two groups, split by what re-authentication buys. The first holds settings
+ * that give an attacker nothing worth stealing — the bot label grants and hides
+ * nothing, and the app list asks for the password itself before revealing a
+ * secret. The second holds the rows that change or end the account, and none of
+ * those can be touched before re-authenticating.
  */
 export function AccountSettingsContent() {
   const t = useTranslations();
+  const { data: me } = useMe();
+  const updateBot = useUpdateBot();
+  const isBot = me?.isBot ?? false;
+
+  const handleBotChange = (next: boolean) => {
+    updateBot.mutate(next, {
+      onSuccess: () =>
+        toast.success(
+          next ? t("settings.account.bot.enabled") : t("settings.account.bot.disabled"),
+        ),
+      onError: () => toast.error(t("settings.account.bot.error")),
+    });
+  };
 
   return (
     <>
       <PageHeader backHref="/settings">{t("settings.account.title")}</PageHeader>
       <div className="space-y-3">
+        <SettingsRowGroup>
+          <SettingsSwitchRow
+            icon={Bot}
+            label={t("settings.account.bot.title")}
+            checked={isBot}
+            onCheckedChange={handleBotChange}
+            disabled={!me || updateBot.isPending}
+          />
+          <SettingsRow
+            icon={LayoutGrid}
+            label={t("settings.account.apps.title")}
+            href="/settings/account/apps"
+          />
+        </SettingsRowGroup>
         <SettingsRowGroup>
           <StepupRow
             icon={UserPen}

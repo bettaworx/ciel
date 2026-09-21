@@ -238,7 +238,7 @@ func (s *SetupService) CreateAdminAccount(ctx context.Context, setupToken, usern
 		return nil, "", err
 	}
 
-	user := mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt, created.IsPrivate)
+	user := mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt, ProfileFlags{IsPrivate: created.IsPrivate, IsBot: created.IsBot})
 	return &user, token, nil
 }
 

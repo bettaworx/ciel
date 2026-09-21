@@ -136,7 +136,7 @@ func (s *SearchService) SearchUsers(ctx context.Context, raw string, limit, offs
 	byID := make(map[uuid.UUID]api.User, len(rows))
 	for _, row := range rows {
 		user := mapFollowListUser(row.ID, row.Username, row.UserCreatedAt, row.DisplayName, row.Bio,
-			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, row.IsPrivate, viewer)
+			row.AvatarMediaID, row.AvatarExt, row.IsFollowing, row.IsFollowedBy, ProfileFlags{IsPrivate: row.IsPrivate, IsBot: row.IsBot}, viewer)
 		// Only set for an identified viewer, matching the other relationship
 		// flags: an anonymous caller has no relationship to report.
 		if viewer != nil {

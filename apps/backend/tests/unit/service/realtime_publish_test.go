@@ -270,8 +270,8 @@ func TestReactionsService_Remove_PublishesEvent(t *testing.T) {
 // authenticated and anonymous call sites.
 func expectGetPostWithAuthor(mock sqlmock.Sqlmock, postID api.PostId, userID uuid.UUID, created time.Time, userCreated time.Time) {
 	mock.ExpectQuery(`SELECT\s+p.id,`).WithArgs(sqlmock.AnyArg(), postID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "is_private", "avatar_ext", "parent_private", "parent_hidden"}).
-			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, false, sql.NullString{}, false, false))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at", "username", "display_name", "bio", "avatar_media_id", "user_created_at", "is_private", "is_bot", "avatar_ext", "parent_private", "parent_hidden"}).
+			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, false, false, sql.NullString{}, false, false))
 }
 
 // expectIsUserPrivate expects the privacy lookup the realtime publish path makes

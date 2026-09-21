@@ -875,6 +875,66 @@ export function createApiClient(options: ApiClientOptions = {}) {
     updatePrivacy: (body: components["schemas"]["UpdatePrivacyRequest"]) =>
       request<components["schemas"]["User"]>("PATCH", "/me/privacy", { body }),
 
+    updateBot: (body: components["schemas"]["UpdateBotRequest"]) =>
+      request<components["schemas"]["User"]>("PATCH", "/me/bot", { body }),
+
+    // --- OAuth2 ---------------------------------------------------------
+    //
+    // Only the first-party half lives here. /oauth/token and /oauth/revoke are
+    // form-encoded endpoints for third-party apps and are never called by this
+    // client; the consent screen only ever reads the request and posts the
+    // user's decision.
+
+    oauthAuthorizeInfo: (query: Record<string, string>) =>
+      request<components["schemas"]["OAuthAuthorizationInfo"]>(
+        "GET",
+        `/oauth/authorize/info?${new URLSearchParams(query).toString()}`,
+      ),
+
+    oauthAuthorize: (body: components["schemas"]["OAuthAuthorizeRequest"]) =>
+      request<components["schemas"]["OAuthAuthorizeResponse"]>("POST", "/oauth/authorize", {
+        body,
+      }),
+
+    oauthClients: () =>
+      request<components["schemas"]["OAuthClientPage"]>("GET", "/me/oauth/clients"),
+
+    createOAuthClient: (body: components["schemas"]["CreateOAuthClientRequest"]) =>
+      request<components["schemas"]["OAuthClientWithSecret"]>("POST", "/me/oauth/clients", {
+        body,
+      }),
+
+    deleteOAuthClient: (clientUuid: string) =>
+      request<void>("DELETE", `/me/oauth/clients/${encodeURIComponent(clientUuid)}`),
+
+    rotateOAuthClientSecret: (clientUuid: string, stepupToken?: string | null) =>
+      request<components["schemas"]["OAuthClientWithSecret"]>(
+        "POST",
+        `/me/oauth/clients/${encodeURIComponent(clientUuid)}/secret`,
+        { headers: stepup(stepupToken) },
+      ),
+
+    oauthAuthorizations: () =>
+      request<components["schemas"]["OAuthAuthorizationPage"]>("GET", "/me/oauth/authorizations"),
+
+    revokeOAuthAuthorization: (clientId: string) =>
+      request<void>("DELETE", `/me/oauth/authorizations/${encodeURIComponent(clientId)}`),
+
+    personalAccessTokens: () =>
+      request<components["schemas"]["PersonalAccessTokenPage"]>("GET", "/me/oauth/tokens"),
+
+    createPersonalAccessToken: (
+      body: components["schemas"]["CreatePersonalAccessTokenRequest"],
+      stepupToken?: string | null,
+    ) =>
+      request<components["schemas"]["PersonalAccessTokenWithSecret"]>("POST", "/me/oauth/tokens", {
+        body,
+        headers: stepup(stepupToken),
+      }),
+
+    revokePersonalAccessToken: (tokenId: string) =>
+      request<void>("DELETE", `/me/oauth/tokens/${encodeURIComponent(tokenId)}`),
+
     updateAvatar: (file: File) => {
       const form = new FormData();
       // No filename argument: passing one makes FormData construct a *new* File,

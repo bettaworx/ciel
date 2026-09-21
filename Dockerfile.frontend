@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM node:22-bookworm-slim@sha256:868499d55378719bffa87b0ed1f099591823c029b543043c09c2483468e93201 AS base
+FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS base
 
 FROM base AS deps
 WORKDIR /app

@@ -87,7 +87,7 @@ export function UserProfileDisplay({ username, layout = "inline" }: UserProfileD
         {user.displayName ? (
           <>
             <span className="font-semibold text-foreground truncate">
-              <DisplayName name={user.displayName} isPrivate={user.isPrivate} />
+              <DisplayName name={user.displayName} isPrivate={user.isPrivate} isBot={user.isBot} />
             </span>
             <span className="text-sm text-muted-foreground truncate">@{user.username}</span>
           </>

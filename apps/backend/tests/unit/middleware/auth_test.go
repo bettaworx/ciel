@@ -13,7 +13,7 @@ import (
 )
 
 func TestOptionalAuth_NoHeader_PassesThrough(t *testing.T) {
-	mw := middleware.OptionalAuth(auth.NewTokenManager([]byte("secret"), time.Minute))
+	mw := middleware.OptionalAuth(auth.NewTokenManager([]byte("secret"), time.Minute), nil)
 
 	called := false
 	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +34,7 @@ func TestOptionalAuth_NoHeader_PassesThrough(t *testing.T) {
 }
 
 func TestOptionalAuth_InvalidPrefix_Unauthorized(t *testing.T) {
-	mw := middleware.OptionalAuth(auth.NewTokenManager([]byte("secret"), time.Minute))
+	mw := middleware.OptionalAuth(auth.NewTokenManager([]byte("secret"), time.Minute), nil)
 
 	called := false
 	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +56,7 @@ func TestOptionalAuth_InvalidPrefix_Unauthorized(t *testing.T) {
 }
 
 func TestOptionalAuth_InvalidToken_Unauthorized(t *testing.T) {
-	mw := middleware.OptionalAuth(auth.NewTokenManager([]byte("secret"), time.Minute))
+	mw := middleware.OptionalAuth(auth.NewTokenManager([]byte("secret"), time.Minute), nil)
 
 	called := false
 	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +85,7 @@ func TestOptionalAuth_ValidToken_SetsUser(t *testing.T) {
 		t.Fatalf("issue token: %v", err)
 	}
 
-	mw := middleware.OptionalAuth(tm)
+	mw := middleware.OptionalAuth(tm, nil)
 
 	called := false
 	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
