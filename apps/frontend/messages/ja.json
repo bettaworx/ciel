@@ -262,6 +262,37 @@
         "disabled": "ボットアカウントの表示を解除しました",
         "error": "設定を変更できませんでした"
       },
+      "apps": {
+        "title": "OAuth2 アプリ",
+        "description": "Bot やツールに、このアカウントの権限を絞って渡せます。",
+        "yourApps": "登録したアプリ",
+        "noApps": "まだアプリを登録していません",
+        "connected": "連携中のアプリ",
+        "noConnected": "連携中のアプリはありません",
+        "create": "アプリを登録",
+        "creating": "登録中...",
+        "name": "アプリ名",
+        "website": "ウェブサイト",
+        "redirectUris": "リダイレクト URI",
+        "redirectUrisHelp": "1行に1つ。完全一致で照合します。https、またはループバックアドレスの http のみ。",
+        "scopes": "権限",
+        "confidential": "クライアントシークレットを発行する",
+        "confidentialHelp": "サーバー上で動くアプリ向け。利用者の端末で動くアプリではオフにしてください。",
+        "clientId": "クライアント ID",
+        "clientSecret": "クライアントシークレット",
+        "secretOnce": "シークレットはこの画面でしか表示されません。安全な場所に保存してください。",
+        "rotateSecret": "シークレットを再生成",
+        "rotated": "シークレットを再生成しました",
+        "delete": "削除",
+        "deleteConfirm": "このアプリを削除しますか？連携中のすべてのアカウントが切断されます。",
+        "deleted": "アプリを削除しました",
+        "disconnect": "連携を解除",
+        "disconnected": "連携を解除しました",
+        "authorizedAt": "連携日時",
+        "public": "パブリッククライアント",
+        "createError": "アプリを登録できませんでした",
+        "error": "操作に失敗しました"
+      },
       "username": {
         "title": "ユーザー名を変更",
         "newLabel": "新しいユーザー名",
@@ -356,6 +387,30 @@
         "disabled": "公開しました",
         "error": "設定を変更できませんでした"
       }
+    }
+  },
+  "oauth": {
+    "authorize": {
+      "title": "アクセスを許可しますか？",
+      "intro": "{app} があなたのアカウントへのアクセスを求めています。",
+      "by": "提供者: @{owner}",
+      "permissions": "許可する権限",
+      "approve": "許可する",
+      "deny": "許可しない",
+      "loginRequired": "続けるにはログインしてください",
+      "invalid": "このリクエストは無効です",
+      "invalidHelp": "アプリの設定に問題がある可能性があります。アプリの提供者にお問い合わせください。",
+      "writeWarning": "この権限はあなたのアカウントを変更できます"
+    },
+    "scopes": {
+      "read:account": "プロフィール情報を読み取る",
+      "write:account": "プロフィールと公開範囲を変更する",
+      "read:posts": "投稿・タイムライン・ブックマークを読み取る",
+      "write:posts": "あなたとして投稿・リアクション・ブックマークする",
+      "read:notifications": "通知を読み取る",
+      "write:notifications": "通知を既読にする",
+      "write:follows": "フォロー・ブロック・ミュートを操作する",
+      "write:media": "画像や動画をアップロードする"
     }
   },
   "loading": "読み込み中...",
@@ -568,6 +623,8 @@
       "settingsAccount": "アカウント",
       "settingsAccountUsername": "ユーザー名を変更",
       "settingsAccountDelete": "アカウントを削除",
+      "settingsAccountApps": "OAuth2 アプリ",
+      "oauthAuthorize": "アクセスの許可",
       "setup": "プロフィール設定",
       "adminSetup": "サーバー初期設定",
       "postDetail": "投稿",

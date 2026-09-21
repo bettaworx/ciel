@@ -48,6 +48,8 @@ export const NOTIFICATION_TAB_TYPES: Record<
 export const queryKeys = {
   me: ["me"] as const,
   mfa: ["mfa"] as const,
+  oauthClients: ["oauthClients"] as const,
+  oauthAuthorizations: ["oauthAuthorizations"] as const,
   serverInfo: ["serverInfo"] as const,
   serverConfig: ["serverConfig"] as const,
   customEmojis: ["customEmojis"] as const,
@@ -1551,5 +1553,102 @@ export function useSearchUsers(query: string, enabled = true) {
     // on every attempt, and retrying only eats into the search rate limit.
     retry: false,
     staleTime: 1000 * 60,
+  });
+}
+
+// --- OAuth2 ------------------------------------------------------------
+//
+// Apps the account has registered, and apps the account has connected to. They
+// are separate lists on purpose: registering an app is a developer action, and
+// connecting one is something a user does to somebody else's app.
+
+export function useOAuthClients() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.oauthClients,
+    queryFn: async () => {
+      const result = await api.oauthClients();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.items;
+    },
+  });
+}
+
+export function useCreateOAuthClient() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: components["schemas"]["CreateOAuthClientRequest"]) => {
+      const result = await api.createOAuthClient(body);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthClients });
+    },
+  });
+}
+
+export function useDeleteOAuthClient() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (clientUuid: string) => {
+      const result = await api.deleteOAuthClient(clientUuid);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthClients });
+      // Deleting an app cascades to its tokens, so anyone who had connected it
+      // is disconnected too — including this account.
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthAuthorizations });
+    },
+  });
+}
+
+export function useRotateOAuthClientSecret() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      clientUuid,
+      stepupToken,
+    }: {
+      clientUuid: string;
+      stepupToken: string;
+    }) => {
+      const result = await api.rotateOAuthClientSecret(clientUuid, stepupToken);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthClients });
+    },
+  });
+}
+
+export function useOAuthAuthorizations() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.oauthAuthorizations,
+    queryFn: async () => {
+      const result = await api.oauthAuthorizations();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.items;
+    },
+  });
+}
+
+export function useRevokeOAuthAuthorization() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (clientId: string) => {
+      const result = await api.revokeOAuthAuthorization(clientId);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.oauthAuthorizations });
+    },
   });
 }

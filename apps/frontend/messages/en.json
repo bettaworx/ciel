@@ -262,6 +262,37 @@
         "disabled": "No longer marked as a bot account",
         "error": "Could not change the setting"
       },
+      "apps": {
+        "title": "OAuth2 apps",
+        "description": "Give a bot or tool access to this account, limited to what it needs.",
+        "yourApps": "Your apps",
+        "noApps": "You have not registered any apps yet",
+        "connected": "Connected apps",
+        "noConnected": "No apps are connected",
+        "create": "Register an app",
+        "creating": "Registering...",
+        "name": "App name",
+        "website": "Website",
+        "redirectUris": "Redirect URIs",
+        "redirectUrisHelp": "One per line. Matched exactly. https only, or http on a loopback address.",
+        "scopes": "Permissions",
+        "confidential": "Issue a client secret",
+        "confidentialHelp": "For apps running on a server. Turn this off for apps running on a user's device.",
+        "clientId": "Client ID",
+        "clientSecret": "Client secret",
+        "secretOnce": "This secret is shown only here. Store it somewhere safe.",
+        "rotateSecret": "Regenerate secret",
+        "rotated": "Secret regenerated",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this app? Every account connected to it will be disconnected.",
+        "deleted": "App deleted",
+        "disconnect": "Disconnect",
+        "disconnected": "App disconnected",
+        "authorizedAt": "Connected",
+        "public": "Public client",
+        "createError": "Could not register the app",
+        "error": "Something went wrong"
+      },
       "username": {
         "title": "Change username",
         "newLabel": "New username",
@@ -356,6 +387,30 @@
         "disabled": "Your account is now public",
         "error": "Could not change your privacy setting"
       }
+    }
+  },
+  "oauth": {
+    "authorize": {
+      "title": "Allow access?",
+      "intro": "{app} wants to access your account.",
+      "by": "by @{owner}",
+      "permissions": "Permissions requested",
+      "approve": "Allow",
+      "deny": "Deny",
+      "loginRequired": "Sign in to continue",
+      "invalid": "This request is not valid",
+      "invalidHelp": "The app may be misconfigured. Contact whoever provides it.",
+      "writeWarning": "This permission can change your account"
+    },
+    "scopes": {
+      "read:account": "Read your profile",
+      "write:account": "Change your profile and privacy settings",
+      "read:posts": "Read posts, timelines and bookmarks",
+      "write:posts": "Post, react and bookmark as you",
+      "read:notifications": "Read your notifications",
+      "write:notifications": "Mark your notifications as read",
+      "write:follows": "Follow, block and mute accounts",
+      "write:media": "Upload images and videos"
     }
   },
   "loading": "Loading...",
@@ -568,6 +623,8 @@
       "settingsAccount": "Account",
       "settingsAccountUsername": "Change username",
       "settingsAccountDelete": "Delete account",
+      "settingsAccountApps": "OAuth2 apps",
+      "oauthAuthorize": "Authorize access",
       "setup": "Setup Profile",
       "adminSetup": "Server Setup",
       "postDetail": "Post",
