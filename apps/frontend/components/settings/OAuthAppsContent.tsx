@@ -3,7 +3,8 @@
 import { useCallback, useState } from "react";
 import { useAtom } from "jotai";
 import { toast } from "sonner";
-import { Copy, KeyRound, Plus, Trash2, Unplug } from "lucide-react";
+import { AppWindow, Copy, KeyRound, Plus, Trash2, Unplug } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "@/lib/i18n";
 import { stepupTokenAtom, usableStepupToken } from "@/atoms/stepup";
 import { useStepup } from "@/lib/hooks/use-stepup";
@@ -11,6 +12,14 @@ import { StepupPrompt } from "@/components/settings/StepupPrompt";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SettingsRowGroup } from "@/components/settings/SettingsRow";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -24,63 +33,169 @@ import {
   useOAuthClients,
   useRevokeOAuthAuthorization,
   useRotateOAuthClientSecret,
+  useCreatePersonalAccessToken,
+  usePersonalAccessTokens,
+  useRevokePersonalAccessToken,
 } from "@/lib/hooks/use-queries";
+
+/** Which kind of credential the add button is currently creating. */
+type AddKind = "app" | "token";
 
 /**
  * Settings → Account → Apps.
  *
- * Two lists that look similar and mean opposite things, so they are kept
- * visually apart: the apps this account has *connected to* (somebody else's
- * app, acting on your behalf) and the apps this account has *registered* (a
- * developer action). Disconnecting in the first does not delete anything in
- * the second.
+ * Three lists that look similar and mean different things, so they are kept
+ * visually apart: apps this account has *connected to* (somebody else's app,
+ * acting on your behalf), *access tokens* it issued to itself, and apps it has
+ * *registered* for other people to connect. Acting on one never touches
+ * another.
  *
- * Connected comes first because it is the list almost everyone opens this page
- * for — "what has access to my account, and how do I stop it". Registering an
- * app is the rarer, developer-side task, so it sits below.
+ * Connected comes first because it is what almost everyone opens this page for
+ * — "what has access to my account, and how do I stop it". Registering an app
+ * is the rarest, most developer-side task, so it sits last.
  */
 export function OAuthAppsContent() {
   const t = useTranslations();
+  const [adding, setAdding] = useState<AddKind | null>(null);
+  // Lifted out of the list so it survives the refetch that follows creation.
+  // The secret exists in one response and nowhere else, so losing it to a
+  // re-render means the user has to delete the app and start again.
+  const [freshSecret, setFreshSecret] = useState<{ clientId: string; secret: string } | null>(null);
 
   return (
     <>
       <PageHeader backHref="/settings/account">{t("settings.account.apps.title")}</PageHeader>
       <div className="space-y-6">
-        <p className="text-sm text-muted-foreground">{t("settings.account.apps.description")}</p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm text-muted-foreground">{t("settings.account.apps.description")}</p>
+          <AddPicker onChoose={(kind) => setAdding((prev) => (prev === kind ? null : kind))} />
+        </div>
+
+        {adding === "app" && (
+          <CreateAppForm
+            onCreated={(clientId, secret) => {
+              setAdding(null);
+              if (secret) setFreshSecret({ clientId, secret });
+            }}
+          />
+        )}
+        {adding === "token" && <CreateTokenForm onClose={() => setAdding(null)} />}
+
         <ConnectedApps />
-        <RegisteredApps />
+        <PersonalTokens />
+        <RegisteredApps freshSecret={freshSecret} onSecret={setFreshSecret} />
       </div>
     </>
   );
 }
 
-function RegisteredApps() {
+/**
+ * The add button.
+ *
+ * There are two quite different things it can create — one for other people to
+ * connect to, one a live credential handed straight to you — and the difference
+ * is not obvious from the names alone, so it asks rather than guessing and each
+ * choice carries a line saying which is which.
+ *
+ * A dropdown on desktop and a bottom sheet on touch, the same split
+ * SettingsSelectRow uses.
+ */
+function AddPicker({ onChoose }: { onChoose: (kind: AddKind) => void }) {
+  const t = useTranslations();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const trigger = (
+    <Button size="sm" variant="contrast" className="shrink-0">
+      <Plus className="h-4 w-4" />
+      {t("settings.account.apps.add")}
+    </Button>
+  );
+
+  const options: { kind: AddKind; icon: LucideIcon; label: string; hint: string }[] = [
+    {
+      kind: "app",
+      icon: AppWindow,
+      label: t("settings.account.apps.addApp"),
+      hint: t("settings.account.apps.addAppHint"),
+    },
+    {
+      kind: "token",
+      icon: KeyRound,
+      label: t("settings.account.apps.addToken"),
+      hint: t("settings.account.apps.addTokenHint"),
+    },
+  ];
+
+  if (isDesktop) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="max-w-xs">
+          {options.map((opt) => (
+            <DropdownMenuItem
+              key={opt.kind}
+              className="flex-col items-start gap-0.5"
+              onSelect={() => onChoose(opt.kind)}
+            >
+              <span className="flex items-center gap-2 font-medium">
+                <opt.icon className="h-4 w-4" />
+                {opt.label}
+              </span>
+              <span className="text-xs text-muted-foreground">{opt.hint}</span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  return (
+    <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+      <DrawerTrigger asChild>{trigger}</DrawerTrigger>
+      <DrawerContent>
+        <DrawerTitle className="px-4 pt-2 text-sm text-muted-foreground">
+          {t("settings.account.apps.chooseKind")}
+        </DrawerTitle>
+        <div className="flex flex-col gap-1 p-2 pb-4">
+          {options.map((opt) => (
+            <Button
+              key={opt.kind}
+              variant="ghost"
+              className="h-auto w-full flex-col items-start gap-0.5 py-3 text-left"
+              onClick={() => {
+                onChoose(opt.kind);
+                setDrawerOpen(false);
+              }}
+            >
+              <span className="flex items-center gap-2 font-medium">
+                <opt.icon className="h-4 w-4" />
+                {opt.label}
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">{opt.hint}</span>
+            </Button>
+          ))}
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
+function RegisteredApps({
+  freshSecret,
+  onSecret,
+}: {
+  freshSecret: { clientId: string; secret: string } | null;
+  onSecret: (secret: { clientId: string; secret: string }) => void;
+}) {
   const t = useTranslations();
   const { data: clients, isLoading } = useOAuthClients();
-  const [creating, setCreating] = useState(false);
-  // Held outside the list so it survives the refetch that follows creation.
-  const [freshSecret, setFreshSecret] = useState<{ clientId: string; secret: string } | null>(null);
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-muted-foreground">
-          {t("settings.account.apps.yourApps")}
-        </h2>
-        <Button size="sm" variant="contrast" onClick={() => setCreating((v) => !v)}>
-          <Plus className="h-4 w-4" />
-          {t("settings.account.apps.create")}
-        </Button>
-      </div>
-
-      {creating && (
-        <CreateAppForm
-          onCreated={(clientId, secret) => {
-            setCreating(false);
-            if (secret) setFreshSecret({ clientId, secret });
-          }}
-        />
-      )}
+      <h2 className="text-sm font-medium text-muted-foreground">
+        {t("settings.account.apps.yourApps")}
+      </h2>
 
       {!isLoading && clients?.length === 0 && (
         <p className="rounded-2xl bg-card p-4 text-sm text-muted-foreground">
@@ -94,7 +209,7 @@ function RegisteredApps() {
             key={client.id}
             client={client}
             freshSecret={freshSecret?.clientId === client.clientId ? freshSecret.secret : null}
-            onSecret={(secret) => setFreshSecret({ clientId: client.clientId, secret })}
+            onSecret={(secret) => onSecret({ clientId: client.clientId, secret })}
           />
         ))}
       </div>
@@ -406,6 +521,191 @@ function ConnectedApps() {
         ))}
       </SettingsRowGroup>
     </section>
+  );
+}
+
+/**
+ * The account's own access tokens.
+ *
+ * Separate from the connected-apps list above even though both are "things
+ * holding a token": those belong to somebody else and were granted through a
+ * consent screen, these the owner minted for themselves. Mixing them would
+ * make "revoke everything a third party can do" impossible to read off.
+ */
+function PersonalTokens() {
+  const t = useTranslations();
+  const { data: tokens, isLoading } = usePersonalAccessTokens();
+  const revoke = useRevokePersonalAccessToken();
+
+  const handleRevoke = (id: string) => {
+    if (!window.confirm(t("settings.account.apps.revokeTokenConfirm"))) return;
+    revoke.mutate(id, {
+      onSuccess: () => toast.success(t("settings.account.apps.tokenRevoked")),
+      onError: () => toast.error(t("settings.account.apps.error")),
+    });
+  };
+
+  return (
+    <section className="space-y-2">
+      <h2 className="text-sm font-medium text-muted-foreground">
+        {t("settings.account.apps.tokens")}
+      </h2>
+
+      {!isLoading && tokens?.length === 0 && (
+        <p className="rounded-2xl bg-card p-4 text-sm text-muted-foreground">
+          {t("settings.account.apps.noTokens")}
+        </p>
+      )}
+
+      <div className="space-y-2">
+        {tokens?.map((token) => (
+          <div key={token.id} className="space-y-3 rounded-2xl bg-card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{token.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.account.apps.expiresAt")}:{" "}
+                  {new Date(token.expiresAt).toLocaleDateString()}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="shrink-0"
+                disabled={revoke.isPending}
+                onClick={() => handleRevoke(token.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+                {t("settings.account.apps.revokeToken")}
+              </Button>
+            </div>
+            <ScopeList scopes={token.scopes} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Issuing a personal access token.
+ *
+ * The token comes back in the create response and nowhere else afterwards, so
+ * the form stays on screen showing it rather than closing on success — closing
+ * would throw away the one copy that exists.
+ *
+ * The server requires step-up here, so this drives the same prompt the secret
+ * rotation does: minting something that acts as the whole account should cost
+ * what changing the password costs.
+ */
+function CreateTokenForm({ onClose }: { onClose: () => void }) {
+  const t = useTranslations();
+  const create = useCreatePersonalAccessToken();
+  const [shared, setShared] = useAtom(stepupTokenAtom);
+  const [promptOpen, setPromptOpen] = useState(false);
+
+  const [name, setName] = useState("");
+  const [scopes, setScopes] = useState<OAuthScope[]>(["read:posts"]);
+  const [issued, setIssued] = useState<string | null>(null);
+
+  const toggleScope = (scope: OAuthScope) => {
+    setScopes((prev) =>
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
+    );
+  };
+
+  const run = useCallback(
+    (stepupToken: string) => {
+      create.mutate(
+        { body: { name: name.trim(), scopes }, stepupToken },
+        {
+          onSuccess: (data) => {
+            // Single-use on the server, so drop it rather than leave a dead
+            // token for the next screen to pick up.
+            setShared(null);
+            setIssued(data.accessToken);
+            toast.success(t("settings.account.apps.tokenCreated"));
+          },
+          onError: () => toast.error(t("settings.account.apps.error")),
+        },
+      );
+    },
+    [create, name, scopes, setShared, t],
+  );
+
+  const stepup = useStepup({
+    onToken: (token) => {
+      setPromptOpen(false);
+      run(token);
+    },
+  });
+
+  const submit = () => {
+    const held = usableStepupToken(shared);
+    if (held) {
+      run(held);
+      return;
+    }
+    stepup.invalidate();
+    setPromptOpen(true);
+  };
+
+  if (issued) {
+    return (
+      <div className="space-y-3 rounded-2xl bg-card p-4">
+        <CopyField label={t("settings.account.apps.addToken")} value={issued} />
+        <p className="text-xs text-destructive">{t("settings.account.apps.tokenOnce")}</p>
+        <Button variant="contrast" className="w-full" onClick={onClose}>
+          {t("settings.account.apps.add")}
+        </Button>
+      </div>
+    );
+  }
+
+  const canSubmit = name.trim() !== "" && scopes.length > 0;
+
+  return (
+    <div className="space-y-4 rounded-2xl bg-card p-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="pat-name">{t("settings.account.apps.tokenName")}</Label>
+        <Input
+          id="pat-name"
+          value={name}
+          maxLength={60}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">{t("settings.account.apps.tokenNameHelp")}</p>
+      </div>
+
+      <fieldset className="space-y-1.5">
+        <legend className="text-sm font-medium">{t("settings.account.apps.scopes")}</legend>
+        {SCOPE_ORDER.map((scope) => (
+          <label key={scope} className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={scopes.includes(scope)}
+              onChange={() => toggleScope(scope)}
+            />
+            <span className={isWriteScope(scope) ? "font-medium" : undefined}>
+              {t(scopeLabelKey(scope))}
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
+      <Button onClick={submit} disabled={!canSubmit || create.isPending} className="w-full">
+        {create.isPending
+          ? t("settings.account.apps.creatingToken")
+          : t("settings.account.apps.createToken")}
+      </Button>
+
+      <StepupPrompt
+        open={promptOpen}
+        heading={t("settings.account.apps.createToken")}
+        stepup={stepup}
+        onDismiss={() => setPromptOpen(false)}
+      />
+    </div>
   );
 }
 

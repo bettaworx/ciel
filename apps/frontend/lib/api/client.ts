@@ -920,6 +920,21 @@ export function createApiClient(options: ApiClientOptions = {}) {
     revokeOAuthAuthorization: (clientId: string) =>
       request<void>("DELETE", `/me/oauth/authorizations/${encodeURIComponent(clientId)}`),
 
+    personalAccessTokens: () =>
+      request<components["schemas"]["PersonalAccessTokenPage"]>("GET", "/me/oauth/tokens"),
+
+    createPersonalAccessToken: (
+      body: components["schemas"]["CreatePersonalAccessTokenRequest"],
+      stepupToken?: string | null,
+    ) =>
+      request<components["schemas"]["PersonalAccessTokenWithSecret"]>("POST", "/me/oauth/tokens", {
+        body,
+        headers: stepup(stepupToken),
+      }),
+
+    revokePersonalAccessToken: (tokenId: string) =>
+      request<void>("DELETE", `/me/oauth/tokens/${encodeURIComponent(tokenId)}`),
+
     updateAvatar: (file: File) => {
       const form = new FormData();
       // No filename argument: passing one makes FormData construct a *new* File,

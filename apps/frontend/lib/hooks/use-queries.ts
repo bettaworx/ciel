@@ -50,6 +50,7 @@ export const queryKeys = {
   mfa: ["mfa"] as const,
   oauthClients: ["oauthClients"] as const,
   oauthAuthorizations: ["oauthAuthorizations"] as const,
+  personalAccessTokens: ["personalAccessTokens"] as const,
   serverInfo: ["serverInfo"] as const,
   serverConfig: ["serverConfig"] as const,
   customEmojis: ["customEmojis"] as const,
@@ -1649,6 +1650,57 @@ export function useRevokeOAuthAuthorization() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.oauthAuthorizations });
+    },
+  });
+}
+
+// Personal access tokens: the account's own credentials, as opposed to a third
+// party's. Kept on their own keys so revoking one does not refetch the app
+// lists, which are a different thing entirely.
+
+export function usePersonalAccessTokens() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.personalAccessTokens,
+    queryFn: async () => {
+      const result = await api.personalAccessTokens();
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data.items;
+    },
+  });
+}
+
+export function useCreatePersonalAccessToken() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      body,
+      stepupToken,
+    }: {
+      body: components["schemas"]["CreatePersonalAccessTokenRequest"];
+      stepupToken: string;
+    }) => {
+      const result = await api.createPersonalAccessToken(body, stepupToken);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.personalAccessTokens });
+    },
+  });
+}
+
+export function useRevokePersonalAccessToken() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (tokenId: string) => {
+      const result = await api.revokePersonalAccessToken(tokenId);
+      if (!result.ok) throw new ApiHttpError(result.errorText, result.status, result.headers);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.personalAccessTokens });
     },
   });
 }
