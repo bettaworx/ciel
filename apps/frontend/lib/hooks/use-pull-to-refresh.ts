@@ -69,8 +69,6 @@ export function usePullToRefresh({
         return;
       }
 
-      // 下方向への引っ張りを検知。スクロールとの競合を防ぐため preventDefault。
-      e.preventDefault();
       const damped = Math.min(diff * 0.5, maxDistance);
       dragDistanceRef.current = damped;
       setDragDistance(damped);
@@ -108,7 +106,7 @@ export function usePullToRefresh({
     if (!container) return;
 
     container.addEventListener("touchstart", handleTouchStart, { passive: true });
-    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
     container.addEventListener("touchend", handleTouchEnd);
     container.addEventListener("touchcancel", handleTouchEnd);
 

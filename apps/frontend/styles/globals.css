@@ -287,6 +287,9 @@ html[lang="th"] {
   body {
     @apply bg-background text-foreground;
     font-family: var(--app-font-sans);
+    /* カスタム pull-to-refresh と iOS Safari 等のネイティブ PTR を分離し、
+       引っ張り終了後に意図しないページ再読み込みが発生するのを防ぐ。 */
+    overscroll-behavior-y: contain;
   }
   code,
   pre,
