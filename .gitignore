@@ -38,6 +38,8 @@ out/
 
 # --- SvelteKit / Vite / Storybook / Playwright ---
 .svelte-kit/
+.next/
+next-env.d.ts
 .vite/
 vite.config.*.timestamp-*
 
