@@ -256,6 +256,12 @@
     },
     "account": {
       "title": "Account",
+      "bot": {
+        "title": "Mark as bot",
+        "enabled": "Marked as a bot account",
+        "disabled": "No longer marked as a bot account",
+        "error": "Could not change the setting"
+      },
       "username": {
         "title": "Change username",
         "newLabel": "New username",
@@ -392,6 +398,7 @@
     "unknown": "Unknown User",
     "unknownUsername": "unknown",
     "privateAccount": "Private account",
+    "botAccount": "Bot account",
     "privatePostsHidden": "This account is private",
     "privatePostsHiddenDescription": "Only approved followers can see these posts.",
     "requestFollow": "Request to follow",

@@ -670,6 +670,7 @@ export function PostCard({
         <DisplayName
           name={displayName}
           isPrivate={post.author?.isPrivate}
+          isBot={post.author?.isBot}
           isMuted={post.author?.isMuted}
           isBlocked={post.author?.isBlocking}
           className="flex max-w-full min-w-0 [&_*]:max-w-full"

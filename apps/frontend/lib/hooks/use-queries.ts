@@ -724,6 +724,32 @@ export function useUpdatePrivacy() {
   });
 }
 
+// The bot badge is a label, not a visibility change, so this invalidates far
+// less than useUpdatePrivacy: nothing the client holds becomes unreadable, only
+// the robot beside a name becomes stale. Those are the caches that render a
+// name — the profile, its posts, and any timeline already on screen.
+export function useUpdateBot() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const setAuth = useSetAtom(authAtom);
+
+  return useMutation({
+    mutationFn: async (isBot: boolean) => {
+      const result = await api.updateBot({ isBot });
+      if (!result.ok) throw new Error(result.errorText);
+      return result.data;
+    },
+    onSuccess: (updatedUser) => {
+      setAuth((prev) => ({ ...prev, user: updatedUser }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+      queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+    },
+  });
+}
+
 // Approving or declining both refresh the same set: the request list shrinks,
 // and the requester's follow state on any profile the client is holding changes.
 function useFollowRequestDecision(decide: "accept" | "reject") {

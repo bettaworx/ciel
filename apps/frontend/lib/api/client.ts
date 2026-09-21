@@ -875,6 +875,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
     updatePrivacy: (body: components["schemas"]["UpdatePrivacyRequest"]) =>
       request<components["schemas"]["User"]>("PATCH", "/me/privacy", { body }),
 
+    updateBot: (body: components["schemas"]["UpdateBotRequest"]) =>
+      request<components["schemas"]["User"]>("PATCH", "/me/bot", { body }),
+
     updateAvatar: (file: File) => {
       const form = new FormData();
       // No filename argument: passing one makes FormData construct a *new* File,

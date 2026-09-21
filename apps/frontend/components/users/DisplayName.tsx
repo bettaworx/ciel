@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Lock, VolumeX } from "lucide-react";
+import { Ban, Bot, Lock, VolumeX } from "lucide-react";
 import { useTranslations } from "@/lib/i18n";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
 import { DISPLAY_NAME_ALLOW_LIST } from "@/lib/mfm/parse";
@@ -11,6 +11,8 @@ interface DisplayNameProps {
   name: string;
   /** Whether the account is private. Draws the lock. */
   isPrivate?: boolean | null;
+  /** Whether the account says it is automated. Draws the robot. */
+  isBot?: boolean | null;
   /** Whether the caller has muted this account. Draws the muted speaker. */
   isMuted?: boolean | null;
   /** Whether the caller has blocked this account. Draws the prohibition sign. */
@@ -32,7 +34,14 @@ interface DisplayNameProps {
  * property of the account. That split is the whole reason this component exists;
  * the rule is enforced by which call sites use it, not by a prop.
  */
-export function DisplayName({ name, isPrivate, isMuted, isBlocked, className }: DisplayNameProps) {
+export function DisplayName({
+  name,
+  isPrivate,
+  isBot,
+  isMuted,
+  isBlocked,
+  className,
+}: DisplayNameProps) {
   const t = useTranslations();
 
   return (
@@ -50,6 +59,15 @@ export function DisplayName({ name, isPrivate, isMuted, isBlocked, className }: 
         <Lock
           className="h-[0.8em] w-[0.8em] shrink-0 text-muted-foreground"
           aria-label={t("user.privateAccount")}
+        />
+      )}
+      {isBot && (
+        // Sits after the lock and before the red markers, matching what each
+        // icon is about: the lock and the robot are properties the account
+        // declared about itself, the two below are decisions the viewer made.
+        <Bot
+          className="h-[0.8em] w-[0.8em] shrink-0 text-muted-foreground"
+          aria-label={t("user.botAccount")}
         />
       )}
       {/* Only one of these ever shows: the server sends isBlocking or isMuted,
