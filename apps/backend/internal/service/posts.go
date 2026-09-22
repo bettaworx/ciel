@@ -383,7 +383,7 @@ func (s *PostsService) GetContext(ctx context.Context, postID api.PostId, userID
 			posts = append(posts, parent)
 		}
 	}
-	if post.RootId != nil {
+	if post.RootId != nil && (post.ParentId == nil || *post.RootId != *post.ParentId) {
 		if root, ok := relatedByID[uuid.UUID(*post.RootId)]; ok {
 			posts = append(posts, root)
 		}
