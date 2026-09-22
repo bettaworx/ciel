@@ -703,6 +703,8 @@
     "quoting": "引用中...",
     "post": "投稿",
     "posting": "投稿中...",
+    "textMode": "テキストモード",
+    "drawingMode": "ドローイングモード",
     "formatBold": "太字",
     "formatItalic": "斜体",
     "formatCenter": "中央揃え",

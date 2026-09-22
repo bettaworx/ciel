@@ -703,6 +703,8 @@
     "quoting": "Quoting...",
     "post": "Post",
     "posting": "Posting...",
+    "textMode": "Text mode",
+    "drawingMode": "Drawing mode",
     "formatBold": "Bold",
     "formatItalic": "Italic",
     "formatCenter": "Center",

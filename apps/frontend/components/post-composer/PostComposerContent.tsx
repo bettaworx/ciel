@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "@/lib/i18n";
 import {
   X,
@@ -13,8 +14,10 @@ import {
   CodeXml,
   Link,
   AlignHorizontalSpaceAround,
+  PenLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { PostMediaPreview } from "@/components/PostMediaPreview";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
@@ -35,6 +38,7 @@ import { insertCenterDecoration } from "./centerDecoration";
 import { ACCEPTED_IMAGE_ACCEPT, ACCEPTED_VIDEO_ACCEPT } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
 import { useComposerPlaceholder } from "./useComposerPlaceholder";
+import { shouldShowComposerModeSwitch, type ComposerMode } from "./composerMode";
 import { PostCard } from "@/components/PostCard";
 import type { components } from "@/lib/api/api";
 
@@ -115,6 +119,7 @@ export function PostComposerContent({
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
+  const [composerMode, setComposerMode] = useState<ComposerMode>("text");
   const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
   const hadTypedContentRef = useRef(false);
   const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
@@ -146,6 +151,7 @@ export function PostComposerContent({
     contentLength,
     contentPercentage,
     showCharacterCount,
+    hasMedia,
     canPost,
     isDropDisabled,
     isImageUploadDisabled,
@@ -245,7 +251,36 @@ export function PostComposerContent({
     };
   }, [textareaRef, setSelectionRange]);
 
+  const showModeSwitch = shouldShowComposerModeSwitch(composerMode, content, hasMedia);
+
   // ---- Shared sub-sections ------------------------------------------------
+
+  const modeSwitch = (
+    <Tabs value={composerMode} onValueChange={(value) => setComposerMode(value as ComposerMode)}>
+      <TabsList className={cn("rounded-full bg-muted p-0.5", layout === "dialog" ? "h-8" : "h-9")}>
+        <TabsTrigger
+          value="text"
+          aria-label={t("createPost.textMode")}
+          className={cn(
+            "flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground",
+            layout === "dialog" ? "h-7 w-7" : "h-8 w-8",
+          )}
+        >
+          <Type className="h-4 w-4" />
+        </TabsTrigger>
+        <TabsTrigger
+          value="drawing"
+          aria-label={t("createPost.drawingMode")}
+          className={cn(
+            "flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground",
+            layout === "dialog" ? "h-7 w-7" : "h-8 w-8",
+          )}
+        >
+          <PenLine className="h-4 w-4" />
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
 
   /** Character counter + Post button group */
   const counterAndPost = (
@@ -439,7 +474,10 @@ export function PostComposerContent({
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
         placeholder={placeholder}
-        className={`flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0`}
+        className={cn(
+          "flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0",
+          layout === "card" && showModeSwitch && "pr-20",
+        )}
         maxLength={maxContentLength}
         disabled={createPostMutation.isPending || isUploading}
       />
@@ -450,6 +488,19 @@ export function PostComposerContent({
         disabled={createPostMutation.isPending || isUploading}
         contentClassName={s.floatingContent}
       />
+      <AnimatePresence initial={false}>
+        {layout === "card" && showModeSwitch && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="absolute right-0 top-0 z-10"
+          >
+            {modeSwitch}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 
@@ -501,18 +552,32 @@ export function PostComposerContent({
       <>
         {dragOverlay}
 
-        {/* Header: close button (left) + counter & post (right) */}
+        {/* Header: close & mode (left) + counter & post (right) */}
         <div className="pt-3 px-3 flex flex-row items-center justify-between shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onClose?.()}
-            disabled={closeDisabled}
-            aria-label={t("common.close")}
-            className="h-8 w-8"
-          >
-            <X className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onClose?.()}
+              disabled={closeDisabled}
+              aria-label={t("common.close")}
+              className="h-8 w-8"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+            <AnimatePresence initial={false}>
+              {showModeSwitch && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                >
+                  {modeSwitch}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           {counterAndPost}
         </div>
 
