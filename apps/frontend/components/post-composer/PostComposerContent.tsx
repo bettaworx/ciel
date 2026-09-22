@@ -16,6 +16,7 @@ import {
   PenLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { PostMediaPreview } from "@/components/PostMediaPreview";
@@ -260,6 +261,7 @@ export function PostComposerContent({
         <TabsTrigger
           value="text"
           aria-label={t("createPost.textMode")}
+          disabled={!showModeSwitch}
           className={cn(
             "flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground",
             "h-7 w-7",
@@ -270,6 +272,7 @@ export function PostComposerContent({
         <TabsTrigger
           value="drawing"
           aria-label={t("createPost.drawingMode")}
+          disabled={!showModeSwitch}
           className={cn(
             "flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground",
             "h-7 w-7",
@@ -284,7 +287,7 @@ export function PostComposerContent({
   /** Character counter + Post button group */
   const counterAndPost = (
     <div className="flex items-center gap-3">
-      {showModeSwitch && modeSwitch}
+      {modeSwitch}
       <CharacterCounter
         current={contentLength}
         max={maxContentLength}
@@ -614,13 +617,14 @@ export function PostComposerContent({
           {quotedPostPreview}
         </div>
 
-        {/* Actions bar: upload (left) + counter & post (right) */}
+        {/* Actions bar: upload + format (left) + counter & post (right) */}
         <div className={cn("flex items-center justify-between", s.contentPadding)}>
-          <div>{uploadButtons}</div>
-          <div className="flex flex-row gap-3">
+          <div className="flex items-center gap-1">
+            {uploadButtons}
+            <Separator orientation="vertical" className="h-5 mx-1 w-[2px] rounded-full" />
             {formatButtons}
-            {counterAndPost}
           </div>
+          <div>{counterAndPost}</div>
         </div>
       </div>
 
