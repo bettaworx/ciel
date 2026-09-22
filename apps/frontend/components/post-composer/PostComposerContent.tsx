@@ -291,6 +291,20 @@ export function PostComposerContent({
         percentage={contentPercentage}
         showCount={showCharacterCount}
       />
+      {layout === "dialog" && (
+        <AnimatePresence initial={false}>
+          {showModeSwitch && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+            >
+              {modeSwitch}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
       <Button
         variant="primary"
         size="sm"
@@ -552,32 +566,18 @@ export function PostComposerContent({
       <>
         {dragOverlay}
 
-        {/* Header: close & mode (left) + counter & post (right) */}
+        {/* Header: close (left) + counter, mode & post (right) */}
         <div className="pt-3 px-3 flex flex-row items-center justify-between shrink-0">
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onClose?.()}
-              disabled={closeDisabled}
-              aria-label={t("common.close")}
-              className="h-8 w-8"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-            <AnimatePresence initial={false}>
-              {showModeSwitch && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -12 }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
-                >
-                  {modeSwitch}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onClose?.()}
+            disabled={closeDisabled}
+            aria-label={t("common.close")}
+            className="h-8 w-8"
+          >
+            <X className="w-4 h-4" />
+          </Button>
           {counterAndPost}
         </div>
 
