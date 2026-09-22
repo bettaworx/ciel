@@ -25,6 +25,8 @@ function post(id: string, overrides: Partial<Post> = {}): Post {
       ...author,
     },
     content: id,
+    mode: "standard",
+    drawing: null,
     media: [],
     reactions: [],
     mentions: [],

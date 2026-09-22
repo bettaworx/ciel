@@ -42,6 +42,7 @@ func TestTimelineService_Get_UsesRedis(t *testing.T) {
 			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, false, false, sql.NullString{}, false, false))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	expectNoDrawings(mock)
 	expectCountReplies(mock)
 
 	limit := 1
@@ -74,6 +75,7 @@ func TestTimelineService_Get_FallsBackToDB(t *testing.T) {
 			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}, "alice", sql.NullString{}, sql.NullString{}, uuid.NullUUID{}, userCreated, false, false, sql.NullString{}, false, false))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	expectNoDrawings(mock)
 	expectCountReplies(mock)
 
 	limit := 1
@@ -123,6 +125,7 @@ func TestTimelineService_Get_PartialRedisPageFallsBackAndKeepsCursor(t *testing.
 	mock.ExpectQuery(`SELECT\s+p.id,`).WillReturnRows(rows)
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	expectNoDrawings(mock)
 	expectCountReplies(mock)
 	// The first-page miss also rebuilds the ZSET.
 	mock.ExpectQuery(`SELECT p\.id, p\.created_at`).

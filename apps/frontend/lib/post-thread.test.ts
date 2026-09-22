@@ -28,6 +28,8 @@ function post(id: string, author = owner, overrides: Partial<Post> = {}): Post {
       ...author,
     },
     content: id,
+    mode: "standard",
+    drawing: null,
     media: [],
     reactions: [],
     mentions: [],

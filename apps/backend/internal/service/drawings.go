@@ -234,6 +234,47 @@ func mapDrawing(row sqlc.Drawing) api.Drawing {
 	}
 }
 
+func attachDrawingsToPosts(ctx context.Context, store *repository.Store, posts []api.Post) error {
+	if len(posts) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, 0, len(posts))
+	index := make(map[uuid.UUID]int, len(posts))
+	for i := range posts {
+		posts[i].Mode = api.PostModeStandard
+		posts[i].Drawing = nil
+		ids = append(ids, posts[i].Id)
+		index[posts[i].Id] = i
+	}
+	if store == nil {
+		return nil
+	}
+	rows, err := store.Q.ListDrawingsForPosts(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		i, ok := index[row.PostID]
+		if !ok {
+			continue
+		}
+		drawing := mapDrawing(sqlc.Drawing{
+			ID:              row.ID,
+			UserID:          row.UserID,
+			FormatVersion:   row.FormatVersion,
+			BackgroundColor: row.BackgroundColor,
+			Width:           row.Width,
+			Height:          row.Height,
+			DataBytes:       row.DataBytes,
+			PreviewBytes:    row.PreviewBytes,
+			CreatedAt:       row.CreatedAt,
+		})
+		posts[i].Mode = api.PostModeDrawing
+		posts[i].Drawing = &drawing
+	}
+	return nil
+}
+
 func drawingPreviewURL(id uuid.UUID) string {
 	return publicBaseURL() + "/drawings/" + id.String() + "/preview.webp"
 }

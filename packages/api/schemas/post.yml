@@ -6,6 +6,8 @@ components:
       - id
       - author
       - content
+      - mode
+      - drawing
       - createdAt
       - media
       - reactions
@@ -20,6 +22,12 @@ components:
         content:
           type: string
           maxLength: 300
+        mode:
+          $ref: ./enums.yml#/components/schemas/PostMode
+        drawing:
+          allOf:
+          - $ref: ./drawing.yml#/components/schemas/Drawing
+          nullable: true
         media:
           type: array
           maxItems: 4
@@ -197,6 +205,10 @@ components:
           maxItems: 4
           items:
             $ref: ./common.yml#/components/schemas/MediaId
+        drawingId:
+          type: string
+          format: uuid
+          description: Immutable drawing draft to attach. Cannot be combined with content or mediaIds.
         parentId:
           allOf:
           - $ref: ./common.yml#/components/schemas/PostId

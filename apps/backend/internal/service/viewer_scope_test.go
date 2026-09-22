@@ -82,6 +82,7 @@ func TestViewerScope_ForPost_FeedReasons(t *testing.T) {
 	refID := api.PostId(uuid.New())
 	hiddenRef := api.Post{Id: refID, Author: api.User{Id: hidden}}
 	visibleRef := api.Post{Id: refID, Author: api.User{Id: visible}}
+	drawing := api.Drawing{}
 
 	boost := func(ref *api.Post, restricted *bool) api.Post {
 		p := postBy(visible)
@@ -104,6 +105,7 @@ func TestViewerScope_ForPost_FeedReasons(t *testing.T) {
 		{"a boost of a post that became unreadable", boost(nil, &yes), Omit},
 		{"a boost of a deleted post", boost(nil, nil), Show},
 		{"a boost of a deleted post, explicitly not restricted", boost(nil, &no), Show},
+		{"a drawing quote of a hidden author", func() api.Post { p := boost(&hiddenRef, nil); p.Drawing = &drawing; return p }(), Show},
 		{"a reply to a private parent", withParent(postBy(visible), &yes, nil), Omit},
 		{"a reply to a hidden parent", withParent(postBy(visible), nil, &yes), Omit},
 		{"a reply to a readable parent", withParent(postBy(visible), &no, &no), Show},

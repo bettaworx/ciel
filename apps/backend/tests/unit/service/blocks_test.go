@@ -25,6 +25,11 @@ func expectViewerScope(mock sqlmock.Sqlmock, rows ...[2]any) {
 	mock.ExpectQuery(`FROM account_mutes`).WillReturnRows(r)
 }
 
+func expectNoDrawings(mock sqlmock.Sqlmock) {
+	mock.ExpectQuery(`SELECT\s+p.id AS post_id,\s+d.id,`).
+		WillReturnRows(sqlmock.NewRows([]string{"post_id", "id", "user_id", "format_version", "background_color", "width", "height", "data_bytes", "preview_bytes", "created_at"}))
+}
+
 // expectGetUserByUsername stands in for the target lookup every mute and block
 // call starts with.
 func expectGetUserByUsername(mock sqlmock.Sqlmock, id uuid.UUID, username string) {
@@ -362,6 +367,7 @@ func TestBookmarksService_ListPosts_DropsHiddenAuthors(t *testing.T) {
 	)
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	expectNoDrawings(mock)
 	mock.ExpectQuery(`SELECT\s+pm.post_id,\s+u.id AS user_id`).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "user_id", "username", "display_name", "avatar_media_id", "avatar_ext"}))
 	mock.ExpectQuery(`SELECT parent_id, COUNT\(\*\)`).

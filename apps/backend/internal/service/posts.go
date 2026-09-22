@@ -79,9 +79,13 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		return api.Post{}, err
 	}
 
-	// At least one of content, media, or referenceId must be present
-	if content == "" && len(mediaIDs) == 0 && req.ReferenceId == nil {
-		return api.Post{}, NewError(http.StatusBadRequest, "invalid_request", "content, media, or referenceId required")
+	if req.DrawingId != nil && (content != "" || len(mediaIDs) > 0) {
+		return api.Post{}, NewError(http.StatusBadRequest, "invalid_request", "drawing cannot be combined with content or media")
+	}
+
+	// At least one of content, media, drawing, or referenceId must be present.
+	if content == "" && len(mediaIDs) == 0 && req.DrawingId == nil && req.ReferenceId == nil {
+		return api.Post{}, NewError(http.StatusBadRequest, "invalid_request", "content, media, drawing, or referenceId required")
 	}
 
 	// Check content length (Unicode characters, not bytes)
@@ -114,7 +118,7 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 	var created sqlc.CreatePostRow
 	var createdNotifications []CreatedNotification
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
-		var parentID, rootID, referenceID uuid.NullUUID
+		var parentID, rootID, referenceID, drawingID uuid.NullUUID
 		var parentAuthorID, referenceAuthorID uuid.UUID
 		var mentionedIDs []uuid.UUID
 		createdNotifications = nil
@@ -185,14 +189,31 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 			}
 		}
 
+		if req.DrawingId != nil {
+			if _, err := q.GetOwnedDrawingForAttach(ctx, sqlc.GetOwnedDrawingForAttachParams{
+				ID:     *req.DrawingId,
+				UserID: user.ID,
+			}); err != nil {
+				if err == sql.ErrNoRows {
+					return NewError(http.StatusBadRequest, "invalid_request", "drawing is unavailable")
+				}
+				return err
+			}
+			drawingID = uuid.NullUUID{UUID: *req.DrawingId, Valid: true}
+		}
+
 		c, err := q.CreatePost(ctx, sqlc.CreatePostParams{
 			UserID:      user.ID,
 			Content:     content,
 			ParentID:    parentID,
 			RootID:      rootID,
 			ReferenceID: referenceID,
+			DrawingID:   drawingID,
 		})
 		if err != nil {
+			if isUniqueViolation(err) && req.DrawingId != nil {
+				return NewError(http.StatusConflict, "drawing_already_used", "drawing is already attached to a post")
+			}
 			if isUniqueViolation(err) && req.ReferenceId != nil && content == "" {
 				return NewError(http.StatusConflict, "already_boosted", "you have already boosted this post")
 			}
@@ -259,6 +280,9 @@ func (s *PostsService) Create(ctx context.Context, user auth.User, req api.Creat
 		return api.Post{}, err
 	}
 	posts := []api.Post{post}
+	if err := attachDrawingsToPosts(ctx, s.store, posts); err != nil {
+		return api.Post{}, err
+	}
 	if err := s.attachMentionsToPosts(ctx, posts); err != nil {
 		return api.Post{}, err
 	}
@@ -309,6 +333,9 @@ func (s *PostsService) Get(ctx context.Context, postID api.PostId, userID *api.U
 		return api.Post{}, err
 	}
 	posts := []api.Post{post}
+	if err := attachDrawingsToPosts(ctx, s.store, posts); err != nil {
+		return api.Post{}, err
+	}
 	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
 		return api.Post{}, err
 	}
@@ -618,6 +645,9 @@ func (s *PostsService) attachPostDetails(ctx context.Context, posts []api.Post, 
 	if err := s.attachMediaToPosts(ctx, posts); err != nil {
 		return err
 	}
+	if err := attachDrawingsToPosts(ctx, s.store, posts); err != nil {
+		return err
+	}
 	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
 		return err
 	}
@@ -711,6 +741,9 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 		items = append(items, mapPostsByUsernameRow(row))
 	}
 	if err := s.attachMediaToPosts(ctx, items); err != nil {
+		return api.UserPostsPage{}, err
+	}
+	if err := attachDrawingsToPosts(ctx, s.store, items); err != nil {
 		return api.UserPostsPage{}, err
 	}
 	if err := s.attachViewerStateToPosts(ctx, items, userID); err != nil {
@@ -1074,6 +1107,9 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 	if err := s.attachMediaToPosts(ctx, items); err != nil {
 		return api.TimelinePage{}, err
 	}
+	if err := attachDrawingsToPosts(ctx, s.store, items); err != nil {
+		return api.TimelinePage{}, err
+	}
 	if err := s.attachViewerStateToPosts(ctx, items, userID); err != nil {
 		return api.TimelinePage{}, err
 	}
@@ -1296,6 +1332,9 @@ func (s *PostsService) attachReferencesToPosts(ctx context.Context, posts []api.
 	}
 
 	if err := s.attachMediaToPosts(ctx, refPosts); err != nil {
+		return err
+	}
+	if err := attachDrawingsToPosts(ctx, s.store, refPosts); err != nil {
 		return err
 	}
 	if err := s.attachViewerStateToPosts(ctx, refPosts, userID); err != nil {
