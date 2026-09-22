@@ -137,6 +137,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   // State
   const [content, setContent] = useState("");
   const [composerMode, setComposerMode] = useState<ComposerMode>("text");
+  const [drawingStrokes, setDrawingStrokes] = useState<DrawingStroke[]>([]);
+  const [redoStrokes, setRedoStrokes] = useState<DrawingStroke[]>([]);
   const [images, setImages] = useState<LocalImage[]>([]);
   const [video, setVideo] = useState<LocalVideo | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -177,6 +179,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const hasImages = images.length > 0;
   const hasVideo = video !== null;
   const hasMedia = hasImages || hasVideo;
+  const hasDrawing = drawingStrokes.length > 0;
   const isContentValid = contentLength <= maxContentLength;
   const isDropDisabled =
     composerMode === "drawing" ||
@@ -909,6 +912,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const resetForm = () => {
     setContent("");
     setComposerMode("text");
+    setDrawingStrokes([]);
+    setRedoStrokes([]);
     // Revoke all blob URLs on reset
     for (const img of images) {
       URL.revokeObjectURL(img.originalPreviewUrl);
@@ -941,6 +946,10 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     setContent,
     composerMode,
     setComposerMode,
+    drawingStrokes,
+    setDrawingStrokes,
+    redoStrokes,
+    setRedoStrokes,
     images,
     video,
     isUploading,
@@ -986,6 +995,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     hasImages,
     hasVideo,
     hasMedia,
+    hasDrawing,
     isDropDisabled,
     isImageUploadDisabled,
     isVideoUploadDisabled,

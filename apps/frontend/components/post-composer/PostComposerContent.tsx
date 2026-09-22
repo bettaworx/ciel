@@ -124,8 +124,6 @@ export function PostComposerContent({
   const t = useTranslations();
   const s = styles[layout];
   const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
-  const [drawingStrokes, setDrawingStrokes] = useState<DrawingStroke[]>([]);
-  const [redoStrokes, setRedoStrokes] = useState<DrawingStroke[]>([]);
   const [drawingTool, setDrawingTool] = useState<DrawingTool>("pencil");
   const [drawingColor, setDrawingColor] = useState("#111111");
   const [pencilSize, setPencilSize] = useState(6);
@@ -150,9 +148,13 @@ export function PostComposerContent({
     setContent,
     setSelectionRange,
     setComposerMode,
+    setDrawingStrokes,
+    setRedoStrokes,
     // State
     content,
     composerMode,
+    drawingStrokes,
+    redoStrokes,
     isUploading,
     isDragging,
     ogpUrl,

@@ -121,7 +121,12 @@ export function ComposeCard({
         return;
       }
 
-      if (compose.content.length === 0 && compose.images.length === 0 && !compose.video) {
+      if (
+        compose.content.length === 0 &&
+        compose.images.length === 0 &&
+        !compose.video &&
+        !compose.hasDrawing
+      ) {
         setIsExpanded(false);
       }
     };
@@ -135,7 +140,7 @@ export function ComposeCard({
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("pointerup", handlePointerUp, true);
     };
-  }, [isExpanded, compose.content, compose.images, compose.video]);
+  }, [isExpanded, compose.content, compose.images, compose.video, compose.hasDrawing]);
 
   if (!user) return null;
 
