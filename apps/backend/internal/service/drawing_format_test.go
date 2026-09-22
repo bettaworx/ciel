@@ -18,6 +18,7 @@ func validDrawingDocument() DrawingDocument {
 		Background: "#fefefe",
 		Strokes: []DrawingStroke{{
 			Tool:  "pencil",
+			Brush: "gpen",
 			Color: "#0a1b2c",
 			Size:  24,
 			Points: [][4]int32{
@@ -58,7 +59,7 @@ func TestParseAndCompressDrawingRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(raw, &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Strokes[0].Points[1] != [4]int32{8, 4, -2, 600} {
+	if got.Strokes[0].Brush != "gpen" || got.Strokes[0].Points[1] != [4]int32{8, 4, -2, 600} {
 		t.Fatalf("point changed during round trip: %#v", got.Strokes[0].Points[1])
 	}
 }
@@ -68,12 +69,17 @@ func TestParseAndCompressDrawingRejectsInvalidData(t *testing.T) {
 		"version":    func(d *DrawingDocument) { d.Version = 2 },
 		"background": func(d *DrawingDocument) { d.Background = "white" },
 		"tool":       func(d *DrawingDocument) { d.Strokes[0].Tool = "brush" },
+		"brush":      func(d *DrawingDocument) { d.Strokes[0].Brush = "airbrush" },
 		"color":      func(d *DrawingDocument) { d.Strokes[0].Color = "#GG0000" },
 		"pencil color": func(d *DrawingDocument) {
 			d.Strokes[0].Color = ""
 		},
 		"eraser color": func(d *DrawingDocument) {
 			d.Strokes[0].Tool = "eraser"
+		},
+		"eraser brush": func(d *DrawingDocument) {
+			d.Strokes[0].Tool = "eraser"
+			d.Strokes[0].Color = ""
 		},
 		"size":     func(d *DrawingDocument) { d.Strokes[0].Size = 0 },
 		"pressure": func(d *DrawingDocument) { d.Strokes[0].Points[0][3] = 1025 },
@@ -95,9 +101,22 @@ func TestParseAndCompressDrawingRejectsInvalidData(t *testing.T) {
 func TestParseAndCompressDrawingAcceptsEraser(t *testing.T) {
 	doc := validDrawingDocument()
 	doc.Strokes[0].Tool = "eraser"
+	doc.Strokes[0].Brush = ""
 	doc.Strokes[0].Color = ""
 	if _, _, err := parseAndCompressDrawing(bytes.NewReader(drawingJSON(t, doc))); err != nil {
 		t.Fatalf("valid eraser rejected: %v", err)
+	}
+}
+
+func TestParseAndCompressDrawingAcceptsBrushes(t *testing.T) {
+	for _, brush := range []string{"", "round", "gpen", "marker", "pencil", "dot"} {
+		t.Run(brush, func(t *testing.T) {
+			doc := validDrawingDocument()
+			doc.Strokes[0].Brush = brush
+			if _, _, err := parseAndCompressDrawing(bytes.NewReader(drawingJSON(t, doc))); err != nil {
+				t.Fatalf("valid brush rejected: %v", err)
+			}
+		})
 	}
 }
 
