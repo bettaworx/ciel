@@ -16,10 +16,10 @@ func validDrawingDocument() DrawingDocument {
 	return DrawingDocument{
 		Version:    DrawingFormatVersion,
 		Background: "#fefefe",
+		Color:      "#0a1b2c",
 		Strokes: []DrawingStroke{{
 			Tool:  "pencil",
 			Brush: "gpen",
-			Color: "#0a1b2c",
 			Size:  24,
 			Points: [][4]int32{
 				{0, 400, 800, 512},
@@ -43,7 +43,7 @@ func TestParseAndCompressDrawingRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if doc.Background != "#FEFEFE" || doc.Strokes[0].Color != "#0A1B2C" {
+	if doc.Background != "#FEFEFE" || doc.Color != "#0A1B2C" {
 		t.Fatalf("colors were not normalized: %#v", doc)
 	}
 
@@ -70,16 +70,9 @@ func TestParseAndCompressDrawingRejectsInvalidData(t *testing.T) {
 		"background": func(d *DrawingDocument) { d.Background = "white" },
 		"tool":       func(d *DrawingDocument) { d.Strokes[0].Tool = "brush" },
 		"brush":      func(d *DrawingDocument) { d.Strokes[0].Brush = "airbrush" },
-		"color":      func(d *DrawingDocument) { d.Strokes[0].Color = "#GG0000" },
-		"pencil color": func(d *DrawingDocument) {
-			d.Strokes[0].Color = ""
-		},
-		"eraser color": func(d *DrawingDocument) {
-			d.Strokes[0].Tool = "eraser"
-		},
+		"color":      func(d *DrawingDocument) { d.Color = "#GG0000" },
 		"eraser brush": func(d *DrawingDocument) {
 			d.Strokes[0].Tool = "eraser"
-			d.Strokes[0].Color = ""
 		},
 		"size":     func(d *DrawingDocument) { d.Strokes[0].Size = 0 },
 		"pressure": func(d *DrawingDocument) { d.Strokes[0].Points[0][3] = 1025 },
@@ -102,7 +95,6 @@ func TestParseAndCompressDrawingAcceptsEraser(t *testing.T) {
 	doc := validDrawingDocument()
 	doc.Strokes[0].Tool = "eraser"
 	doc.Strokes[0].Brush = ""
-	doc.Strokes[0].Color = ""
 	if _, _, err := parseAndCompressDrawing(bytes.NewReader(drawingJSON(t, doc))); err != nil {
 		t.Fatalf("valid eraser rejected: %v", err)
 	}

@@ -32,13 +32,13 @@ var errDrawingTooLarge = errors.New("drawing data exceeds its limit")
 type DrawingDocument struct {
 	Version    int             `json:"version"`
 	Background string          `json:"background"`
+	Color      string          `json:"color"`
 	Strokes    []DrawingStroke `json:"strokes"`
 }
 
 type DrawingStroke struct {
 	Tool   string     `json:"tool"`
 	Brush  string     `json:"brush,omitempty"`
-	Color  string     `json:"color,omitempty"`
 	Size   int32      `json:"size"`
 	Points [][4]int32 `json:"points"`
 }
@@ -91,6 +91,11 @@ func validateDrawingDocument(doc *DrawingDocument) error {
 		return errors.New("invalid drawing background color")
 	}
 	doc.Background = background
+	color, ok := normalizeDrawingColor(doc.Color)
+	if !ok {
+		return errors.New("invalid drawing color")
+	}
+	doc.Color = color
 	if len(doc.Strokes) > MaxDrawingStrokes {
 		return errDrawingTooLarge
 	}
@@ -105,17 +110,9 @@ func validateDrawingDocument(doc *DrawingDocument) error {
 			default:
 				return fmt.Errorf("stroke %d has an invalid brush", strokeIndex)
 			}
-			color, ok := normalizeDrawingColor(stroke.Color)
-			if !ok {
-				return fmt.Errorf("stroke %d has an invalid color", strokeIndex)
-			}
-			stroke.Color = color
 		case "eraser":
 			if stroke.Brush != "" {
 				return fmt.Errorf("stroke %d eraser must not have a brush", strokeIndex)
-			}
-			if stroke.Color != "" {
-				return fmt.Errorf("stroke %d eraser must not have a color", strokeIndex)
 			}
 		default:
 			return fmt.Errorf("stroke %d has an invalid tool", strokeIndex)
