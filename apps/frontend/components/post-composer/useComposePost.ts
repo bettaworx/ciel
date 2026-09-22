@@ -44,7 +44,7 @@ import { loadQualityMode, saveQualityMode } from "@/lib/media/quality-preference
 import type { VideoQualityMode } from "@/lib/media/normalize";
 import type { QualityMode } from "./MediaQualityPicker";
 import type { ComposerMode } from "./composerMode";
-import { createDrawingUpload, type DrawingStroke } from "./drawing";
+import { createDrawingUpload, DRAWING_BACKGROUND, type DrawingStroke } from "./drawing";
 
 /** Dot-by-dot keeps original pixels, which only means something for a still. */
 const isVideoMode = (mode: QualityMode): mode is VideoQualityMode => mode !== "dot-by-dot";
@@ -139,6 +139,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const [composerMode, setComposerMode] = useState<ComposerMode>("text");
   const [drawingStrokes, setDrawingStrokes] = useState<DrawingStroke[]>([]);
   const [redoStrokes, setRedoStrokes] = useState<DrawingStroke[]>([]);
+  const [drawingBackground, setDrawingBackground] = useState(DRAWING_BACKGROUND);
   const [images, setImages] = useState<LocalImage[]>([]);
   const [video, setVideo] = useState<LocalVideo | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -891,7 +892,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
     try {
       setIsUploading(true);
-      const upload = await createDrawingUpload(strokes);
+      const upload = await createDrawingUpload(strokes, drawingBackground);
       const drawing = await uploadDrawingMutation.mutateAsync(upload);
       await createPostMutation.mutateAsync({
         drawingId: drawing.id,
@@ -914,6 +915,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     setComposerMode("text");
     setDrawingStrokes([]);
     setRedoStrokes([]);
+    setDrawingBackground(DRAWING_BACKGROUND);
     // Revoke all blob URLs on reset
     for (const img of images) {
       URL.revokeObjectURL(img.originalPreviewUrl);
@@ -950,6 +952,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     setDrawingStrokes,
     redoStrokes,
     setRedoStrokes,
+    drawingBackground,
+    setDrawingBackground,
     images,
     video,
     isUploading,

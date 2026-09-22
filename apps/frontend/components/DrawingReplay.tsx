@@ -6,10 +6,12 @@ import { cn } from "@/lib/utils";
 import {
   buildDrawingReplay,
   DRAWING_HEIGHT,
+  DRAWING_REPLAY_DURATION_MS,
   DRAWING_WIDTH,
   drawStrokePoint,
   drawStrokeSegment,
   parseDrawingDocument,
+  renderDrawing,
   type DrawingDocument,
 } from "@/components/post-composer/drawing";
 
@@ -67,13 +69,17 @@ export function DrawingReplay({ drawing, label, className }: DrawingReplayProps)
     if (!document || !context) return;
 
     context.clearRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
-    const steps = buildDrawingReplay(document.strokes);
+    const steps = buildDrawingReplay(document.strokes, DRAWING_REPLAY_DURATION_MS);
     let index = 0;
     let frame = 0;
     let startedAt: number | null = null;
     const play = (now: number) => {
       startedAt ??= now;
       const elapsed = now - startedAt;
+      if (elapsed >= DRAWING_REPLAY_DURATION_MS) {
+        renderDrawing(context, document.strokes);
+        return;
+      }
       let drawn = 0;
       while (index < steps.length && steps[index].at <= elapsed && drawn < 5000) {
         const step = steps[index];

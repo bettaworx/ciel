@@ -710,6 +710,7 @@
       "pencil": "鉛筆",
       "eraser": "消しゴム",
       "color": "色",
+      "background": "背景色",
       "size": "{tool}の太さ",
       "undo": "元に戻す",
       "redo": "やり直す",

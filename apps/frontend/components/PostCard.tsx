@@ -1,6 +1,14 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "@/components/ui/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -86,6 +94,7 @@ import type { PreviewMediaItem } from "@/components/post-composer/types";
 import { getPostCardDisplayConfig, type PostCardVariant } from "@/components/post-card-display";
 import { PostCardIndicatorRow, type PostCardIndicator } from "@/components/PostCardIndicatorRow";
 import { DrawingReplay } from "@/components/DrawingReplay";
+import { drawingPostPalette } from "@/components/post-composer/drawing";
 
 type Post = components["schemas"]["Post"];
 
@@ -281,6 +290,28 @@ export function PostCard({
   const verticalIdentity = displayConfig.identityLayout === "vertical";
   const isCompact = variant === "compact";
   const isEmbedded = variant === "embedded";
+  const drawingPalette = post.drawing ? drawingPostPalette(post.drawing.backgroundColor) : null;
+  const drawingCardStyle = post.drawing
+    ? ({
+        backgroundColor: post.drawing.backgroundColor,
+        "--card": post.drawing.backgroundColor,
+        "--foreground": drawingPalette?.foreground,
+        "--card-foreground": drawingPalette?.foreground,
+        "--muted-foreground": drawingPalette?.foreground,
+        "--primary": drawingPalette?.surface,
+        "--primary-foreground": drawingPalette?.foreground,
+        "--secondary": drawingPalette?.surface,
+        "--secondary-foreground": drawingPalette?.foreground,
+        "--muted": drawingPalette?.surface,
+        "--accent": drawingPalette?.hover,
+        "--accent-foreground": drawingPalette?.foreground,
+        "--card-hover": drawingPalette?.hover,
+        "--sidebar-hover": drawingPalette?.hover,
+        "--c-8": drawingPalette?.hover,
+        "--c-9": drawingPalette?.surface,
+        "--c-foreground-1": drawingPalette?.foreground,
+      } as CSSProperties)
+    : undefined;
 
   const showAboveLine = threadLine === "above" || threadLine === "both";
   const wantsBelowLine = threadLine === "below" || threadLine === "both";
@@ -1300,8 +1331,10 @@ export function PostCard({
   return (
     <article
       ref={articleRef}
+      style={drawingCardStyle}
       className={cn(
         "relative text-card-foreground p-3 transition-colors",
+        drawingPalette && `drawing-post-theme-${drawingPalette.theme}`,
         !isLast && !showBelowLine && !isEmbedded && "border-b border-border",
         isCompact && "max-h-48 overflow-hidden",
         isEmbedded && "border border-border rounded-xl overflow-hidden",

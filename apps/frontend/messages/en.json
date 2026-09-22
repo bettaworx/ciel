@@ -710,6 +710,7 @@
       "pencil": "Pencil",
       "eraser": "Eraser",
       "color": "Color",
+      "background": "Background color",
       "size": "{tool} size",
       "undo": "Undo",
       "redo": "Redo",

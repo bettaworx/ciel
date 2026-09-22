@@ -3,6 +3,7 @@ import {
   buildDrawingReplay,
   createDrawingDocument,
   decodeDrawingStroke,
+  drawingPostPalette,
   drawingLineWidth,
   encodeDrawingPoint,
   parseDrawingDocument,
@@ -63,6 +64,7 @@ describe("drawing format", () => {
       strokes: [pencil, eraser],
     });
     expect(eraser).not.toHaveProperty("color");
+    expect(createDrawingDocument([pencil], "#abcdef").background).toBe("#ABCDEF");
   });
 
   it("builds one replay timeline across strokes", () => {
@@ -70,7 +72,25 @@ describe("drawing format", () => {
     first.points.push([10, 4, 0, 1024]);
     const second = stroke(8);
     second.points[0][0] = 25;
-    expect(buildDrawingReplay([first, second]).map((step) => step.at)).toEqual([0, 10, 35]);
+    expect(buildDrawingReplay([first, second]).map((step) => step.at)).toEqual([0, 10, 10]);
+  });
+
+  it("skips idle time and compresses long replays to the requested duration", () => {
+    const long = stroke(4);
+    long.points.push([6000, 4, 0, 1024]);
+    expect(buildDrawingReplay([long]).at(-1)?.at).toBe(32);
+    expect(buildDrawingReplay([long], 10).at(-1)?.at).toBe(10);
+  });
+
+  it("selects the readable post-card theme for the drawing background", () => {
+    expect(drawingPostPalette("#000000").theme).toBe("dark");
+    expect(drawingPostPalette("#FFFFFF").theme).toBe("light");
+    expect(drawingPostPalette("#777777").theme).toBe("dark");
+    expect(drawingPostPalette("#808080").theme).toBe("light");
+    expect(drawingPostPalette("#CC3333")).toMatchObject({
+      foreground: expect.stringMatching(/^hsl\(0 /),
+      hover: expect.stringMatching(/^hsl\(0 /),
+    });
   });
 
   it("rejects malformed replay documents", () => {

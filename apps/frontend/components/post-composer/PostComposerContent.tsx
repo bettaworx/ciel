@@ -42,7 +42,13 @@ import { shouldShowComposerModeSwitch, type ComposerMode } from "./composerMode"
 import { DrawingCanvas } from "./DrawingCanvas";
 import { DrawingDiscardConfirm } from "./DrawingDiscardConfirm";
 import { DrawingHistoryButtons, DrawingToolButtons } from "./DrawingToolbar";
-import { redoDrawing, type DrawingStroke, type DrawingTool, undoDrawing } from "./drawing";
+import {
+  DRAWING_BACKGROUND,
+  redoDrawing,
+  type DrawingStroke,
+  type DrawingTool,
+  undoDrawing,
+} from "./drawing";
 import { PostCard } from "@/components/PostCard";
 import type { components } from "@/lib/api/api";
 
@@ -150,11 +156,13 @@ export function PostComposerContent({
     setComposerMode,
     setDrawingStrokes,
     setRedoStrokes,
+    setDrawingBackground,
     // State
     content,
     composerMode,
     drawingStrokes,
     redoStrokes,
+    drawingBackground,
     isUploading,
     isDragging,
     ogpUrl,
@@ -297,6 +305,7 @@ export function PostComposerContent({
   const discardDrawing = () => {
     setDrawingStrokes([]);
     setRedoStrokes([]);
+    setDrawingBackground(DRAWING_BACKGROUND);
     setComposerMode("text");
   };
 
@@ -575,6 +584,7 @@ export function PostComposerContent({
         onChange={handleDrawingChange}
         tool={drawingTool}
         color={drawingColor}
+        background={drawingBackground}
         pencilSize={pencilSize}
         eraserSize={eraserSize}
         disabled={createPostMutation.isPending || isUploading}
@@ -590,6 +600,8 @@ export function PostComposerContent({
       onToolChange={setDrawingTool}
       color={drawingColor}
       onColorChange={setDrawingColor}
+      background={drawingBackground}
+      onBackgroundChange={setDrawingBackground}
       pencilSize={pencilSize}
       onPencilSizeChange={setPencilSize}
       eraserSize={eraserSize}
@@ -747,7 +759,7 @@ export function PostComposerContent({
               </>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-3">
             {composerMode === "drawing" && drawingHistory}
             {counterAndPost}
           </div>

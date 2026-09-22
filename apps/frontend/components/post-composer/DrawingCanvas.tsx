@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { cn } from "@/lib/utils";
 import {
-  DRAWING_BACKGROUND,
   DRAWING_HEIGHT,
   DRAWING_SCALE,
   DRAWING_WIDTH,
+  drawingLineWidth,
   drawStrokePoint,
   drawStrokeSegment,
   encodeDrawingPoint,
@@ -21,6 +21,7 @@ interface DrawingCanvasProps {
   onChange: (strokes: DrawingStroke[]) => void;
   tool: DrawingTool;
   color: string;
+  background: string;
   pencilSize: number;
   eraserSize: number;
   disabled?: boolean;
@@ -33,6 +34,7 @@ export function DrawingCanvas({
   onChange,
   tool,
   color,
+  background,
   pencilSize,
   eraserSize,
   disabled = false,
@@ -44,11 +46,30 @@ export function DrawingCanvas({
   const currentStrokeRef = useRef<DrawingStroke | null>(null);
   const currentPointRef = useRef<DecodedDrawingPoint | null>(null);
   const lastEventTimeRef = useRef<number | null>(null);
+  const [cursor, setCursor] = useState<{ x: number; y: number; size: number } | null>(null);
 
   useEffect(() => {
     const context = canvasRef.current?.getContext("2d");
     if (context) renderDrawing(context, strokes);
   }, [strokes]);
+
+  const updateCursor = (event: ReactPointerEvent<HTMLCanvasElement>, usePressure: boolean) => {
+    if (event.pointerType === "touch") {
+      setCursor(null);
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const baseSize = tool === "pencil" ? pencilSize : eraserSize;
+    const pressure =
+      usePressure && event.pointerType === "pen"
+        ? Math.round(Math.max(0, Math.min(1, event.pressure)) * 1024)
+        : 1024;
+    setCursor({
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+      size: drawingLineWidth(baseSize * DRAWING_SCALE, pressure) * (rect.width / DRAWING_WIDTH),
+    });
+  };
 
   const pointFromEvent = (event: PointerEvent): DecodedDrawingPoint | null => {
     const canvas = canvasRef.current;
@@ -99,10 +120,13 @@ export function DrawingCanvas({
       points: [],
     };
     currentPointRef.current = null;
+    lastEventTimeRef.current = null;
+    updateCursor(event, true);
     appendEvent(event.nativeEvent);
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    updateCursor(event, activePointerRef.current === event.pointerId);
     if (activePointerRef.current !== event.pointerId) return;
     event.preventDefault();
     const native = event.nativeEvent;
@@ -119,6 +143,7 @@ export function DrawingCanvas({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    updateCursor(event, false);
     if (stroke?.points.length) onChange([...strokes, stroke]);
   };
 
@@ -127,26 +152,48 @@ export function DrawingCanvas({
     activePointerRef.current = null;
     currentStrokeRef.current = null;
     currentPointRef.current = null;
+    updateCursor(event, false);
     const context = canvasRef.current?.getContext("2d");
     if (context) renderDrawing(context, strokes);
   };
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={DRAWING_WIDTH}
-      height={DRAWING_HEIGHT}
-      aria-label={ariaLabel}
+    <div
       className={cn(
-        "block aspect-3/2 w-full touch-none rounded-xl border border-border",
-        disabled && "pointer-events-none opacity-60",
+        "relative aspect-3/2 w-full overflow-hidden rounded-xl",
+        disabled && "opacity-60",
         className,
       )}
-      style={{ backgroundColor: DRAWING_BACKGROUND }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={finishStroke}
-      onPointerCancel={cancelStroke}
-    />
+      style={{ backgroundColor: background }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={DRAWING_WIDTH}
+        height={DRAWING_HEIGHT}
+        aria-label={ariaLabel}
+        className={cn(
+          "block h-full w-full cursor-none touch-none rounded-xl border border-border",
+          disabled && "pointer-events-none",
+        )}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={() => setCursor(null)}
+        onPointerUp={finishStroke}
+        onPointerCancel={cancelStroke}
+      />
+      {cursor && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute rounded-full border border-foreground shadow-[0_0_0_1px_var(--background)]"
+          style={{
+            left: cursor.x,
+            top: cursor.y,
+            width: cursor.size,
+            height: cursor.size,
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+      )}
+    </div>
   );
 }
