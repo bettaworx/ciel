@@ -183,6 +183,7 @@ export function PostComposerContent({
     handleCropComplete,
     handleQualityChange,
     handlePost,
+    handleDrawingPost,
     // Mutations
     createPostMutation,
   } = compose;
@@ -297,6 +298,17 @@ export function PostComposerContent({
     setComposerMode("text");
   };
 
+  const handleSubmit = async () => {
+    if (composerMode === "text") {
+      await handlePost();
+      return;
+    }
+    if (await handleDrawingPost(drawingStrokes)) {
+      setDrawingStrokes([]);
+      setRedoStrokes([]);
+    }
+  };
+
   // ---- Shared sub-sections ------------------------------------------------
 
   const modeSwitch = (
@@ -343,8 +355,12 @@ export function PostComposerContent({
       <Button
         variant="primary"
         size="sm"
-        onClick={handlePost}
-        disabled={composerMode === "drawing" || !canPost}
+        onClick={handleSubmit}
+        disabled={
+          composerMode === "drawing"
+            ? drawingStrokes.length === 0 || createPostMutation.isPending || isUploading
+            : !canPost
+        }
         className={s.postButton}
       >
         {createPostMutation.isPending

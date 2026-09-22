@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   decodeDrawingStroke,
+  createDrawingDocument,
   drawingLineWidth,
   encodeDrawingPoint,
   redoDrawing,
@@ -45,5 +46,20 @@ describe("drawing format", () => {
     const undone = undoDrawing([a, b], []);
     expect(undone).toEqual({ strokes: [a], redo: [b] });
     expect(redoDrawing(undone.strokes, undone.redo)).toEqual({ strokes: [a, b], redo: [] });
+  });
+
+  it("serializes pencil colors and colorless erasers in the v1 document", () => {
+    const pencil = stroke(1);
+    const eraser: DrawingStroke = {
+      tool: "eraser",
+      size: 128,
+      points: [[0, 8, 8, 1024]],
+    };
+    expect(createDrawingDocument([pencil, eraser])).toEqual({
+      version: 1,
+      background: "#FFFFFF",
+      strokes: [pencil, eraser],
+    });
+    expect(eraser).not.toHaveProperty("color");
   });
 });

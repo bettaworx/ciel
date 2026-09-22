@@ -19,6 +19,14 @@ export interface DrawingDocument {
   strokes: DrawingStroke[];
 }
 
+export function createDrawingDocument(strokes: DrawingStroke[]): DrawingDocument {
+  return {
+    version: 1,
+    background: DRAWING_BACKGROUND,
+    strokes,
+  };
+}
+
 export interface DecodedDrawingPoint {
   delayMs: number;
   x: number;
@@ -102,6 +110,36 @@ export function renderDrawing(context: CanvasRenderingContext2D, strokes: Drawin
       drawStrokeSegment(context, stroke, points[index - 1], points[index]);
     }
   }
+}
+
+export async function createDrawingUpload(strokes: DrawingStroke[]) {
+  const ink = document.createElement("canvas");
+  ink.width = DRAWING_WIDTH;
+  ink.height = DRAWING_HEIGHT;
+  const inkContext = ink.getContext("2d");
+  if (!inkContext) throw new Error("Canvas is unavailable");
+  renderDrawing(inkContext, strokes);
+
+  const preview = document.createElement("canvas");
+  preview.width = DRAWING_WIDTH;
+  preview.height = DRAWING_HEIGHT;
+  const previewContext = preview.getContext("2d");
+  if (!previewContext) throw new Error("Canvas is unavailable");
+  previewContext.fillStyle = DRAWING_BACKGROUND;
+  previewContext.fillRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
+  previewContext.drawImage(ink, 0, 0);
+
+  const { default: encodeWebp } = await import("@jsquash/webp/encode");
+  const encoded = await encodeWebp(
+    previewContext.getImageData(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT),
+    { quality: 90 },
+  );
+  return {
+    data: new Blob([JSON.stringify(createDrawingDocument(strokes))], {
+      type: "application/json",
+    }),
+    preview: new Blob([encoded], { type: "image/webp" }),
+  };
 }
 
 export function undoDrawing(strokes: DrawingStroke[], redo: DrawingStroke[]) {

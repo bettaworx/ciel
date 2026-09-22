@@ -641,6 +641,20 @@ export function useUploadMedia() {
   });
 }
 
+export function useUploadDrawing() {
+  const api = useApi();
+
+  return useMutation({
+    mutationFn: async ({ data, preview }: { data: Blob; preview: Blob }) => {
+      const result = await api.uploadDrawing(data, preview);
+      if (!result.ok) {
+        throw new ApiHttpError(result.errorText, result.status, result.headers);
+      }
+      return result.data;
+    },
+  });
+}
+
 // Update profile mutation
 export function useUpdateProfile() {
   const api = useApi();

@@ -13,7 +13,13 @@ import {
 import { useTranslations } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCreatePost, useUploadMedia, useMediaLimits, queryKeys } from "@/lib/hooks/use-queries";
+import {
+  useCreatePost,
+  useUploadDrawing,
+  useUploadMedia,
+  useMediaLimits,
+  queryKeys,
+} from "@/lib/hooks/use-queries";
 import { ApiHttpError } from "@/lib/api/client";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import type { components } from "@/lib/api/api";
@@ -38,6 +44,7 @@ import { loadQualityMode, saveQualityMode } from "@/lib/media/quality-preference
 import type { VideoQualityMode } from "@/lib/media/normalize";
 import type { QualityMode } from "./MediaQualityPicker";
 import type { ComposerMode } from "./composerMode";
+import { createDrawingUpload, type DrawingStroke } from "./drawing";
 
 /** Dot-by-dot keeps original pixels, which only means something for a still. */
 const isVideoMode = (mode: QualityMode): mode is VideoQualityMode => mode !== "dot-by-dot";
@@ -159,6 +166,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   // Mutations
   const createPostMutation = useCreatePost();
   const uploadMediaMutation = useUploadMedia();
+  const uploadDrawingMutation = useUploadDrawing();
 
   // Computed values
   const maxContentLength = mediaLimits.maxPostContentLength;
@@ -751,6 +759,25 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     toast.error(kind === "video" ? t("createPost.videoUploadError") : t("createPost.uploadError"));
   };
 
+  const completePost = () => {
+    if (parentId) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.post(parentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.postContext(parentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.replies(parentId) });
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "postThread",
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "ownerReplyThread",
+      });
+    }
+    if (referenceId) queryClient.invalidateQueries({ queryKey: queryKeys.post(referenceId) });
+
+    toast.success(t("createPost.success"));
+    resetForm();
+    onSuccess?.();
+  };
+
   const handlePost = async () => {
     if (!canPost) return;
 
@@ -847,37 +874,33 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         referenceId,
       } as components["schemas"]["CreatePostRequest"]);
 
-      // For replies, refresh the parent post (replyCount) and reply list
-      if (parentId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.post(parentId) });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.postContext(parentId),
-        });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.replies(parentId),
-        });
-        queryClient.invalidateQueries({
-          predicate: (query) => query.queryKey[0] === "postThread",
-        });
-        queryClient.invalidateQueries({
-          predicate: (query) => query.queryKey[0] === "ownerReplyThread",
-        });
-      }
-
-      if (referenceId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.post(referenceId) });
-      }
-
-      toast.success(t("createPost.success"));
-
-      // Reset form
-      resetForm();
-
-      // Call success callback
-      onSuccess?.();
+      completePost();
     } catch (error) {
       toast.error(t("createPost.error"));
       console.error("Post creation failed:", error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDrawingPost = async (strokes: DrawingStroke[]) => {
+    if (strokes.length === 0 || createPostMutation.isPending || isUploading) return false;
+
+    try {
+      setIsUploading(true);
+      const upload = await createDrawingUpload(strokes);
+      const drawing = await uploadDrawingMutation.mutateAsync(upload);
+      await createPostMutation.mutateAsync({
+        drawingId: drawing.id,
+        parentId,
+        referenceId,
+      });
+      completePost();
+      return true;
+    } catch (error) {
+      toast.error(t("createPost.drawing.uploadError"));
+      console.error("Drawing post creation failed:", error);
+      return false;
     } finally {
       setIsUploading(false);
     }
@@ -946,6 +969,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     handleCropDialogOpenChange,
     handleCropComplete,
     handlePost,
+    handleDrawingPost,
     handleDragOver,
     handleDragEnter,
     handleDragLeave,
@@ -975,6 +999,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     // Mutations
     createPostMutation,
     uploadMediaMutation,
+    uploadDrawingMutation,
 
     // Utilities
     resetForm,

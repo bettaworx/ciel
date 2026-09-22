@@ -250,7 +250,12 @@ export function createApiClient(options: ApiClientOptions = {}) {
   async function requestForm<T>(
     method: "POST" | "PUT" | "PATCH",
     path: string,
-    init: { form: FormData; token?: string | null; headers?: Record<string, string> },
+    init: {
+      form: FormData;
+      token?: string | null;
+      headers?: Record<string, string>;
+      normalizeFiles?: boolean;
+    },
   ): Promise<ApiResult<T>> {
     const baseUrl = getBaseUrl();
     const url = `${baseUrl}${path}`;
@@ -260,15 +265,15 @@ export function createApiClient(options: ApiClientOptions = {}) {
     };
     // IMPORTANT: do NOT set content-type here; the browser will set the multipart boundary.
 
-    // Trust boundary: every file leaving the browser is normalized into a shape the
-    // backend accepts (WebP / WebM, GIF passthrough). This is the only multipart path
-    // in the client, so no upload can bypass it. Imported lazily to keep mediabunny
-    // out of the initial bundle and off the server.
-    for (const [key, value] of Array.from(init.form.entries())) {
-      if (!(value instanceof File)) continue;
-      const { normalizeForUpload } = await import("@/lib/media/normalize");
-      const normalized = await normalizeForUpload(value);
-      if (normalized !== value) init.form.set(key, normalized);
+    // Ordinary media is normalized here. Structured drawing JSON and its already
+    // encoded preview opt out because they have their own stricter server contract.
+    if (init.normalizeFiles !== false) {
+      for (const [key, value] of Array.from(init.form.entries())) {
+        if (!(value instanceof File)) continue;
+        const { normalizeForUpload } = await import("@/lib/media/normalize");
+        const normalized = await normalizeForUpload(value);
+        if (normalized !== value) init.form.set(key, normalized);
+      }
     }
 
     try {
@@ -633,6 +638,16 @@ export function createApiClient(options: ApiClientOptions = {}) {
       // second full conversion. The name travels on the File either way.
       form.set("file", file);
       return requestForm<components["schemas"]["Media"]>("POST", "/media", { form });
+    },
+
+    uploadDrawing: (data: Blob, preview: Blob) => {
+      const form = new FormData();
+      form.set("data", data, "drawing.json");
+      form.set("preview", preview, "preview.webp");
+      return requestForm<components["schemas"]["Drawing"]>("POST", "/drawings", {
+        form,
+        normalizeFiles: false,
+      });
     },
 
     getPost: (postId: components["schemas"]["PostId"]) =>

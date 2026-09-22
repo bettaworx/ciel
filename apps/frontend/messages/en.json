@@ -713,6 +713,7 @@
       "size": "{tool} size",
       "undo": "Undo",
       "redo": "Redo",
+      "uploadError": "Failed to post drawing",
       "discard": {
         "title": "Discard drawing?",
         "description": "Switching to text mode will discard this drawing.",
