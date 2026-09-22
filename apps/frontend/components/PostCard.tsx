@@ -299,7 +299,7 @@ export function PostCard({
     post.drawing && !isDrawingBackgroundCamouflaged(post.drawing.backgroundColor, resolvedTheme)
       ? drawingPostPalette(post.drawing.backgroundColor)
       : null;
-  const drawingCardStyle = post.drawing
+  const drawingCardStyle = drawingPalette
     ? ({
         backgroundColor: post.drawing.backgroundColor,
         "--card": post.drawing.backgroundColor,
