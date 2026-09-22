@@ -251,6 +251,23 @@ RETURNING *;
 -- name: GetDrawingByID :one
 SELECT * FROM drawings WHERE id = $1;
 
+-- name: IsDrawingPublic :one
+SELECT
+  EXISTS(
+    SELECT 1 FROM posts p
+    WHERE p.drawing_id = sqlc.arg('drawing_id')::uuid
+      AND p.deleted_at IS NULL
+      AND p.visibility = 'public'
+      AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
+  ) AS is_public,
+  EXISTS(
+    SELECT 1 FROM posts p
+    JOIN users u ON u.id = p.user_id
+    WHERE p.drawing_id = sqlc.arg('drawing_id')::uuid
+      AND p.deleted_at IS NULL
+      AND u.is_private
+  ) AS is_restricted;
+
 -- name: GetOwnedDrawingForAttach :one
 SELECT * FROM drawings
 WHERE id = sqlc.arg('id')::uuid

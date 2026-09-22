@@ -1,0 +1,88 @@
+components:
+  schemas:
+    Drawing:
+      type: object
+      required:
+      - id
+      - formatVersion
+      - backgroundColor
+      - width
+      - height
+      - dataBytes
+      - previewBytes
+      - previewUrl
+      - replayUrl
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        formatVersion:
+          type: integer
+          enum: [1]
+        backgroundColor:
+          type: string
+          pattern: '^#[0-9A-F]{6}$'
+        width:
+          type: integer
+          enum: [1200]
+        height:
+          type: integer
+          enum: [800]
+        dataBytes:
+          type: integer
+          description: Size of the stored gzip replay document.
+        previewBytes:
+          type: integer
+          description: Size of the stored WebP preview.
+        previewUrl:
+          type: string
+          format: uri
+        replayUrl:
+          type: string
+          format: uri
+        createdAt:
+          type: string
+          format: date-time
+    DrawingLimits:
+      type: object
+      required:
+      - formatVersion
+      - width
+      - height
+      - coordinateScale
+      - maxInputBytes
+      - maxDataBytes
+      - maxPreviewBytes
+      - maxStrokes
+      - maxPoints
+      properties:
+        formatVersion:
+          type: integer
+          enum: [1]
+        width:
+          type: integer
+          enum: [1200]
+        height:
+          type: integer
+          enum: [800]
+        coordinateScale:
+          type: integer
+          enum: [4]
+          description: Coordinates are integers in quarter-pixel units.
+        maxInputBytes:
+          type: integer
+          example: 16777216
+        maxDataBytes:
+          type: integer
+          example: 4194304
+        maxPreviewBytes:
+          type: integer
+          example: 2097152
+        maxStrokes:
+          type: integer
+          example: 10000
+        maxPoints:
+          type: integer
+          example: 250000
+

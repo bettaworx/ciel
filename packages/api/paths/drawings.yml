@@ -1,0 +1,48 @@
+/drawings:
+  post:
+    tags:
+    - Drawings
+    summary: Upload an immutable drawing draft
+    description: Uploads a versioned replay JSON document and its 1200x800 static WebP preview.
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+            - data
+            - preview
+            properties:
+              data:
+                type: string
+                format: binary
+                description: Drawing replay document as application/json.
+              preview:
+                type: string
+                format: binary
+                description: Static 1200x800 WebP preview.
+    responses:
+      '201':
+        description: Drawing draft created
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/drawing.yml#/components/schemas/Drawing
+      '400':
+        description: Invalid drawing or preview
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '413':
+        description: Drawing or preview exceeds its size limit
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+

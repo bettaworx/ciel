@@ -38,6 +38,7 @@ type API struct {
 	Bookmarks     *service.BookmarksService
 	Notifications *service.NotificationsService
 	Media         *service.MediaService
+	Drawings      *service.DrawingService
 	Emojis        *service.EmojiService
 	OGP           *service.OGPService
 	Setup         *service.SetupService
@@ -828,6 +829,27 @@ func (h API) PostMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, media)
+}
+
+func (h API) PostDrawings(w http.ResponseWriter, r *http.Request) {
+	if h.Drawings == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "drawings not configured"})
+		return
+	}
+	caller, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, api.Error{Code: "unauthorized", Message: "unauthorized"})
+		return
+	}
+	if !requirePermission(w, r, h.Authz, caller, "posts_create") {
+		return
+	}
+	drawing, err := h.Drawings.UploadFromRequest(w, r, caller)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, drawing)
 }
 
 func (h API) GetPostsPostIdReactions(w http.ResponseWriter, r *http.Request, postId api.PostId) {

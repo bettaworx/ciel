@@ -31,6 +31,7 @@ tags:
 - name: Reactions
 - name: Bookmarks
 - name: Media
+- name: Drawings
 - name: Reports
 - name: Emojis
 - name: Notifications
@@ -292,6 +293,8 @@ paths:
     $ref: ./paths/posts.yml#/~1posts
   /media:
     $ref: ./paths/media.yml#/~1media
+  /drawings:
+    $ref: ./paths/drawings.yml#/~1drawings
   /posts/{postId}:
     $ref: ./paths/posts.yml#/~1posts~1{postId}
   /posts/{postId}/context:
