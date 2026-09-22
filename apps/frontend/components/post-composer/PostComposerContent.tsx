@@ -43,8 +43,10 @@ import { DrawingCanvas } from "./DrawingCanvas";
 import { DrawingDiscardConfirm } from "./DrawingDiscardConfirm";
 import { DrawingHistoryButtons, DrawingToolButtons } from "./DrawingToolbar";
 import {
-  DRAWING_BACKGROUND,
+  readDrawingPreferences,
   redoDrawing,
+  saveDrawingPreferences,
+  type DrawingBrush,
   type DrawingStroke,
   type DrawingTool,
   undoDrawing,
@@ -53,6 +55,7 @@ import { PostCard } from "@/components/PostCard";
 import type { components } from "@/lib/api/api";
 
 type Post = components["schemas"]["Post"];
+type Drawing = components["schemas"]["Drawing"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -77,6 +80,8 @@ interface PostComposerContentProps {
   submittingLabel?: string;
   /** When set, renders a non-interactive embedded PostCard preview below the media area. */
   quotedPost?: Post;
+  /** Drawing attached to the replied-to post, when available. */
+  replyDrawing?: Drawing | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,14 +131,17 @@ export function PostComposerContent({
   submitLabel,
   submittingLabel,
   quotedPost,
+  replyDrawing,
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
+  const [initialDrawingPreferences] = useState(readDrawingPreferences);
   const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
   const [drawingTool, setDrawingTool] = useState<DrawingTool>("pencil");
-  const [drawingColor, setDrawingColor] = useState("#111111");
-  const [pencilSize, setPencilSize] = useState(6);
-  const [eraserSize, setEraserSize] = useState(32);
+  const [drawingBrush, setDrawingBrush] = useState<DrawingBrush>(initialDrawingPreferences.brush);
+  const [drawingColor, setDrawingColor] = useState(initialDrawingPreferences.color);
+  const [pencilSize, setPencilSize] = useState(initialDrawingPreferences.pencilSize);
+  const [eraserSize, setEraserSize] = useState(initialDrawingPreferences.eraserSize);
   const [discardDrawingOpen, setDiscardDrawingOpen] = useState(false);
   const hadTypedContentRef = useRef(false);
   const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
@@ -197,6 +205,16 @@ export function PostComposerContent({
     // Mutations
     createPostMutation,
   } = compose;
+
+  useEffect(() => {
+    saveDrawingPreferences({
+      brush: drawingBrush,
+      color: drawingColor,
+      background: drawingBackground,
+      pencilSize,
+      eraserSize,
+    });
+  }, [drawingBrush, drawingColor, drawingBackground, pencilSize, eraserSize]);
 
   useEffect(() => {
     if (placeholderOverride !== undefined) {
@@ -305,7 +323,6 @@ export function PostComposerContent({
   const discardDrawing = () => {
     setDrawingStrokes([]);
     setRedoStrokes([]);
-    setDrawingBackground(DRAWING_BACKGROUND);
     setComposerMode("text");
   };
 
@@ -314,7 +331,7 @@ export function PostComposerContent({
       await handlePost();
       return;
     }
-    if (await handleDrawingPost(drawingStrokes)) {
+    if (await handleDrawingPost(drawingStrokes, drawingColor)) {
       setDrawingStrokes([]);
       setRedoStrokes([]);
     }
@@ -577,13 +594,14 @@ export function PostComposerContent({
   );
 
   const drawingRow = (
-    <div className={cn("flex gap-3", layout === "dialog" && "p-3 pt-0")}>
+    <div className={cn("flex gap-3", layout === "dialog" && "p-3")}>
       {avatar}
       <DrawingCanvas
         strokes={drawingStrokes}
         onChange={handleDrawingChange}
         tool={drawingTool}
         color={drawingColor}
+        brush={drawingBrush}
         background={drawingBackground}
         pencilSize={pencilSize}
         eraserSize={eraserSize}
@@ -600,12 +618,15 @@ export function PostComposerContent({
       onToolChange={setDrawingTool}
       color={drawingColor}
       onColorChange={setDrawingColor}
+      brush={drawingBrush}
+      onBrushChange={setDrawingBrush}
       background={drawingBackground}
       onBackgroundChange={setDrawingBackground}
       pencilSize={pencilSize}
       onPencilSizeChange={setPencilSize}
       eraserSize={eraserSize}
       onEraserSizeChange={setEraserSize}
+      replyDrawing={replyDrawing}
       disabled={createPostMutation.isPending || isUploading}
       className={s.toolbarButton}
     />

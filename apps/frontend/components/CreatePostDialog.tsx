@@ -10,6 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
 import { PostComposerContent } from "./post-composer/PostComposerContent";
+import { useDrawingDialogClose } from "./post-composer/useDrawingDialogClose";
 
 // Types
 interface CreatePostDialogProps {
@@ -57,13 +58,11 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
   const compose = useComposePost({
     onSuccess: () => onOpenChange(false),
   });
+  const drawingClose = useDrawingDialogClose(compose, () => onOpenChange(false));
 
   const handleOpenChange = (newOpen: boolean) => {
-    // Don't allow closing while posting
-    if (!newOpen && (compose.createPostMutation.isPending || compose.isUploading)) {
-      return;
-    }
-    onOpenChange(newOpen);
+    if (newOpen) onOpenChange(true);
+    else drawingClose.requestClose();
   };
 
   // Static (non-interactive) avatar for the dialog
@@ -77,13 +76,14 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
   );
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        onDragOver={compose.handleDragOver}
-        onDragEnter={compose.handleDragEnter}
-        onDragLeave={compose.handleDragLeave}
-        onDrop={compose.handleDrop}
-        className="
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent
+          onDragOver={compose.handleDragOver}
+          onDragEnter={compose.handleDragEnter}
+          onDragLeave={compose.handleDragLeave}
+          onDrop={compose.handleDrop}
+          className="
         sm:max-w-2xl
         gap-0
         p-0
@@ -104,18 +104,20 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
         max-sm:overflow-hidden
         z-[60]
       "
-      >
-        {/* Visually hidden title for accessibility */}
-        <DialogTitle className="sr-only">{t("createPost.title")}</DialogTitle>
+        >
+          {/* Visually hidden title for accessibility */}
+          <DialogTitle className="sr-only">{t("createPost.title")}</DialogTitle>
 
-        <PostComposerContent
-          layout="dialog"
-          compose={compose}
-          avatar={avatarElement}
-          onClose={() => handleOpenChange(false)}
-          closeDisabled={compose.createPostMutation.isPending || compose.isUploading}
-        />
-      </DialogContent>
-    </Dialog>
+          <PostComposerContent
+            layout="dialog"
+            compose={compose}
+            avatar={avatarElement}
+            onClose={() => handleOpenChange(false)}
+            closeDisabled={compose.createPostMutation.isPending || compose.isUploading}
+          />
+        </DialogContent>
+      </Dialog>
+      {drawingClose.confirmation}
+    </>
   );
 }

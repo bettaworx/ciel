@@ -4,13 +4,16 @@ export const DRAWING_SCALE = 4;
 export const DRAWING_BACKGROUND = "#FFFFFF";
 export const DRAWING_REPLAY_DURATION_MS = 3000;
 export const DRAWING_REPLAY_MAX_DELAY_MS = 32;
+export const DRAWING_PREFERENCES_KEY = "ciel:drawing:preferences";
 
 export type DrawingTool = "pencil" | "eraser";
+export const DRAWING_BRUSHES = ["round", "gpen", "pencil"] as const;
+export type DrawingBrush = (typeof DRAWING_BRUSHES)[number];
 export type DrawingPoint = [delayMs: number, xOrDxQ4: number, yOrDyQ4: number, pressure: number];
 
 export interface DrawingStroke {
   tool: DrawingTool;
-  color?: string;
+  brush?: DrawingBrush;
   size: number;
   points: DrawingPoint[];
 }
@@ -18,16 +21,74 @@ export interface DrawingStroke {
 export interface DrawingDocument {
   version: 1;
   background: string;
+  color: string;
   strokes: DrawingStroke[];
+}
+
+export interface DrawingPreferences {
+  brush: DrawingBrush;
+  color: string;
+  background: string;
+  pencilSize: number;
+  eraserSize: number;
+}
+
+export const DEFAULT_DRAWING_PREFERENCES: DrawingPreferences = {
+  brush: "round",
+  color: "#111111",
+  background: DRAWING_BACKGROUND,
+  pencilSize: 6,
+  eraserSize: 32,
+};
+
+export function readDrawingPreferences(): DrawingPreferences {
+  if (typeof window === "undefined") return { ...DEFAULT_DRAWING_PREFERENCES };
+  try {
+    const value = JSON.parse(
+      localStorage.getItem(DRAWING_PREFERENCES_KEY) ?? "null",
+    ) as Partial<DrawingPreferences> | null;
+    if (!value) return { ...DEFAULT_DRAWING_PREFERENCES };
+    return {
+      brush: DRAWING_BRUSHES.includes(value.brush as DrawingBrush)
+        ? (value.brush as DrawingBrush)
+        : DEFAULT_DRAWING_PREFERENCES.brush,
+      color: /^#[0-9A-Fa-f]{6}$/.test(value.color ?? "")
+        ? value.color!.toUpperCase()
+        : DEFAULT_DRAWING_PREFERENCES.color,
+      background: /^#[0-9A-Fa-f]{6}$/.test(value.background ?? "")
+        ? value.background!.toUpperCase()
+        : DEFAULT_DRAWING_PREFERENCES.background,
+      pencilSize:
+        Number.isInteger(value.pencilSize) && value.pencilSize! >= 1 && value.pencilSize! <= 48
+          ? value.pencilSize!
+          : DEFAULT_DRAWING_PREFERENCES.pencilSize,
+      eraserSize:
+        Number.isInteger(value.eraserSize) && value.eraserSize! >= 4 && value.eraserSize! <= 128
+          ? value.eraserSize!
+          : DEFAULT_DRAWING_PREFERENCES.eraserSize,
+    };
+  } catch {
+    return { ...DEFAULT_DRAWING_PREFERENCES };
+  }
+}
+
+export function saveDrawingPreferences(preferences: DrawingPreferences) {
+  try {
+    localStorage.setItem(DRAWING_PREFERENCES_KEY, JSON.stringify(preferences));
+  } catch {
+    // Preferences stay in memory when storage is unavailable.
+  }
 }
 
 export function createDrawingDocument(
   strokes: DrawingStroke[],
   background = DRAWING_BACKGROUND,
+  color = DEFAULT_DRAWING_PREFERENCES.color,
 ): DrawingDocument {
   return {
     version: 1,
     background: background.toUpperCase(),
+    color: color.toUpperCase(),
     strokes,
   };
 }
@@ -47,6 +108,18 @@ export interface DrawingReplayStep {
 }
 
 export type DrawingPostTheme = "light" | "dark";
+
+export function isDrawingBackgroundCamouflaged(background: string, theme: DrawingPostTheme) {
+  // Neutral OKLCH theme backgrounds from globals.css, converted to sRGB.
+  const systemBackground = theme === "dark" ? "#0A0A0A" : "#F5F5F5";
+  return [1, 3, 5].every(
+    (offset) =>
+      Math.abs(
+        Number.parseInt(background.slice(offset, offset + 2), 16) -
+          Number.parseInt(systemBackground.slice(offset, offset + 2), 16),
+      ) <= 4,
+  );
+}
 
 interface HslColor {
   hue: number;
@@ -112,19 +185,39 @@ function hslValue(color: HslColor) {
   return `hsl(${Math.round(color.hue)} ${Math.round(color.saturation)}% ${Math.round(color.lightness)}%)`;
 }
 
+function readableColor(
+  background: HslColor,
+  tone: HslColor,
+  towardLight: boolean,
+  minimumContrast: number,
+) {
+  let near = background.lightness;
+  let far = towardLight ? 100 : 0;
+  for (let iteration = 0; iteration < 12; iteration++) {
+    const middle = (near + far) / 2;
+    const candidate = { ...tone, lightness: middle };
+    if (contrastRatio(background, candidate) >= minimumContrast) far = middle;
+    else near = middle;
+  }
+  return { ...tone, lightness: far };
+}
+
 export function drawingPostPalette(background: string) {
   const base = hexToHsl(background);
-  const lightText = { ...base, lightness: 96 };
-  const darkText = { ...base, lightness: 8 };
+  const tone = { ...base, saturation: base.saturation * 0.65 };
+  const lightText = { ...tone, lightness: 100 };
+  const darkText = { ...tone, lightness: 0 };
   const useDarkTheme = contrastRatio(base, lightText) >= contrastRatio(base, darkText);
-  const foreground = useDarkTheme ? lightText : darkText;
+  const foreground = readableColor(base, tone, useDarkTheme, 7);
+  const mutedForeground = readableColor(base, tone, useDarkTheme, 4.5);
+  const line = readableColor(base, tone, useDarkTheme, 3);
   const surface = (step: number) => {
     const towardText = {
-      ...base,
+      ...tone,
       lightness: Math.max(0, Math.min(100, base.lightness + (useDarkTheme ? step : -step))),
     };
     const awayFromText = {
-      ...base,
+      ...tone,
       lightness: Math.max(0, Math.min(100, base.lightness + (useDarkTheme ? -step : step))),
     };
     return contrastRatio(towardText, foreground) >= 4.5 ? towardText : awayFromText;
@@ -132,9 +225,17 @@ export function drawingPostPalette(background: string) {
   return {
     theme: (useDarkTheme ? "dark" : "light") as DrawingPostTheme,
     foreground: hslValue(foreground),
+    mutedForeground: hslValue(mutedForeground),
+    line: hslValue(line),
     surface: hslValue(surface(4)),
     hover: hslValue(surface(8)),
   };
+}
+
+export function addRecentDrawingColor(colors: string[], color: string) {
+  const normalized = color.toUpperCase();
+  if (!/^#[0-9A-F]{6}$/.test(normalized)) return colors;
+  return [normalized, ...colors.filter((item) => item !== normalized)].slice(0, 5);
 }
 
 export function parseDrawingDocument(value: unknown): DrawingDocument | null {
@@ -144,6 +245,8 @@ export function parseDrawingDocument(value: unknown): DrawingDocument | null {
     document.version !== 1 ||
     typeof document.background !== "string" ||
     !/^#[0-9A-Fa-f]{6}$/.test(document.background) ||
+    typeof document.color !== "string" ||
+    !/^#[0-9A-Fa-f]{6}$/.test(document.color) ||
     !Array.isArray(document.strokes)
   ) {
     return null;
@@ -155,13 +258,14 @@ export function parseDrawingDocument(value: unknown): DrawingDocument | null {
     if (
       !stroke ||
       (stroke.tool !== "pencil" && stroke.tool !== "eraser") ||
+      (stroke.brush !== undefined && !DRAWING_BRUSHES.includes(stroke.brush)) ||
       !Number.isInteger(stroke.size) ||
       stroke.size < 1 ||
       stroke.size > 1200 ||
       !Array.isArray(stroke.points) ||
       stroke.points.length === 0 ||
-      (stroke.tool === "pencil" && !/^#[0-9A-Fa-f]{6}$/.test(stroke.color ?? "")) ||
-      (stroke.tool === "eraser" && stroke.color !== undefined)
+      "color" in stroke ||
+      (stroke.tool === "eraser" && stroke.brush !== undefined)
     ) {
       return null;
     }
@@ -250,20 +354,49 @@ export function buildDrawingReplay(
   return steps.map((step) => ({ ...step, at: step.at * scale }));
 }
 
-export function drawingLineWidth(sizeQ4: number, pressure: number) {
-  return (sizeQ4 / DRAWING_SCALE) * (0.2 + 0.8 * (pressure / 1024));
+export function drawingLineWidth(sizeQ4: number, pressure: number, brush: DrawingBrush = "gpen") {
+  const size = sizeQ4 / DRAWING_SCALE;
+  const normalizedPressure = pressure / 1024;
+  if (brush === "gpen") return size * (0.2 + 0.8 * normalizedPressure);
+  if (brush === "pencil") return size * 0.75 * (0.35 + 0.65 * normalizedPressure);
+  return size;
+}
+
+function strokeBrush(stroke: DrawingStroke): DrawingBrush {
+  return stroke.tool === "eraser" ? "gpen" : (stroke.brush ?? "gpen");
+}
+
+function prepareStrokeContext(
+  context: CanvasRenderingContext2D,
+  stroke: DrawingStroke,
+  color: string,
+) {
+  const brush = strokeBrush(stroke);
+  context.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
+  context.globalAlpha = brush === "pencil" ? 0.58 : 1;
+  context.fillStyle = color;
+  context.strokeStyle = color;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  return brush;
 }
 
 export function drawStrokePoint(
   context: CanvasRenderingContext2D,
   stroke: DrawingStroke,
   point: DecodedDrawingPoint,
+  color: string,
 ) {
   context.save();
-  context.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
-  context.fillStyle = stroke.color ?? "#000000";
+  const brush = prepareStrokeContext(context, stroke, color);
   context.beginPath();
-  context.arc(point.x, point.y, drawingLineWidth(stroke.size, point.pressure) / 2, 0, Math.PI * 2);
+  context.arc(
+    point.x,
+    point.y,
+    drawingLineWidth(stroke.size, point.pressure, brush) / 2,
+    0,
+    Math.PI * 2,
+  );
   context.fill();
   context.restore();
 }
@@ -273,14 +406,14 @@ export function drawStrokeSegment(
   stroke: DrawingStroke,
   from: DecodedDrawingPoint,
   to: DecodedDrawingPoint,
+  color: string,
 ) {
   context.save();
-  context.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
-  context.strokeStyle = stroke.color ?? "#000000";
-  context.lineCap = "round";
-  context.lineJoin = "round";
+  const brush = prepareStrokeContext(context, stroke, color);
   context.lineWidth =
-    (drawingLineWidth(stroke.size, from.pressure) + drawingLineWidth(stroke.size, to.pressure)) / 2;
+    (drawingLineWidth(stroke.size, from.pressure, brush) +
+      drawingLineWidth(stroke.size, to.pressure, brush)) /
+    2;
   context.beginPath();
   context.moveTo(from.x, from.y);
   context.lineTo(to.x, to.y);
@@ -288,13 +421,17 @@ export function drawStrokeSegment(
   context.restore();
 }
 
-export function renderDrawing(context: CanvasRenderingContext2D, strokes: DrawingStroke[]) {
+export function renderDrawing(
+  context: CanvasRenderingContext2D,
+  strokes: DrawingStroke[],
+  color: string,
+) {
   context.clearRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
   for (const stroke of strokes) {
     const points = decodeDrawingStroke(stroke);
-    if (points.length === 1) drawStrokePoint(context, stroke, points[0]);
+    if (points.length === 1) drawStrokePoint(context, stroke, points[0], color);
     for (let index = 1; index < points.length; index++) {
-      drawStrokeSegment(context, stroke, points[index - 1], points[index]);
+      drawStrokeSegment(context, stroke, points[index - 1], points[index], color);
     }
   }
 }
@@ -302,13 +439,14 @@ export function renderDrawing(context: CanvasRenderingContext2D, strokes: Drawin
 export async function createDrawingUpload(
   strokes: DrawingStroke[],
   background = DRAWING_BACKGROUND,
+  color = DEFAULT_DRAWING_PREFERENCES.color,
 ) {
   const ink = document.createElement("canvas");
   ink.width = DRAWING_WIDTH;
   ink.height = DRAWING_HEIGHT;
   const inkContext = ink.getContext("2d");
   if (!inkContext) throw new Error("Canvas is unavailable");
-  renderDrawing(inkContext, strokes);
+  renderDrawing(inkContext, strokes, color);
 
   const preview = document.createElement("canvas");
   preview.width = DRAWING_WIDTH;
@@ -325,7 +463,7 @@ export async function createDrawingUpload(
     { quality: 90 },
   );
   return {
-    data: new Blob([JSON.stringify(createDrawingDocument(strokes, background))], {
+    data: new Blob([JSON.stringify(createDrawingDocument(strokes, background, color))], {
       type: "application/json",
     }),
     preview: new Blob([encoded], { type: "image/webp" }),

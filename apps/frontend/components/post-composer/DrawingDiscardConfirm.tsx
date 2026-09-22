@@ -8,12 +8,14 @@ interface DrawingDiscardConfirmProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
+  reason?: "mode" | "close";
 }
 
 export function DrawingDiscardConfirm({
   open,
   onOpenChange,
   onConfirm,
+  reason = "mode",
 }: DrawingDiscardConfirmProps) {
   const t = useTranslations("createPost.drawing.discard");
   return (
@@ -21,7 +23,9 @@ export function DrawingDiscardConfirm({
       open={open}
       onOpenChange={onOpenChange}
       title={t("title")}
-      description={t("description")}
+      description={t(reason === "close" ? "closeDescription" : "description")}
+      className="z-[80]"
+      overlayClassName="z-[79]"
       footer={
         <>
           <Button variant="default" onClick={() => onOpenChange(false)}>

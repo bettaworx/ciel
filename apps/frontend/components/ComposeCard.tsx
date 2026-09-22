@@ -10,6 +10,9 @@ import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
 import { PostComposerContent } from "./post-composer/PostComposerContent";
 import { useComposerPlaceholder } from "./post-composer/useComposerPlaceholder";
+import type { components } from "@/lib/api/api";
+
+type Drawing = components["schemas"]["Drawing"];
 
 interface ComposeCardProps {
   /**
@@ -29,6 +32,8 @@ interface ComposeCardProps {
    * a normal post.
    */
   contentPrefix?: string;
+  /** Drawing attached to the replied-to post, when available. */
+  replyDrawing?: Drawing | null;
 }
 
 /**
@@ -39,6 +44,7 @@ export function ComposeCard({
   parentId,
   placeholderOverride,
   contentPrefix,
+  replyDrawing,
 }: ComposeCardProps = {}) {
   const t = useTranslations();
   const user = useAtomValue(userAtom);
@@ -208,6 +214,7 @@ export function ComposeCard({
           compose={compose}
           avatar={avatarElement}
           placeholder={placeholder}
+          replyDrawing={replyDrawing}
         />
       )}
     </div>

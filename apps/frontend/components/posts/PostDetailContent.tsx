@@ -260,6 +260,7 @@ export function PostDetailContent({ postId, expandAncestors }: PostDetailContent
               parentId={post.id}
               contentPrefix={`@${post.author.username} `}
               placeholderOverride={t("createPost.replyPlaceholder")}
+              replyDrawing={post.drawing}
             />
           )}
 

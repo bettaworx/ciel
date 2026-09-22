@@ -77,14 +77,14 @@ export function DrawingReplay({ drawing, label, className }: DrawingReplayProps)
       startedAt ??= now;
       const elapsed = now - startedAt;
       if (elapsed >= DRAWING_REPLAY_DURATION_MS) {
-        renderDrawing(context, document.strokes);
+        renderDrawing(context, document.strokes, document.color);
         return;
       }
       let drawn = 0;
       while (index < steps.length && steps[index].at <= elapsed && drawn < 5000) {
         const step = steps[index];
-        if (step.from) drawStrokeSegment(context, step.stroke, step.from, step.to);
-        else drawStrokePoint(context, step.stroke, step.to);
+        if (step.from) drawStrokeSegment(context, step.stroke, step.from, step.to, document.color);
+        else drawStrokePoint(context, step.stroke, step.to, document.color);
         index += 1;
         drawn += 1;
       }

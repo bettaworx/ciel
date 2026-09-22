@@ -711,6 +711,14 @@
       "eraser": "消しゴム",
       "color": "色",
       "background": "背景色",
+      "brush": "線の種類",
+      "brushes": {
+        "round": "丸ペン",
+        "gpen": "Gペン",
+        "pencil": "鉛筆"
+      },
+      "copyFromReply": "返信元からコピー",
+      "recentColors": "最近使った色",
       "size": "{tool}の太さ",
       "undo": "元に戻す",
       "redo": "やり直す",
@@ -718,6 +726,7 @@
       "discard": {
         "title": "ドローイングを破棄しますか？",
         "description": "テキストモードへ切り替えると、このドローイングは破棄されます。",
+        "closeDescription": "コンポーザーを閉じると、このドローイングは破棄されます。",
         "cancel": "描画を続ける",
         "confirm": "破棄"
       }

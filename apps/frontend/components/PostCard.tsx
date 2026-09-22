@@ -94,7 +94,11 @@ import type { PreviewMediaItem } from "@/components/post-composer/types";
 import { getPostCardDisplayConfig, type PostCardVariant } from "@/components/post-card-display";
 import { PostCardIndicatorRow, type PostCardIndicator } from "@/components/PostCardIndicatorRow";
 import { DrawingReplay } from "@/components/DrawingReplay";
-import { drawingPostPalette } from "@/components/post-composer/drawing";
+import {
+  drawingPostPalette,
+  isDrawingBackgroundCamouflaged,
+} from "@/components/post-composer/drawing";
+import { useResolvedTheme } from "@/providers/theme-provider";
 
 type Post = components["schemas"]["Post"];
 
@@ -233,6 +237,7 @@ export function PostCard({
   avatarBadge,
   skipHiddenCushion = false,
 }: PostCardProps) {
+  const resolvedTheme = useResolvedTheme();
   const locale = useLocale() as "ja" | "en";
   const t = useTranslations("postCard");
   const tCreatePost = useTranslations("createPost");
@@ -290,26 +295,48 @@ export function PostCard({
   const verticalIdentity = displayConfig.identityLayout === "vertical";
   const isCompact = variant === "compact";
   const isEmbedded = variant === "embedded";
-  const drawingPalette = post.drawing ? drawingPostPalette(post.drawing.backgroundColor) : null;
+  const drawingPalette =
+    post.drawing && !isDrawingBackgroundCamouflaged(post.drawing.backgroundColor, resolvedTheme)
+      ? drawingPostPalette(post.drawing.backgroundColor)
+      : null;
   const drawingCardStyle = post.drawing
     ? ({
         backgroundColor: post.drawing.backgroundColor,
         "--card": post.drawing.backgroundColor,
+        "--color-card": post.drawing.backgroundColor,
         "--foreground": drawingPalette?.foreground,
+        "--color-foreground": drawingPalette?.foreground,
         "--card-foreground": drawingPalette?.foreground,
-        "--muted-foreground": drawingPalette?.foreground,
+        "--color-card-foreground": drawingPalette?.foreground,
+        "--muted-foreground": drawingPalette?.mutedForeground,
+        "--color-muted-foreground": drawingPalette?.mutedForeground,
         "--primary": drawingPalette?.surface,
+        "--color-primary": drawingPalette?.surface,
         "--primary-foreground": drawingPalette?.foreground,
+        "--color-primary-foreground": drawingPalette?.foreground,
         "--secondary": drawingPalette?.surface,
+        "--color-secondary": drawingPalette?.surface,
         "--secondary-foreground": drawingPalette?.foreground,
+        "--color-secondary-foreground": drawingPalette?.foreground,
         "--muted": drawingPalette?.surface,
+        "--color-muted": drawingPalette?.surface,
         "--accent": drawingPalette?.hover,
+        "--color-accent": drawingPalette?.hover,
         "--accent-foreground": drawingPalette?.foreground,
+        "--color-accent-foreground": drawingPalette?.foreground,
         "--card-hover": drawingPalette?.hover,
+        "--color-card-hover": drawingPalette?.hover,
         "--sidebar-hover": drawingPalette?.hover,
-        "--c-8": drawingPalette?.hover,
-        "--c-9": drawingPalette?.surface,
-        "--c-foreground-1": drawingPalette?.foreground,
+        "--color-sidebar-hover": drawingPalette?.hover,
+        "--border": drawingPalette?.line,
+        "--color-border": drawingPalette?.line,
+        "--input": drawingPalette?.line,
+        "--color-input": drawingPalette?.line,
+        "--ring": drawingPalette?.line,
+        "--color-ring": drawingPalette?.line,
+        "--drawing-foreground": drawingPalette?.foreground,
+        "--drawing-hover": drawingPalette?.hover,
+        "--drawing-muted-foreground": drawingPalette?.mutedForeground,
       } as CSSProperties)
     : undefined;
 
@@ -748,7 +775,7 @@ export function PostCard({
           size="sm"
           className={cn(
             !verticalIdentity && "-my-4",
-            "h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+            "drawing-post-action h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
           )}
           aria-label={t("actions.more")}
         >
@@ -820,7 +847,7 @@ export function PostCard({
           size="sm"
           className={cn(
             !verticalIdentity && "-my-4",
-            "h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+            "drawing-post-action h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
           )}
           aria-label={t("actions.more")}
         >
@@ -1125,7 +1152,7 @@ export function PostCard({
       {hasReactions && (
         <div
           className={cn(
-            "flex items-center flex-wrap gap-1.5",
+            "drawing-post-actions flex items-center flex-wrap gap-1.5",
             verticalIdentity && "mt-1 sm:mt-1.5 ",
             hasReactions && "mb-2 sm:mb-3",
           )}
@@ -1149,7 +1176,7 @@ export function PostCard({
       )}
 
       {/* Action Area */}
-      <div className={cn("flex items-center justify-between")}>
+      <div className="drawing-post-actions flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           {/* Reply */}
           <Button
@@ -1298,6 +1325,7 @@ export function PostCard({
         onOpenChange={setReplyDialogOpen}
         parentId={post.id}
         contentPrefix={post.author?.username ? `@${post.author.username} ` : undefined}
+        parentDrawing={post.drawing}
       />
       <CreateQuoteDialog
         open={quoteDialogOpen}
@@ -1334,6 +1362,7 @@ export function PostCard({
       style={drawingCardStyle}
       className={cn(
         "relative text-card-foreground p-3 transition-colors",
+        drawingPalette && "drawing-post-card",
         drawingPalette && `drawing-post-theme-${drawingPalette.theme}`,
         !isLast && !showBelowLine && !isEmbedded && "border-b border-border",
         isCompact && "max-h-48 overflow-hidden",

@@ -711,6 +711,14 @@
       "eraser": "Eraser",
       "color": "Color",
       "background": "Background color",
+      "brush": "Brush",
+      "brushes": {
+        "round": "Round pen",
+        "gpen": "G-pen",
+        "pencil": "Pencil"
+      },
+      "copyFromReply": "Copy from replied-to drawing",
+      "recentColors": "Recent colors",
       "size": "{tool} size",
       "undo": "Undo",
       "redo": "Redo",
@@ -718,6 +726,7 @@
       "discard": {
         "title": "Discard drawing?",
         "description": "Switching to text mode will discard this drawing.",
+        "closeDescription": "Closing the composer will discard this drawing.",
         "cancel": "Keep drawing",
         "confirm": "Discard"
       }

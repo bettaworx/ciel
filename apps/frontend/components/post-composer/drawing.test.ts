@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  addRecentDrawingColor,
   buildDrawingReplay,
   createDrawingDocument,
   decodeDrawingStroke,
   drawingPostPalette,
   drawingLineWidth,
   encodeDrawingPoint,
+  isDrawingBackgroundCamouflaged,
   parseDrawingDocument,
   redoDrawing,
   type DrawingStroke,
@@ -14,7 +16,7 @@ import {
 
 const stroke = (x: number): DrawingStroke => ({
   tool: "pencil",
-  color: "#000000",
+  brush: "round",
   size: 24,
   points: [[0, x, 0, 1024]],
 });
@@ -28,7 +30,7 @@ describe("drawing format", () => {
     );
     const decoded = decodeDrawingStroke({
       tool: "pencil",
-      color: "#000000",
+      brush: "gpen",
       size: 24,
       points: [first, second],
     });
@@ -51,7 +53,7 @@ describe("drawing format", () => {
     expect(redoDrawing(undone.strokes, undone.redo)).toEqual({ strokes: [a, b], redo: [] });
   });
 
-  it("serializes pencil colors and colorless erasers in the v1 document", () => {
+  it("serializes one drawing color and colorless strokes in the v1 document", () => {
     const pencil = stroke(1);
     const eraser: DrawingStroke = {
       tool: "eraser",
@@ -61,10 +63,11 @@ describe("drawing format", () => {
     expect(createDrawingDocument([pencil, eraser])).toEqual({
       version: 1,
       background: "#FFFFFF",
+      color: "#111111",
       strokes: [pencil, eraser],
     });
-    expect(eraser).not.toHaveProperty("color");
     expect(createDrawingDocument([pencil], "#abcdef").background).toBe("#ABCDEF");
+    expect(createDrawingDocument([pencil], "#FFFFFF", "#abcdef").color).toBe("#ABCDEF");
   });
 
   it("builds one replay timeline across strokes", () => {
@@ -85,12 +88,37 @@ describe("drawing format", () => {
   it("selects the readable post-card theme for the drawing background", () => {
     expect(drawingPostPalette("#000000").theme).toBe("dark");
     expect(drawingPostPalette("#FFFFFF").theme).toBe("light");
-    expect(drawingPostPalette("#777777").theme).toBe("dark");
+    expect(drawingPostPalette("#666666").theme).toBe("dark");
+    expect(drawingPostPalette("#777777").theme).toBe("light");
     expect(drawingPostPalette("#808080").theme).toBe("light");
     expect(drawingPostPalette("#CC3333")).toMatchObject({
-      foreground: expect.stringMatching(/^hsl\(0 /),
-      hover: expect.stringMatching(/^hsl\(0 /),
+      foreground: expect.stringMatching(/^hsl\(0 39% /),
+      mutedForeground: expect.stringMatching(/^hsl\(0 39% /),
+      line: expect.stringMatching(/^hsl\(0 39% /),
+      hover: expect.stringMatching(/^hsl\(0 39% /),
     });
+  });
+
+  it("only disables card colors for near-identical system backgrounds", () => {
+    expect(isDrawingBackgroundCamouflaged("#F5F5F5", "light")).toBe(true);
+    expect(isDrawingBackgroundCamouflaged("#F9F9F9", "light")).toBe(true);
+    expect(isDrawingBackgroundCamouflaged("#FAFAFA", "light")).toBe(false);
+    expect(isDrawingBackgroundCamouflaged("#FFFFFF", "light")).toBe(false);
+    expect(isDrawingBackgroundCamouflaged("#0A0A0A", "dark")).toBe(true);
+    expect(isDrawingBackgroundCamouflaged("#111111", "dark")).toBe(false);
+  });
+
+  it("keeps five recent colors", () => {
+    expect(
+      ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666"].reduce(
+        addRecentDrawingColor,
+        [],
+      ),
+    ).toEqual(["#666666", "#555555", "#444444", "#333333", "#222222"]);
+    expect(addRecentDrawingColor(["#111111", "#222222"], "#111111")).toEqual([
+      "#111111",
+      "#222222",
+    ]);
   });
 
   it("rejects malformed replay documents", () => {
@@ -99,6 +127,7 @@ describe("drawing format", () => {
       parseDrawingDocument({
         version: 1,
         background: "#FFFFFF",
+        color: "#111111",
         strokes: [{ tool: "eraser", color: "#FFFFFF", size: 10, points: [[0, 0, 0, 1]] }],
       }),
     ).toBeNull();

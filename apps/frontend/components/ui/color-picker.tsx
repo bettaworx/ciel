@@ -9,17 +9,25 @@ interface ColorPickerProps {
   id?: string;
   value: string;
   onValueChange: (value: string) => void;
+  onValueCommit?: (value: string) => void;
   ariaLabel: string;
   className?: string;
 }
 
-export function ColorPicker({ id, value, onValueChange, ariaLabel, className }: ColorPickerProps) {
+export function ColorPicker({
+  id,
+  value,
+  onValueChange,
+  onValueCommit,
+  ariaLabel,
+  className,
+}: ColorPickerProps) {
   const [draft, setDraft] = useState(value);
 
   useEffect(() => setDraft(value), [value]);
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-3", className)} onPointerUp={() => onValueCommit?.(value)}>
       <HexColorPicker
         color={value}
         onChange={(next) => onValueChange(next.toUpperCase())}
@@ -37,7 +45,10 @@ export function ColorPicker({ id, value, onValueChange, ariaLabel, className }: 
           setDraft(next);
           if (/^#[0-9A-F]{6}$/.test(next)) onValueChange(next);
         }}
-        onBlur={() => setDraft(value)}
+        onBlur={() => {
+          setDraft(value);
+          onValueCommit?.(value);
+        }}
       />
     </div>
   );

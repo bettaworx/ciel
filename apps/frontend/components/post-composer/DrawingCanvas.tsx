@@ -12,6 +12,7 @@ import {
   encodeDrawingPoint,
   renderDrawing,
   type DecodedDrawingPoint,
+  type DrawingBrush,
   type DrawingStroke,
   type DrawingTool,
 } from "./drawing";
@@ -21,6 +22,7 @@ interface DrawingCanvasProps {
   onChange: (strokes: DrawingStroke[]) => void;
   tool: DrawingTool;
   color: string;
+  brush: DrawingBrush;
   background: string;
   pencilSize: number;
   eraserSize: number;
@@ -34,6 +36,7 @@ export function DrawingCanvas({
   onChange,
   tool,
   color,
+  brush,
   background,
   pencilSize,
   eraserSize,
@@ -50,8 +53,8 @@ export function DrawingCanvas({
 
   useEffect(() => {
     const context = canvasRef.current?.getContext("2d");
-    if (context) renderDrawing(context, strokes);
-  }, [strokes]);
+    if (context) renderDrawing(context, strokes, color);
+  }, [strokes, color]);
 
   const updateCursor = (event: ReactPointerEvent<HTMLCanvasElement>, usePressure: boolean) => {
     if (event.pointerType === "touch") {
@@ -60,6 +63,7 @@ export function DrawingCanvas({
     }
     const rect = event.currentTarget.getBoundingClientRect();
     const baseSize = tool === "pencil" ? pencilSize : eraserSize;
+    const activeBrush = tool === "pencil" ? brush : "gpen";
     const pressure =
       usePressure && event.pointerType === "pen"
         ? Math.round(Math.max(0, Math.min(1, event.pressure)) * 1024)
@@ -67,7 +71,9 @@ export function DrawingCanvas({
     setCursor({
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
-      size: drawingLineWidth(baseSize * DRAWING_SCALE, pressure) * (rect.width / DRAWING_WIDTH),
+      size:
+        drawingLineWidth(baseSize * DRAWING_SCALE, pressure, activeBrush) *
+        (rect.width / DRAWING_WIDTH),
     });
   };
 
@@ -103,8 +109,8 @@ export function DrawingCanvas({
     if (!stroke || !context || !point) return;
 
     stroke.points.push(encodeDrawingPoint(previous, point));
-    if (previous) drawStrokeSegment(context, stroke, previous, point);
-    else drawStrokePoint(context, stroke, point);
+    if (previous) drawStrokeSegment(context, stroke, previous, point, color);
+    else drawStrokePoint(context, stroke, point, color);
     currentPointRef.current = point;
   };
 
@@ -115,7 +121,7 @@ export function DrawingCanvas({
     activePointerRef.current = event.pointerId;
     currentStrokeRef.current = {
       tool,
-      ...(tool === "pencil" ? { color: color.toUpperCase() } : {}),
+      ...(tool === "pencil" ? { brush } : {}),
       size: Math.round((tool === "pencil" ? pencilSize : eraserSize) * DRAWING_SCALE),
       points: [],
     };
@@ -154,7 +160,7 @@ export function DrawingCanvas({
     currentPointRef.current = null;
     updateCursor(event, false);
     const context = canvasRef.current?.getContext("2d");
-    if (context) renderDrawing(context, strokes);
+    if (context) renderDrawing(context, strokes, color);
   };
 
   return (
@@ -180,6 +186,7 @@ export function DrawingCanvas({
         onPointerLeave={() => setCursor(null)}
         onPointerUp={finishStroke}
         onPointerCancel={cancelStroke}
+        onContextMenu={(event) => event.preventDefault()}
       />
       {cursor && (
         <span

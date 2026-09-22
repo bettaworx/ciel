@@ -331,6 +331,17 @@ html[lang="th"] {
   --c-foreground-1: oklch(0.985 0 0);
 }
 
+.drawing-post-card .drawing-post-actions button:not([aria-pressed="true"]),
+.drawing-post-card button.drawing-post-action {
+  color: var(--drawing-muted-foreground);
+}
+
+.drawing-post-card .drawing-post-actions button:not([aria-pressed="true"]):hover,
+.drawing-post-card button.drawing-post-action:hover {
+  color: var(--drawing-foreground);
+  background-color: var(--drawing-hover);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
