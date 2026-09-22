@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "@/lib/i18n";
 import {
   X,
@@ -78,16 +77,16 @@ const styles = {
     /** Padding that aligns content under the textarea (past the avatar) */
     contentPadding: "pl-15 px-0",
     /** Upload / format button size */
-    toolbarButton: "h-9 w-9",
-    toolbarIcon: "w-5 h-5",
+    toolbarButton: "h-8 w-8",
+    toolbarIcon: "w-4 h-4",
     /** Post button height */
-    postButton: "h-9 px-4",
+    postButton: "h-8 px-4",
     floatingContent: "z-50",
   },
   dialog: {
     contentPadding: "pl-18 px-3",
-    toolbarButton: "h-9 w-9",
-    toolbarIcon: "w-5 h-5",
+    toolbarButton: "h-8 w-8",
+    toolbarIcon: "w-4 h-4",
     postButton: "h-8 px-4",
     floatingContent: "z-[70]",
   },
@@ -257,26 +256,26 @@ export function PostComposerContent({
 
   const modeSwitch = (
     <Tabs value={composerMode} onValueChange={(value) => setComposerMode(value as ComposerMode)}>
-      <TabsList className={cn("rounded-full bg-muted p-0.5", layout === "dialog" ? "h-8" : "h-9")}>
+      <TabsList className="rounded-full bg-muted p-0.5 h-8">
         <TabsTrigger
           value="text"
           aria-label={t("createPost.textMode")}
           className={cn(
             "flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground",
-            layout === "dialog" ? "h-7 w-7" : "h-8 w-8",
+            "h-7 w-7",
           )}
         >
-          <Type className="h-4 w-4" />
+          <Type className="h-3.5 w-3.5" />
         </TabsTrigger>
         <TabsTrigger
           value="drawing"
           aria-label={t("createPost.drawingMode")}
           className={cn(
             "flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground",
-            layout === "dialog" ? "h-7 w-7" : "h-8 w-8",
+            "h-7 w-7",
           )}
         >
-          <PenLine className="h-4 w-4" />
+          <PenLine className="h-3.5 w-3.5" />
         </TabsTrigger>
       </TabsList>
     </Tabs>
@@ -285,6 +284,7 @@ export function PostComposerContent({
   /** Character counter + Post button group */
   const counterAndPost = (
     <div className="flex items-center gap-3">
+      {showModeSwitch && modeSwitch}
       <CharacterCounter
         current={contentLength}
         max={maxContentLength}
@@ -306,6 +306,19 @@ export function PostComposerContent({
   );
 
   /** Upload buttons — separate for images and video */
+  /** Emoji picker — shown at the head of the format area (composer-wide) */
+  const emojiButton = (
+    <ComposerEmojiPicker
+      textareaRef={textareaRef}
+      content={content}
+      setContent={setContent}
+      setSelectionRange={setSelectionRange}
+      disabled={createPostMutation.isPending || isUploading}
+      className={s.toolbarButton}
+      iconClassName={s.toolbarIcon}
+    />
+  );
+
   const uploadButtons = (
     <div className="flex items-center gap-1">
       <MediaUploadButton
@@ -337,21 +350,14 @@ export function PostComposerContent({
         className={cn(s.toolbarButton, "sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
-      <ComposerEmojiPicker
-        textareaRef={textareaRef}
-        content={content}
-        setContent={setContent}
-        setSelectionRange={setSelectionRange}
-        disabled={createPostMutation.isPending || isUploading}
-        className={s.toolbarButton}
-        iconClassName={s.toolbarIcon}
-      />
     </div>
   );
 
-  /** Text formatting buttons — order: Bold, Italic, Font, Size, Code, URL, Center */
+  /** Text formatting buttons — order: Emoji, Bold, Italic, Font, Size, Code, URL, Center */
   const formatButtons = (
     <div className="flex items-center gap-1">
+      {/* Emoji at the head of the decoration area */}
+      {emojiButton}
       {/* Bold, Italic — always visible */}
       <TextFormatButton
         icon={Bold}
@@ -380,29 +386,33 @@ export function PostComposerContent({
         iconClassName={s.toolbarIcon}
       />
 
-      {/* Font, Size — always visible in dialog; desktop-only in card */}
-      <FontFormatButton
-        icon={Type}
-        textareaRef={textareaRef}
-        setContent={setContent}
-        content={content}
-        selectionRange={selectionRange}
-        setSelectionRange={setSelectionRange}
-        ariaLabel={t("createPost.formatFont")}
-        className={cn(s.toolbarButton, layout === "card" && "max-sm:hidden")}
-        iconClassName={s.toolbarIcon}
-      />
-      <SizeFormatButton
-        icon={ALargeSmall}
-        textareaRef={textareaRef}
-        setContent={setContent}
-        content={content}
-        selectionRange={selectionRange}
-        setSelectionRange={setSelectionRange}
-        ariaLabel={t("createPost.formatSize")}
-        className={cn(s.toolbarButton, layout === "card" && "max-sm:hidden")}
-        iconClassName={s.toolbarIcon}
-      />
+      {/* Font, Size — dialog only; card uses the overflow menu (mobile behavior) */}
+      {layout === "dialog" && (
+        <>
+          <FontFormatButton
+            icon={Type}
+            textareaRef={textareaRef}
+            setContent={setContent}
+            content={content}
+            selectionRange={selectionRange}
+            setSelectionRange={setSelectionRange}
+            ariaLabel={t("createPost.formatFont")}
+            className={s.toolbarButton}
+            iconClassName={s.toolbarIcon}
+          />
+          <SizeFormatButton
+            icon={ALargeSmall}
+            textareaRef={textareaRef}
+            setContent={setContent}
+            content={content}
+            selectionRange={selectionRange}
+            setSelectionRange={setSelectionRange}
+            ariaLabel={t("createPost.formatSize")}
+            className={s.toolbarButton}
+            iconClassName={s.toolbarIcon}
+          />
+        </>
+      )}
 
       {/* Code, Link, Center:
           - card layout: always in overflow menu
@@ -448,7 +458,7 @@ export function PostComposerContent({
           />
         </>
       )}
-      {/* Overflow menu: card always, dialog mobile only (Code/Link/Center only) */}
+      {/* Overflow menu: card always (Font/Size/Code/Link/Center), dialog mobile only (Code/Link/Center) */}
       <FormatOverflowMenu
         textareaRef={textareaRef}
         setContent={setContent}
@@ -476,7 +486,6 @@ export function PostComposerContent({
         placeholder={placeholder}
         className={cn(
           "flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0",
-          layout === "card" && showModeSwitch && "pr-20",
         )}
         maxLength={maxContentLength}
         disabled={createPostMutation.isPending || isUploading}
@@ -488,19 +497,6 @@ export function PostComposerContent({
         disabled={createPostMutation.isPending || isUploading}
         contentClassName={s.floatingContent}
       />
-      <AnimatePresence initial={false}>
-        {layout === "card" && showModeSwitch && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute right-0 top-0 z-10"
-          >
-            {modeSwitch}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 
@@ -552,7 +548,7 @@ export function PostComposerContent({
       <>
         {dragOverlay}
 
-        {/* Header: close & mode (left) + counter & post (right) */}
+        {/* Header: close (left) + mode, counter & post (right) */}
         <div className="pt-3 px-3 flex flex-row items-center justify-between shrink-0">
           <div className="flex items-center gap-1">
             <Button
@@ -565,18 +561,6 @@ export function PostComposerContent({
             >
               <X className="w-4 h-4" />
             </Button>
-            <AnimatePresence initial={false}>
-              {showModeSwitch && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -12 }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
-                >
-                  {modeSwitch}
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
           {counterAndPost}
         </div>

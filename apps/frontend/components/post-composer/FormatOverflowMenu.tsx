@@ -18,6 +18,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -55,7 +58,7 @@ interface FormatOverflowMenuProps {
   content: string;
   selectionRange: TextSelectionRange;
   setSelectionRange: TextSelectionRangeSetter;
-  /** Whether to include Font/Size in the mobile Drawer (default: true) */
+  /** Whether to include Font/Size in the overflow menu (card layout unifies to mobile behavior) */
   includeFontSize?: boolean;
   className?: string;
   iconClassName?: string;
@@ -88,14 +91,15 @@ export function FormatOverflowMenu({
   const linkMatch = findLinkDecoration(content, start, end);
   const isCenterActive = isInsideDecoration(content, start, end, "<center>", "</center>");
 
-  // On desktop, Font/Size have dedicated buttons so don't count them here
-  const hasAnyActive = isDesktop
-    ? codeMatch !== null || linkMatch !== null || isCenterActive
-    : fontMatch !== null ||
-      sizeMatch !== null ||
-      codeMatch !== null ||
-      linkMatch !== null ||
-      isCenterActive;
+  // Card layout unifies to mobile behavior: Font/Size live in the overflow menu
+  const hasAnyActive =
+    isDesktop && !includeFontSize
+      ? codeMatch !== null || linkMatch !== null || isCenterActive
+      : fontMatch !== null ||
+        sizeMatch !== null ||
+        codeMatch !== null ||
+        linkMatch !== null ||
+        isCenterActive;
 
   const apply = (newValue: string, newStart: number, newEnd: number) => {
     const textarea = textareaRef.current;
@@ -306,13 +310,57 @@ export function FormatOverflowMenu({
   );
 
   // ---------------------------------------------------------------------------
-  // Desktop: DropdownMenu (Code, Link, Center only — Font/Size have dedicated buttons)
+  // Desktop: DropdownMenu
+  // - dialog (includeFontSize=false): Code, Link, Center only (Font/Size are direct buttons)
+  // - card (includeFontSize=true): Font, Size, Code, Link, Center (unified to mobile behavior)
   // ---------------------------------------------------------------------------
   if (isDesktop) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="z-[70]">
+          {includeFontSize && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className={cn(fontMatch && activeClass)}>
+                <Type />
+                {t("createPost.formatFont")}
+                {fontMatch && <Check className="ml-auto h-4 w-4" />}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="z-[70]">
+                {FONT_NAMES.map((name) => (
+                  <DropdownMenuItem
+                    key={name}
+                    className={cn(fontMatch?.fontName === name && activeClass)}
+                    onClick={() => handleFontSelect(name)}
+                  >
+                    <span className={FONT_LABELS[name].style}>{FONT_LABELS[name].label}</span>
+                    {fontMatch?.fontName === name && <Check className="ml-auto h-4 w-4" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
+          {includeFontSize && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className={cn(sizeMatch && activeClass)}>
+                <ALargeSmall />
+                {t("createPost.formatSize")}
+                {sizeMatch && <Check className="ml-auto h-4 w-4" />}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="z-[70]">
+                {SIZE_NAMES.map((name) => (
+                  <DropdownMenuItem
+                    key={name}
+                    className={cn(sizeMatch?.sizeName === name && activeClass)}
+                    onClick={() => handleSizeSelect(name)}
+                  >
+                    {SIZE_LABELS[name]}
+                    {sizeMatch?.sizeName === name && <Check className="ml-auto h-4 w-4" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
           <DropdownMenuItem className={cn(codeMatch && activeClass)} onClick={handleCodeToggle}>
             <CodeXml />
             {t("createPost.formatCode")}

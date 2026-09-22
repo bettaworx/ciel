@@ -63,7 +63,7 @@ export function ComposerEmojiPicker({
       )}
       aria-label={t("addEmoji")}
     >
-      <Smile className={cn("w-5 h-5", iconClassName)} />
+      <Smile className={cn("w-4 h-4", iconClassName)} />
     </Button>
   );
 
@@ -71,7 +71,7 @@ export function ComposerEmojiPicker({
     return (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-        <PopoverContent className="w-fit overflow-hidden p-0" align="start">
+        <PopoverContent className="w-fit overflow-hidden p-0 z-[70]" align="center" side="top">
           <EmojiPicker
             className="h-[400px] w-[400px]"
             columns={9}
