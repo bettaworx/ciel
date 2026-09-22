@@ -85,6 +85,7 @@ import { PostMediaPreview } from "@/components/PostMediaPreview";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
 import { getPostCardDisplayConfig, type PostCardVariant } from "@/components/post-card-display";
 import { PostCardIndicatorRow, type PostCardIndicator } from "@/components/PostCardIndicatorRow";
+import { DrawingReplay } from "@/components/DrawingReplay";
 
 type Post = components["schemas"]["Post"];
 
@@ -345,7 +346,7 @@ export function PostCard({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [isCompact, post.content, post.media?.length]);
+  }, [isCompact, post.content, post.media?.length, post.drawing]);
 
   useEffect(() => {
     setCanNativeShare(typeof navigator.share === "function");
@@ -1057,6 +1058,12 @@ export function PostCard({
       </div>
     ) : null);
 
+  const drawingNode = post.drawing ? (
+    <div className={cn(verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : "mb-2 sm:mb-3")}>
+      <DrawingReplay drawing={post.drawing} label={t("drawing")} />
+    </div>
+  ) : null;
+
   const mediaNode = (ogpUrl || previewMedia.length > 0) && (
     <div className={cn(verticalIdentity ? "mt-3 mb-1 sm:mb-1.5" : !isEmbedded && "mb-2 sm:mb-3")}>
       {/* OGP Link Preview – only when no media is attached */}
@@ -1320,6 +1327,7 @@ export function PostCard({
             </div>
           </div>
           {bodyNode}
+          {drawingNode}
           {referenceNode}
           {mediaNode}
           {timestampPlacement === "afterContent" && standaloneTimestampNode}
@@ -1329,7 +1337,7 @@ export function PostCard({
         <div className="flex items-start gap-3">
           {avatarNode}
           <div className="flex-1 min-w-0 flex flex-col">
-            <div className={cn((!isEmbedded || mediaNode) && "mb-1 sm:mb-1.5")}>
+            <div className={cn((!isEmbedded || mediaNode || drawingNode) && "mb-1 sm:mb-1.5")}>
               <div className="flex min-w-0 items-center gap-2">
                 {identityStackNode}
                 {timestampPlacement === "header" && timestampNode}
@@ -1337,6 +1345,7 @@ export function PostCard({
               </div>
               {bodyNode}
             </div>
+            {drawingNode}
             {referenceNode}
             {mediaNode}
             {timestampPlacement === "afterContent" && standaloneTimestampNode}

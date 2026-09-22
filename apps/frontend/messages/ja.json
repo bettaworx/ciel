@@ -892,6 +892,7 @@
     "loadMoreParents": "スレッドを表示"
   },
   "postCard": {
+    "drawing": "ドローイング",
     "openDetail": "投稿の詳細を開く",
     "justNow": "たった今",
     "minutesAgo": "{count}分前",

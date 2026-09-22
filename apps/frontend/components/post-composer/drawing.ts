@@ -34,6 +34,78 @@ export interface DecodedDrawingPoint {
   pressure: number;
 }
 
+export interface DrawingReplayStep {
+  at: number;
+  stroke: DrawingStroke;
+  from: DecodedDrawingPoint | null;
+  to: DecodedDrawingPoint;
+}
+
+export function parseDrawingDocument(value: unknown): DrawingDocument | null {
+  if (!value || typeof value !== "object") return null;
+  const document = value as Partial<DrawingDocument>;
+  if (
+    document.version !== 1 ||
+    typeof document.background !== "string" ||
+    !/^#[0-9A-Fa-f]{6}$/.test(document.background) ||
+    !Array.isArray(document.strokes)
+  ) {
+    return null;
+  }
+
+  if (document.strokes.length > 10_000) return null;
+  let totalPoints = 0;
+  for (const stroke of document.strokes) {
+    if (
+      !stroke ||
+      (stroke.tool !== "pencil" && stroke.tool !== "eraser") ||
+      !Number.isInteger(stroke.size) ||
+      stroke.size < 1 ||
+      stroke.size > 1200 ||
+      !Array.isArray(stroke.points) ||
+      stroke.points.length === 0 ||
+      (stroke.tool === "pencil" && !/^#[0-9A-Fa-f]{6}$/.test(stroke.color ?? "")) ||
+      (stroke.tool === "eraser" && stroke.color !== undefined)
+    ) {
+      return null;
+    }
+    totalPoints += stroke.points.length;
+    if (totalPoints > 250_000) return null;
+    let x = 0;
+    let y = 0;
+    for (let index = 0; index < stroke.points.length; index++) {
+      const point = stroke.points[index];
+      if (
+        !Array.isArray(point) ||
+        point.length !== 4 ||
+        point.some((part) => !Number.isInteger(part)) ||
+        point[0] < 0 ||
+        point[0] > 60_000 ||
+        point[3] < 0 ||
+        point[3] > 1024
+      ) {
+        return null;
+      }
+      if (index === 0) {
+        x = point[1];
+        y = point[2];
+      } else {
+        x += point[1];
+        y += point[2];
+      }
+      if (
+        x < 0 ||
+        x > DRAWING_WIDTH * DRAWING_SCALE ||
+        y < 0 ||
+        y > DRAWING_HEIGHT * DRAWING_SCALE
+      ) {
+        return null;
+      }
+    }
+  }
+  return document as DrawingDocument;
+}
+
 export function encodeDrawingPoint(
   previous: { x: number; y: number } | null,
   point: DecodedDrawingPoint,
@@ -61,6 +133,20 @@ export function decodeDrawingStroke(stroke: DrawingStroke): DecodedDrawingPoint[
     }
     return { delayMs, x: x / DRAWING_SCALE, y: y / DRAWING_SCALE, pressure };
   });
+}
+
+export function buildDrawingReplay(strokes: DrawingStroke[]): DrawingReplayStep[] {
+  let at = 0;
+  const steps: DrawingReplayStep[] = [];
+  for (const stroke of strokes) {
+    const points = decodeDrawingStroke(stroke);
+    for (let index = 0; index < points.length; index++) {
+      const point = points[index];
+      at += point.delayMs;
+      steps.push({ at, stroke, from: index === 0 ? null : points[index - 1], to: point });
+    }
+  }
+  return steps;
 }
 
 export function drawingLineWidth(sizeQ4: number, pressure: number) {

@@ -892,6 +892,7 @@
     "loadMoreParents": "View thread"
   },
   "postCard": {
+    "drawing": "Drawing",
     "openDetail": "Open post details",
     "justNow": "just now",
     "minutesAgo": "{count}m",

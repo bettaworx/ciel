@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  decodeDrawingStroke,
+  buildDrawingReplay,
   createDrawingDocument,
+  decodeDrawingStroke,
   drawingLineWidth,
   encodeDrawingPoint,
+  parseDrawingDocument,
   redoDrawing,
   type DrawingStroke,
   undoDrawing,
@@ -61,5 +63,24 @@ describe("drawing format", () => {
       strokes: [pencil, eraser],
     });
     expect(eraser).not.toHaveProperty("color");
+  });
+
+  it("builds one replay timeline across strokes", () => {
+    const first = stroke(4);
+    first.points.push([10, 4, 0, 1024]);
+    const second = stroke(8);
+    second.points[0][0] = 25;
+    expect(buildDrawingReplay([first, second]).map((step) => step.at)).toEqual([0, 10, 35]);
+  });
+
+  it("rejects malformed replay documents", () => {
+    expect(parseDrawingDocument(createDrawingDocument([stroke(1)]))).not.toBeNull();
+    expect(
+      parseDrawingDocument({
+        version: 1,
+        background: "#FFFFFF",
+        strokes: [{ tool: "eraser", color: "#FFFFFF", size: 10, points: [[0, 0, 0, 1]] }],
+      }),
+    ).toBeNull();
   });
 });
