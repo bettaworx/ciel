@@ -17,6 +17,7 @@ func validDrawingDocument() DrawingDocument {
 		Version:    DrawingFormatVersion,
 		Background: "#fefefe",
 		Strokes: []DrawingStroke{{
+			Tool:  "pencil",
 			Color: "#0a1b2c",
 			Size:  24,
 			Points: [][4]int32{
@@ -66,12 +67,19 @@ func TestParseAndCompressDrawingRejectsInvalidData(t *testing.T) {
 	cases := map[string]func(*DrawingDocument){
 		"version":    func(d *DrawingDocument) { d.Version = 2 },
 		"background": func(d *DrawingDocument) { d.Background = "white" },
+		"tool":       func(d *DrawingDocument) { d.Strokes[0].Tool = "brush" },
 		"color":      func(d *DrawingDocument) { d.Strokes[0].Color = "#GG0000" },
-		"size":       func(d *DrawingDocument) { d.Strokes[0].Size = 0 },
-		"pressure":   func(d *DrawingDocument) { d.Strokes[0].Points[0][3] = 1025 },
-		"delay":      func(d *DrawingDocument) { d.Strokes[0].Points[0][0] = 60001 },
-		"bounds":     func(d *DrawingDocument) { d.Strokes[0].Points[1][1] = 5000 },
-		"empty":      func(d *DrawingDocument) { d.Strokes[0].Points = nil },
+		"pencil color": func(d *DrawingDocument) {
+			d.Strokes[0].Color = ""
+		},
+		"eraser color": func(d *DrawingDocument) {
+			d.Strokes[0].Tool = "eraser"
+		},
+		"size":     func(d *DrawingDocument) { d.Strokes[0].Size = 0 },
+		"pressure": func(d *DrawingDocument) { d.Strokes[0].Points[0][3] = 1025 },
+		"delay":    func(d *DrawingDocument) { d.Strokes[0].Points[0][0] = 60001 },
+		"bounds":   func(d *DrawingDocument) { d.Strokes[0].Points[1][1] = 5000 },
+		"empty":    func(d *DrawingDocument) { d.Strokes[0].Points = nil },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -81,6 +89,15 @@ func TestParseAndCompressDrawingRejectsInvalidData(t *testing.T) {
 				t.Fatal("expected invalid drawing to be rejected")
 			}
 		})
+	}
+}
+
+func TestParseAndCompressDrawingAcceptsEraser(t *testing.T) {
+	doc := validDrawingDocument()
+	doc.Strokes[0].Tool = "eraser"
+	doc.Strokes[0].Color = ""
+	if _, _, err := parseAndCompressDrawing(bytes.NewReader(drawingJSON(t, doc))); err != nil {
+		t.Fatalf("valid eraser rejected: %v", err)
 	}
 }
 

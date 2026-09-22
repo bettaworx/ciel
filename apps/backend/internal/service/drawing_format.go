@@ -36,7 +36,8 @@ type DrawingDocument struct {
 }
 
 type DrawingStroke struct {
-	Color  string     `json:"color"`
+	Tool   string     `json:"tool"`
+	Color  string     `json:"color,omitempty"`
 	Size   int32      `json:"size"`
 	Points [][4]int32 `json:"points"`
 }
@@ -96,11 +97,20 @@ func validateDrawingDocument(doc *DrawingDocument) error {
 	totalPoints := 0
 	for strokeIndex := range doc.Strokes {
 		stroke := &doc.Strokes[strokeIndex]
-		color, ok := normalizeDrawingColor(stroke.Color)
-		if !ok {
-			return fmt.Errorf("stroke %d has an invalid color", strokeIndex)
+		switch stroke.Tool {
+		case "pencil":
+			color, ok := normalizeDrawingColor(stroke.Color)
+			if !ok {
+				return fmt.Errorf("stroke %d has an invalid color", strokeIndex)
+			}
+			stroke.Color = color
+		case "eraser":
+			if stroke.Color != "" {
+				return fmt.Errorf("stroke %d eraser must not have a color", strokeIndex)
+			}
+		default:
+			return fmt.Errorf("stroke %d has an invalid tool", strokeIndex)
 		}
-		stroke.Color = color
 		if stroke.Size < 1 || stroke.Size > maxDrawingBrushSize {
 			return fmt.Errorf("stroke %d has an invalid size", strokeIndex)
 		}

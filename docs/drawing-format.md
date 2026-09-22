@@ -24,18 +24,29 @@ Clients should read the same values from the public server configuration before 
   "background": "#FFFFFF",
   "strokes": [
     {
+      "tool": "pencil",
       "color": "#0A1B2C",
       "size": 24,
       "points": [
         [0, 400, 800, 512],
         [8, 4, -2, 600]
       ]
+    },
+    {
+      "tool": "eraser",
+      "size": 128,
+      "points": [
+        [0, 1200, 1600, 512],
+        [8, 8, 0, 700]
+      ]
     }
   ]
 }
 ```
 
-- Colors are `#RRGGBB`; the server normalizes lowercase input to uppercase.
+- `tool` is either `pencil` or `eraser`.
+- Pencil strokes require a `#RRGGBB` color; the server normalizes lowercase input to uppercase.
+- Eraser strokes must omit `color`. They remove pixels from the transparent ink layer before it is composited over the background.
 - Brush `size` is an integer from 1 through 1200 in Q4 units.
 - Every point is `[delayMs, xOrDxQ4, yOrDyQ4, pressure]`.
 - A stroke's first point contains absolute canvas coordinates. Later points contain signed deltas from the preceding point. This reduces storage while retaining replay order and timing.
