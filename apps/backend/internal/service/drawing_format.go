@@ -101,7 +101,7 @@ func validateDrawingDocument(doc *DrawingDocument) error {
 		switch stroke.Tool {
 		case "pencil":
 			switch stroke.Brush {
-			case "", "round", "gpen", "marker", "pencil", "dot":
+			case "", "round", "gpen", "pencil":
 			default:
 				return fmt.Errorf("stroke %d has an invalid brush", strokeIndex)
 			}

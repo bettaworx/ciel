@@ -109,7 +109,7 @@ func TestParseAndCompressDrawingAcceptsEraser(t *testing.T) {
 }
 
 func TestParseAndCompressDrawingAcceptsBrushes(t *testing.T) {
-	for _, brush := range []string{"", "round", "gpen", "marker", "pencil", "dot"} {
+	for _, brush := range []string{"", "round", "gpen", "pencil"} {
 		t.Run(brush, func(t *testing.T) {
 			doc := validDrawingDocument()
 			doc.Strokes[0].Brush = brush
