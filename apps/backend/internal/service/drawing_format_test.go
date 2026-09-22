@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"strings"
 	"testing"
 )
@@ -113,25 +114,56 @@ func (zeroReader) Read(p []byte) (int, error) {
 }
 
 func BenchmarkDrawingEncoding(b *testing.B) {
-	for _, points := range []int{10_000, 50_000, 100_000, 250_000} {
-		doc := validDrawingDocument()
-		doc.Strokes[0].Points = make([][4]int32, points)
-		doc.Strokes[0].Points[0] = [4]int32{0, 2400, 1600, 512}
+	for _, noisy := range []bool{false, true} {
+		kind := "smooth"
+		if noisy {
+			kind = "noisy"
+		}
+		for _, points := range []int{10_000, 50_000, 100_000, 250_000} {
+			doc := benchmarkDrawingDocument(points, noisy)
+			raw, err := json.Marshal(doc)
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.Run(fmt.Sprintf("%s/%d_points", kind, points), func(b *testing.B) {
+				for range b.N {
+					_, compressed, err := parseAndCompressDrawing(bytes.NewReader(raw))
+					if err != nil {
+						b.Fatal(err)
+					}
+					b.ReportMetric(float64(len(raw))/(1<<20), "MiB/input")
+					b.ReportMetric(float64(len(compressed))/(1<<20), "MiB/stored")
+				}
+			})
+		}
+	}
+}
+
+func benchmarkDrawingDocument(points int, noisy bool) DrawingDocument {
+	doc := validDrawingDocument()
+	doc.Strokes[0].Points = make([][4]int32, points)
+	doc.Strokes[0].Points[0] = [4]int32{0, 2400, 1600, 512}
+	if !noisy {
 		for i := 1; i < points; i++ {
 			doc.Strokes[0].Points[i] = [4]int32{8, int32(i%3 - 1), int32((i/3)%3 - 1), 512}
 		}
-		raw, err := json.Marshal(doc)
-		if err != nil {
-			b.Fatal(err)
-		}
-		b.Run(fmt.Sprintf("%d_points", points), func(b *testing.B) {
-			for range b.N {
-				_, compressed, err := parseAndCompressDrawing(bytes.NewReader(raw))
-				if err != nil {
-					b.Fatal(err)
-				}
-				b.ReportMetric(float64(len(compressed))/(1<<20), "MiB/file")
-			}
-		})
+		return doc
 	}
+
+	rng := rand.New(rand.NewSource(1))
+	x, y := int32(2400), int32(1600)
+	for i := 1; i < points; i++ {
+		dx := int32(rng.Intn(41) - 20)
+		dy := int32(rng.Intn(41) - 20)
+		if x+dx < 0 || x+dx > DrawingWidth*DrawingCoordinateScale {
+			dx = -dx
+		}
+		if y+dy < 0 || y+dy > DrawingHeight*DrawingCoordinateScale {
+			dy = -dy
+		}
+		x += dx
+		y += dy
+		doc.Strokes[0].Points[i] = [4]int32{int32(rng.Intn(17)), dx, dy, int32(rng.Intn(maxDrawingPressure + 1))}
+	}
+	return doc
 }
