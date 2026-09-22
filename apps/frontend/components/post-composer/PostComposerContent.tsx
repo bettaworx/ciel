@@ -77,17 +77,17 @@ const styles = {
   card: {
     /** Padding that aligns content under the textarea (past the avatar) */
     contentPadding: "pl-15 px-0",
-    /** Upload / format button size */
-    toolbarButton: "h-9 w-9",
-    toolbarIcon: "w-5 h-5",
+    /** Upload / format button size (32px, aligned with the dialog header height) */
+    toolbarButton: "h-8 w-8",
+    toolbarIcon: "h-4 w-4",
     /** Post button height */
-    postButton: "h-9 px-4",
+    postButton: "h-8 px-4",
     floatingContent: "z-50",
   },
   dialog: {
     contentPadding: "pl-18 px-3",
-    toolbarButton: "h-9 w-9",
-    toolbarIcon: "w-5 h-5",
+    toolbarButton: "h-8 w-8",
+    toolbarIcon: "h-4 w-4",
     postButton: "h-8 px-4",
     floatingContent: "z-[70]",
   },
@@ -257,26 +257,20 @@ export function PostComposerContent({
 
   const modeSwitch = (
     <Tabs value={composerMode} onValueChange={(value) => setComposerMode(value as ComposerMode)}>
-      <TabsList className={cn("rounded-full bg-muted p-0.5", layout === "dialog" ? "h-8" : "h-9")}>
+      <TabsList className="rounded-full bg-muted p-0.5 h-8">
         <TabsTrigger
           value="text"
           aria-label={t("createPost.textMode")}
-          className={cn(
-            "flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground",
-            layout === "dialog" ? "h-7 w-7" : "h-8 w-8",
-          )}
+          className="flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground h-7 w-7"
         >
-          <Type className="h-4 w-4" />
+          <Type className="h-3.5 w-3.5" />
         </TabsTrigger>
         <TabsTrigger
           value="drawing"
           aria-label={t("createPost.drawingMode")}
-          className={cn(
-            "flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground",
-            layout === "dialog" ? "h-7 w-7" : "h-8 w-8",
-          )}
+          className="flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground h-7 w-7"
         >
-          <PenLine className="h-4 w-4" />
+          <PenLine className="h-3.5 w-3.5" />
         </TabsTrigger>
       </TabsList>
     </Tabs>
@@ -464,7 +458,7 @@ export function PostComposerContent({
 
   /** Avatar + Textarea row */
   const textareaRow = (
-    <div className={cn("relative flex gap-3", layout === "dialog" && "pt-0 p-3")}>
+    <div className={cn("flex gap-3", layout === "dialog" && "pt-0 p-3")}>
       {avatar}
       <Textarea
         ref={textareaRef}
@@ -476,7 +470,6 @@ export function PostComposerContent({
         placeholder={placeholder}
         className={cn(
           "flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0",
-          layout === "card" && showModeSwitch && "pr-20",
         )}
         maxLength={maxContentLength}
         disabled={createPostMutation.isPending || isUploading}
@@ -488,19 +481,6 @@ export function PostComposerContent({
         disabled={createPostMutation.isPending || isUploading}
         contentClassName={s.floatingContent}
       />
-      <AnimatePresence initial={false}>
-        {layout === "card" && showModeSwitch && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute right-0 top-0 z-10"
-          >
-            {modeSwitch}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 
@@ -547,39 +527,50 @@ export function PostComposerContent({
 
   // ---- Layout assembly ----------------------------------------------------
 
+  /** Header: close & mode (left) + counter & post (right) — X button is dialog-only */
+  const composerHeader = (
+    <div
+      className={cn(
+        "flex flex-row items-center justify-between shrink-0",
+        layout === "dialog" ? "pt-3 px-3" : "pt-0 px-0",
+      )}
+    >
+      <div className="flex items-center gap-1">
+        {layout === "dialog" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onClose?.()}
+            disabled={closeDisabled}
+            aria-label={t("common.close")}
+            className="h-8 w-8"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
+        <AnimatePresence initial={false}>
+          {showModeSwitch && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+            >
+              {modeSwitch}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      {counterAndPost}
+    </div>
+  );
+
   if (layout === "dialog") {
     return (
       <>
         {dragOverlay}
 
-        {/* Header: close & mode (left) + counter & post (right) */}
-        <div className="pt-3 px-3 flex flex-row items-center justify-between shrink-0">
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onClose?.()}
-              disabled={closeDisabled}
-              aria-label={t("common.close")}
-              className="h-8 w-8"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-            <AnimatePresence initial={false}>
-              {showModeSwitch && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -12 }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
-                >
-                  {modeSwitch}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          {counterAndPost}
-        </div>
+        {composerHeader}
 
         {/* Scrollable content */}
         <div className="overflow-y-auto max-sm:max-h-[calc(100vh-4rem)]">
@@ -623,6 +614,7 @@ export function PostComposerContent({
       {dragOverlay}
 
       <div className="space-y-3">
+        {composerHeader}
         <div className="min-h-[100px] space-y-3">
           {textareaRow}
           {ogpPreview}
@@ -630,13 +622,10 @@ export function PostComposerContent({
           {quotedPostPreview}
         </div>
 
-        {/* Actions bar: upload (left) + counter & post (right) */}
+        {/* Actions bar: upload (left) + format (right) — post button lives in the header */}
         <div className={cn("flex items-center justify-between", s.contentPadding)}>
-          <div>{uploadButtons}</div>
-          <div className="flex flex-row gap-3">
-            {formatButtons}
-            {counterAndPost}
-          </div>
+          {uploadButtons}
+          {formatButtons}
         </div>
       </div>
 
