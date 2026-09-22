@@ -243,6 +243,24 @@ INSERT INTO posts (user_id, content, parent_id, root_id, reference_id)
 VALUES ($1, $2, sqlc.narg('parent_id'), sqlc.narg('root_id'), sqlc.narg('reference_id'))
 RETURNING id, user_id, content, parent_id, root_id, reference_id, created_at, deleted_at;
 
+-- name: CreateDrawing :one
+INSERT INTO drawings (id, user_id, format_version, background_color, width, height, data_bytes, preview_bytes)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING *;
+
+-- name: GetDrawingByID :one
+SELECT * FROM drawings WHERE id = $1;
+
+-- name: GetOwnedDrawingForAttach :one
+SELECT * FROM drawings
+WHERE id = sqlc.arg('id')::uuid
+  AND user_id = sqlc.arg('user_id')::uuid
+  AND NOT EXISTS (SELECT 1 FROM posts WHERE drawing_id = drawings.id)
+FOR UPDATE;
+
+-- name: DeleteDrawingByID :exec
+DELETE FROM drawings WHERE id = $1;
+
 -- name: GetPostWithAuthorByID :one
 -- viewer_id is NULL for anonymous readers, which can_view_user treats as the
 -- strictest case. Callers still check deleted_at themselves.
