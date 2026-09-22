@@ -705,6 +705,21 @@
     "posting": "Posting...",
     "textMode": "Text mode",
     "drawingMode": "Drawing mode",
+    "drawing": {
+      "canvas": "Drawing canvas",
+      "pencil": "Pencil",
+      "eraser": "Eraser",
+      "color": "Color",
+      "size": "{tool} size",
+      "undo": "Undo",
+      "redo": "Redo",
+      "discard": {
+        "title": "Discard drawing?",
+        "description": "Switching to text mode will discard this drawing.",
+        "cancel": "Keep drawing",
+        "confirm": "Discard"
+      }
+    },
     "formatBold": "Bold",
     "formatItalic": "Italic",
     "formatCenter": "Center",

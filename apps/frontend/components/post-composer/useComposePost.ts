@@ -37,6 +37,7 @@ import {
 import { loadQualityMode, saveQualityMode } from "@/lib/media/quality-preference";
 import type { VideoQualityMode } from "@/lib/media/normalize";
 import type { QualityMode } from "./MediaQualityPicker";
+import type { ComposerMode } from "./composerMode";
 
 /** Dot-by-dot keeps original pixels, which only means something for a still. */
 const isVideoMode = (mode: QualityMode): mode is VideoQualityMode => mode !== "dot-by-dot";
@@ -128,6 +129,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
   // State
   const [content, setContent] = useState("");
+  const [composerMode, setComposerMode] = useState<ComposerMode>("text");
   const [images, setImages] = useState<LocalImage[]>([]);
   const [video, setVideo] = useState<LocalVideo | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -169,7 +171,11 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const hasMedia = hasImages || hasVideo;
   const isContentValid = contentLength <= maxContentLength;
   const isDropDisabled =
-    hasVideo || images.length >= MAX_IMAGES || createPostMutation.isPending || isUploading;
+    composerMode === "drawing" ||
+    hasVideo ||
+    images.length >= MAX_IMAGES ||
+    createPostMutation.isPending ||
+    isUploading;
   /** Image upload is disabled when a video is attached or max images reached */
   const isImageUploadDisabled =
     hasVideo || images.length >= MAX_IMAGES || createPostMutation.isPending || isUploading;
@@ -879,6 +885,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
   const resetForm = () => {
     setContent("");
+    setComposerMode("text");
     // Revoke all blob URLs on reset
     for (const img of images) {
       URL.revokeObjectURL(img.originalPreviewUrl);
@@ -909,6 +916,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     // State
     content,
     setContent,
+    composerMode,
+    setComposerMode,
     images,
     video,
     isUploading,

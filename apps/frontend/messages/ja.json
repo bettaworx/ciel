@@ -705,6 +705,21 @@
     "posting": "投稿中...",
     "textMode": "テキストモード",
     "drawingMode": "ドローイングモード",
+    "drawing": {
+      "canvas": "ドローイングキャンバス",
+      "pencil": "鉛筆",
+      "eraser": "消しゴム",
+      "color": "色",
+      "size": "{tool}の太さ",
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "discard": {
+        "title": "ドローイングを破棄しますか？",
+        "description": "テキストモードへ切り替えると、このドローイングは破棄されます。",
+        "cancel": "描画を続ける",
+        "confirm": "破棄"
+      }
+    },
     "formatBold": "太字",
     "formatItalic": "斜体",
     "formatCenter": "中央揃え",

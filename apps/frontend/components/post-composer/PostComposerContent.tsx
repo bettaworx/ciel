@@ -39,6 +39,10 @@ import { ACCEPTED_IMAGE_ACCEPT, ACCEPTED_VIDEO_ACCEPT } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
 import { useComposerPlaceholder } from "./useComposerPlaceholder";
 import { shouldShowComposerModeSwitch, type ComposerMode } from "./composerMode";
+import { DrawingCanvas } from "./DrawingCanvas";
+import { DrawingDiscardConfirm } from "./DrawingDiscardConfirm";
+import { DrawingHistoryButtons, DrawingToolButtons } from "./DrawingToolbar";
+import { redoDrawing, type DrawingStroke, type DrawingTool, undoDrawing } from "./drawing";
 import { PostCard } from "@/components/PostCard";
 import type { components } from "@/lib/api/api";
 
@@ -119,8 +123,14 @@ export function PostComposerContent({
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
-  const [composerMode, setComposerMode] = useState<ComposerMode>("text");
   const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
+  const [drawingStrokes, setDrawingStrokes] = useState<DrawingStroke[]>([]);
+  const [redoStrokes, setRedoStrokes] = useState<DrawingStroke[]>([]);
+  const [drawingTool, setDrawingTool] = useState<DrawingTool>("pencil");
+  const [drawingColor, setDrawingColor] = useState("#111111");
+  const [pencilSize, setPencilSize] = useState(6);
+  const [eraserSize, setEraserSize] = useState(32);
+  const [discardDrawingOpen, setDiscardDrawingOpen] = useState(false);
   const hadTypedContentRef = useRef(false);
   const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
   const placeholder = placeholderOverride ?? generatedPlaceholder;
@@ -139,8 +149,10 @@ export function PostComposerContent({
     // State setters
     setContent,
     setSelectionRange,
+    setComposerMode,
     // State
     content,
+    composerMode,
     isUploading,
     isDragging,
     ogpUrl,
@@ -253,10 +265,42 @@ export function PostComposerContent({
 
   const showModeSwitch = shouldShowComposerModeSwitch(composerMode, content, hasMedia);
 
+  const handleModeChange = (value: string) => {
+    const nextMode = value as ComposerMode;
+    if (nextMode === "text" && drawingStrokes.length > 0) {
+      setDiscardDrawingOpen(true);
+      return;
+    }
+    setComposerMode(nextMode);
+  };
+
+  const handleDrawingChange = (strokes: DrawingStroke[]) => {
+    setDrawingStrokes(strokes);
+    setRedoStrokes([]);
+  };
+
+  const handleUndo = () => {
+    const next = undoDrawing(drawingStrokes, redoStrokes);
+    setDrawingStrokes(next.strokes);
+    setRedoStrokes(next.redo);
+  };
+
+  const handleRedo = () => {
+    const next = redoDrawing(drawingStrokes, redoStrokes);
+    setDrawingStrokes(next.strokes);
+    setRedoStrokes(next.redo);
+  };
+
+  const discardDrawing = () => {
+    setDrawingStrokes([]);
+    setRedoStrokes([]);
+    setComposerMode("text");
+  };
+
   // ---- Shared sub-sections ------------------------------------------------
 
   const modeSwitch = (
-    <Tabs value={composerMode} onValueChange={(value) => setComposerMode(value as ComposerMode)}>
+    <Tabs value={composerMode} onValueChange={handleModeChange}>
       <TabsList className="rounded-full bg-muted p-0.5 h-8">
         <TabsTrigger
           value="text"
@@ -288,17 +332,19 @@ export function PostComposerContent({
   const counterAndPost = (
     <div className="flex items-center gap-3">
       {modeSwitch}
-      <CharacterCounter
-        current={contentLength}
-        max={maxContentLength}
-        percentage={contentPercentage}
-        showCount={showCharacterCount}
-      />
+      {composerMode === "text" && (
+        <CharacterCounter
+          current={contentLength}
+          max={maxContentLength}
+          percentage={contentPercentage}
+          showCount={showCharacterCount}
+        />
+      )}
       <Button
         variant="primary"
         size="sm"
         onClick={handlePost}
-        disabled={!canPost}
+        disabled={composerMode === "drawing" || !canPost}
         className={s.postButton}
       >
         {createPostMutation.isPending
@@ -503,6 +549,49 @@ export function PostComposerContent({
     </div>
   );
 
+  const drawingRow = (
+    <div className={cn("flex gap-3", layout === "dialog" && "p-3 pt-0")}>
+      {avatar}
+      <DrawingCanvas
+        strokes={drawingStrokes}
+        onChange={handleDrawingChange}
+        tool={drawingTool}
+        color={drawingColor}
+        pencilSize={pencilSize}
+        eraserSize={eraserSize}
+        disabled={createPostMutation.isPending || isUploading}
+        ariaLabel={t("createPost.drawing.canvas")}
+        className="min-w-0 flex-1"
+      />
+    </div>
+  );
+
+  const drawingTools = (
+    <DrawingToolButtons
+      tool={drawingTool}
+      onToolChange={setDrawingTool}
+      color={drawingColor}
+      onColorChange={setDrawingColor}
+      pencilSize={pencilSize}
+      onPencilSizeChange={setPencilSize}
+      eraserSize={eraserSize}
+      onEraserSizeChange={setEraserSize}
+      disabled={createPostMutation.isPending || isUploading}
+      className={s.toolbarButton}
+    />
+  );
+
+  const drawingHistory = (
+    <DrawingHistoryButtons
+      canUndo={drawingStrokes.length > 0}
+      canRedo={redoStrokes.length > 0}
+      onUndo={handleUndo}
+      onRedo={handleRedo}
+      disabled={createPostMutation.isPending || isUploading}
+      className={s.toolbarButton}
+    />
+  );
+
   /** OGP link preview */
   const ogpPreview = ogpUrl ? (
     <div className={s.contentPadding}>
@@ -535,7 +624,7 @@ export function PostComposerContent({
 
   /** Drag & drop overlay */
   const dragOverlay =
-    isDragging && !isDropDisabled ? (
+    composerMode === "text" && isDragging && !isDropDisabled ? (
       <div className="absolute inset-0 z-10 bg-background/90 border-2 border-dashed border-c-1 rounded-xl flex items-center justify-center pointer-events-none">
         <div className="text-center">
           <ImageIcon className="w-12 h-12 mx-auto mb-2 text-c-1" />
@@ -543,6 +632,14 @@ export function PostComposerContent({
         </div>
       </div>
     ) : null;
+
+  const discardConfirm = (
+    <DrawingDiscardConfirm
+      open={discardDrawingOpen}
+      onOpenChange={setDiscardDrawingOpen}
+      onConfirm={discardDrawing}
+    />
+  );
 
   // ---- Layout assembly ----------------------------------------------------
 
@@ -571,18 +668,20 @@ export function PostComposerContent({
         {/* Scrollable content */}
         <div className="overflow-y-auto max-sm:max-h-[calc(100vh-4rem)]">
           <div className="min-h-[200px]">
-            {textareaRow}
-            {ogpPreview}
-            {mediaPreview}
+            {composerMode === "drawing" ? drawingRow : textareaRow}
+            {composerMode === "text" && ogpPreview}
+            {composerMode === "text" && mediaPreview}
             {quotedPostPreview}
           </div>
 
           {/* Upload & format buttons */}
           <div className="px-3 pb-3 flex items-center justify-between">
-            {uploadButtons}
-            {formatButtons}
+            {composerMode === "drawing" ? drawingTools : uploadButtons}
+            {composerMode === "drawing" ? drawingHistory : formatButtons}
           </div>
         </div>
+
+        {discardConfirm}
 
         {cropDialogOpen && cropImageSrc && pendingCropImage && (
           <ImageCropDialog
@@ -611,22 +710,33 @@ export function PostComposerContent({
 
       <div className="space-y-3">
         <div className="min-h-[100px] space-y-3">
-          {textareaRow}
-          {ogpPreview}
-          {mediaPreview}
+          {composerMode === "drawing" ? drawingRow : textareaRow}
+          {composerMode === "text" && ogpPreview}
+          {composerMode === "text" && mediaPreview}
           {quotedPostPreview}
         </div>
 
         {/* Actions bar: upload + format (left) + counter & post (right) */}
         <div className={cn("flex items-center justify-between", s.contentPadding)}>
           <div className="flex items-center gap-1">
-            {uploadButtons}
-            <Separator orientation="vertical" className="h-5 mx-1 w-[2px] rounded-full" />
-            {formatButtons}
+            {composerMode === "drawing" ? (
+              drawingTools
+            ) : (
+              <>
+                {uploadButtons}
+                <Separator orientation="vertical" className="h-5 mx-1 w-[2px] rounded-full" />
+                {formatButtons}
+              </>
+            )}
           </div>
-          <div>{counterAndPost}</div>
+          <div className="flex items-center gap-1">
+            {composerMode === "drawing" && drawingHistory}
+            {counterAndPost}
+          </div>
         </div>
       </div>
+
+      {discardConfirm}
 
       {cropDialogOpen && cropImageSrc && pendingCropImage && (
         <ImageCropDialog
