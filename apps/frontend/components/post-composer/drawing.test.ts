@@ -5,8 +5,10 @@ import {
   createDrawingDocument,
   decodeDrawingStroke,
   drawingPostPalette,
+  drawingDocumentBytes,
   drawingLineWidth,
   encodeDrawingPoint,
+  formatDrawingBytes,
   isDrawingBackgroundCamouflaged,
   parseDrawingDocument,
   redoDrawing,
@@ -68,6 +70,12 @@ describe("drawing format", () => {
     });
     expect(createDrawingDocument([pencil], "#abcdef").background).toBe("#ABCDEF");
     expect(createDrawingDocument([pencil], "#FFFFFF", "#abcdef").color).toBe("#ABCDEF");
+    expect(drawingDocumentBytes([pencil])).toBe(
+      new Blob([JSON.stringify(createDrawingDocument([pencil]))]).size,
+    );
+    expect(formatDrawingBytes(512)).toBe("512 B");
+    expect(formatDrawingBytes(1536)).toBe("1.5 KiB");
+    expect(formatDrawingBytes(16 << 20)).toBe("16 MiB");
   });
 
   it("builds one replay timeline across strokes", () => {

@@ -5,6 +5,7 @@ export const DRAWING_BACKGROUND = "#FFFFFF";
 export const DRAWING_REPLAY_DURATION_MS = 3000;
 export const DRAWING_REPLAY_MAX_DELAY_MS = 32;
 export const DRAWING_PREFERENCES_KEY = "ciel:drawing:preferences";
+export const FALLBACK_MAX_DRAWING_INPUT_BYTES = 16 << 20;
 
 export type DrawingTool = "pencil" | "eraser";
 export const DRAWING_BRUSHES = ["round", "gpen", "pencil"] as const;
@@ -91,6 +92,20 @@ export function createDrawingDocument(
     color: color.toUpperCase(),
     strokes,
   };
+}
+
+export function drawingDocumentBytes(
+  strokes: DrawingStroke[],
+  background = DRAWING_BACKGROUND,
+  color = DEFAULT_DRAWING_PREFERENCES.color,
+) {
+  return new Blob([JSON.stringify(createDrawingDocument(strokes, background, color))]).size;
+}
+
+export function formatDrawingBytes(bytes: number) {
+  if (bytes >= 1 << 20) return `${Number((bytes / (1 << 20)).toFixed(1))} MiB`;
+  if (bytes >= 1 << 10) return `${Number((bytes / (1 << 10)).toFixed(1))} KiB`;
+  return `${bytes} B`;
 }
 
 export interface DecodedDrawingPoint {
@@ -436,37 +451,15 @@ export function renderDrawing(
   }
 }
 
-export async function createDrawingUpload(
+export function createDrawingUpload(
   strokes: DrawingStroke[],
   background = DRAWING_BACKGROUND,
   color = DEFAULT_DRAWING_PREFERENCES.color,
 ) {
-  const ink = document.createElement("canvas");
-  ink.width = DRAWING_WIDTH;
-  ink.height = DRAWING_HEIGHT;
-  const inkContext = ink.getContext("2d");
-  if (!inkContext) throw new Error("Canvas is unavailable");
-  renderDrawing(inkContext, strokes, color);
-
-  const preview = document.createElement("canvas");
-  preview.width = DRAWING_WIDTH;
-  preview.height = DRAWING_HEIGHT;
-  const previewContext = preview.getContext("2d");
-  if (!previewContext) throw new Error("Canvas is unavailable");
-  previewContext.fillStyle = background;
-  previewContext.fillRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
-  previewContext.drawImage(ink, 0, 0);
-
-  const { default: encodeWebp } = await import("@jsquash/webp/encode");
-  const encoded = await encodeWebp(
-    previewContext.getImageData(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT),
-    { quality: 90 },
-  );
   return {
     data: new Blob([JSON.stringify(createDrawingDocument(strokes, background, color))], {
       type: "application/json",
     }),
-    preview: new Blob([encoded], { type: "image/webp" }),
   };
 }
 

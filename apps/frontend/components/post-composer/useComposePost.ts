@@ -18,6 +18,7 @@ import {
   useUploadDrawing,
   useUploadMedia,
   useMediaLimits,
+  useServerConfig,
   queryKeys,
 } from "@/lib/hooks/use-queries";
 import { ApiHttpError } from "@/lib/api/client";
@@ -44,7 +45,12 @@ import { loadQualityMode, saveQualityMode } from "@/lib/media/quality-preference
 import type { VideoQualityMode } from "@/lib/media/normalize";
 import type { QualityMode } from "./MediaQualityPicker";
 import type { ComposerMode } from "./composerMode";
-import { createDrawingUpload, readDrawingPreferences, type DrawingStroke } from "./drawing";
+import {
+  createDrawingUpload,
+  FALLBACK_MAX_DRAWING_INPUT_BYTES,
+  readDrawingPreferences,
+  type DrawingStroke,
+} from "./drawing";
 
 /** Dot-by-dot keeps original pixels, which only means something for a still. */
 const isVideoMode = (mode: QualityMode): mode is VideoQualityMode => mode !== "dot-by-dot";
@@ -132,6 +138,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const { onSuccess, autoResize = true, parentId, contentPrefix, referenceId } = options;
   const t = useTranslations();
   const mediaLimits = useMediaLimits();
+  const { data: serverConfig } = useServerConfig();
   const queryClient = useQueryClient();
 
   // State
@@ -175,6 +182,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
   // Computed values
   const maxContentLength = mediaLimits.maxPostContentLength;
+  const maxDrawingInputBytes =
+    serverConfig?.drawingLimits.maxInputBytes ?? FALLBACK_MAX_DRAWING_INPUT_BYTES;
   const contentLength = content.length;
   const contentPercentage = (contentLength / maxContentLength) * 100;
   const showCharacterCount = contentPercentage >= CHARACTER_COUNT_THRESHOLD;
@@ -991,6 +1000,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
     // Computed
     maxContentLength,
+    maxDrawingInputBytes,
     contentLength,
     contentPercentage,
     showCharacterCount,

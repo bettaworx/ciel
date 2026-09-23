@@ -640,10 +640,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
       return requestForm<components["schemas"]["Media"]>("POST", "/media", { form });
     },
 
-    uploadDrawing: (data: Blob, preview: Blob) => {
+    uploadDrawing: (data: Blob) => {
       const form = new FormData();
       form.set("data", data, "drawing.json");
-      form.set("preview", preview, "preview.webp");
       return requestForm<components["schemas"]["Drawing"]>("POST", "/drawings", {
         form,
         normalizeFiles: false,

@@ -645,8 +645,8 @@ export function useUploadDrawing() {
   const api = useApi();
 
   return useMutation({
-    mutationFn: async ({ data, preview }: { data: Blob; preview: Blob }) => {
-      const result = await api.uploadDrawing(data, preview);
+    mutationFn: async ({ data }: { data: Blob }) => {
+      const result = await api.uploadDrawing(data);
       if (!result.ok) {
         throw new ApiHttpError(result.errorText, result.status, result.headers);
       }

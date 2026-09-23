@@ -8,14 +8,26 @@ interface CharacterCounterProps {
   max: number;
   percentage: number;
   showCount: boolean;
+  showValue?: boolean;
+  formatValue?: (value: number) => string;
+  label?: string;
 }
 
 /**
  * Character counter component with circular progress ring
  */
-export function CharacterCounter({ current, max, percentage, showCount }: CharacterCounterProps) {
+export function CharacterCounter({
+  current,
+  max,
+  percentage,
+  showCount,
+  showValue = false,
+  formatValue = String,
+  label,
+}: CharacterCounterProps) {
   const radius = 13;
   const circumference = 2 * Math.PI * radius;
+  const valueText = `${formatValue(current)}/${formatValue(max)}`;
 
   const getColorClass = () => {
     if (percentage >= 100) return "stroke-destructive";
@@ -33,42 +45,51 @@ export function CharacterCounter({ current, max, percentage, showCount }: Charac
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="relative w-8 h-8 flex items-center justify-center">
-            <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
-              {/* Background circle */}
-              <circle
-                cx="16"
-                cy="16"
-                r={radius}
-                className="stroke-primary fill-none"
-                strokeWidth="2.5"
-              />
-              {/* Progress circle */}
-              <circle
-                cx="16"
-                cy="16"
-                r={radius}
-                className={`fill-none transition-all duration-300 ${getColorClass()}`}
-                strokeWidth="2.5"
-                strokeDasharray={circumference}
-                strokeDashoffset={circumference * (1 - Math.min(percentage, 100) / 100)}
-                strokeLinecap="round"
-              />
-            </svg>
-            {/* Remaining character count text (shown when >= 50%) */}
-            {showCount && (
-              <span
-                className={`absolute inset-0 flex items-center justify-center text-[10px] font-medium ${getTextColorClass()}`}
-              >
-                {max - current}
+          <button
+            type="button"
+            className="flex cursor-default items-center gap-1.5"
+            aria-label={label ? `${label}: ${valueText}` : valueText}
+          >
+            <meter className="sr-only" min={0} max={max} value={Math.min(current, max)}>
+              {valueText}
+            </meter>
+            <div className="relative flex h-8 w-8 items-center justify-center">
+              <svg aria-hidden="true" className="h-8 w-8 -rotate-90" viewBox="0 0 32 32">
+                <circle
+                  cx="16"
+                  cy="16"
+                  r={radius}
+                  className="stroke-primary fill-none"
+                  strokeWidth="2.5"
+                />
+                <circle
+                  cx="16"
+                  cy="16"
+                  r={radius}
+                  className={`fill-none transition-all duration-300 ${getColorClass()}`}
+                  strokeWidth="2.5"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={circumference * (1 - Math.min(percentage, 100) / 100)}
+                  strokeLinecap="round"
+                />
+              </svg>
+              {showCount && (
+                <span
+                  className={`absolute inset-0 flex items-center justify-center text-[10px] font-medium ${getTextColorClass()}`}
+                >
+                  {formatValue(max - current)}
+                </span>
+              )}
+            </div>
+            {showValue && (
+              <span className={`text-xs tabular-nums ${getTextColorClass()}`}>
+                {formatValue(current)}
               </span>
             )}
-          </div>
+          </button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>
-            {current}/{max}
-          </p>
+          <p>{label ? `${label}: ${valueText}` : valueText}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

@@ -711,6 +711,7 @@
       "eraser": "Eraser",
       "color": "Color",
       "background": "Background color",
+      "dataUsage": "Drawing data",
       "brush": "Brush",
       "brushes": {
         "round": "Round pen",

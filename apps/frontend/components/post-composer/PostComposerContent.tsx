@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "@/lib/i18n";
 import {
   X,
@@ -43,6 +43,8 @@ import { DrawingCanvas } from "./DrawingCanvas";
 import { DrawingDiscardConfirm } from "./DrawingDiscardConfirm";
 import { DrawingHistoryButtons, DrawingToolButtons } from "./DrawingToolbar";
 import {
+  drawingDocumentBytes,
+  formatDrawingBytes,
   readDrawingPreferences,
   redoDrawing,
   saveDrawingPreferences,
@@ -178,6 +180,7 @@ export function PostComposerContent({
     selectionRange,
     // Computed
     maxContentLength,
+    maxDrawingInputBytes,
     contentLength,
     contentPercentage,
     showCharacterCount,
@@ -293,6 +296,11 @@ export function PostComposerContent({
   }, [textareaRef, setSelectionRange]);
 
   const showModeSwitch = shouldShowComposerModeSwitch(composerMode, content, hasMedia);
+  const drawingDataBytes = useMemo(
+    () => drawingDocumentBytes(drawingStrokes, drawingBackground, drawingColor),
+    [drawingStrokes, drawingBackground, drawingColor],
+  );
+  const drawingDataPercentage = (drawingDataBytes / maxDrawingInputBytes) * 100;
 
   const handleModeChange = (value: string) => {
     const nextMode = value as ComposerMode;
@@ -372,21 +380,25 @@ export function PostComposerContent({
   const counterAndPost = (
     <div className="flex items-center gap-3">
       {modeSwitch}
-      {composerMode === "text" && (
-        <CharacterCounter
-          current={contentLength}
-          max={maxContentLength}
-          percentage={contentPercentage}
-          showCount={showCharacterCount}
-        />
-      )}
+      <CharacterCounter
+        current={composerMode === "drawing" ? drawingDataBytes : contentLength}
+        max={composerMode === "drawing" ? maxDrawingInputBytes : maxContentLength}
+        percentage={composerMode === "drawing" ? drawingDataPercentage : contentPercentage}
+        showCount={composerMode === "text" && showCharacterCount}
+        showValue={composerMode === "drawing"}
+        formatValue={composerMode === "drawing" ? formatDrawingBytes : undefined}
+        label={composerMode === "drawing" ? t("createPost.drawing.dataUsage") : undefined}
+      />
       <Button
         variant="primary"
         size="sm"
         onClick={handleSubmit}
         disabled={
           composerMode === "drawing"
-            ? drawingStrokes.length === 0 || createPostMutation.isPending || isUploading
+            ? drawingStrokes.length === 0 ||
+              drawingDataBytes > maxDrawingInputBytes ||
+              createPostMutation.isPending ||
+              isUploading
             : !canPost
         }
         className={s.postButton}
