@@ -6,6 +6,7 @@ import {
   decodeDrawingStroke,
   drawingPostPalette,
   drawingDocumentBytes,
+  drawingHistoryShortcut,
   drawingLineWidth,
   encodeDrawingPoint,
   formatDrawingBytes,
@@ -53,6 +54,13 @@ describe("drawing format", () => {
     const undone = undoDrawing([a, b], []);
     expect(undone).toEqual({ strokes: [a], redo: [b] });
     expect(redoDrawing(undone.strokes, undone.redo)).toEqual({ strokes: [a, b], redo: [] });
+  });
+
+  it("maps drawing history keyboard shortcuts", () => {
+    expect(drawingHistoryShortcut("z", true, false)).toBe("undo");
+    expect(drawingHistoryShortcut("Z", true, true)).toBe("redo");
+    expect(drawingHistoryShortcut("y", true, false)).toBe("redo");
+    expect(drawingHistoryShortcut("z", false, false)).toBeNull();
   });
 
   it("serializes one drawing color and colorless strokes in the v1 document", () => {

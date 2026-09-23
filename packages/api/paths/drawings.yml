@@ -41,3 +41,31 @@
             schema:
               $ref: ../schemas/common.yml#/components/schemas/Error
 
+/drawings/{drawingId}/replay:
+  get:
+    tags:
+    - Drawings
+    summary: Download a drawing replay document
+    operationId: getDrawingReplay
+    parameters:
+    - name: drawingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '200':
+        description: Drawing replay document
+        content:
+          application/vnd.ciel.drawing+json:
+            schema:
+              type: string
+              format: binary
+      '401':
+        description: Authentication is required for an unpublished drawing owned by the caller
+      '403':
+        description: Drawing belongs to another user and is not published
+      '404':
+        description: Drawing not found
+

@@ -65,9 +65,6 @@ export function CreateReplyDialog({
         gap-0
         p-0
         [&>button]:hidden
-        sm:!top-6
-        sm:!translate-y-0
-        sm:m-6
         max-sm:!m-3
         max-sm:!top-0
         max-sm:!left-0

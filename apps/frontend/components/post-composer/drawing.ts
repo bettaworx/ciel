@@ -381,6 +381,102 @@ function strokeBrush(stroke: DrawingStroke): DrawingBrush {
   return stroke.tool === "eraser" ? "gpen" : (stroke.brush ?? "gpen");
 }
 
+const pencilPatterns = new WeakMap<CanvasRenderingContext2D, Map<string, CanvasPattern>>();
+const pencilLayers = new WeakMap<
+  CanvasRenderingContext2D,
+  { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D }
+>();
+
+function pencilPattern(context: CanvasRenderingContext2D, color: string) {
+  let patterns = pencilPatterns.get(context);
+  if (!patterns) {
+    patterns = new Map();
+    pencilPatterns.set(context, patterns);
+  }
+  const cached = patterns.get(color);
+  if (cached) return cached;
+
+  const tile = document.createElement("canvas");
+  tile.width = 32;
+  tile.height = 32;
+  const tileContext = tile.getContext("2d");
+  if (!tileContext) return color;
+  const image = tileContext.createImageData(tile.width, tile.height);
+  const rgb = Number.parseInt(color.slice(1), 16);
+  for (let y = 0; y < tile.height; y++) {
+    for (let x = 0; x < tile.width; x++) {
+      let noise = Math.imul(x + 1, 1_103_515_245) ^ Math.imul(y + 1, 12_345);
+      noise ^= noise >>> 16;
+      const offset = (y * tile.width + x) * 4;
+      image.data[offset] = (rgb >> 16) & 0xff;
+      image.data[offset + 1] = (rgb >> 8) & 0xff;
+      image.data[offset + 2] = rgb & 0xff;
+      image.data[offset + 3] = (noise >>> 8) % 16 === 0 ? 31 : 96 + (noise & 127);
+    }
+  }
+  tileContext.putImageData(image, 0, 0);
+  const pattern = context.createPattern(tile, "repeat");
+  if (!pattern) return color;
+  patterns.set(color, pattern);
+  return pattern;
+}
+
+function drawPencilStroke(
+  context: CanvasRenderingContext2D,
+  stroke: DrawingStroke,
+  points: DecodedDrawingPoint[],
+  color: string,
+) {
+  let layer = pencilLayers.get(context);
+  if (!layer) {
+    const canvas = document.createElement("canvas");
+    canvas.width = DRAWING_WIDTH;
+    canvas.height = DRAWING_HEIGHT;
+    const layerContext = canvas.getContext("2d");
+    if (!layerContext) return;
+    layer = { canvas, context: layerContext };
+    pencilLayers.set(context, layer);
+  }
+
+  const layerContext = layer.context;
+  layerContext.clearRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
+  layerContext.globalCompositeOperation = "source-over";
+  layerContext.globalAlpha = 1;
+  layerContext.fillStyle = "#000000";
+  layerContext.strokeStyle = "#000000";
+  layerContext.lineCap = "round";
+  layerContext.lineJoin = "round";
+
+  if (points.length === 1) {
+    layerContext.beginPath();
+    layerContext.arc(
+      points[0].x,
+      points[0].y,
+      drawingLineWidth(stroke.size, points[0].pressure, "pencil") / 2,
+      0,
+      Math.PI * 2,
+    );
+    layerContext.fill();
+  }
+  for (let index = 1; index < points.length; index++) {
+    const from = points[index - 1];
+    const to = points[index];
+    layerContext.lineWidth =
+      (drawingLineWidth(stroke.size, from.pressure, "pencil") +
+        drawingLineWidth(stroke.size, to.pressure, "pencil")) /
+      2;
+    layerContext.beginPath();
+    layerContext.moveTo(from.x, from.y);
+    layerContext.lineTo(to.x, to.y);
+    layerContext.stroke();
+  }
+
+  layerContext.globalCompositeOperation = "source-in";
+  layerContext.fillStyle = pencilPattern(layerContext, color);
+  layerContext.fillRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
+  context.drawImage(layer.canvas, 0, 0);
+}
+
 function prepareStrokeContext(
   context: CanvasRenderingContext2D,
   stroke: DrawingStroke,
@@ -388,10 +484,10 @@ function prepareStrokeContext(
 ) {
   const brush = strokeBrush(stroke);
   context.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
-  context.globalAlpha = brush === "pencil" ? 0.58 : 1;
+  context.globalAlpha = 1;
   context.fillStyle = color;
-  context.strokeStyle = color;
-  context.lineCap = "round";
+  context.strokeStyle = brush === "pencil" ? pencilPattern(context, color) : color;
+  context.lineCap = brush === "pencil" ? "butt" : "round";
   context.lineJoin = "round";
   return brush;
 }
@@ -443,11 +539,23 @@ export function renderDrawing(
 ) {
   context.clearRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
   for (const stroke of strokes) {
-    const points = decodeDrawingStroke(stroke);
-    if (points.length === 1) drawStrokePoint(context, stroke, points[0], color);
-    for (let index = 1; index < points.length; index++) {
-      drawStrokeSegment(context, stroke, points[index - 1], points[index], color);
-    }
+    drawDecodedStroke(context, stroke, decodeDrawingStroke(stroke), color);
+  }
+}
+
+export function drawDecodedStroke(
+  context: CanvasRenderingContext2D,
+  stroke: DrawingStroke,
+  points: DecodedDrawingPoint[],
+  color: string,
+) {
+  if (strokeBrush(stroke) === "pencil") {
+    drawPencilStroke(context, stroke, points, color);
+    return;
+  }
+  if (points.length === 1) drawStrokePoint(context, stroke, points[0], color);
+  for (let index = 1; index < points.length; index++) {
+    drawStrokeSegment(context, stroke, points[index - 1], points[index], color);
   }
 }
 
@@ -472,4 +580,12 @@ export function redoDrawing(strokes: DrawingStroke[], redo: DrawingStroke[]) {
   const stroke = redo.at(-1);
   if (!stroke) return { strokes, redo };
   return { strokes: [...strokes, stroke], redo: redo.slice(0, -1) };
+}
+
+export function drawingHistoryShortcut(key: string, modifier: boolean, shift: boolean) {
+  if (!modifier) return null;
+  const normalized = key.toLowerCase();
+  if (normalized === "z") return shift ? "redo" : "undo";
+  if (normalized === "y" && !shift) return "redo";
+  return null;
 }

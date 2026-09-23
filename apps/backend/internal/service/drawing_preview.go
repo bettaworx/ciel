@@ -27,23 +27,31 @@ func renderDrawingPreview(doc DrawingDocument) ([]byte, error) {
 	for _, stroke := range doc.Strokes {
 		points := decodePreviewPoints(stroke)
 		source := ink
-		if stroke.Brush == "pencil" {
-			source.A = 148
-		}
+		pencil := stroke.Brush == "pencil"
 		if stroke.Tool == "eraser" {
 			source = background
+			pencil = false
+		}
+		var pencilMask *image.Alpha
+		if pencil {
+			pencilMask = image.NewAlpha(previewStrokeBounds(stroke, points))
 		}
 
 		if len(points) == 1 {
-			if err := paintPreviewCapsule(canvas, points[0], points[0], previewLineWidth(stroke, points[0].pressure)/2, source, &work); err != nil {
+			if err := paintPreviewCapsule(canvas, points[0], points[0], previewLineWidth(stroke, points[0].pressure)/2, source, pencilMask, &work); err != nil {
 				return nil, err
 			}
-			continue
+		} else {
+			for index := 1; index < len(points); index++ {
+				from, to := points[index-1], points[index]
+				width := (previewLineWidth(stroke, from.pressure) + previewLineWidth(stroke, to.pressure)) / 2
+				if err := paintPreviewCapsule(canvas, from, to, width/2, source, pencilMask, &work); err != nil {
+					return nil, err
+				}
+			}
 		}
-		for index := 1; index < len(points); index++ {
-			from, to := points[index-1], points[index]
-			width := (previewLineWidth(stroke, from.pressure) + previewLineWidth(stroke, to.pressure)) / 2
-			if err := paintPreviewCapsule(canvas, from, to, width/2, source, &work); err != nil {
+		if pencilMask != nil {
+			if err := compositePencilPreview(canvas, pencilMask, source, &work); err != nil {
 				return nil, err
 			}
 		}
@@ -91,11 +99,29 @@ func previewLineWidth(stroke DrawingStroke, pressure int32) float64 {
 	}
 }
 
-func paintPreviewCapsule(canvas *image.RGBA, from, to previewPoint, radius float64, source color.NRGBA, work *int64) error {
+func previewStrokeBounds(stroke DrawingStroke, points []previewPoint) image.Rectangle {
+	minX, maxX := points[0].x, points[0].x
+	minY, maxY := points[0].y, points[0].y
+	maxRadius := 0.0
+	for _, point := range points {
+		minX, maxX = math.Min(minX, point.x), math.Max(maxX, point.x)
+		minY, maxY = math.Min(minY, point.y), math.Max(maxY, point.y)
+		maxRadius = math.Max(maxRadius, previewLineWidth(stroke, point.pressure)/2)
+	}
+	padding := maxRadius + 1
+	return image.Rect(
+		int(math.Floor(minX-padding)),
+		int(math.Floor(minY-padding)),
+		int(math.Ceil(maxX+padding)),
+		int(math.Ceil(maxY+padding)),
+	).Intersect(image.Rect(0, 0, DrawingWidth, DrawingHeight))
+}
+
+func paintPreviewCapsule(canvas *image.RGBA, from, to previewPoint, radius float64, source color.NRGBA, pencilMask *image.Alpha, work *int64) error {
 	dx, dy := to.x-from.x, to.y-from.y
 	lengthSquared := dx*dx + dy*dy
 	if lengthSquared == 0 {
-		return paintPreviewCircle(canvas, from.x, from.y, radius, source, work)
+		return paintPreviewCircle(canvas, from.x, from.y, radius, source, pencilMask, work)
 	}
 
 	padding := radius + 1
@@ -109,7 +135,7 @@ func paintPreviewCapsule(canvas *image.RGBA, from, to previewPoint, radius float
 			yStart := max(int(math.Floor(center-scanRadius)), 0)
 			yEnd := min(int(math.Ceil(center+scanRadius)), DrawingHeight)
 			for y := yStart; y < yEnd; y++ {
-				if err := paintPreviewPixel(canvas, x, y, from, dx, dy, lengthSquared, radius, source, work); err != nil {
+				if err := paintPreviewPixel(canvas, x, y, from, dx, dy, lengthSquared, radius, source, pencilMask, work); err != nil {
 					return err
 				}
 			}
@@ -126,7 +152,7 @@ func paintPreviewCapsule(canvas *image.RGBA, from, to previewPoint, radius float
 		xStart := max(int(math.Floor(center-scanRadius)), 0)
 		xEnd := min(int(math.Ceil(center+scanRadius)), DrawingWidth)
 		for x := xStart; x < xEnd; x++ {
-			if err := paintPreviewPixel(canvas, x, y, from, dx, dy, lengthSquared, radius, source, work); err != nil {
+			if err := paintPreviewPixel(canvas, x, y, from, dx, dy, lengthSquared, radius, source, pencilMask, work); err != nil {
 				return err
 			}
 		}
@@ -134,27 +160,28 @@ func paintPreviewCapsule(canvas *image.RGBA, from, to previewPoint, radius float
 	return nil
 }
 
-func paintPreviewCircle(canvas *image.RGBA, x, y, radius float64, source color.NRGBA, work *int64) error {
+func paintPreviewCircle(canvas *image.RGBA, x, y, radius float64, source color.NRGBA, pencilMask *image.Alpha, work *int64) error {
 	padding := radius + 1
 	for py := max(int(math.Floor(y-padding)), 0); py < min(int(math.Ceil(y+padding)), DrawingHeight); py++ {
 		for px := max(int(math.Floor(x-padding)), 0); px < min(int(math.Ceil(x+padding)), DrawingWidth); px++ {
 			if err := addPreviewWork(work); err != nil {
 				return err
 			}
-			blendPreviewPixel(canvas, px, py, radius+0.5-math.Hypot(float64(px)+0.5-x, float64(py)+0.5-y), source)
+			blendPreviewPixel(canvas, px, py, radius+0.5-math.Hypot(float64(px)+0.5-x, float64(py)+0.5-y), source, pencilMask)
 		}
 	}
 	return nil
 }
 
-func paintPreviewPixel(canvas *image.RGBA, x, y int, from previewPoint, dx, dy, lengthSquared, radius float64, source color.NRGBA, work *int64) error {
+func paintPreviewPixel(canvas *image.RGBA, x, y int, from previewPoint, dx, dy, lengthSquared, radius float64, source color.NRGBA, pencilMask *image.Alpha, work *int64) error {
 	if err := addPreviewWork(work); err != nil {
 		return err
 	}
 	px, py := float64(x)+0.5, float64(y)+0.5
-	t := min(max(((px-from.x)*dx+(py-from.y)*dy)/lengthSquared, 0), 1)
+	t := ((px-from.x)*dx + (py-from.y)*dy) / lengthSquared
+	t = min(max(t, 0), 1)
 	distance := math.Hypot(px-(from.x+t*dx), py-(from.y+t*dy))
-	blendPreviewPixel(canvas, x, y, radius+0.5-distance, source)
+	blendPreviewPixel(canvas, x, y, radius+0.5-distance, source, pencilMask)
 	return nil
 }
 
@@ -166,9 +193,17 @@ func addPreviewWork(work *int64) error {
 	return nil
 }
 
-func blendPreviewPixel(canvas *image.RGBA, x, y int, coverage float64, source color.NRGBA) {
+func blendPreviewPixel(canvas *image.RGBA, x, y int, coverage float64, source color.NRGBA, pencilMask *image.Alpha) {
 	coverage = min(max(coverage, 0), 1) * float64(source.A) / 255
 	if coverage == 0 {
+		return
+	}
+	if pencilMask != nil {
+		offset := pencilMask.PixOffset(x, y)
+		alpha := uint8(math.Round(coverage * 255))
+		if alpha > pencilMask.Pix[offset] {
+			pencilMask.Pix[offset] = alpha
+		}
 		return
 	}
 	offset := canvas.PixOffset(x, y)
@@ -177,6 +212,31 @@ func blendPreviewPixel(canvas *image.RGBA, x, y int, coverage float64, source co
 	canvas.Pix[offset+1] = uint8(math.Round(float64(source.G)*coverage + float64(canvas.Pix[offset+1])*inverse))
 	canvas.Pix[offset+2] = uint8(math.Round(float64(source.B)*coverage + float64(canvas.Pix[offset+2])*inverse))
 	canvas.Pix[offset+3] = 0xff
+}
+
+func compositePencilPreview(canvas *image.RGBA, mask *image.Alpha, source color.NRGBA, work *int64) error {
+	for y := mask.Rect.Min.Y; y < mask.Rect.Max.Y; y++ {
+		for x := mask.Rect.Min.X; x < mask.Rect.Max.X; x++ {
+			alpha := mask.AlphaAt(x, y).A
+			if alpha == 0 {
+				continue
+			}
+			if err := addPreviewWork(work); err != nil {
+				return err
+			}
+			blendPreviewPixel(canvas, x, y, float64(alpha)/255*pencilPreviewOpacity(x, y), source, nil)
+		}
+	}
+	return nil
+}
+
+func pencilPreviewOpacity(x, y int) float64 {
+	noise := uint32((x&31)+1)*1_103_515_245 ^ uint32((y&31)+1)*12_345
+	noise ^= noise >> 16
+	if (noise>>8)%16 == 0 {
+		return 31.0 / 255
+	}
+	return float64(96+(noise&127)) / 255
 }
 
 func drawingColor(value string, alpha uint8) color.NRGBA {

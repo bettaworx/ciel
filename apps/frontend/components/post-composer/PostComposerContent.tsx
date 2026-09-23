@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useTranslations } from "@/lib/i18n";
 import {
   X,
@@ -44,6 +51,7 @@ import { DrawingDiscardConfirm } from "./DrawingDiscardConfirm";
 import { DrawingHistoryButtons, DrawingToolButtons } from "./DrawingToolbar";
 import {
   drawingDocumentBytes,
+  drawingHistoryShortcut,
   formatDrawingBytes,
   readDrawingPreferences,
   redoDrawing,
@@ -144,6 +152,7 @@ export function PostComposerContent({
   const [drawingColor, setDrawingColor] = useState(initialDrawingPreferences.color);
   const [pencilSize, setPencilSize] = useState(initialDrawingPreferences.pencilSize);
   const [eraserSize, setEraserSize] = useState(initialDrawingPreferences.eraserSize);
+  const [isDrawingStroke, setIsDrawingStroke] = useState(false);
   const [discardDrawingOpen, setDiscardDrawingOpen] = useState(false);
   const hadTypedContentRef = useRef(false);
   const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
@@ -328,6 +337,20 @@ export function PostComposerContent({
     setRedoStrokes(next.redo);
   };
 
+  const handleDrawingKeyDown = (event: ReactKeyboardEvent<HTMLCanvasElement>) => {
+    if (event.altKey) return;
+    const action = drawingHistoryShortcut(
+      event.key,
+      event.ctrlKey || event.metaKey,
+      event.shiftKey,
+    );
+    if (!action) return;
+    event.preventDefault();
+    if (createPostMutation.isPending || isUploading) return;
+    if (action === "undo" && drawingStrokes.length > 0) handleUndo();
+    if (action === "redo" && redoStrokes.length > 0) handleRedo();
+  };
+
   const discardDrawing = () => {
     setDrawingStrokes([]);
     setRedoStrokes([]);
@@ -385,7 +408,6 @@ export function PostComposerContent({
         max={composerMode === "drawing" ? maxDrawingInputBytes : maxContentLength}
         percentage={composerMode === "drawing" ? drawingDataPercentage : contentPercentage}
         showCount={composerMode === "text" && showCharacterCount}
-        showValue={composerMode === "drawing"}
         formatValue={composerMode === "drawing" ? formatDrawingBytes : undefined}
         label={composerMode === "drawing" ? t("createPost.drawing.dataUsage") : undefined}
       />
@@ -605,22 +627,41 @@ export function PostComposerContent({
     </div>
   );
 
+  const drawingHistory = (
+    <DrawingHistoryButtons
+      canUndo={drawingStrokes.length > 0}
+      canRedo={redoStrokes.length > 0}
+      onUndo={handleUndo}
+      onRedo={handleRedo}
+      disabled={createPostMutation.isPending || isUploading}
+      className={s.toolbarButton}
+    />
+  );
+
   const drawingRow = (
     <div className={cn("flex gap-3", layout === "dialog" && "p-3")}>
       {avatar}
-      <DrawingCanvas
-        strokes={drawingStrokes}
-        onChange={handleDrawingChange}
-        tool={drawingTool}
-        color={drawingColor}
-        brush={drawingBrush}
-        background={drawingBackground}
-        pencilSize={pencilSize}
-        eraserSize={eraserSize}
-        disabled={createPostMutation.isPending || isUploading}
-        ariaLabel={t("createPost.drawing.canvas")}
-        className="min-w-0 flex-1"
-      />
+      <div className="relative min-w-0 flex-1">
+        <DrawingCanvas
+          strokes={drawingStrokes}
+          onChange={handleDrawingChange}
+          tool={drawingTool}
+          color={drawingColor}
+          brush={drawingBrush}
+          background={drawingBackground}
+          pencilSize={pencilSize}
+          eraserSize={eraserSize}
+          onDrawingStateChange={setIsDrawingStroke}
+          onKeyDown={handleDrawingKeyDown}
+          disabled={createPostMutation.isPending || isUploading}
+          ariaLabel={t("createPost.drawing.canvas")}
+        />
+        {!isDrawingStroke && (
+          <div className="absolute right-3 top-3 z-10 rounded-full bg-popover/70 p-0.5 text-popover-foreground shadow-sm backdrop-blur-sm">
+            {drawingHistory}
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -639,17 +680,6 @@ export function PostComposerContent({
       eraserSize={eraserSize}
       onEraserSizeChange={setEraserSize}
       replyDrawing={replyDrawing}
-      disabled={createPostMutation.isPending || isUploading}
-      className={s.toolbarButton}
-    />
-  );
-
-  const drawingHistory = (
-    <DrawingHistoryButtons
-      canUndo={drawingStrokes.length > 0}
-      canRedo={redoStrokes.length > 0}
-      onUndo={handleUndo}
-      onRedo={handleRedo}
       disabled={createPostMutation.isPending || isUploading}
       className={s.toolbarButton}
     />
@@ -740,7 +770,7 @@ export function PostComposerContent({
           {/* Upload & format buttons */}
           <div className="px-3 pb-3 flex items-center justify-between">
             {composerMode === "drawing" ? drawingTools : uploadButtons}
-            {composerMode === "drawing" ? drawingHistory : formatButtons}
+            {composerMode === "text" && formatButtons}
           </div>
         </div>
 
@@ -792,10 +822,7 @@ export function PostComposerContent({
               </>
             )}
           </div>
-          <div className="flex items-center gap-3">
-            {composerMode === "drawing" && drawingHistory}
-            {counterAndPost}
-          </div>
+          <div className="flex items-center gap-3">{counterAndPost}</div>
         </div>
       </div>
 

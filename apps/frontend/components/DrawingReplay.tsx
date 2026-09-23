@@ -8,11 +8,12 @@ import {
   DRAWING_HEIGHT,
   DRAWING_REPLAY_DURATION_MS,
   DRAWING_WIDTH,
-  drawStrokePoint,
-  drawStrokeSegment,
+  drawDecodedStroke,
   parseDrawingDocument,
   renderDrawing,
+  type DecodedDrawingPoint,
   type DrawingDocument,
+  type DrawingStroke,
 } from "@/components/post-composer/drawing";
 
 type Drawing = components["schemas"]["Drawing"];
@@ -70,6 +71,7 @@ export function DrawingReplay({ drawing, label, className }: DrawingReplayProps)
 
     context.clearRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
     const steps = buildDrawingReplay(document.strokes, DRAWING_REPLAY_DURATION_MS);
+    const visibleStrokes = new Map<DrawingStroke, DecodedDrawingPoint[]>();
     let index = 0;
     let frame = 0;
     let startedAt: number | null = null;
@@ -83,10 +85,17 @@ export function DrawingReplay({ drawing, label, className }: DrawingReplayProps)
       let drawn = 0;
       while (index < steps.length && steps[index].at <= elapsed && drawn < 5000) {
         const step = steps[index];
-        if (step.from) drawStrokeSegment(context, step.stroke, step.from, step.to, document.color);
-        else drawStrokePoint(context, step.stroke, step.to, document.color);
+        const points = visibleStrokes.get(step.stroke);
+        if (points) points.push(step.to);
+        else visibleStrokes.set(step.stroke, [step.to]);
         index += 1;
         drawn += 1;
+      }
+      if (drawn > 0) {
+        context.clearRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
+        for (const [stroke, points] of visibleStrokes) {
+          drawDecodedStroke(context, stroke, points, document.color);
+        }
       }
       if (index < steps.length) frame = window.requestAnimationFrame(play);
     };

@@ -65,7 +65,18 @@ func TestRenderDrawingPreviewAppliesEraser(t *testing.T) {
 	}
 }
 
+func TestPencilPreviewUsesDeterministicTexture(t *testing.T) {
+	first := pencilPreviewOpacity(10, 10)
+	if first != pencilPreviewOpacity(10, 10) {
+		t.Fatal("pencil texture must be deterministic")
+	}
+	if first == pencilPreviewOpacity(11, 10) {
+		t.Fatal("pencil texture must vary between pixels")
+	}
+}
+
 func TestMapDrawing(t *testing.T) {
+	t.Setenv("PUBLIC_BASE_URL", "https://example.com")
 	id := uuid.New()
 	created := time.Now().UTC()
 	got := mapDrawing(sqlc.Drawing{
@@ -86,5 +97,11 @@ func TestMapDrawing(t *testing.T) {
 	}
 	if !strings.HasSuffix(got.PreviewUrl, "/preview.png") {
 		t.Fatalf("drawing preview URL is not server-generated PNG: %s", got.PreviewUrl)
+	}
+	if got.PreviewUrl != "https://example.com/media/drawings/"+id.String()+"/preview.png" {
+		t.Fatalf("drawing preview URL is not under media: %s", got.PreviewUrl)
+	}
+	if got.ReplayUrl != "https://example.com/api/v1/drawings/"+id.String()+"/replay" {
+		t.Fatalf("drawing replay URL is not under API v1: %s", got.ReplayUrl)
 	}
 }

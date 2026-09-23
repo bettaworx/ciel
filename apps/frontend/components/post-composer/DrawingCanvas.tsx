@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEventHandler,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { cn } from "@/lib/utils";
 import {
   DRAWING_HEIGHT,
@@ -26,6 +32,8 @@ interface DrawingCanvasProps {
   background: string;
   pencilSize: number;
   eraserSize: number;
+  onDrawingStateChange?: (isDrawing: boolean) => void;
+  onKeyDown?: KeyboardEventHandler<HTMLCanvasElement>;
   disabled?: boolean;
   className?: string;
   ariaLabel: string;
@@ -40,6 +48,8 @@ export function DrawingCanvas({
   background,
   pencilSize,
   eraserSize,
+  onDrawingStateChange,
+  onKeyDown,
   disabled = false,
   className,
   ariaLabel,
@@ -106,19 +116,30 @@ export function DrawingCanvas({
     const previous = currentPointRef.current;
     const context = canvasRef.current?.getContext("2d");
     const point = pointFromEvent(event);
-    if (!stroke || !context || !point) return;
+    if (!stroke || !context || !point) return false;
 
     stroke.points.push(encodeDrawingPoint(previous, point));
-    if (previous) drawStrokeSegment(context, stroke, previous, point, color);
-    else drawStrokePoint(context, stroke, point, color);
+    if (stroke.brush !== "pencil") {
+      if (previous) drawStrokeSegment(context, stroke, previous, point, color);
+      else drawStrokePoint(context, stroke, point, color);
+    }
     currentPointRef.current = point;
+    return true;
+  };
+
+  const renderActivePencil = () => {
+    const stroke = currentStrokeRef.current;
+    const context = canvasRef.current?.getContext("2d");
+    if (stroke?.brush === "pencil" && context) renderDrawing(context, [...strokes, stroke], color);
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (disabled || activePointerRef.current !== null) return;
     event.preventDefault();
+    event.currentTarget.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
     activePointerRef.current = event.pointerId;
+    onDrawingStateChange?.(true);
     currentStrokeRef.current = {
       tool,
       ...(tool === "pencil" ? { brush } : {}),
@@ -137,13 +158,16 @@ export function DrawingCanvas({
     event.preventDefault();
     const native = event.nativeEvent;
     const samples = native.getCoalescedEvents?.() ?? [native];
-    for (const sample of samples) appendEvent(sample);
+    let appended = false;
+    for (const sample of samples) appended = appendEvent(sample) || appended;
+    if (appended) renderActivePencil();
   };
 
   const finishStroke = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (activePointerRef.current !== event.pointerId) return;
     const stroke = currentStrokeRef.current;
     activePointerRef.current = null;
+    onDrawingStateChange?.(false);
     currentStrokeRef.current = null;
     currentPointRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -156,6 +180,7 @@ export function DrawingCanvas({
   const cancelStroke = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (activePointerRef.current !== event.pointerId) return;
     activePointerRef.current = null;
+    onDrawingStateChange?.(false);
     currentStrokeRef.current = null;
     currentPointRef.current = null;
     updateCursor(event, false);
@@ -176,6 +201,7 @@ export function DrawingCanvas({
         ref={canvasRef}
         width={DRAWING_WIDTH}
         height={DRAWING_HEIGHT}
+        tabIndex={-1}
         aria-label={ariaLabel}
         className={cn(
           "block h-full w-full cursor-none touch-none rounded-xl border border-border",
@@ -186,6 +212,7 @@ export function DrawingCanvas({
         onPointerLeave={() => setCursor(null)}
         onPointerUp={finishStroke}
         onPointerCancel={cancelStroke}
+        onKeyDown={onKeyDown}
         onContextMenu={(event) => event.preventDefault()}
       />
       {cursor && (

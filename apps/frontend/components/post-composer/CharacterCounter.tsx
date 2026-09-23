@@ -8,7 +8,6 @@ interface CharacterCounterProps {
   max: number;
   percentage: number;
   showCount: boolean;
-  showValue?: boolean;
   formatValue?: (value: number) => string;
   label?: string;
 }
@@ -21,7 +20,6 @@ export function CharacterCounter({
   max,
   percentage,
   showCount,
-  showValue = false,
   formatValue = String,
   label,
 }: CharacterCounterProps) {
@@ -81,11 +79,6 @@ export function CharacterCounter({
                 </span>
               )}
             </div>
-            {showValue && (
-              <span className={`text-xs tabular-nums ${getTextColorClass()}`}>
-                {formatValue(current)}
-              </span>
-            )}
           </button>
         </TooltipTrigger>
         <TooltipContent>

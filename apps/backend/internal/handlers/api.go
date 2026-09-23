@@ -852,6 +852,14 @@ func (h API) PostDrawings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, drawing)
 }
 
+func (h API) GetDrawingReplay(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	if h.Drawings == nil {
+		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "drawings not configured"})
+		return
+	}
+	h.Drawings.ServeReplay(w, r)
+}
+
 func (h API) GetPostsPostIdReactions(w http.ResponseWriter, r *http.Request, postId api.PostId) {
 	if h.Reactions == nil {
 		writeJSON(w, http.StatusServiceUnavailable, api.Error{Code: "service_unavailable", Message: "reactions not configured"})

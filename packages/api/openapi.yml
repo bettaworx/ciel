@@ -295,6 +295,8 @@ paths:
     $ref: ./paths/media.yml#/~1media
   /drawings:
     $ref: ./paths/drawings.yml#/~1drawings
+  /drawings/{drawingId}/replay:
+    $ref: ./paths/drawings.yml#/~1drawings~1{drawingId}~1replay
   /posts/{postId}:
     $ref: ./paths/posts.yml#/~1posts~1{postId}
   /posts/{postId}/context:

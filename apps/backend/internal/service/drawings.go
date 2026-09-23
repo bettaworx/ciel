@@ -234,11 +234,11 @@ func attachDrawingsToPosts(ctx context.Context, store *repository.Store, posts [
 }
 
 func drawingPreviewURL(id uuid.UUID) string {
-	return publicBaseURL() + "/drawings/" + id.String() + "/preview.png"
+	return publicBaseURL() + "/media/drawings/" + id.String() + "/preview.png"
 }
 
 func drawingReplayURL(id uuid.UUID) string {
-	return publicBaseURL() + "/drawings/" + id.String() + "/replay.json"
+	return publicBaseURL() + "/api/v1/drawings/" + id.String() + "/replay"
 }
 
 func (s *DrawingService) Delete(ctx context.Context, id uuid.UUID) error {
