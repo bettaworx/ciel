@@ -21,7 +21,7 @@ func validDrawingDocument() DrawingDocument {
 			Tool:  "pencil",
 			Brush: "gpen",
 			Size:  24,
-			Points: [][4]int32{
+			Points: []DrawingPoint{
 				{0, 400, 800, 512},
 				{8, 4, -2, 600},
 			},
@@ -74,11 +74,12 @@ func TestParseAndCompressDrawingRejectsInvalidData(t *testing.T) {
 		"eraser brush": func(d *DrawingDocument) {
 			d.Strokes[0].Tool = "eraser"
 		},
-		"size":     func(d *DrawingDocument) { d.Strokes[0].Size = 0 },
-		"pressure": func(d *DrawingDocument) { d.Strokes[0].Points[0][3] = 1025 },
-		"delay":    func(d *DrawingDocument) { d.Strokes[0].Points[0][0] = 60001 },
-		"bounds":   func(d *DrawingDocument) { d.Strokes[0].Points[1][1] = 5000 },
-		"empty":    func(d *DrawingDocument) { d.Strokes[0].Points = nil },
+		"size":          func(d *DrawingDocument) { d.Strokes[0].Size = 0 },
+		"pressure":      func(d *DrawingDocument) { d.Strokes[0].Points[0][3] = 1025 },
+		"delay":         func(d *DrawingDocument) { d.Strokes[0].Points[0][0] = 60001 },
+		"bounds":        func(d *DrawingDocument) { d.Strokes[0].Points[1][1] = 5000 },
+		"empty points":  func(d *DrawingDocument) { d.Strokes[0].Points = nil },
+		"empty drawing": func(d *DrawingDocument) { d.Strokes = nil },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -113,11 +114,25 @@ func TestParseAndCompressDrawingAcceptsBrushes(t *testing.T) {
 }
 
 func TestParseAndCompressDrawingRejectsUnknownAndTrailingData(t *testing.T) {
-	if _, _, err := parseAndCompressDrawing(strings.NewReader(`{"version":1,"background":"#FFFFFF","strokes":[],"extra":true}`)); err == nil {
+	if _, _, err := parseAndCompressDrawing(strings.NewReader(`{"version":1,"background":"#FFFFFF","color":"#111111","strokes":[],"extra":true}`)); err == nil {
 		t.Fatal("expected unknown field to be rejected")
 	}
-	if _, _, err := parseAndCompressDrawing(strings.NewReader(`{"version":1,"background":"#FFFFFF","strokes":[]} {}`)); err == nil {
+	if _, _, err := parseAndCompressDrawing(strings.NewReader(`{"version":1,"background":"#FFFFFF","color":"#111111","strokes":[]} {}`)); err == nil {
 		t.Fatal("expected trailing data to be rejected")
+	}
+}
+
+func TestParseAndCompressDrawingRejectsMalformedPointShape(t *testing.T) {
+	for _, point := range []string{
+		`[0,400,800]`,
+		`[0,400,800,512,1]`,
+		`[0,400,800,1.5]`,
+		`[0,400,800,"512"]`,
+	} {
+		raw := fmt.Sprintf(`{"version":1,"background":"#FFFFFF","color":"#111111","strokes":[{"tool":"pencil","brush":"round","size":24,"points":[%s]}]}`, point)
+		if _, _, err := parseAndCompressDrawing(strings.NewReader(raw)); err == nil {
+			t.Fatalf("expected malformed point %s to be rejected", point)
+		}
 	}
 }
 
@@ -169,7 +184,7 @@ func BenchmarkDrawingEncoding(b *testing.B) {
 
 func benchmarkDrawingDocument(points int, noisy bool) DrawingDocument {
 	doc := validDrawingDocument()
-	doc.Strokes[0].Points = make([][4]int32, points)
+	doc.Strokes[0].Points = make([]DrawingPoint, points)
 	doc.Strokes[0].Points[0] = [4]int32{0, 2400, 1600, 512}
 	if !noisy {
 		for i := 1; i < points; i++ {

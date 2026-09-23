@@ -37,10 +37,24 @@ type DrawingDocument struct {
 }
 
 type DrawingStroke struct {
-	Tool   string     `json:"tool"`
-	Brush  string     `json:"brush,omitempty"`
-	Size   int32      `json:"size"`
-	Points [][4]int32 `json:"points"`
+	Tool   string         `json:"tool"`
+	Brush  string         `json:"brush,omitempty"`
+	Size   int32          `json:"size"`
+	Points []DrawingPoint `json:"points"`
+}
+
+type DrawingPoint [4]int32
+
+func (p *DrawingPoint) UnmarshalJSON(data []byte) error {
+	var values []int32
+	if err := json.Unmarshal(data, &values); err != nil {
+		return err
+	}
+	if len(values) != len(p) {
+		return errors.New("drawing point must contain exactly four integers")
+	}
+	copy(p[:], values)
+	return nil
 }
 
 func parseAndCompressDrawing(src io.Reader) (DrawingDocument, []byte, error) {
@@ -96,6 +110,9 @@ func validateDrawingDocument(doc *DrawingDocument) error {
 		return errors.New("invalid drawing color")
 	}
 	doc.Color = color
+	if len(doc.Strokes) == 0 {
+		return errors.New("drawing has no strokes")
+	}
 	if len(doc.Strokes) > MaxDrawingStrokes {
 		return errDrawingTooLarge
 	}
