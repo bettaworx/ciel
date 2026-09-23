@@ -34,7 +34,7 @@ components:
           description: Size of the stored gzip replay document.
         previewBytes:
           type: integer
-          description: Size of the stored WebP preview.
+          description: Size of the server-generated PNG preview.
         previewUrl:
           type: string
           format: uri
@@ -78,6 +78,7 @@ components:
           example: 4194304
         maxPreviewBytes:
           type: integer
+          description: Maximum size of the server-generated PNG preview.
           example: 2097152
         maxStrokes:
           type: integer

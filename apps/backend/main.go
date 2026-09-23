@@ -534,7 +534,7 @@ func main() {
 	r.Get("/media/{mediaId}/video.mp4", mediaSvc.ServeVideo)
 	r.Get("/media/{mediaId}/video.webm", mediaSvc.ServeVideo)
 	r.Get("/media/{mediaId}/thumbnail.webp", mediaSvc.ServeThumbnail)
-	r.Get("/drawings/{drawingId}/preview.webp", drawingSvc.ServePreview)
+	r.Get("/drawings/{drawingId}/preview.png", drawingSvc.ServePreview)
 	r.Get("/drawings/{drawingId}/replay.json", drawingSvc.ServeReplay)
 
 	// Emoji image route (public, no auth required)

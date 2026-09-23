@@ -1,12 +1,8 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,7 +15,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"golang.org/x/image/webp"
 )
 
 const drawingMultipartOverhead = 1 << 20
@@ -47,7 +42,7 @@ func (s *DrawingService) UploadFromRequest(w http.ResponseWriter, r *http.Reques
 		return api.Drawing{}, NewError(http.StatusServiceUnavailable, "service_unavailable", "drawing storage not configured")
 	}
 
-	maxRequestBytes := int64(MaxDrawingInputBytes + MaxDrawingPreviewBytes + drawingMultipartOverhead)
+	maxRequestBytes := int64(MaxDrawingInputBytes + drawingMultipartOverhead)
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBytes)
 	if err := r.ParseMultipartForm(maxRequestBytes); err != nil {
 		var tooLarge *http.MaxBytesError
@@ -75,24 +70,12 @@ func (s *DrawingService) UploadFromRequest(w http.ResponseWriter, r *http.Reques
 		}
 		return api.Drawing{}, NewError(http.StatusBadRequest, "invalid_drawing", err.Error())
 	}
-
-	previewFile, previewHeader, err := r.FormFile("preview")
+	preview, err := renderDrawingPreview(doc)
 	if err != nil {
-		return api.Drawing{}, NewError(http.StatusBadRequest, "invalid_drawing", "preview file required")
-	}
-	defer func() { _ = previewFile.Close() }()
-	if previewHeader.Size > MaxDrawingPreviewBytes {
-		return api.Drawing{}, NewError(http.StatusRequestEntityTooLarge, "drawing_too_large", "drawing preview exceeds its limit")
-	}
-	preview, err := io.ReadAll(io.LimitReader(previewFile, MaxDrawingPreviewBytes+1))
-	if err != nil {
+		if errors.Is(err, errDrawingTooLarge) {
+			return api.Drawing{}, NewError(http.StatusRequestEntityTooLarge, "drawing_too_large", "drawing preview exceeds its limit")
+		}
 		return api.Drawing{}, err
-	}
-	if len(preview) > MaxDrawingPreviewBytes {
-		return api.Drawing{}, NewError(http.StatusRequestEntityTooLarge, "drawing_too_large", "drawing preview exceeds its limit")
-	}
-	if err := validateDrawingPreview(preview); err != nil {
-		return api.Drawing{}, NewError(http.StatusBadRequest, "invalid_drawing", err.Error())
 	}
 
 	id := uuid.New()
@@ -109,7 +92,7 @@ func (s *DrawingService) UploadFromRequest(w http.ResponseWriter, r *http.Reques
 	if err := os.WriteFile(filepath.Join(tmpDir, "strokes.json.gz"), compressed, 0o600); err != nil {
 		return api.Drawing{}, err
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "preview.webp"), preview, 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "preview.png"), preview, 0o600); err != nil {
 		return api.Drawing{}, err
 	}
 
@@ -136,33 +119,8 @@ func (s *DrawingService) UploadFromRequest(w http.ResponseWriter, r *http.Reques
 	return mapDrawing(row), nil
 }
 
-func validateDrawingPreview(data []byte) error {
-	if len(data) < 12 || string(data[:4]) != "RIFF" || string(data[8:12]) != "WEBP" {
-		return errors.New("preview must be a WebP image")
-	}
-	for offset := 12; offset+8 <= len(data); {
-		chunkType := string(data[offset : offset+4])
-		chunkSize := int(binary.LittleEndian.Uint32(data[offset+4 : offset+8]))
-		if chunkType == "ANIM" || chunkType == "ANMF" {
-			return errors.New("preview must be a static WebP image")
-		}
-		offset += 8 + chunkSize + chunkSize%2
-		if offset > len(data) {
-			return errors.New("invalid WebP preview")
-		}
-	}
-	config, err := webp.DecodeConfig(bytes.NewReader(data))
-	if err != nil {
-		return errors.New("invalid WebP preview")
-	}
-	if config.Width != DrawingWidth || config.Height != DrawingHeight {
-		return fmt.Errorf("preview must be %dx%d", DrawingWidth, DrawingHeight)
-	}
-	return nil
-}
-
 func (s *DrawingService) ServePreview(w http.ResponseWriter, r *http.Request) {
-	s.serveFile(w, r, "preview.webp", "image/webp", false)
+	s.serveFile(w, r, "preview.png", "image/png", false)
 }
 
 func (s *DrawingService) ServeReplay(w http.ResponseWriter, r *http.Request) {
@@ -276,7 +234,7 @@ func attachDrawingsToPosts(ctx context.Context, store *repository.Store, posts [
 }
 
 func drawingPreviewURL(id uuid.UUID) string {
-	return publicBaseURL() + "/drawings/" + id.String() + "/preview.webp"
+	return publicBaseURL() + "/drawings/" + id.String() + "/preview.png"
 }
 
 func drawingReplayURL(id uuid.UUID) string {
