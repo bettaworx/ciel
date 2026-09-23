@@ -75,7 +75,7 @@ function RecentColors({
           <button
             key={color}
             type="button"
-            className="h-7 w-7 rounded-full border border-border ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="h-8 w-8 rounded-full border-2 border-background shadow-sm ring-1 ring-foreground/70 ring-offset-background transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             style={{ backgroundColor: color }}
             aria-label={`${label}: ${color}`}
             onClick={() => onSelect(color)}
@@ -246,7 +246,7 @@ interface DrawingToolButtonsProps {
   onPencilSizeChange: (size: number) => void;
   eraserSize: number;
   onEraserSizeChange: (size: number) => void;
-  replyDrawing?: Drawing | null;
+  sourceDrawing?: Drawing | null;
   disabled?: boolean;
   className?: string;
 }
@@ -264,7 +264,7 @@ export function DrawingToolButtons({
   onPencilSizeChange,
   eraserSize,
   onEraserSizeChange,
-  replyDrawing,
+  sourceDrawing,
   disabled,
   className,
 }: DrawingToolButtonsProps) {
@@ -272,31 +272,31 @@ export function DrawingToolButtons({
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const [colorOpen, setColorOpen] = useState(false);
   const [backgroundOpen, setBackgroundOpen] = useState(false);
-  const [replyColor, setReplyColor] = useState<string | null>(null);
+  const [sourceColor, setSourceColor] = useState<string | null>(null);
   const [recentColors, rememberColor] = useRecentColors(RECENT_PENCIL_COLORS_KEY);
   const [recentBackgrounds, rememberBackground] = useRecentColors(RECENT_BACKGROUND_COLORS_KEY);
-  const replyReplayUrl = replyDrawing?.replayUrl;
+  const sourceReplayUrl = sourceDrawing?.replayUrl;
 
   useEffect(() => {
-    setReplyColor(null);
-    if (!replyReplayUrl) return;
+    setSourceColor(null);
+    if (!sourceReplayUrl) return;
     const controller = new AbortController();
-    void fetch(replyReplayUrl, { credentials: "include", signal: controller.signal })
+    void fetch(sourceReplayUrl, { credentials: "include", signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`Drawing replay request failed: ${response.status}`);
         return response.json() as Promise<unknown>;
       })
       .then((value) => {
         const document = parseDrawingDocument(value);
-        if (document) setReplyColor(document.color);
+        if (document) setSourceColor(document.color);
       })
       .catch((error) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
-          console.error("Reply drawing color request failed:", error);
+          console.error("Source drawing color request failed:", error);
         }
       });
     return () => controller.abort();
-  }, [replyReplayUrl]);
+  }, [sourceReplayUrl]);
 
   const selectColor = (next: string) => {
     onColorChange(next);
@@ -335,17 +335,17 @@ export function DrawingToolButtons({
         onValueCommit={rememberColor}
         ariaLabel={t("color")}
       />
-      {replyDrawing && (
+      {sourceDrawing && (
         <Button
           type="button"
           variant="outline"
           size="sm"
           className="w-full gap-2"
-          disabled={!replyColor}
-          onClick={() => replyColor && selectColor(replyColor)}
+          disabled={!sourceColor}
+          onClick={() => sourceColor && selectColor(sourceColor)}
         >
           <Copy className="h-4 w-4" />
-          {t("copyFromReply")}
+          {t("copyFromSource")}
         </Button>
       )}
       <RecentColors colors={recentColors} label={t("recentColors")} onSelect={selectColor} />
@@ -380,16 +380,16 @@ export function DrawingToolButtons({
         onValueCommit={rememberBackground}
         ariaLabel={t("background")}
       />
-      {replyDrawing && (
+      {sourceDrawing && (
         <Button
           type="button"
           variant="outline"
           size="sm"
           className="w-full gap-2"
-          onClick={() => selectBackground(replyDrawing.backgroundColor)}
+          onClick={() => selectBackground(sourceDrawing.backgroundColor)}
         >
           <Copy className="h-4 w-4" />
-          {t("copyFromReply")}
+          {t("copyFromSource")}
         </Button>
       )}
       <RecentColors

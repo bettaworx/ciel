@@ -679,7 +679,7 @@ export function PostComposerContent({
       onPencilSizeChange={setPencilSize}
       eraserSize={eraserSize}
       onEraserSizeChange={setEraserSize}
-      replyDrawing={replyDrawing}
+      sourceDrawing={replyDrawing ?? quotedPost?.drawing}
       disabled={createPostMutation.isPending || isUploading}
       className={s.toolbarButton}
     />
@@ -708,7 +708,7 @@ export function PostComposerContent({
 
   /** Quoted post preview (non-interactive) */
   const quotedPostPreview = quotedPost ? (
-    <div className={s.contentPadding}>
+    <div className={layout === "dialog" ? "mb-3 pr-3 pl-18" : "pr-0 pl-15"}>
       <div className="pointer-events-none select-none">
         <PostCard post={quotedPost} variant="embedded" isLast />
       </div>
@@ -760,7 +760,7 @@ export function PostComposerContent({
 
         {/* Scrollable content */}
         <div className="overflow-y-auto max-sm:max-h-[calc(100vh-4rem)]">
-          <div className="min-h-[200px]">
+          <div className={cn(!quotedPost && "min-h-[200px]")}>
             {composerMode === "drawing" ? drawingRow : textareaRow}
             {composerMode === "text" && ogpPreview}
             {composerMode === "text" && mediaPreview}

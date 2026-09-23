@@ -60,11 +60,12 @@ export function CreateReplyDialog({
           onDragEnter={compose.handleDragEnter}
           onDragLeave={compose.handleDragLeave}
           onDrop={compose.handleDrop}
-          className="
+          className={`
         sm:max-w-2xl
         gap-0
         p-0
         [&>button]:hidden
+        ${compose.composerMode === "drawing" ? "" : "sm:!top-6 sm:!translate-y-0"}
         max-sm:!m-3
         max-sm:!top-0
         max-sm:!left-0
@@ -77,7 +78,7 @@ export function CreateReplyDialog({
         max-sm:!max-h-[calc(100vh-24px)]
         max-sm:overflow-hidden
         z-[60]
-      "
+      `}
         >
           <DialogTitle className="sr-only">{t("createPost.replyTitle")}</DialogTitle>
 

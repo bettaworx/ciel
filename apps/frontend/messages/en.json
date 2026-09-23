@@ -718,7 +718,7 @@
         "gpen": "G-pen",
         "pencil": "Pencil"
       },
-      "copyFromReply": "Copy from replied-to drawing",
+      "copyFromSource": "Copy from source drawing",
       "recentColors": "Recent colors",
       "size": "{tool} size",
       "undo": "Undo",

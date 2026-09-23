@@ -718,7 +718,7 @@
         "gpen": "Gペン",
         "pencil": "鉛筆"
       },
-      "copyFromReply": "返信元からコピー",
+      "copyFromSource": "元のドローイングからコピー",
       "recentColors": "最近使った色",
       "size": "{tool}の太さ",
       "undo": "元に戻す",
