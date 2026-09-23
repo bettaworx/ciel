@@ -17,6 +17,7 @@ import {
   drawStrokeSegment,
   encodeDrawingPoint,
   renderDrawing,
+  stabilizeDrawingPoint,
   type DecodedDrawingPoint,
   type DrawingBrush,
   type DrawingStroke,
@@ -32,6 +33,8 @@ interface DrawingCanvasProps {
   background: string;
   pencilSize: number;
   eraserSize: number;
+  pencilStabilization: number;
+  eraserStabilization: number;
   onDrawingStateChange?: (isDrawing: boolean) => void;
   onKeyDown?: KeyboardEventHandler<HTMLCanvasElement>;
   disabled?: boolean;
@@ -48,6 +51,8 @@ export function DrawingCanvas({
   background,
   pencilSize,
   eraserSize,
+  pencilStabilization,
+  eraserStabilization,
   onDrawingStateChange,
   onKeyDown,
   disabled = false,
@@ -111,12 +116,14 @@ export function DrawingCanvas({
     };
   };
 
-  const appendEvent = (event: PointerEvent) => {
+  const appendEvent = (event: PointerEvent, finish = false) => {
     const stroke = currentStrokeRef.current;
     const previous = currentPointRef.current;
     const context = canvasRef.current?.getContext("2d");
-    const point = pointFromEvent(event);
-    if (!stroke || !context || !point) return false;
+    const inputPoint = pointFromEvent(event);
+    if (!stroke || !context || !inputPoint) return false;
+    const stabilization = stroke.tool === "pencil" ? pencilStabilization : eraserStabilization;
+    const point = stabilizeDrawingPoint(previous, inputPoint, stabilization, finish);
 
     stroke.points.push(encodeDrawingPoint(previous, point));
     if (stroke.brush !== "pencil") {
@@ -165,11 +172,16 @@ export function DrawingCanvas({
 
   const finishStroke = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (activePointerRef.current !== event.pointerId) return;
+    const stabilization =
+      currentStrokeRef.current?.tool === "pencil" ? pencilStabilization : eraserStabilization;
+    const appended = stabilization > 0 && appendEvent(event.nativeEvent, true);
+    if (appended) renderActivePencil();
     const stroke = currentStrokeRef.current;
     activePointerRef.current = null;
     onDrawingStateChange?.(false);
     currentStrokeRef.current = null;
     currentPointRef.current = null;
+    lastEventTimeRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -183,6 +195,7 @@ export function DrawingCanvas({
     onDrawingStateChange?.(false);
     currentStrokeRef.current = null;
     currentPointRef.current = null;
+    lastEventTimeRef.current = null;
     updateCursor(event, false);
     const context = canvasRef.current?.getContext("2d");
     if (context) renderDrawing(context, strokes, color);

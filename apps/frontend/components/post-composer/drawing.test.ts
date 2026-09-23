@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   addRecentDrawingColor,
   buildDrawingReplay,
@@ -8,14 +8,88 @@ import {
   drawingDocumentBytes,
   drawingHistoryShortcut,
   drawingLineWidth,
+  DEFAULT_DRAWING_PREFERENCES,
   encodeDrawingPoint,
   formatDrawingBytes,
   isDrawingBackgroundCamouflaged,
   parseDrawingDocument,
+  readDrawingPreferences,
   redoDrawing,
   type DrawingStroke,
+  stabilizeDrawingPoint,
   undoDrawing,
 } from "./drawing";
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("drawing stabilization", () => {
+  const first = { delayMs: 0, x: 0, y: 0, pressure: 500 };
+  const next = { delayMs: 12, x: 100, y: 40, pressure: 700 };
+
+  it("preserves coordinates at zero and timing and pressure when smoothing", () => {
+    expect(stabilizeDrawingPoint(first, next, 0)).toEqual(next);
+    expect(stabilizeDrawingPoint(first, next, 50)).toMatchObject({
+      delayMs: 12,
+      x: 52.5,
+      y: 21,
+      pressure: 700,
+    });
+  });
+
+  it("follows the previous corrected point more slowly at higher values", () => {
+    expect(stabilizeDrawingPoint(first, next, 80).x).toBeLessThan(
+      stabilizeDrawingPoint(first, next, 20).x,
+    );
+  });
+
+  it("converges exactly on the input endpoint when finishing", () => {
+    expect(stabilizeDrawingPoint(first, next, 100, true)).toEqual(next);
+  });
+
+  it("stores only corrected coordinates without changing the document format", () => {
+    const corrected = stabilizeDrawingPoint(first, next, 50);
+    const drawingStroke: DrawingStroke = {
+      tool: "pencil",
+      size: 24,
+      points: [encodeDrawingPoint(null, first), encodeDrawingPoint(first, corrected)],
+    };
+    const document = createDrawingDocument([drawingStroke]);
+    expect(document.version).toBe(1);
+    expect(decodeDrawingStroke(document.strokes[0])[1]).toMatchObject({ x: 52.5, y: 21 });
+  });
+});
+
+describe("drawing preferences", () => {
+  function useStored(value: string | null) {
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", { getItem: vi.fn(() => value) });
+  }
+
+  it("loads pencil and eraser stabilization independently", () => {
+    useStored(JSON.stringify({ pencilStabilization: 20, eraserStabilization: 80 }));
+    expect(readDrawingPreferences()).toMatchObject({
+      pencilStabilization: 20,
+      eraserStabilization: 80,
+    });
+  });
+
+  it("falls back for legacy, malformed, and out-of-range stored values", () => {
+    useStored(JSON.stringify({ pencilStabilization: -1, eraserStabilization: 101 }));
+    expect(readDrawingPreferences()).toMatchObject({
+      pencilStabilization: DEFAULT_DRAWING_PREFERENCES.pencilStabilization,
+      eraserStabilization: DEFAULT_DRAWING_PREFERENCES.eraserStabilization,
+    });
+
+    useStored("not json");
+    expect(readDrawingPreferences()).toEqual(DEFAULT_DRAWING_PREFERENCES);
+
+    useStored(JSON.stringify({ pencilSize: 12, eraserSize: 40 }));
+    expect(readDrawingPreferences()).toMatchObject({
+      pencilStabilization: DEFAULT_DRAWING_PREFERENCES.pencilStabilization,
+      eraserStabilization: DEFAULT_DRAWING_PREFERENCES.eraserStabilization,
+    });
+  });
+});
 
 const stroke = (x: number): DrawingStroke => ({
   tool: "pencil",

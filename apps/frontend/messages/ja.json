@@ -721,6 +721,8 @@
       "copyFromSource": "元のドローイングからコピー",
       "recentColors": "最近使った色",
       "size": "{tool}の太さ",
+      "stabilization": "手ブレ補正",
+      "stabilizationFor": "{tool}の手ブレ補正量（弱から強）",
       "undo": "元に戻す",
       "redo": "やり直す",
       "uploadError": "ドローイングの投稿に失敗しました",

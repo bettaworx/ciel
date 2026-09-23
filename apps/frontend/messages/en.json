@@ -721,6 +721,8 @@
       "copyFromSource": "Copy from source drawing",
       "recentColors": "Recent colors",
       "size": "{tool} size",
+      "stabilization": "Stabilization",
+      "stabilizationFor": "{tool} stabilization amount, low to high",
       "undo": "Undo",
       "redo": "Redo",
       "uploadError": "Failed to post drawing",

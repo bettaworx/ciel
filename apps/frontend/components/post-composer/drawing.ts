@@ -6,6 +6,10 @@ export const DRAWING_REPLAY_DURATION_MS = 3000;
 export const DRAWING_REPLAY_MAX_DELAY_MS = 32;
 export const DRAWING_PREFERENCES_KEY = "ciel:drawing:preferences";
 export const FALLBACK_MAX_DRAWING_INPUT_BYTES = 16 << 20;
+export const DRAWING_STABILIZATION_MIN = 0;
+export const DRAWING_STABILIZATION_MAX = 100;
+export const DRAWING_STABILIZATION_STEP = 10;
+export const DEFAULT_DRAWING_STABILIZATION = 0;
 
 export type DrawingTool = "pencil" | "eraser";
 export const DRAWING_BRUSHES = ["round", "gpen", "pencil"] as const;
@@ -32,6 +36,8 @@ export interface DrawingPreferences {
   background: string;
   pencilSize: number;
   eraserSize: number;
+  pencilStabilization: number;
+  eraserStabilization: number;
 }
 
 export const DEFAULT_DRAWING_PREFERENCES: DrawingPreferences = {
@@ -40,7 +46,18 @@ export const DEFAULT_DRAWING_PREFERENCES: DrawingPreferences = {
   background: DRAWING_BACKGROUND,
   pencilSize: 6,
   eraserSize: 32,
+  pencilStabilization: DEFAULT_DRAWING_STABILIZATION,
+  eraserStabilization: DEFAULT_DRAWING_STABILIZATION,
 };
+
+function validStabilization(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= DRAWING_STABILIZATION_MIN &&
+    value <= DRAWING_STABILIZATION_MAX
+  );
+}
 
 export function readDrawingPreferences(): DrawingPreferences {
   if (typeof window === "undefined") return { ...DEFAULT_DRAWING_PREFERENCES };
@@ -67,6 +84,12 @@ export function readDrawingPreferences(): DrawingPreferences {
         Number.isInteger(value.eraserSize) && value.eraserSize! >= 4 && value.eraserSize! <= 128
           ? value.eraserSize!
           : DEFAULT_DRAWING_PREFERENCES.eraserSize,
+      pencilStabilization: validStabilization(value.pencilStabilization)
+        ? value.pencilStabilization
+        : DEFAULT_DRAWING_PREFERENCES.pencilStabilization,
+      eraserStabilization: validStabilization(value.eraserStabilization)
+        ? value.eraserStabilization
+        : DEFAULT_DRAWING_PREFERENCES.eraserStabilization,
     };
   } catch {
     return { ...DEFAULT_DRAWING_PREFERENCES };
@@ -113,6 +136,23 @@ export interface DecodedDrawingPoint {
   x: number;
   y: number;
   pressure: number;
+}
+
+/** Smooths coordinates while leaving timing and pressure data untouched. */
+export function stabilizeDrawingPoint(
+  previous: DecodedDrawingPoint | null,
+  point: DecodedDrawingPoint,
+  stabilization: number,
+  finish = false,
+): DecodedDrawingPoint {
+  if (!previous || stabilization <= DRAWING_STABILIZATION_MIN || finish) return { ...point };
+  const normalized = Math.min(DRAWING_STABILIZATION_MAX, stabilization) / DRAWING_STABILIZATION_MAX;
+  const follow = 1 - normalized * 0.95;
+  return {
+    ...point,
+    x: previous.x + (point.x - previous.x) * follow,
+    y: previous.y + (point.y - previous.y) * follow,
+  };
 }
 
 export interface DrawingReplayStep {
