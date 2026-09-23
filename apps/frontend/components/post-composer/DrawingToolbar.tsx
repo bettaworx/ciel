@@ -16,6 +16,9 @@ import type { components } from "@/lib/api/api";
 import {
   addRecentDrawingColor,
   DRAWING_BRUSHES,
+  DRAWING_STABILIZATION_MAX,
+  DRAWING_STABILIZATION_MIN,
+  DRAWING_STABILIZATION_STEP,
   parseDrawingDocument,
   type DrawingBrush,
   type DrawingTool,
@@ -94,6 +97,8 @@ interface ToolButtonProps {
   onSizeChange: (size: number) => void;
   min: number;
   max: number;
+  stabilization: number;
+  onStabilizationChange: (value: number) => void;
   disabled?: boolean;
   className?: string;
   brush?: DrawingBrush;
@@ -138,6 +143,8 @@ function ToolButton({
   onSizeChange,
   min,
   max,
+  stabilization,
+  onStabilizationChange,
   disabled,
   className,
   brush,
@@ -206,6 +213,19 @@ function ToolButton({
         value={[size]}
         onValueChange={([value]) => onSizeChange(value)}
       />
+      <div className="flex items-center justify-between gap-4 pt-1">
+        <Label htmlFor={`drawing-${tool}-stabilization`}>{t("stabilization")}</Label>
+        <span className="text-sm tabular-nums text-muted-foreground">{stabilization}%</span>
+      </div>
+      <Slider
+        id={`drawing-${tool}-stabilization`}
+        min={DRAWING_STABILIZATION_MIN}
+        max={DRAWING_STABILIZATION_MAX}
+        step={DRAWING_STABILIZATION_STEP}
+        value={[stabilization]}
+        onValueChange={([value]) => onStabilizationChange(value)}
+        aria-label={t("stabilizationFor", { tool: label })}
+      />
     </div>
   );
 
@@ -246,6 +266,10 @@ interface DrawingToolButtonsProps {
   onPencilSizeChange: (size: number) => void;
   eraserSize: number;
   onEraserSizeChange: (size: number) => void;
+  pencilStabilization: number;
+  onPencilStabilizationChange: (value: number) => void;
+  eraserStabilization: number;
+  onEraserStabilizationChange: (value: number) => void;
   sourceDrawing?: Drawing | null;
   disabled?: boolean;
   className?: string;
@@ -264,6 +288,10 @@ export function DrawingToolButtons({
   onPencilSizeChange,
   eraserSize,
   onEraserSizeChange,
+  pencilStabilization,
+  onPencilStabilizationChange,
+  eraserStabilization,
+  onEraserStabilizationChange,
   sourceDrawing,
   disabled,
   className,
@@ -410,6 +438,8 @@ export function DrawingToolButtons({
         onSizeChange={onPencilSizeChange}
         min={1}
         max={48}
+        stabilization={pencilStabilization}
+        onStabilizationChange={onPencilStabilizationChange}
         brush={brush}
         onBrushChange={onBrushChange}
         disabled={disabled}
@@ -423,6 +453,8 @@ export function DrawingToolButtons({
         onSizeChange={onEraserSizeChange}
         min={4}
         max={128}
+        stabilization={eraserStabilization}
+        onStabilizationChange={onEraserStabilizationChange}
         disabled={disabled}
         className={className}
       />

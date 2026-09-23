@@ -152,6 +152,12 @@ export function PostComposerContent({
   const [drawingColor, setDrawingColor] = useState(initialDrawingPreferences.color);
   const [pencilSize, setPencilSize] = useState(initialDrawingPreferences.pencilSize);
   const [eraserSize, setEraserSize] = useState(initialDrawingPreferences.eraserSize);
+  const [pencilStabilization, setPencilStabilization] = useState(
+    initialDrawingPreferences.pencilStabilization,
+  );
+  const [eraserStabilization, setEraserStabilization] = useState(
+    initialDrawingPreferences.eraserStabilization,
+  );
   const [isDrawingStroke, setIsDrawingStroke] = useState(false);
   const [discardDrawingOpen, setDiscardDrawingOpen] = useState(false);
   const hadTypedContentRef = useRef(false);
@@ -225,8 +231,18 @@ export function PostComposerContent({
       background: drawingBackground,
       pencilSize,
       eraserSize,
+      pencilStabilization,
+      eraserStabilization,
     });
-  }, [drawingBrush, drawingColor, drawingBackground, pencilSize, eraserSize]);
+  }, [
+    drawingBrush,
+    drawingColor,
+    drawingBackground,
+    pencilSize,
+    eraserSize,
+    pencilStabilization,
+    eraserStabilization,
+  ]);
 
   useEffect(() => {
     if (placeholderOverride !== undefined) {
@@ -651,6 +667,8 @@ export function PostComposerContent({
           background={drawingBackground}
           pencilSize={pencilSize}
           eraserSize={eraserSize}
+          pencilStabilization={pencilStabilization}
+          eraserStabilization={eraserStabilization}
           onDrawingStateChange={setIsDrawingStroke}
           onKeyDown={handleDrawingKeyDown}
           disabled={createPostMutation.isPending || isUploading}
@@ -679,6 +697,10 @@ export function PostComposerContent({
       onPencilSizeChange={setPencilSize}
       eraserSize={eraserSize}
       onEraserSizeChange={setEraserSize}
+      pencilStabilization={pencilStabilization}
+      onPencilStabilizationChange={setPencilStabilization}
+      eraserStabilization={eraserStabilization}
+      onEraserStabilizationChange={setEraserStabilization}
       sourceDrawing={replyDrawing ?? quotedPost?.drawing}
       disabled={createPostMutation.isPending || isUploading}
       className={s.toolbarButton}
