@@ -100,6 +100,36 @@ interface ToolButtonProps {
   onBrushChange?: (brush: DrawingBrush) => void;
 }
 
+function BrushPreview({ brush }: { brush: DrawingBrush }) {
+  const path = "M2 14 C12 3 22 3 32 14 S52 25 62 14";
+
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 64 28"
+      className="h-7 w-16 shrink-0"
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {brush === "gpen" ? (
+        <>
+          <path d="M2 14 C8 7 14 4 20 6" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M20 6 C28 8 31 21 40 21" stroke="currentColor" strokeWidth="4.5" />
+          <path d="M40 21 C48 20 54 11 62 14" stroke="currentColor" strokeWidth="2.5" />
+        </>
+      ) : (
+        <path
+          d={path}
+          stroke="currentColor"
+          strokeWidth={brush === "round" ? 4 : 2.25}
+          opacity={brush === "pencil" ? 0.58 : 1}
+        />
+      )}
+    </svg>
+  );
+}
+
 function ToolButton({
   tool,
   activeTool,
@@ -147,17 +177,18 @@ function ToolButton({
       {tool === "pencil" && brush && onBrushChange && (
         <div className="space-y-2">
           <Label>{t("brush")}</Label>
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid gap-1">
             {DRAWING_BRUSHES.map((item) => (
               <Button
                 key={item}
                 type="button"
                 variant={brush === item ? "secondary" : "ghost"}
                 size="sm"
-                className="justify-start"
+                className="h-11 justify-between gap-3 px-3"
                 onClick={() => onBrushChange(item)}
               >
-                {t(`brushes.${item}`)}
+                <span>{t(`brushes.${item}`)}</span>
+                <BrushPreview brush={item} />
               </Button>
             ))}
           </div>
