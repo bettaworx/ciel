@@ -234,7 +234,7 @@ func attachDrawingsToPosts(ctx context.Context, store *repository.Store, posts [
 }
 
 func drawingPreviewURL(id uuid.UUID) string {
-	return publicBaseURL() + "/media/drawings/" + id.String() + "/preview.png"
+	return publicBaseURL() + "/media/" + id.String()
 }
 
 func drawingReplayURL(id uuid.UUID) string {

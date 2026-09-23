@@ -95,10 +95,7 @@ func TestMapDrawing(t *testing.T) {
 	if !strings.Contains(got.PreviewUrl, id.String()) || !strings.Contains(got.ReplayUrl, id.String()) {
 		t.Fatalf("drawing URLs do not contain id: %#v", got)
 	}
-	if !strings.HasSuffix(got.PreviewUrl, "/preview.png") {
-		t.Fatalf("drawing preview URL is not server-generated PNG: %s", got.PreviewUrl)
-	}
-	if got.PreviewUrl != "https://example.com/media/drawings/"+id.String()+"/preview.png" {
+	if got.PreviewUrl != "https://example.com/media/"+id.String() {
 		t.Fatalf("drawing preview URL is not under media: %s", got.PreviewUrl)
 	}
 	if got.ReplayUrl != "https://example.com/api/v1/drawings/"+id.String()+"/replay" {
