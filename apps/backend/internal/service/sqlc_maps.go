@@ -26,6 +26,7 @@ func mapPostRow(row sqlc.GetPostWithAuthorByIDRow) api.Post {
 	}
 	return api.Post{
 		Id:            row.ID,
+		Mode:          api.PostModeStandard,
 		Content:       row.Content,
 		Media:         []api.Media{},
 		Reactions:     []api.ReactionCount{},
@@ -44,6 +45,7 @@ func mapPostRow(row sqlc.GetPostWithAuthorByIDRow) api.Post {
 func mapPostsByUsernameRow(row sqlc.ListPostsByUsernameRow) api.Post {
 	return api.Post{
 		Id:            row.ID,
+		Mode:          api.PostModeStandard,
 		Content:       row.Content,
 		Media:         []api.Media{},
 		Reactions:     []api.ReactionCount{},
@@ -62,6 +64,7 @@ func mapPostsByUsernameRow(row sqlc.ListPostsByUsernameRow) api.Post {
 func mapRepliesRow(row sqlc.ListRepliesByParentIDRow) api.Post {
 	return api.Post{
 		Id:          row.ID,
+		Mode:        api.PostModeStandard,
 		Content:     row.Content,
 		Media:       []api.Media{},
 		Reactions:   []api.ReactionCount{},
@@ -78,6 +81,7 @@ func mapRepliesRow(row sqlc.ListRepliesByParentIDRow) api.Post {
 func mapThreadChildrenRow(row sqlc.ListThreadChildrenPageRow) api.Post {
 	return api.Post{
 		Id:          row.ID,
+		Mode:        api.PostModeStandard,
 		Content:     row.Content,
 		Media:       []api.Media{},
 		Reactions:   []api.ReactionCount{},

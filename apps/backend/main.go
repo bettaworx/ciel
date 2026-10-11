@@ -517,6 +517,7 @@ func main() {
 	}
 
 	mediaSvc := service.NewMediaService(store, absMediaDir, configMgr.Get().Media, mediaInitErr)
+	drawingSvc := service.NewDrawingService(store, absMediaDir, mediaInitErr)
 	emojiSvc := service.NewEmojiService(store, mediaSvc, cacheImpl)
 	ogpSvc := service.NewOGPService(ogp.NewClient(), cacheImpl)
 
@@ -533,6 +534,7 @@ func main() {
 	r.Get("/media/{mediaId}/video.mp4", mediaSvc.ServeVideo)
 	r.Get("/media/{mediaId}/video.webm", mediaSvc.ServeVideo)
 	r.Get("/media/{mediaId}/thumbnail.webp", mediaSvc.ServeThumbnail)
+	r.Get("/media/{drawingId}", drawingSvc.ServePreview)
 
 	// Emoji image route (public, no auth required)
 	r.Get("/emoji/{emojiId}/image.webp", mediaSvc.ServeEmojiImage)
@@ -551,6 +553,7 @@ func main() {
 		Bookmarks:     bookmarksSvc,
 		Notifications: notificationsSvc,
 		Media:         mediaSvc,
+		Drawings:      drawingSvc,
 		Emojis:        emojiSvc,
 		OGP:           ogpSvc,
 		Setup:         setupSvc,

@@ -68,3 +68,36 @@ describe("createApiClient session refresh", () => {
     expect(onSessionExpired).not.toHaveBeenCalled();
   });
 });
+
+describe("drawing uploads", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("only sends replay JSON so the server can generate the preview", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      jsonResponse({
+        id: "00000000-0000-0000-0000-000000000001",
+        formatVersion: 1,
+        backgroundColor: "#FFFFFF",
+        width: 1200,
+        height: 800,
+        dataBytes: 10,
+        previewBytes: 10,
+        previewUrl: "https://example.com/preview.png",
+        replayUrl: "https://example.com/replay.json",
+        createdAt: "2026-09-22T00:00:00Z",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = createApiClient({ baseUrl: "https://example.com" });
+    await api.uploadDrawing(new Blob(["{}"], { type: "application/json" }));
+
+    const body = fetchMock.mock.calls[0][1]?.body;
+    expect(body).toBeInstanceOf(FormData);
+    const form = body as FormData;
+    expect((form.get("data") as File).type).toBe("application/json");
+    expect(form.has("preview")).toBe(false);
+  });
+});

@@ -239,9 +239,60 @@ DELETE FROM users
 WHERE id = $1;
 
 -- name: CreatePost :one
-INSERT INTO posts (user_id, content, parent_id, root_id, reference_id)
-VALUES ($1, $2, sqlc.narg('parent_id'), sqlc.narg('root_id'), sqlc.narg('reference_id'))
-RETURNING id, user_id, content, parent_id, root_id, reference_id, created_at, deleted_at;
+INSERT INTO posts (user_id, content, parent_id, root_id, reference_id, drawing_id)
+VALUES ($1, $2, sqlc.narg('parent_id'), sqlc.narg('root_id'), sqlc.narg('reference_id'), sqlc.narg('drawing_id'))
+RETURNING id, user_id, content, parent_id, root_id, reference_id, drawing_id, created_at, deleted_at;
+
+-- name: CreateDrawing :one
+INSERT INTO drawings (id, user_id, format_version, background_color, width, height, data_bytes, preview_bytes)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING *;
+
+-- name: GetDrawingByID :one
+SELECT * FROM drawings WHERE id = $1;
+
+-- name: IsDrawingPublic :one
+SELECT
+  EXISTS(
+    SELECT 1 FROM posts p
+    WHERE p.drawing_id = sqlc.arg('drawing_id')::uuid
+      AND p.deleted_at IS NULL
+      AND p.visibility = 'public'
+      AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
+  ) AS is_public,
+  EXISTS(
+    SELECT 1 FROM posts p
+    JOIN users u ON u.id = p.user_id
+    WHERE p.drawing_id = sqlc.arg('drawing_id')::uuid
+      AND p.deleted_at IS NULL
+      AND u.is_private
+  ) AS is_restricted;
+
+-- name: GetOwnedDrawingForAttach :one
+SELECT * FROM drawings
+WHERE id = sqlc.arg('id')::uuid
+  AND user_id = sqlc.arg('user_id')::uuid
+  AND NOT EXISTS (SELECT 1 FROM posts WHERE drawing_id = drawings.id)
+FOR UPDATE;
+
+-- name: DeleteDrawingByID :exec
+DELETE FROM drawings WHERE id = $1;
+
+-- name: ListDrawingsForPosts :many
+SELECT
+  p.id AS post_id,
+  d.id,
+  d.user_id,
+  d.format_version,
+  d.background_color,
+  d.width,
+  d.height,
+  d.data_bytes,
+  d.preview_bytes,
+  d.created_at
+FROM posts p
+JOIN drawings d ON d.id = p.drawing_id
+WHERE p.id = ANY(sqlc.arg('post_ids')::uuid[]);
 
 -- name: GetPostWithAuthorByID :one
 -- viewer_id is NULL for anonymous readers, which can_view_user treats as the
@@ -638,6 +689,7 @@ WHERE p.deleted_at IS NULL
 	-- of its own there would be nothing left in the card to show.
 	AND NOT (
 		p.content = ''
+		AND p.drawing_id IS NULL
 		AND rp.id IS NOT NULL
 		AND rp.user_id = ANY(COALESCE(sqlc.arg('hidden_ids')::uuid[], '{}'))
 	)
@@ -1973,7 +2025,7 @@ WHERE n.user_id = sqlc.arg('user_id')::uuid
 	AND (sqlc.narg('types')::text[] IS NULL OR n.type = ANY(sqlc.narg('types')::text[]))
 GROUP BY n.type, (CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), CAST((n.created_at AT TIME ZONE sqlc.arg('tz')::text) AS date), (CASE
 		WHEN n.type = 'reaction' THEN NULL
-		WHEN n.type = 'boost' AND p.content = '' AND p.reference_id IS NOT NULL THEN NULL
+		WHEN n.type = 'boost' AND p.content = '' AND p.drawing_id IS NULL AND p.reference_id IS NOT NULL THEN NULL
 		WHEN n.type = 'follow' THEN NULL
 		ELSE n.id
 	END)
@@ -2025,7 +2077,7 @@ WHERE n.user_id = sqlc.arg('user_id')::uuid
 	AND (
 		n.type = 'reaction'
 		OR n.type = 'follow'
-		OR (n.type = 'boost' AND p.content = '' AND p.reference_id IS NOT NULL)
+		OR (n.type = 'boost' AND p.content = '' AND p.drawing_id IS NULL AND p.reference_id IS NOT NULL)
 	)
 	AND COALESCE((CASE WHEN n.type = 'boost' THEN p.reference_id ELSE n.post_id END), '00000000-0000-0000-0000-000000000000'::uuid)
 		= ANY(sqlc.arg('group_targets')::uuid[])
@@ -2427,6 +2479,7 @@ WHERE p.deleted_at IS NULL
 	-- feed under a visible booster's name.
 	AND NOT (
 		p.content = ''
+		AND p.drawing_id IS NULL
 		AND rp.id IS NOT NULL
 		AND rp.user_id = ANY(COALESCE(sqlc.arg('hidden_ids')::uuid[], '{}'))
 	)
@@ -2457,6 +2510,7 @@ WHERE p.deleted_at IS NULL
 	AND NOT (p.user_id = ANY(COALESCE(sqlc.arg('hidden_ids')::uuid[], '{}')))
 	AND NOT (
 		p.content = ''
+		AND p.drawing_id IS NULL
 		AND rp.id IS NOT NULL
 		AND rp.user_id = ANY(COALESCE(sqlc.arg('hidden_ids')::uuid[], '{}'))
 	)

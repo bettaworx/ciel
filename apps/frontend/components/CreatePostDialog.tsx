@@ -9,7 +9,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
-import { PostComposerContent } from "./post-composer/PostComposerContent";
+import { fullscreenDialogClass, PostComposerContent } from "./post-composer/PostComposerContent";
+import { useComposerFullscreen } from "./post-composer/useComposerFullscreen";
+import { useDrawingDialogClose } from "./post-composer/useDrawingDialogClose";
 
 // Types
 interface CreatePostDialogProps {
@@ -57,13 +59,12 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
   const compose = useComposePost({
     onSuccess: () => onOpenChange(false),
   });
+  const { fullscreen, onFullscreenToggle } = useComposerFullscreen();
+  const drawingClose = useDrawingDialogClose(compose, () => onOpenChange(false));
 
   const handleOpenChange = (newOpen: boolean) => {
-    // Don't allow closing while posting
-    if (!newOpen && (compose.createPostMutation.isPending || compose.isUploading)) {
-      return;
-    }
-    onOpenChange(newOpen);
+    if (newOpen) onOpenChange(true);
+    else drawingClose.requestClose();
   };
 
   // Static (non-interactive) avatar for the dialog
@@ -77,20 +78,22 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
   );
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        onDragOver={compose.handleDragOver}
-        onDragEnter={compose.handleDragEnter}
-        onDragLeave={compose.handleDragLeave}
-        onDrop={compose.handleDrop}
-        className="
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent
+          onDragOver={compose.handleDragOver}
+          onDragEnter={compose.handleDragEnter}
+          onDragLeave={compose.handleDragLeave}
+          onDrop={compose.handleDrop}
+          className={
+            fullscreen
+              ? `gap-0 p-0 [&>button]:hidden z-[60] ${fullscreenDialogClass}`
+              : `
         sm:max-w-2xl
         gap-0
         p-0
         [&>button]:hidden
-        sm:!top-6
-        sm:!translate-y-0
-        sm:m-6
+        ${compose.composerMode === "drawing" ? "" : "sm:!top-6 sm:!translate-y-0"}
         max-sm:!m-3
         max-sm:!top-0
         max-sm:!left-0
@@ -103,19 +106,24 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
         max-sm:!max-h-[calc(100vh-24px)]
         max-sm:overflow-hidden
         z-[60]
-      "
-      >
-        {/* Visually hidden title for accessibility */}
-        <DialogTitle className="sr-only">{t("createPost.title")}</DialogTitle>
+      `
+          }
+        >
+          {/* Visually hidden title for accessibility */}
+          <DialogTitle className="sr-only">{t("createPost.title")}</DialogTitle>
 
-        <PostComposerContent
-          layout="dialog"
-          compose={compose}
-          avatar={avatarElement}
-          onClose={() => handleOpenChange(false)}
-          closeDisabled={compose.createPostMutation.isPending || compose.isUploading}
-        />
-      </DialogContent>
-    </Dialog>
+          <PostComposerContent
+            layout="dialog"
+            compose={compose}
+            avatar={avatarElement}
+            onClose={() => handleOpenChange(false)}
+            fullscreen={fullscreen}
+            onFullscreenToggle={onFullscreenToggle}
+            closeDisabled={compose.createPostMutation.isPending || compose.isUploading}
+          />
+        </DialogContent>
+      </Dialog>
+      {drawingClose.confirmation}
+    </>
   );
 }

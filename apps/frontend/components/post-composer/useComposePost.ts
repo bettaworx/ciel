@@ -13,7 +13,14 @@ import {
 import { useTranslations } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCreatePost, useUploadMedia, useMediaLimits, queryKeys } from "@/lib/hooks/use-queries";
+import {
+  useCreatePost,
+  useUploadDrawing,
+  useUploadMedia,
+  useMediaLimits,
+  useServerConfig,
+  queryKeys,
+} from "@/lib/hooks/use-queries";
 import { ApiHttpError } from "@/lib/api/client";
 import { extractFirstUrl } from "@/lib/ogp/extract-url";
 import type { components } from "@/lib/api/api";
@@ -37,6 +44,15 @@ import {
 import { loadQualityMode, saveQualityMode } from "@/lib/media/quality-preference";
 import type { VideoQualityMode } from "@/lib/media/normalize";
 import type { QualityMode } from "./MediaQualityPicker";
+import type { ComposerMode } from "./composerMode";
+import {
+  createDrawingUpload,
+  FALLBACK_MAX_DRAWING_INPUT_BYTES,
+  FALLBACK_MAX_DRAWING_POINTS,
+  FALLBACK_MAX_DRAWING_STROKES,
+  readDrawingPreferences,
+  type DrawingStroke,
+} from "./drawing";
 
 /** Dot-by-dot keeps original pixels, which only means something for a still. */
 const isVideoMode = (mode: QualityMode): mode is VideoQualityMode => mode !== "dot-by-dot";
@@ -124,10 +140,17 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const { onSuccess, autoResize = true, parentId, contentPrefix, referenceId } = options;
   const t = useTranslations();
   const mediaLimits = useMediaLimits();
+  const { data: serverConfig } = useServerConfig();
   const queryClient = useQueryClient();
 
   // State
   const [content, setContent] = useState("");
+  const [composerMode, setComposerMode] = useState<ComposerMode>("text");
+  const [drawingStrokes, setDrawingStrokes] = useState<DrawingStroke[]>([]);
+  const [redoStrokes, setRedoStrokes] = useState<DrawingStroke[]>([]);
+  const [drawingBackground, setDrawingBackground] = useState(
+    () => readDrawingPreferences().background,
+  );
   const [images, setImages] = useState<LocalImage[]>([]);
   const [video, setVideo] = useState<LocalVideo | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -157,9 +180,14 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   // Mutations
   const createPostMutation = useCreatePost();
   const uploadMediaMutation = useUploadMedia();
+  const uploadDrawingMutation = useUploadDrawing();
 
   // Computed values
   const maxContentLength = mediaLimits.maxPostContentLength;
+  const maxDrawingInputBytes =
+    serverConfig?.drawingLimits.maxInputBytes ?? FALLBACK_MAX_DRAWING_INPUT_BYTES;
+  const maxDrawingStrokes = serverConfig?.drawingLimits.maxStrokes ?? FALLBACK_MAX_DRAWING_STROKES;
+  const maxDrawingPoints = serverConfig?.drawingLimits.maxPoints ?? FALLBACK_MAX_DRAWING_POINTS;
   const contentLength = content.length;
   const contentPercentage = (contentLength / maxContentLength) * 100;
   const showCharacterCount = contentPercentage >= CHARACTER_COUNT_THRESHOLD;
@@ -169,7 +197,11 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const hasMedia = hasImages || hasVideo;
   const isContentValid = contentLength <= maxContentLength;
   const isDropDisabled =
-    hasVideo || images.length >= MAX_IMAGES || createPostMutation.isPending || isUploading;
+    composerMode === "drawing" ||
+    hasVideo ||
+    images.length >= MAX_IMAGES ||
+    createPostMutation.isPending ||
+    isUploading;
   /** Image upload is disabled when a video is attached or max images reached */
   const isImageUploadDisabled =
     hasVideo || images.length >= MAX_IMAGES || createPostMutation.isPending || isUploading;
@@ -745,6 +777,25 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     toast.error(kind === "video" ? t("createPost.videoUploadError") : t("createPost.uploadError"));
   };
 
+  const completePost = () => {
+    if (parentId) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.post(parentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.postContext(parentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.replies(parentId) });
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "postThread",
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "ownerReplyThread",
+      });
+    }
+    if (referenceId) queryClient.invalidateQueries({ queryKey: queryKeys.post(referenceId) });
+
+    toast.success(t("createPost.success"));
+    resetForm();
+    onSuccess?.();
+  };
+
   const handlePost = async () => {
     if (!canPost) return;
 
@@ -841,34 +892,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
         referenceId,
       } as components["schemas"]["CreatePostRequest"]);
 
-      // For replies, refresh the parent post (replyCount) and reply list
-      if (parentId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.post(parentId) });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.postContext(parentId),
-        });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.replies(parentId),
-        });
-        queryClient.invalidateQueries({
-          predicate: (query) => query.queryKey[0] === "postThread",
-        });
-        queryClient.invalidateQueries({
-          predicate: (query) => query.queryKey[0] === "ownerReplyThread",
-        });
-      }
-
-      if (referenceId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.post(referenceId) });
-      }
-
-      toast.success(t("createPost.success"));
-
-      // Reset form
-      resetForm();
-
-      // Call success callback
-      onSuccess?.();
+      completePost();
     } catch (error) {
       toast.error(t("createPost.error"));
       console.error("Post creation failed:", error);
@@ -877,8 +901,34 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     }
   };
 
+  const handleDrawingPost = async (strokes: DrawingStroke[], color: string) => {
+    if (strokes.length === 0 || createPostMutation.isPending || isUploading) return false;
+
+    try {
+      setIsUploading(true);
+      const upload = await createDrawingUpload(strokes, drawingBackground, color);
+      const drawing = await uploadDrawingMutation.mutateAsync(upload);
+      await createPostMutation.mutateAsync({
+        drawingId: drawing.id,
+        parentId,
+        referenceId,
+      });
+      completePost();
+      return true;
+    } catch (error) {
+      toast.error(t("createPost.drawing.uploadError"));
+      console.error("Drawing post creation failed:", error);
+      return false;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const resetForm = () => {
     setContent("");
+    setComposerMode("text");
+    setDrawingStrokes([]);
+    setRedoStrokes([]);
     // Revoke all blob URLs on reset
     for (const img of images) {
       URL.revokeObjectURL(img.originalPreviewUrl);
@@ -909,6 +959,14 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     // State
     content,
     setContent,
+    composerMode,
+    setComposerMode,
+    drawingStrokes,
+    setDrawingStrokes,
+    redoStrokes,
+    setRedoStrokes,
+    drawingBackground,
+    setDrawingBackground,
     images,
     video,
     isUploading,
@@ -937,6 +995,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     handleCropDialogOpenChange,
     handleCropComplete,
     handlePost,
+    handleDrawingPost,
     handleDragOver,
     handleDragEnter,
     handleDragLeave,
@@ -944,6 +1003,9 @@ export function useComposePost(options: UseComposePostOptions = {}) {
 
     // Computed
     maxContentLength,
+    maxDrawingInputBytes,
+    maxDrawingStrokes,
+    maxDrawingPoints,
     contentLength,
     contentPercentage,
     showCharacterCount,
@@ -966,6 +1028,7 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     // Mutations
     createPostMutation,
     uploadMediaMutation,
+    uploadDrawingMutation,
 
     // Utilities
     resetForm,

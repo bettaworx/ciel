@@ -404,6 +404,16 @@ func TestIntegration_PostContext(t *testing.T) {
 	reply, _ := createReply(t, client, base, a, "reply", root.Id)
 	nested, _ := createReply(t, client, base, a, "nested", reply.Id)
 
+	directResp := get(t, client, base+"/api/v1/posts/"+reply.Id.String()+"/context", nil)
+	if directResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, directResp)
+		t.Fatalf("direct reply context: expected 200, got %d (%v)", directResp.StatusCode, errBody)
+	}
+	directContext := decodeJSON[api.PostContext](t, directResp)
+	if directContext.Parent == nil || directContext.Parent.ReplyCount != 1 {
+		t.Fatalf("direct reply parent details were not hydrated: %+v", directContext.Parent)
+	}
+
 	resp := get(t, client, base+"/api/v1/posts/"+nested.Id.String()+"/context", nil)
 	if resp.StatusCode != http.StatusOK {
 		errBody := decodeJSON[map[string]any](t, resp)

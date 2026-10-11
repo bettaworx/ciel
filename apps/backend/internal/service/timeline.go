@@ -169,6 +169,9 @@ func (s *TimelineService) hydratePosts(ctx context.Context, posts []api.Post, us
 	if err := s.attachMediaToPosts(ctx, posts); err != nil {
 		return nil, err
 	}
+	if err := attachDrawingsToPosts(ctx, s.store, posts); err != nil {
+		return nil, err
+	}
 	if err := s.attachViewerStateToPosts(ctx, posts, userID); err != nil {
 		return nil, err
 	}
@@ -621,6 +624,7 @@ func (s *TimelineService) attachReplyCountsToPosts(ctx context.Context, posts []
 func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 	return api.Post{
 		Id:            row.ID,
+		Mode:          api.PostModeStandard,
 		Content:       row.Content,
 		Media:         []api.Media{},
 		Reactions:     []api.ReactionCount{},
@@ -639,6 +643,7 @@ func mapTimelineRow(row sqlc.ListTimelinePostsRow) api.Post {
 func mapPostsByIDsRow(row sqlc.GetPostsByIDsRow) api.Post {
 	return api.Post{
 		Id:            row.ID,
+		Mode:          api.PostModeStandard,
 		Content:       row.Content,
 		Media:         []api.Media{},
 		Reactions:     []api.ReactionCount{},

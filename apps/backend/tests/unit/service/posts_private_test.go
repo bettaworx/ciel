@@ -135,13 +135,14 @@ func TestPostsService_Create_PrivateAuthorPublishesOnlyToFollowers(t *testing.T)
 	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO posts`).
-		WithArgs(userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at"}).
-			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}))
+		WithArgs(userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "drawing_id", "created_at", "deleted_at"}).
+			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}))
 	mock.ExpectCommit()
 	expectGetPostWithAuthor(mock, api.PostId(postID), userID, created, userCreated)
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(postID).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	expectNoDrawings(mock)
 	expectListMentions(mock)
 	expectCountReplies(mock)
 	expectCountBoosts(mock)

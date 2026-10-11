@@ -41,13 +41,14 @@ func TestPostsService_Create_PublishesEvent(t *testing.T) {
 	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO posts`).
-		WithArgs(userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at"}).
-			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}))
+		WithArgs(userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "drawing_id", "created_at", "deleted_at"}).
+			AddRow(postID, userID, "hello", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}))
 	mock.ExpectCommit()
 	expectGetPostWithAuthor(mock, api.PostId(postID), userID, created, userCreated)
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(postID).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	expectNoDrawings(mock)
 	expectListMentions(mock)
 	expectCountReplies(mock)
 	expectCountBoosts(mock)
@@ -88,9 +89,9 @@ func TestPostsService_Create_BoostOnlyWithReferenceID(t *testing.T) {
 	mock.ExpectBegin()
 	expectPostThreadInfo(mock, referenceID, referenceAuthorID, false)
 	mock.ExpectQuery(`INSERT INTO posts`).
-		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "created_at", "deleted_at"}).
-			AddRow(postID, userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}, created, sql.NullTime{Valid: false}))
+		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}, uuid.NullUUID{}).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "drawing_id", "created_at", "deleted_at"}).
+			AddRow(postID, userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}, uuid.NullUUID{}, created, sql.NullTime{Valid: false}))
 	// Boosting someone else's post notifies its author.
 	mock.ExpectQuery(`INSERT INTO notifications`).
 		WithArgs(referenceAuthorID, string(api.Boost), uuid.NullUUID{UUID: userID, Valid: true}, uuid.NullUUID{UUID: postID, Valid: true}, "").
@@ -99,6 +100,7 @@ func TestPostsService_Create_BoostOnlyWithReferenceID(t *testing.T) {
 	expectGetPostWithAuthor(mock, api.PostId(postID), userID, created, userCreated)
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(postID).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	expectNoDrawings(mock)
 	expectListMentions(mock)
 	expectCountReplies(mock)
 	expectCountBoosts(mock)
@@ -130,7 +132,7 @@ func TestPostsService_Create_DuplicateBoostReturnsConflict(t *testing.T) {
 	mock.ExpectBegin()
 	expectPostThreadInfo(mock, referenceID, uuid.New(), false)
 	mock.ExpectQuery(`INSERT INTO posts`).
-		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}).
+		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: referenceID, Valid: true}, uuid.NullUUID{}).
 		WillReturnError(&pgconn.PgError{Code: "23505"})
 	mock.ExpectRollback()
 
@@ -145,6 +147,58 @@ func TestPostsService_Create_DuplicateBoostReturnsConflict(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectations: %v", err)
 	}
+}
+
+func TestPostsService_Create_Drawing(t *testing.T) {
+	store, mock, cleanup := newMockStore(t)
+	defer cleanup()
+
+	svc := service.NewPostsService(store, nil, nil)
+	userID, postID, drawingID := uuid.New(), uuid.New(), uuid.New()
+	created := time.Unix(1_700_000_000, 0).UTC()
+	userCreated := time.Unix(1_600_000_000, 0).UTC()
+	drawingColumns := []string{"id", "user_id", "format_version", "background_color", "width", "height", "data_bytes", "preview_bytes", "created_at"}
+
+	expectNotBlocked(mock)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT id, user_id, format_version`).WithArgs(drawingID, userID).
+		WillReturnRows(sqlmock.NewRows(drawingColumns).AddRow(drawingID, userID, 1, "#FFFFFF", 1200, 800, 100, 200, created))
+	mock.ExpectQuery(`INSERT INTO posts`).
+		WithArgs(userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: drawingID, Valid: true}).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "content", "parent_id", "root_id", "reference_id", "drawing_id", "created_at", "deleted_at"}).
+			AddRow(postID, userID, "", uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{UUID: drawingID, Valid: true}, created, sql.NullTime{}))
+	mock.ExpectCommit()
+	expectGetPostWithAuthor(mock, api.PostId(postID), userID, created, userCreated)
+	mock.ExpectQuery(`SELECT\s+pm.post_id,`).WithArgs(postID).
+		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	mock.ExpectQuery(`SELECT\s+p.id AS post_id,\s+d.id,`).
+		WillReturnRows(sqlmock.NewRows(append([]string{"post_id"}, drawingColumns...)).
+			AddRow(postID, drawingID, userID, 1, "#FFFFFF", 1200, 800, 100, 200, created))
+	expectListMentions(mock)
+	expectCountReplies(mock)
+	expectCountBoosts(mock)
+	expectIsUserPrivate(mock, userID, false)
+
+	post, err := svc.Create(context.Background(), auth.User{ID: userID, Username: "alice"}, api.CreatePostRequest{DrawingId: &drawingID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if post.Mode != api.PostModeDrawing || post.Drawing == nil || post.Drawing.Id != drawingID {
+		t.Fatalf("drawing was not attached: %#v", post)
+	}
+}
+
+func TestPostsService_Create_RejectsDrawingWithStandardContent(t *testing.T) {
+	store, _, cleanup := newMockStore(t)
+	defer cleanup()
+	svc := service.NewPostsService(store, nil, nil)
+	drawingID := uuid.New()
+	content := "cannot coexist"
+	_, err := svc.Create(context.Background(), auth.User{ID: uuid.New()}, api.CreatePostRequest{
+		Content:   &content,
+		DrawingId: &drawingID,
+	})
+	assertServiceError(t, err, http.StatusBadRequest, "invalid_request")
 }
 
 func TestPostsService_Delete_PublishesEvent(t *testing.T) {

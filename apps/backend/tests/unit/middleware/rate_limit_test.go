@@ -184,6 +184,33 @@ func TestRateLimit_MediaGet_PerIP_PreseededLimit(t *testing.T) {
 	}
 }
 
+func TestRateLimit_DrawingUpload_PerUser_DailyLimit(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
+	now := time.Unix(1_700_000_000, 0)
+	mw := middleware.RateLimit(rdb, middleware.RateLimitOptions{Now: func() time.Time { return now }})
+	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	uid := uuid.New()
+	ctx := auth.WithUser(context.Background(), auth.User{ID: uid, Username: "u"})
+
+	key := rateLimitKey("drawing_upload", "user:"+uid.String(), 24*time.Hour, now)
+	if err := rdb.Set(context.Background(), key, "100", 24*time.Hour).Err(); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drawings", nil).WithContext(ctx)
+	req.RemoteAddr = "1.2.3.4:1234"
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429, got %d", rr.Code)
+	}
+}
+
 func TestRateLimit_MediaUpload_PerUser_DailyLimit(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})

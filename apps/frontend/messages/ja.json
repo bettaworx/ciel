@@ -703,6 +703,39 @@
     "quoting": "引用中...",
     "post": "投稿",
     "posting": "投稿中...",
+    "textMode": "テキストモード",
+    "drawingMode": "ドローイングモード",
+    "drawing": {
+      "canvas": "ドローイングキャンバス",
+      "pencil": "鉛筆",
+      "eraser": "消しゴム",
+      "color": "色",
+      "background": "背景色",
+      "dataUsage": "ドローイングデータ",
+      "brush": "線の種類",
+      "brushes": {
+        "round": "丸ペン",
+        "gpen": "Gペン",
+        "pencil": "鉛筆"
+      },
+      "copyFromSource": "元のドローイングからコピー",
+      "recentColors": "最近使った色",
+      "size": "{tool}の太さ",
+      "stabilization": "手ブレ補正",
+      "stabilizationFor": "{tool}の手ブレ補正量（弱から強）",
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "fullscreen": "全画面",
+      "exitFullscreen": "全画面を終了",
+      "uploadError": "ドローイングの投稿に失敗しました",
+      "discard": {
+        "title": "ドローイングを破棄しますか？",
+        "description": "テキストモードへ切り替えると、このドローイングは破棄されます。",
+        "closeDescription": "コンポーザーを閉じると、このドローイングは破棄されます。",
+        "cancel": "描画を続ける",
+        "confirm": "破棄"
+      }
+    },
     "formatBold": "太字",
     "formatItalic": "斜体",
     "formatCenter": "中央揃え",
@@ -744,6 +777,7 @@
     "convertingPercent": "変換中 {percent}%",
     "conversionComplete": "変換完了",
     "videoCannotFit": "この動画は{maxSize}MB以内に収められません",
+    "qualityChange": "品質変更",
     "qualityImageTitle": "画像の品質",
     "qualityVideoTitle": "動画の品質",
     "qualityDotByDot": "ドット絵",
@@ -874,6 +908,7 @@
     "loadMoreParents": "スレッドを表示"
   },
   "postCard": {
+    "drawing": "ドローイング",
     "openDetail": "投稿の詳細を開く",
     "justNow": "たった今",
     "minutesAgo": "{count}分前",

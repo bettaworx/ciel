@@ -703,6 +703,39 @@
     "quoting": "Quoting...",
     "post": "Post",
     "posting": "Posting...",
+    "textMode": "Text mode",
+    "drawingMode": "Drawing mode",
+    "drawing": {
+      "canvas": "Drawing canvas",
+      "pencil": "Pencil",
+      "eraser": "Eraser",
+      "color": "Color",
+      "background": "Background color",
+      "dataUsage": "Drawing data",
+      "brush": "Brush",
+      "brushes": {
+        "round": "Round pen",
+        "gpen": "G-pen",
+        "pencil": "Pencil"
+      },
+      "copyFromSource": "Copy from source drawing",
+      "recentColors": "Recent colors",
+      "size": "{tool} size",
+      "stabilization": "Stabilization",
+      "stabilizationFor": "{tool} stabilization amount, low to high",
+      "undo": "Undo",
+      "redo": "Redo",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen",
+      "uploadError": "Failed to post drawing",
+      "discard": {
+        "title": "Discard drawing?",
+        "description": "Switching to text mode will discard this drawing.",
+        "closeDescription": "Closing the composer will discard this drawing.",
+        "cancel": "Keep drawing",
+        "confirm": "Discard"
+      }
+    },
     "formatBold": "Bold",
     "formatItalic": "Italic",
     "formatCenter": "Center",
@@ -744,6 +777,7 @@
     "convertingPercent": "Converting {percent}%",
     "conversionComplete": "Conversion complete",
     "videoCannotFit": "This video cannot be compressed under {maxSize}MB",
+    "qualityChange": "Change quality",
     "qualityImageTitle": "Image quality",
     "qualityVideoTitle": "Video quality",
     "qualityDotByDot": "Dotted",
@@ -874,6 +908,7 @@
     "loadMoreParents": "View thread"
   },
   "postCard": {
+    "drawing": "Drawing",
     "openDetail": "Open post details",
     "justNow": "just now",
     "minutesAgo": "{count}m",

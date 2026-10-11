@@ -224,7 +224,7 @@ func (s ViewerScope) ForPost(post api.Post, surface Surface) Decision {
 
 // isPureBoost reports whether this post is a boost with no words of its own.
 func isPureBoost(post api.Post) bool {
-	return post.Content == "" && post.ReferenceId != nil
+	return post.Content == "" && post.Drawing == nil && post.ReferenceId != nil
 }
 
 func boolValue(v *bool) bool {

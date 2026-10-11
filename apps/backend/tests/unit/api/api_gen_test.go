@@ -10,12 +10,25 @@ import (
 	"backend/internal/api"
 
 	"github.com/go-chi/chi/v5"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 type timelineSpy struct {
 	api.Unimplemented
 	called bool
 	params api.GetTimelineParams
+}
+
+type drawingReplaySpy struct {
+	api.Unimplemented
+	called bool
+	id     openapi_types.UUID
+}
+
+func (s *drawingReplaySpy) GetDrawingReplay(w http.ResponseWriter, _ *http.Request, drawingID openapi_types.UUID) {
+	s.called = true
+	s.id = drawingID
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *timelineSpy) GetTimeline(w http.ResponseWriter, r *http.Request, params api.GetTimelineParams) {
@@ -46,6 +59,20 @@ func TestHandlerFromMuxWithBaseURL_RoutesToBaseURL(t *testing.T) {
 	}
 	if spy.params.Cursor == nil || *spy.params.Cursor != "abc" {
 		t.Fatalf("expected cursor=abc, got %#v", spy.params.Cursor)
+	}
+}
+
+func TestDrawingReplayRouteIsUnderAPIV1(t *testing.T) {
+	spy := &drawingReplaySpy{}
+	r := chi.NewRouter()
+	_ = api.HandlerFromMuxWithBaseURL(spy, r, "/api/v1")
+
+	id := "00000000-0000-0000-0000-000000000123"
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/api/v1/drawings/"+id+"/replay", nil))
+
+	if res.Code != http.StatusOK || !spy.called || spy.id.String() != id {
+		t.Fatalf("drawing replay route was not bound: status=%d called=%v id=%s", res.Code, spy.called, spy.id)
 	}
 }
 

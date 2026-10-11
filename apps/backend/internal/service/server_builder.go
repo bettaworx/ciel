@@ -12,6 +12,17 @@ func BuildServerConfig(cfg *config.Config) api.ServerConfig {
 		SignupEnabled:        !cfg.Auth.InviteOnly,
 		ConfigVersion:        cfg.Server.LastUpdatedAt,
 		MaxPostContentLength: cfg.Post.MaxContentLength,
+		DrawingLimits: api.DrawingLimits{
+			FormatVersion:   api.DrawingLimitsFormatVersion(DrawingFormatVersion),
+			Width:           api.DrawingLimitsWidth(DrawingWidth),
+			Height:          api.DrawingLimitsHeight(DrawingHeight),
+			CoordinateScale: api.DrawingLimitsCoordinateScale(DrawingCoordinateScale),
+			MaxInputBytes:   MaxDrawingInputBytes,
+			MaxDataBytes:    MaxDrawingDataBytes,
+			MaxPreviewBytes: MaxDrawingPreviewBytes,
+			MaxStrokes:      MaxDrawingStrokes,
+			MaxPoints:       MaxDrawingPoints,
+		},
 		MediaLimits: api.MediaLimits{
 			MaxUploadSizeMB:   cfg.Media.MaxUploadSize,
 			AllowedExtensions: cfg.Media.AllowedExtensions,

@@ -126,6 +126,24 @@ CREATE TABLE IF NOT EXISTS server_settings (
   privacy_version INT NOT NULL DEFAULT 1
 );
 
+CREATE TABLE IF NOT EXISTS drawings (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  format_version SMALLINT NOT NULL,
+  background_color CHAR(7) NOT NULL,
+  width SMALLINT NOT NULL,
+  height SMALLINT NOT NULL,
+  data_bytes INT NOT NULL,
+  preview_bytes INT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (id, user_id),
+  CHECK (format_version = 1),
+  CHECK (background_color ~ '^#[0-9A-F]{6}$'),
+  CHECK (width = 1200 AND height = 800),
+  CHECK (data_bytes BETWEEN 1 AND 4194304),
+  CHECK (preview_bytes BETWEEN 1 AND 2097152)
+);
+
 CREATE TABLE IF NOT EXISTS posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -133,6 +151,7 @@ CREATE TABLE IF NOT EXISTS posts (
   parent_id UUID REFERENCES posts(id) ON DELETE SET NULL,
   root_id UUID REFERENCES posts(id) ON DELETE SET NULL,
   reference_id UUID REFERENCES posts(id) ON DELETE SET NULL,
+  drawing_id UUID UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ NULL,
   visibility TEXT NOT NULL DEFAULT 'public',
@@ -141,7 +160,9 @@ CREATE TABLE IF NOT EXISTS posts (
   CHECK (visibility IN ('public', 'hidden', 'deleted')),
   CHECK (parent_id IS NULL OR parent_id <> id),
   CHECK (root_id IS NULL OR root_id <> id),
-  CHECK (reference_id IS NULL OR reference_id <> id)
+  CHECK (reference_id IS NULL OR reference_id <> id),
+  CHECK (drawing_id IS NULL OR content = ''),
+  FOREIGN KEY (drawing_id, user_id) REFERENCES drawings(id, user_id)
 );
 
 -- Uploaded media (images and videos). Images stored as WebP, videos as MP4.
@@ -195,6 +216,35 @@ CREATE TABLE IF NOT EXISTS post_media (
   PRIMARY KEY (post_id, media_id)
 );
 
+CREATE OR REPLACE FUNCTION reject_drawing_post_media()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM posts WHERE id = NEW.post_id AND drawing_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'drawing posts cannot have media' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER post_media_reject_drawing
+BEFORE INSERT OR UPDATE ON post_media
+FOR EACH ROW EXECUTE FUNCTION reject_drawing_post_media();
+
+CREATE OR REPLACE FUNCTION reject_drawing_on_post_with_media()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.drawing_id IS NOT NULL
+     AND EXISTS (SELECT 1 FROM post_media WHERE post_id = NEW.id) THEN
+    RAISE EXCEPTION 'posts with media cannot have a drawing' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER posts_reject_drawing_with_media
+BEFORE INSERT OR UPDATE OF drawing_id ON posts
+FOR EACH ROW EXECUTE FUNCTION reject_drawing_on_post_with_media();
+
 CREATE INDEX IF NOT EXISTS idx_post_media_post_order ON post_media (post_id, sort_order ASC, media_id ASC);
 
 CREATE INDEX IF NOT EXISTS idx_posts_timeline ON posts (created_at DESC, id DESC);
@@ -203,7 +253,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_parent ON posts(parent_id) WHERE parent_id 
 CREATE INDEX IF NOT EXISTS idx_posts_parent_created ON posts(parent_id, created_at ASC, id ASC) WHERE parent_id IS NOT NULL AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_root ON posts(root_id) WHERE root_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_reference ON posts(reference_id) WHERE reference_id IS NOT NULL AND deleted_at IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_unique_pure_boost ON posts(user_id, reference_id) WHERE reference_id IS NOT NULL AND content = '' AND deleted_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_unique_pure_boost ON posts(user_id, reference_id) WHERE reference_id IS NOT NULL AND content = '' AND drawing_id IS NULL AND deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS post_mentions (
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,

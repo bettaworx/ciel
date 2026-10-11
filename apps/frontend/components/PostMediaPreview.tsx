@@ -50,6 +50,8 @@ export interface PostMediaPreviewProps {
   hiddenIndex?: number | null;
   /** Additional class name for the outer wrapper. */
   className?: string;
+  /** CSS length the whole preview must fit within; narrows it instead of letting it overflow. */
+  maxHeight?: string;
 }
 
 /**
@@ -69,10 +71,10 @@ function RemoveButton({
         e.stopPropagation();
         onClick(e);
       }}
-      className="absolute top-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors"
+      className="absolute top-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 sm:p-2 transition-colors"
       aria-label={label}
     >
-      <X className="w-3.5 h-3.5" />
+      <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
     </button>
   );
 }
@@ -85,10 +87,10 @@ function CropButton({ onClick, label }: { onClick: (e: React.MouseEvent) => void
         e.stopPropagation();
         onClick(e);
       }}
-      className="absolute top-2 right-[46px] z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors"
+      className="absolute top-2 right-[38px] sm:right-[46px] z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 sm:p-2 transition-colors"
       aria-label={label}
     >
-      <Crop className="w-3.5 h-3.5" />
+      <Crop className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
     </button>
   );
 }
@@ -97,6 +99,7 @@ function computeMediaStyle(
   width: number | null | undefined,
   height: number | null | undefined,
   isDesktop: boolean,
+  maxHeight?: string,
 ): React.CSSProperties | undefined {
   if (!width || !height || width <= 0 || height <= 0) return undefined;
   const MIN_RATIO = 3 / 4;
@@ -106,6 +109,11 @@ function computeMediaStyle(
   return {
     aspectRatio: `${ratio}`,
     ...(isDesktop && { maxWidth: `${MAX_HEIGHT * ratio}px` }),
+    ...(maxHeight && {
+      maxWidth: isDesktop
+        ? `min(${MAX_HEIGHT * ratio}px, calc(${maxHeight} * ${ratio}))`
+        : `calc(${maxHeight} * ${ratio})`,
+    }),
   };
 }
 
@@ -131,6 +139,7 @@ export function PostMediaPreview({
   onLightboxOpen,
   hiddenIndex,
   className,
+  maxHeight,
 }: PostMediaPreviewProps) {
   const tLightbox = useTranslations("lightbox");
   const tCompose = useTranslations("createPost");
@@ -145,17 +154,22 @@ export function PostMediaPreview({
   const singleImageStyle = useMemo(
     () =>
       media.length === 1 && media[0].type === "image"
-        ? computeMediaStyle(media[0].width, media[0].height, isDesktop)
+        ? computeMediaStyle(media[0].width, media[0].height, isDesktop, maxHeight)
         : undefined,
-    [media, isDesktop],
+    [media, isDesktop, maxHeight],
   );
 
   const singleVideoStyle = useMemo(
-    () => computeMediaStyle(videoMedia?.width, videoMedia?.height, isDesktop),
-    [videoMedia, isDesktop],
+    () => computeMediaStyle(videoMedia?.width, videoMedia?.height, isDesktop, maxHeight),
+    [videoMedia, isDesktop, maxHeight],
   );
 
   if (media.length === 0) return null;
+
+  // 2-4 image grids are all ~16:9 overall, so capping the width caps the height.
+  const gridStyle: React.CSSProperties | undefined = maxHeight
+    ? { maxWidth: `calc(${maxHeight} * 16 / 9)` }
+    : undefined;
 
   const removeLabel = tCompose("removeImage");
   const cropLabel = tCompose("cropImage");
@@ -310,7 +324,7 @@ export function PostMediaPreview({
   // 2 images: side by side, 8:9
   if (imageMedia.length === 2) {
     return (
-      <div className={cn("grid grid-cols-2 gap-1", className)}>
+      <div className={cn("grid grid-cols-2 gap-1", className)} style={gridStyle}>
         <div
           className="relative aspect-[8/9] overflow-hidden rounded-l-xl group"
           {...lightboxIndexAttr(0)}
@@ -354,7 +368,7 @@ export function PostMediaPreview({
   // 3 images: left auto-height, right top/bottom 16:9
   if (imageMedia.length === 3) {
     return (
-      <div className={cn("grid grid-cols-2 gap-1", className)}>
+      <div className={cn("grid grid-cols-2 gap-1", className)} style={gridStyle}>
         <div
           className="relative row-span-2 overflow-hidden rounded-l-xl group"
           {...lightboxIndexAttr(0)}
@@ -418,7 +432,7 @@ export function PostMediaPreview({
     const fourImages = imageMedia.slice(0, 4);
     const roundingClasses = ["rounded-tl-xl", "rounded-tr-xl", "rounded-bl-xl", "rounded-br-xl"];
     return (
-      <div className={cn("grid grid-cols-2 gap-1", className)}>
+      <div className={cn("grid grid-cols-2 gap-1", className)} style={gridStyle}>
         {fourImages.map((item, i) => (
           <div
             key={item.id}

@@ -13,6 +13,7 @@
       // git worktree の実体（リポジトリ全体の複製）。.gitignore にも入れているが、
       // useIgnoreFile を切っても同じソースを二重に検査しないようここでも外す
       "!**/.claude/worktrees",
+      "!**/.worktrees",
       "!**/dist",
       "!**/coverage",
       "!**/storybook-static",

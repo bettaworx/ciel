@@ -214,6 +214,8 @@ func TestSearchPostsDropsHiddenAuthors(t *testing.T) {
 	// remaining hydration steps.
 	mock.ExpectQuery(`SELECT\s+pm.post_id,`).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "media_id", "type", "ext", "width", "height", "created_at", "sort_order"}))
+	mock.ExpectQuery(`SELECT\s+p.id AS post_id,\s+d.id,`).
+		WillReturnRows(sqlmock.NewRows([]string{"post_id", "id", "user_id", "format_version", "background_color", "width", "height", "data_bytes", "preview_bytes", "created_at"}))
 	mock.ExpectQuery(`SELECT\s+pm.post_id,\s+u.id AS user_id`).
 		WillReturnRows(sqlmock.NewRows([]string{"post_id", "user_id", "username", "display_name", "avatar_media_id", "avatar_ext"}))
 	mock.ExpectQuery(`SELECT parent_id, COUNT\(\*\)`).

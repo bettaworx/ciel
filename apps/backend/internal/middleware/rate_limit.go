@@ -64,6 +64,10 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		// window has to hold several full posts, not several files.
 		{routeKey: "media_upload", limit: 40, window: 10 * time.Minute, subject: subjectUser},
 		{routeKey: "media_upload", limit: 200, window: 24 * time.Hour, subject: subjectUser},
+		// Drawing upload: per-user. Each request validates, renders a preview and
+		// persists files plus a row before any post exists.
+		{routeKey: "drawing_upload", limit: 20, window: 10 * time.Minute, subject: subjectUser},
+		{routeKey: "drawing_upload", limit: 100, window: 24 * time.Hour, subject: subjectUser},
 		// Avatar upload: per-user, modest limits.
 		{routeKey: "avatar_upload", limit: 5, window: 10 * time.Minute, subject: subjectUser},
 		{routeKey: "avatar_upload", limit: 20, window: 24 * time.Hour, subject: subjectUser},
@@ -263,6 +267,10 @@ func classifyMediaRoute(method, path string) string {
 	// Media upload
 	if method == http.MethodPost && path == "/api/v1/media" {
 		return "media_upload"
+	}
+
+	if method == http.MethodPost && path == "/api/v1/drawings" {
+		return "drawing_upload"
 	}
 
 	// Public media delivery (GET /media/*)

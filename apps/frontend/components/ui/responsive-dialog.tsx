@@ -34,6 +34,7 @@ interface ResponsiveDialogProps {
   dismissible?: boolean;
   footer?: React.ReactNode;
   className?: string;
+  overlayClassName?: string;
   children?: React.ReactNode;
 }
 
@@ -51,6 +52,7 @@ export function ResponsiveDialog({
   dismissible = true,
   footer,
   className,
+  overlayClassName,
   children,
 }: ResponsiveDialogProps) {
   const formFactor = useModalFormFactor(open);
@@ -73,6 +75,7 @@ export function ResponsiveDialog({
         <DialogContent
           hideClose={!dismissible}
           className={className}
+          overlayClassName={overlayClassName}
           onEscapeKeyDown={(e) => !dismissible && e.preventDefault()}
           onInteractOutside={(e) => !dismissible && e.preventDefault()}
         >
@@ -91,7 +94,11 @@ export function ResponsiveDialog({
 
   return (
     <Drawer open={open} dismissible={dismissible} onOpenChange={handleOpenChange}>
-      <DrawerContent hideHandle={!dismissible} className={cn("outline-none", className)}>
+      <DrawerContent
+        hideHandle={!dismissible}
+        className={cn("outline-none", className)}
+        overlayClassName={overlayClassName}
+      >
         {/* pt-6 when there is no handle to take up the top inset. */}
         <div className={cn("px-4 pb-4", dismissible ? "pt-2" : "pt-6")}>
           <DrawerHeader className="px-0 pt-0 text-left">
