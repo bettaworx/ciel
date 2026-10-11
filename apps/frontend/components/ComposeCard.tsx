@@ -127,13 +127,7 @@ export function ComposeCard({
         return;
       }
 
-      if (
-        compose.composerMode === "text" &&
-        compose.content.length === 0 &&
-        compose.images.length === 0 &&
-        !compose.video &&
-        !compose.hasDrawing
-      ) {
+      if (compose.content.length === 0 && compose.images.length === 0 && !compose.video) {
         setIsExpanded(false);
       }
     };
@@ -147,14 +141,7 @@ export function ComposeCard({
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("pointerup", handlePointerUp, true);
     };
-  }, [
-    isExpanded,
-    compose.composerMode,
-    compose.content,
-    compose.images,
-    compose.video,
-    compose.hasDrawing,
-  ]);
+  }, [isExpanded, compose.content, compose.images, compose.video]);
 
   if (!user) return null;
 

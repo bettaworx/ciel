@@ -191,7 +191,6 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const hasImages = images.length > 0;
   const hasVideo = video !== null;
   const hasMedia = hasImages || hasVideo;
-  const hasDrawing = drawingStrokes.length > 0;
   const isContentValid = contentLength <= maxContentLength;
   const isDropDisabled =
     composerMode === "drawing" ||
@@ -1010,7 +1009,6 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     hasImages,
     hasVideo,
     hasMedia,
-    hasDrawing,
     isDropDisabled,
     isImageUploadDisabled,
     isVideoUploadDisabled,

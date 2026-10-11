@@ -418,7 +418,8 @@ export function PostComposerContent({
   /** Character counter + Post button group */
   const counterAndPost = (
     <div className="flex items-center gap-3">
-      {modeSwitch}
+      {/* Drawing is dialog-only: the card is too narrow for the canvas */}
+      {layout === "dialog" && modeSwitch}
       <CharacterCounter
         current={composerMode === "drawing" ? drawingDataBytes : contentLength}
         max={composerMode === "drawing" ? maxDrawingInputBytes : maxContentLength}
@@ -836,15 +837,9 @@ export function PostComposerContent({
         {/* Actions bar: upload + format (left) + counter & post (right) */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
-            {composerMode === "drawing" ? (
-              drawingTools
-            ) : (
-              <>
-                {uploadButtons}
-                <Separator orientation="vertical" className="h-5 mx-1 w-[2px] rounded-full" />
-                {formatButtons}
-              </>
-            )}
+            {uploadButtons}
+            <Separator orientation="vertical" className="h-5 mx-1 w-[2px] rounded-full" />
+            {formatButtons}
           </div>
           <div className="flex items-center gap-3">{counterAndPost}</div>
         </div>
