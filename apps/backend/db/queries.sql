@@ -535,7 +535,21 @@ WHERE user_id = $1
 -- name: GetMediaByID :one
 SELECT id, user_id, type, ext, width, height, duration, blurhash, created_at
 FROM media
-WHERE id = $1;
+WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: GetServableMediaByID :one
+-- A removed attachment must not fall back to the uploader's draft access.
+SELECT id, user_id, type, ext, width, height, duration, blurhash, created_at
+FROM media
+WHERE media.id = $1 AND deleted_at IS NULL
+  AND (
+    NOT EXISTS (SELECT 1 FROM post_media WHERE media_id = media.id)
+    OR EXISTS (
+      SELECT 1 FROM post_media pm
+      JOIN posts p ON p.id = pm.post_id
+      WHERE pm.media_id = media.id AND p.deleted_at IS NULL AND p.visibility = 'public'
+    )
+  );
 
 -- name: DeleteMediaByID :exec
 DELETE FROM media
@@ -551,15 +565,13 @@ SELECT EXISTS(
 -- user's images stop being fetchable by URL. Avatars and banners deliberately do
 -- not: a private account still shows its profile.
 --
--- is_restricted reports whether this media belongs to a private user's post. The
--- caller uses it to drop the year-long immutable caching, which would otherwise
--- keep serving the file from browser and CDN caches after the account is locked.
 SELECT
 	(
 		EXISTS(
 			SELECT 1 FROM post_media pm
 			JOIN posts p ON p.id = pm.post_id
 			WHERE pm.media_id = $1
+				AND p.deleted_at IS NULL AND p.visibility = 'public'
 				AND can_view_user(sqlc.narg('viewer_id')::uuid, p.user_id)
 		)
 		OR
@@ -568,13 +580,7 @@ SELECT
 		EXISTS(SELECT 1 FROM users WHERE banner_media_id = $1)
 		OR
 		($1 = sqlc.narg('server_icon_media_id')::uuid)
-	) AS is_public,
-	EXISTS(
-		SELECT 1 FROM post_media pm
-		JOIN posts p ON p.id = pm.post_id
-		JOIN users u ON u.id = p.user_id
-		WHERE pm.media_id = $1 AND u.is_private
-	) AS is_restricted;
+	) AS is_public;
 
 -- name: AttachMediaToPost :exec
 INSERT INTO post_media (post_id, media_id, sort_order)

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"image"
 	"image/color/palette"
 	"image/gif"
@@ -12,9 +13,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"backend/internal/repository"
 	"backend/internal/service"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -131,8 +135,18 @@ func TestServeEmojiImage_ServesStoredGIFOnLegacyRoute(t *testing.T) {
 
 func TestServeImage_ServesEmojiFileWhenMediaRowMissing(t *testing.T) {
 	mediaDir := t.TempDir()
-	svc := service.NewMediaService(nil, mediaDir, getDefaultMediaConfig(), nil)
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	svc := service.NewMediaService(repository.NewStore(db), mediaDir, getDefaultMediaConfig(), nil)
 	emojiID := uuid.New()
+	mock.ExpectQuery(`-- name: GetServableMediaByID`).WithArgs(emojiID).WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery(`-- name: GetCustomEmojiByID`).WithArgs(emojiID).WillReturnRows(
+		sqlmock.NewRows([]string{"id", "shortcode", "name", "category", "license", "width", "height", "created_at", "updated_at"}).
+			AddRow(emojiID, "wave", nil, nil, nil, 32, 32, time.Now(), time.Now()),
+	)
 
 	emojiDir := filepath.Join(mediaDir, emojiID.String())
 	if err := os.MkdirAll(emojiDir, 0o755); err != nil {
@@ -157,5 +171,33 @@ func TestServeImage_ServesEmojiFileWhenMediaRowMissing(t *testing.T) {
 	}
 	if got := resp.Header.Get("Content-Type"); got != "image/gif" {
 		t.Fatalf("expected image/gif, got %q", got)
+	}
+}
+
+func TestServeImage_DoesNotServeOrphanedMediaFile(t *testing.T) {
+	mediaDir := t.TempDir()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	svc := service.NewMediaService(repository.NewStore(db), mediaDir, getDefaultMediaConfig(), nil)
+	id := uuid.New()
+	dir := filepath.Join(mediaDir, id.String())
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeAnimatedGIF(t, filepath.Join(dir, "image.gif"))
+	mock.ExpectQuery(`-- name: GetServableMediaByID`).WithArgs(id).WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery(`-- name: GetCustomEmojiByID`).WithArgs(id).WillReturnError(sql.ErrNoRows)
+
+	req := httptest.NewRequest(http.MethodGet, "/media/"+id.String()+"/image.gif", nil)
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("mediaId", id.String())
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+	rec := httptest.NewRecorder()
+	svc.ServeImage(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
 	}
 }

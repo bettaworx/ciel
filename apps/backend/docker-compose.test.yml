@@ -30,7 +30,7 @@ services:
       retries: 30
 
   backend_test:
-    image: golang:1.26-alpine
+    image: golang:1.26.9-alpine
     working_dir: /src
     depends_on:
       db_test:

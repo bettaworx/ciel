@@ -269,6 +269,19 @@ func TestOGPServiceProxyImage(t *testing.T) {
 	}
 }
 
+func TestOGPServiceProxyImageRejectsSVG(t *testing.T) {
+	fetcher := &stubFetcher{responses: []stubResponse{{body: `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`, contentType: "image/svg+xml"}}}
+	svc := service.NewOGPService(fetcher, cache.NewNoOpCache())
+
+	_, err := svc.ProxyImage(context.Background(), "https://example.com/i.svg")
+	if err == nil {
+		t.Fatal("expected SVG image to be rejected")
+	}
+	if got := serviceError(t, err).Status; got != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502", got)
+	}
+}
+
 // A rate-limited upstream is retried; the first 429 must not reach the client.
 func TestOGPServiceProxyImageRetriesOn429(t *testing.T) {
 	fetcher := &stubFetcher{responses: []stubResponse{

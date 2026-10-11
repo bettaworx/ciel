@@ -932,6 +932,55 @@ func TestIntegration_Media_Upload_Attach_And_Serve(t *testing.T) {
 	}
 }
 
+func TestIntegration_Media_StopsServingHiddenAndDeletedContent(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+	client := app.Server.Client()
+	base := app.Server.URL
+	u := registerUser(t, client, base, "media_removed", "Password123")
+	a := issueBearer(t, app.TokenManager, u)
+	media := uploadMediaPNG(t, client, base, a)
+	resp := postJSON(t, client, base+"/api/v1/posts", map[string]any{
+		"content": "with media", "mediaIds": []string{media.Id.String()},
+	}, a)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create post: %d", resp.StatusCode)
+	}
+	post := decodeJSON[api.Post](t, resp)
+	mediaURL := base + "/media/" + media.Id.String() + "/image.webp"
+	check := func(want int, headers map[string]string) {
+		t.Helper()
+		resp := get(t, client, mediaURL, headers)
+		defer func() { _ = resp.Body.Close() }()
+		if resp.StatusCode != want {
+			t.Fatalf("media status = %d, want %d", resp.StatusCode, want)
+		}
+		if want == http.StatusOK && resp.Header.Get("Cache-Control") != "private, no-store" {
+			t.Fatalf("unsafe media cache policy: %q", resp.Header.Get("Cache-Control"))
+		}
+	}
+	check(http.StatusOK, nil)
+	check(http.StatusOK, a)
+	if _, err := app.SQLDB.Exec("UPDATE posts SET visibility = 'hidden' WHERE id = $1", post.Id); err != nil {
+		t.Fatal(err)
+	}
+	check(http.StatusNotFound, nil)
+	check(http.StatusNotFound, a)
+	if _, err := app.SQLDB.Exec("UPDATE posts SET visibility = 'public' WHERE id = $1", post.Id); err != nil {
+		t.Fatal(err)
+	}
+	check(http.StatusOK, nil)
+	if _, err := app.SQLDB.Exec("UPDATE posts SET deleted_at = now(), visibility = 'deleted' WHERE id = $1", post.Id); err != nil {
+		t.Fatal(err)
+	}
+	check(http.StatusNotFound, nil)
+	check(http.StatusNotFound, a)
+	if _, err := app.SQLDB.Exec("UPDATE media SET deleted_at = now() WHERE id = $1", media.Id); err != nil {
+		t.Fatal(err)
+	}
+	check(http.StatusNotFound, nil)
+}
+
 func TestIntegration_Posts_Create_MediaOnly_Success(t *testing.T) {
 	app := newTestApp(t)
 	defer app.Close()

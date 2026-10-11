@@ -1,6 +1,6 @@
 module backend
 
-go 1.26.3
+go 1.26.9
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
@@ -25,7 +25,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/crypto v0.57.0
 	golang.org/x/image v0.46.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
