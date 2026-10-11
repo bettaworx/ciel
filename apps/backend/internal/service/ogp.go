@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"time"
 
@@ -148,11 +149,15 @@ func (s *OGPService) ProxyImage(ctx context.Context, rawURL string) (*ProxiedIma
 		}
 
 		contentType := resp.ContentType
-		if contentType == "" {
-			contentType = "image/png"
+		contentType, _, err = mime.ParseMediaType(contentType)
+		if err == nil {
+			switch contentType {
+			case "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/bmp":
+				return &ProxiedImage{Body: resp.Body, ContentType: contentType}, nil
+			}
 		}
-
-		return &ProxiedImage{Body: resp.Body, ContentType: contentType}, nil
+		_ = resp.Body.Close()
+		return nil, NewError(http.StatusBadGateway, "ogp_fetch_failed", "The URL did not return a supported image")
 	}
 }
 
