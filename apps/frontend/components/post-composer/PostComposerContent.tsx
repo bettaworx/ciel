@@ -654,27 +654,23 @@ export function PostComposerContent({
     />
   );
 
+  /** Full width: the avatar is hidden in drawing mode to give the canvas more room */
   const drawingRow = (
-    <div className="flex gap-3">
-      {avatar}
-      <div className="min-w-0 flex-1">
-        <DrawingCanvas
-          strokes={drawingStrokes}
-          onChange={handleDrawingChange}
-          tool={drawingTool}
-          color={drawingColor}
-          brush={drawingBrush}
-          background={drawingBackground}
-          pencilSize={pencilSize}
-          eraserSize={eraserSize}
-          pencilStabilization={pencilStabilization}
-          eraserStabilization={eraserStabilization}
-          onKeyDown={handleDrawingKeyDown}
-          disabled={createPostMutation.isPending || isUploading}
-          ariaLabel={t("createPost.drawing.canvas")}
-        />
-      </div>
-    </div>
+    <DrawingCanvas
+      strokes={drawingStrokes}
+      onChange={handleDrawingChange}
+      tool={drawingTool}
+      color={drawingColor}
+      brush={drawingBrush}
+      background={drawingBackground}
+      pencilSize={pencilSize}
+      eraserSize={eraserSize}
+      pencilStabilization={pencilStabilization}
+      eraserStabilization={eraserStabilization}
+      onKeyDown={handleDrawingKeyDown}
+      disabled={createPostMutation.isPending || isUploading}
+      ariaLabel={t("createPost.drawing.canvas")}
+    />
   );
 
   const drawingTools = (
