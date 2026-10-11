@@ -170,7 +170,7 @@ func (s *DrawingService) serveFile(w http.ResponseWriter, r *http.Request, filen
 		return
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Cache-Control", mediaCacheControl(access.IsRestricted || !access.IsPublic))
+	w.Header().Set("Cache-Control", "private, no-store")
 	if gzipEncoded {
 		w.Header().Set("Content-Encoding", "gzip")
 	}
