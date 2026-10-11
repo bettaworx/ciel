@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { applyFormatToTextarea } from "./applyFormat";
@@ -65,11 +65,7 @@ export function findCodeDecoration(
       }
     }
     // Inline code: `...`
-    if (
-      selected.startsWith("`") &&
-      selected.endsWith("`") &&
-      selected.length >= 2
-    ) {
+    if (selected.startsWith("`") && selected.endsWith("`") && selected.length >= 2) {
       return {
         type: "inline",
         prefixStart: selectionStart,
@@ -91,8 +87,7 @@ export function findCodeDecoration(
     const openIdx = before.lastIndexOf("```");
     // The prefix extends to the end of the opening line (```lang\n)
     const prefixNewline = content.indexOf("\n", openIdx);
-    const prefixEnd =
-      prefixNewline !== -1 ? prefixNewline + 1 : openIdx + 3;
+    const prefixEnd = prefixNewline !== -1 ? prefixNewline + 1 : openIdx + 3;
 
     // Find the first ``` in after (closing)
     const closeRelIdx = after.indexOf("```");
@@ -162,25 +157,9 @@ function findFirstSingleBacktick(text: string): number {
 /** Check if the backtick at position `i` is part of a ``` sequence. */
 function isPartOfTripleBacktick(text: string, i: number): boolean {
   // Check all possible positions within a triple: [i-2..i], [i-1..i+1], [i..i+2]
-  if (
-    i >= 2 &&
-    text[i - 1] === "`" &&
-    text[i - 2] === "`"
-  )
-    return true;
-  if (
-    i >= 1 &&
-    i < text.length - 1 &&
-    text[i - 1] === "`" &&
-    text[i + 1] === "`"
-  )
-    return true;
-  if (
-    i < text.length - 2 &&
-    text[i + 1] === "`" &&
-    text[i + 2] === "`"
-  )
-    return true;
+  if (i >= 2 && text[i - 1] === "`" && text[i - 2] === "`") return true;
+  if (i >= 1 && i < text.length - 1 && text[i - 1] === "`" && text[i + 1] === "`") return true;
+  if (i < text.length - 2 && text[i + 1] === "`" && text[i + 2] === "`") return true;
   return false;
 }
 
@@ -196,21 +175,13 @@ export function removeCodeDecoration(
   const prefixLen = match.prefixEnd - match.prefixStart;
 
   // Remove suffix first (higher index)
-  let newValue =
-    content.slice(0, match.suffixStart) + content.slice(match.suffixEnd);
+  let newValue = content.slice(0, match.suffixStart) + content.slice(match.suffixEnd);
   // For code blocks, also remove the preceding newline if present
-  if (
-    match.type === "block" &&
-    newValue[match.suffixStart - 1] === "\n"
-  ) {
-    newValue =
-      newValue.slice(0, match.suffixStart - 1) +
-      newValue.slice(match.suffixStart);
+  if (match.type === "block" && newValue[match.suffixStart - 1] === "\n") {
+    newValue = newValue.slice(0, match.suffixStart - 1) + newValue.slice(match.suffixStart);
   }
   // Remove prefix
-  newValue =
-    newValue.slice(0, match.prefixStart) +
-    newValue.slice(match.prefixStart + prefixLen);
+  newValue = newValue.slice(0, match.prefixStart) + newValue.slice(match.prefixStart + prefixLen);
 
   return {
     newValue,
@@ -243,11 +214,7 @@ export function CodeFormatButton({
   className,
   iconClassName,
 }: CodeFormatButtonProps) {
-  const codeMatch = findCodeDecoration(
-    content,
-    selectionRange.start,
-    selectionRange.end,
-  );
+  const codeMatch = findCodeDecoration(content, selectionRange.start, selectionRange.end);
   const isActive = codeMatch !== null;
 
   const handleClick = () => {
@@ -272,8 +239,7 @@ export function CodeFormatButton({
     const hasSelection = selectionStart !== selectionEnd;
 
     if (!hasSelection) {
-      const newValue =
-        value.slice(0, selectionStart) + "``" + value.slice(selectionStart);
+      const newValue = `${value.slice(0, selectionStart)}\`\`${value.slice(selectionStart)}`;
       apply(newValue, selectionStart + 1, selectionStart + 1);
       return;
     }
@@ -285,19 +251,11 @@ export function CodeFormatButton({
       const prefix = "```\n";
       const suffix = "\n```";
       const newValue =
-        value.slice(0, selectionStart) +
-        prefix +
-        selected +
-        suffix +
-        value.slice(selectionEnd);
+        value.slice(0, selectionStart) + prefix + selected + suffix + value.slice(selectionEnd);
       apply(newValue, selectionStart + prefix.length, selectionEnd + prefix.length);
     } else {
       const newValue =
-        value.slice(0, selectionStart) +
-        "`" +
-        selected +
-        "`" +
-        value.slice(selectionEnd);
+        value.slice(0, selectionStart) + "`" + selected + "`" + value.slice(selectionEnd);
       apply(newValue, selectionStart + 1, selectionEnd + 1);
     }
   };
@@ -311,7 +269,9 @@ export function CodeFormatButton({
       aria-label={ariaLabel}
       aria-pressed={isActive}
       className={cn(
-        isActive && "text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15",
+        isActive
+          ? "text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15"
+          : "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
         className,
       )}
     >

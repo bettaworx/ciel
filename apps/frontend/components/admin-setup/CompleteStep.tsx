@@ -1,8 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n";
+import { useRouter } from "@/lib/navigation";
 import { CheckCircle2 } from "lucide-react";
 
 interface CompleteStepProps {
@@ -11,18 +10,9 @@ interface CompleteStepProps {
   inviteOnly: boolean;
 }
 
-export function CompleteStep({
-  adminUsername,
-  serverName,
-  inviteOnly,
-}: CompleteStepProps) {
+export function CompleteStep({ adminUsername, serverName, inviteOnly }: CompleteStepProps) {
   const t = useTranslations("adminSetup");
-  const router = useRouter();
-
-  const handleGoToHome = () => {
-    localStorage.removeItem("ciel_admin_setup_current_step");
-    router.push("/");
-  };
+  const _router = useRouter();
 
   return (
     <div className="flex flex-col h-full min-h-0">

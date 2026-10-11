@@ -34,3 +34,47 @@
           application/json:
             schema:
               $ref: ../schemas/post.yml#/components/schemas/TimelinePage
+/timeline/home:
+  get:
+    tags:
+    - Timeline
+    summary: Get the home timeline (paginated)
+    description: 'Posts by the authenticated user and everyone they follow, newest first.
+
+      Replies and boosts are included. Every user gets a different timeline, so this
+      cannot be served from the shared global cache.
+
+      '
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+    - name: cursor
+      in: query
+      required: false
+      description: Cursor returned by previous call.
+      schema:
+        type: string
+        nullable: true
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/post.yml#/components/schemas/TimelinePage
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized

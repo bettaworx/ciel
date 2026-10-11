@@ -50,6 +50,11 @@ components:
           type: string
           description: Semantic version of the server (e.g. "0.1.0")
           example: 0.1.0
+        searchEnabled:
+          type: boolean
+          description: Whether full-text search is configured. When false, the
+            /search endpoints return 503 and clients should hide search entry
+            points.
         stats:
           $ref: '#/components/schemas/ServerStats'
     ServerStats:
@@ -72,6 +77,7 @@ components:
       - signupEnabled
       - configVersion
       - mediaLimits
+      - drawingLimits
       - maxPostContentLength
       properties:
         signupEnabled:
@@ -83,6 +89,8 @@ components:
           description: Unix timestamp of last config update (for cache busting)
         mediaLimits:
           $ref: ./media.yml#/components/schemas/MediaLimits
+        drawingLimits:
+          $ref: ./drawing.yml#/components/schemas/DrawingLimits
         maxPostContentLength:
           type: integer
           description: Maximum number of Unicode characters allowed in a post

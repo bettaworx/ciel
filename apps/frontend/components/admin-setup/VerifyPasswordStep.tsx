@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 
 interface VerifyPasswordStepProps {
@@ -11,10 +10,7 @@ interface VerifyPasswordStepProps {
   loading?: boolean;
 }
 
-export function VerifyPasswordStep({
-  onVerify,
-  loading = false,
-}: VerifyPasswordStepProps) {
+export function VerifyPasswordStep({ onVerify, loading = false }: VerifyPasswordStepProps) {
   const t = useTranslations("adminSetup");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -35,9 +31,7 @@ export function VerifyPasswordStep({
         <div className="flex-1 flex flex-col justify-center">
           <div className="space-y-2 mb-6">
             <h2 className="text-2xl font-bold">{t("verifyPassword.title")}</h2>
-            <p className="text-muted-foreground text-sm">
-              {t("verifyPassword.description")}
-            </p>
+            <p className="text-muted-foreground text-sm">{t("verifyPassword.description")}</p>
           </div>
 
           <div className="space-y-2">
@@ -59,11 +53,7 @@ export function VerifyPasswordStep({
                 disabled={loading}
                 tabIndex={-1}
               >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>

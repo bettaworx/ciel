@@ -45,6 +45,9 @@ components:
       required:
       - maxUploadSizeMB
       - allowedExtensions
+      - maxInputWidth
+      - maxInputHeight
+      - maxInputPixels
       - post
       - avatar
       - banner
@@ -56,25 +59,31 @@ components:
           type: integer
           description: Maximum file upload size in megabytes (for images)
           example: 15
+        maxInputWidth:
+          type: integer
+          description: Maximum width in pixels an uploaded image or video may have
+          example: 16384
+        maxInputHeight:
+          type: integer
+          description: Maximum height in pixels an uploaded image or video may have
+          example: 16384
+        maxInputPixels:
+          type: integer
+          description: Maximum total pixels (width x height) an uploaded image or video may have
+          example: 50000000
         allowedExtensions:
           type: array
           items:
             type: string
           description: List of allowed file extensions
           example:
+          - webp
           - png
           - jpg
           - jpeg
-          - webp
           - gif
-          - mp4
           - webm
-          - mov
-          - avi
-          - mkv
-          - m4v
-          - 3gp
-          - ogv
+          - mp4
         post:
           $ref: '#/components/schemas/MediaPostLimits'
         avatar:
@@ -208,6 +217,7 @@ components:
       - maxUploadSizeMB
       - maxDurationSeconds
       - maxSize
+      - maxFrameRate
       properties:
         maxUploadSizeMB:
           type: integer
@@ -221,3 +231,7 @@ components:
           type: integer
           description: Maximum longest edge size in pixels for video output (aspect ratio preserved)
           example: 1920
+        maxFrameRate:
+          type: integer
+          description: Maximum frame rate an uploaded video may have
+          example: 120

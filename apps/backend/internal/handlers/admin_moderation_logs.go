@@ -85,9 +85,7 @@ func (h API) GetAdminModerationLogs(w http.ResponseWriter, r *http.Request, para
 		// Parse details JSON into map
 		var details map[string]interface{}
 		if len(log.Details) > 0 {
-			if err := json.Unmarshal(log.Details, &details); err == nil {
-				// Only set if unmarshal succeeded
-			}
+			_ = json.Unmarshal(log.Details, &details)
 		}
 
 		response[i] = api.ModerationLog{
@@ -165,9 +163,7 @@ func (h API) GetAdminUsersUserIdModerationLogs(w http.ResponseWriter, r *http.Re
 		// Parse details JSON into map
 		var details map[string]interface{}
 		if len(log.Details) > 0 {
-			if err := json.Unmarshal(log.Details, &details); err == nil {
-				// Only set if unmarshal succeeded
-			}
+			_ = json.Unmarshal(log.Details, &details)
 		}
 
 		response[i] = api.ModerationLog{

@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
+import { useTranslations } from "@/lib/i18n";
 import {
   X,
   Image as ImageIcon,
@@ -13,8 +20,13 @@ import {
   CodeXml,
   Link,
   AlignHorizontalSpaceAround,
+  PenLine,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { PostMediaPreview } from "@/components/PostMediaPreview";
 import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
@@ -29,13 +41,33 @@ import { CodeFormatButton } from "./CodeFormatButton";
 import { SizeFormatButton } from "./SizeFormatButton";
 import { LinkFormatButton } from "./LinkFormatButton";
 import { FormatOverflowMenu } from "./FormatOverflowMenu";
+import { MediaUploadOverflowMenu } from "./MediaUploadOverflowMenu";
+import { ComposerEmojiPicker } from "./ComposerEmojiPicker";
 import { insertCenterDecoration } from "./centerDecoration";
-import {
-  ACCEPTED_IMAGE_TYPES,
-  ACCEPTED_VIDEO_TYPES,
-} from "./constants";
+import { ACCEPTED_IMAGE_ACCEPT, ACCEPTED_VIDEO_ACCEPT } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
 import { useComposerPlaceholder } from "./useComposerPlaceholder";
+import { shouldShowComposerModeSwitch, type ComposerMode } from "./composerMode";
+import { DrawingCanvas } from "./DrawingCanvas";
+import { DrawingDiscardConfirm } from "./DrawingDiscardConfirm";
+import { DrawingHistoryButtons, DrawingToolButtons } from "./DrawingToolbar";
+import {
+  drawingDocumentBytes,
+  drawingHistoryShortcut,
+  formatDrawingBytes,
+  readDrawingPreferences,
+  redoDrawing,
+  saveDrawingPreferences,
+  type DrawingBrush,
+  type DrawingStroke,
+  type DrawingTool,
+  undoDrawing,
+} from "./drawing";
+import { PostCard } from "@/components/PostCard";
+import type { components } from "@/lib/api/api";
+
+type Post = components["schemas"]["Post"];
+type Drawing = components["schemas"]["Drawing"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,31 +84,46 @@ interface PostComposerContentProps {
   onClose?: () => void;
   /** (dialog only) Whether the close button should be disabled */
   closeDisabled?: boolean;
-  /** (card only) Called when the textarea loses focus */
-  onBlur?: () => void;
   /** Reuse a parent-selected placeholder so collapsed and expanded card states match. */
   placeholder?: string;
+  /** Override the submit button label (defaults to createPost.post). */
+  submitLabel?: string;
+  /** Override the submitting button label (defaults to createPost.posting). */
+  submittingLabel?: string;
+  /** When set, renders a non-interactive embedded PostCard preview below the media area. */
+  quotedPost?: Post;
+  /** Drawing attached to the replied-to post, when available. */
+  replyDrawing?: Drawing | null;
+  /** (dialog only) Drawing-mode fullscreen state, owned by the dialog that styles its container. */
+  fullscreen?: boolean;
+  onFullscreenToggle?: () => void;
 }
+
+/** Container overrides that stretch a composer dialog over the whole viewport. */
+export const fullscreenDialogClass =
+  "!fixed !inset-0 !m-0 !h-[calc(100dvh-var(--keyboard-inset,0px))] !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 !rounded-none grid-rows-[auto_minmax(0,1fr)]";
 
 // ---------------------------------------------------------------------------
 // Layout-specific style tokens
 // ---------------------------------------------------------------------------
 
+/** Indent that aligns the quoted post under the textarea (past the avatar) */
+const contentIndent = "pl-15";
+
 const styles = {
   card: {
-    /** Padding that aligns content under the textarea (past the avatar) */
-    contentPadding: "pl-15 px-0",
     /** Upload / format button size */
-    toolbarButton: "h-9 w-9",
-    toolbarIcon: "w-5 h-5",
+    toolbarButton: "h-8 w-8",
+    toolbarIcon: "w-4 h-4",
     /** Post button height */
-    postButton: "h-9 px-4",
+    postButton: "h-8 px-4",
+    floatingContent: "z-50",
   },
   dialog: {
-    contentPadding: "pl-18 px-3",
-    toolbarButton: "h-9 w-9",
-    toolbarIcon: "w-5 h-5",
+    toolbarButton: "h-8 w-8",
+    toolbarIcon: "w-4 h-4",
     postButton: "h-8 px-4",
+    floatingContent: "z-[70]",
   },
 } as const;
 
@@ -99,12 +146,30 @@ export function PostComposerContent({
   avatar,
   onClose,
   closeDisabled,
-  onBlur,
   placeholder: placeholderOverride,
+  submitLabel,
+  submittingLabel,
+  quotedPost,
+  replyDrawing,
+  fullscreen,
+  onFullscreenToggle,
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
+  const [initialDrawingPreferences] = useState(readDrawingPreferences);
   const [placeholderRefreshKey, setPlaceholderRefreshKey] = useState(0);
+  const [drawingTool, setDrawingTool] = useState<DrawingTool>("pencil");
+  const [drawingBrush, setDrawingBrush] = useState<DrawingBrush>(initialDrawingPreferences.brush);
+  const [drawingColor, setDrawingColor] = useState(initialDrawingPreferences.color);
+  const [pencilSize, setPencilSize] = useState(initialDrawingPreferences.pencilSize);
+  const [eraserSize, setEraserSize] = useState(initialDrawingPreferences.eraserSize);
+  const [pencilStabilization, setPencilStabilization] = useState(
+    initialDrawingPreferences.pencilStabilization,
+  );
+  const [eraserStabilization, setEraserStabilization] = useState(
+    initialDrawingPreferences.eraserStabilization,
+  );
+  const [discardDrawingOpen, setDiscardDrawingOpen] = useState(false);
   const hadTypedContentRef = useRef(false);
   const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
   const placeholder = placeholderOverride ?? generatedPlaceholder;
@@ -123,8 +188,16 @@ export function PostComposerContent({
     // State setters
     setContent,
     setSelectionRange,
+    setComposerMode,
+    setDrawingStrokes,
+    setRedoStrokes,
+    setDrawingBackground,
     // State
     content,
+    composerMode,
+    drawingStrokes,
+    redoStrokes,
+    drawingBackground,
     isUploading,
     isDragging,
     ogpUrl,
@@ -132,9 +205,13 @@ export function PostComposerContent({
     selectionRange,
     // Computed
     maxContentLength,
+    maxDrawingInputBytes,
+    maxDrawingStrokes,
+    maxDrawingPoints,
     contentLength,
     contentPercentage,
     showCharacterCount,
+    hasMedia,
     canPost,
     isDropDisabled,
     isImageUploadDisabled,
@@ -152,10 +229,32 @@ export function PostComposerContent({
     handleCropOpen,
     handleCropDialogOpenChange,
     handleCropComplete,
+    handleQualityChange,
     handlePost,
+    handleDrawingPost,
     // Mutations
     createPostMutation,
   } = compose;
+
+  useEffect(() => {
+    saveDrawingPreferences({
+      brush: drawingBrush,
+      color: drawingColor,
+      background: drawingBackground,
+      pencilSize,
+      eraserSize,
+      pencilStabilization,
+      eraserStabilization,
+    });
+  }, [
+    drawingBrush,
+    drawingColor,
+    drawingBackground,
+    pencilSize,
+    eraserSize,
+    pencilStabilization,
+    eraserStabilization,
+  ]);
 
   useEffect(() => {
     if (placeholderOverride !== undefined) {
@@ -174,6 +273,14 @@ export function PostComposerContent({
   }, [content, placeholderOverride]);
 
   useEffect(() => {
+    if (layout !== "dialog") {
+      return;
+    }
+
+    textareaRef.current?.focus();
+  }, [layout, textareaRef]);
+
+  useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) {
       return;
@@ -188,8 +295,7 @@ export function PostComposerContent({
       };
 
       setSelectionRange((current) =>
-        current.start === nextSelectionRange.start &&
-        current.end === nextSelectionRange.end
+        current.start === nextSelectionRange.start && current.end === nextSelectionRange.end
           ? current
           : nextSelectionRange,
       );
@@ -226,61 +332,206 @@ export function PostComposerContent({
     };
   }, [textareaRef, setSelectionRange]);
 
+  const showModeSwitch = shouldShowComposerModeSwitch(composerMode, content, hasMedia);
+  const drawingDataBytes = useMemo(
+    () => drawingDocumentBytes(drawingStrokes, drawingBackground, drawingColor),
+    [drawingStrokes, drawingBackground, drawingColor],
+  );
+  const drawingDataPercentage = (drawingDataBytes / maxDrawingInputBytes) * 100;
+
+  const handleModeChange = (value: string) => {
+    const nextMode = value as ComposerMode;
+    if (nextMode === "text" && drawingStrokes.length > 0) {
+      setDiscardDrawingOpen(true);
+      return;
+    }
+    setComposerMode(nextMode);
+  };
+
+  const handleDrawingChange = (strokes: DrawingStroke[]) => {
+    setDrawingStrokes(strokes);
+    setRedoStrokes([]);
+  };
+
+  const handleUndo = () => {
+    const next = undoDrawing(drawingStrokes, redoStrokes);
+    setDrawingStrokes(next.strokes);
+    setRedoStrokes(next.redo);
+  };
+
+  const handleRedo = () => {
+    const next = redoDrawing(drawingStrokes, redoStrokes);
+    setDrawingStrokes(next.strokes);
+    setRedoStrokes(next.redo);
+  };
+
+  const handleDrawingKeyDown = (event: ReactKeyboardEvent<HTMLCanvasElement>) => {
+    if (event.altKey) return;
+    const action = drawingHistoryShortcut(
+      event.key,
+      event.ctrlKey || event.metaKey,
+      event.shiftKey,
+    );
+    if (!action) return;
+    event.preventDefault();
+    if (createPostMutation.isPending || isUploading) return;
+    if (action === "undo" && drawingStrokes.length > 0) handleUndo();
+    if (action === "redo" && redoStrokes.length > 0) handleRedo();
+  };
+
+  const discardDrawing = () => {
+    setDrawingStrokes([]);
+    setRedoStrokes([]);
+    setComposerMode("text");
+  };
+
+  const handleSubmit = async () => {
+    if (composerMode === "text") {
+      await handlePost();
+      return;
+    }
+    if (await handleDrawingPost(drawingStrokes, drawingColor)) {
+      setDrawingStrokes([]);
+      setRedoStrokes([]);
+    }
+  };
+
   // ---- Shared sub-sections ------------------------------------------------
+
+  const modeSwitch = (
+    <Tabs value={composerMode} onValueChange={handleModeChange}>
+      <TabsList className="rounded-full bg-muted p-0.5 h-8">
+        <TabsTrigger
+          value="text"
+          aria-label={t("createPost.textMode")}
+          disabled={!showModeSwitch}
+          className={cn(
+            "flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground",
+            "h-7 w-7",
+          )}
+        >
+          <Type className="h-3.5 w-3.5" />
+        </TabsTrigger>
+        <TabsTrigger
+          value="drawing"
+          aria-label={t("createPost.drawingMode")}
+          disabled={!showModeSwitch}
+          className={cn(
+            "flex-none rounded-full px-0 transition-[color,background-color,scale] duration-150 ease-out active:scale-[0.96] data-[state=active]:bg-c-1 data-[state=active]:text-c-foreground",
+            "h-7 w-7",
+          )}
+        >
+          <PenLine className="h-3.5 w-3.5" />
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
 
   /** Character counter + Post button group */
   const counterAndPost = (
     <div className="flex items-center gap-3">
+      {layout === "dialog" && onFullscreenToggle && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onFullscreenToggle}
+          aria-label={t(
+            fullscreen ? "createPost.drawing.exitFullscreen" : "createPost.drawing.fullscreen",
+          )}
+          aria-pressed={fullscreen}
+          className={s.toolbarButton}
+        >
+          {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </Button>
+      )}
+      {/* Drawing is dialog-only: the card is too narrow for the canvas */}
+      {layout === "dialog" && modeSwitch}
       <CharacterCounter
-        current={contentLength}
-        max={maxContentLength}
-        percentage={contentPercentage}
-        showCount={showCharacterCount}
+        current={composerMode === "drawing" ? drawingDataBytes : contentLength}
+        max={composerMode === "drawing" ? maxDrawingInputBytes : maxContentLength}
+        percentage={composerMode === "drawing" ? drawingDataPercentage : contentPercentage}
+        showCount={composerMode === "text" && showCharacterCount}
+        formatValue={composerMode === "drawing" ? formatDrawingBytes : undefined}
+        label={composerMode === "drawing" ? t("createPost.drawing.dataUsage") : undefined}
       />
       <Button
         variant="primary"
         size="sm"
-        onClick={handlePost}
-        disabled={!canPost}
+        onClick={handleSubmit}
+        disabled={
+          composerMode === "drawing"
+            ? drawingStrokes.length === 0 ||
+              drawingDataBytes > maxDrawingInputBytes ||
+              drawingStrokes.length > maxDrawingStrokes ||
+              drawingStrokes.reduce((n, stroke) => n + stroke.points.length, 0) >
+                maxDrawingPoints ||
+              createPostMutation.isPending ||
+              isUploading
+            : !canPost
+        }
         className={s.postButton}
       >
         {createPostMutation.isPending
-          ? t("createPost.posting")
-          : t("createPost.post")}
+          ? (submittingLabel ?? t("createPost.posting"))
+          : (submitLabel ?? t("createPost.post"))}
       </Button>
     </div>
   );
 
   /** Upload buttons — separate for images and video */
+  /** Emoji picker — shown at the head of the format area (composer-wide) */
+  const emojiButton = (
+    <ComposerEmojiPicker
+      textareaRef={textareaRef}
+      content={content}
+      setContent={setContent}
+      setSelectionRange={setSelectionRange}
+      disabled={createPostMutation.isPending || isUploading}
+      className={s.toolbarButton}
+      iconClassName={s.toolbarIcon}
+    />
+  );
+
   const uploadButtons = (
     <div className="flex items-center gap-1">
       <MediaUploadButton
         inputRef={imageFileInputRef}
-        accept={ACCEPTED_IMAGE_TYPES.join(",")}
+        accept={ACCEPTED_IMAGE_ACCEPT}
         multiple
         disabled={isImageUploadDisabled}
         onChange={handleImageSelect}
         icon={ImageIcon}
         ariaLabel={t("createPost.uploadImage")}
-        className={s.toolbarButton}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
       <MediaUploadButton
         inputRef={videoFileInputRef}
-        accept={ACCEPTED_VIDEO_TYPES.join(",")}
+        accept={ACCEPTED_VIDEO_ACCEPT}
         disabled={isVideoUploadDisabled}
         onChange={handleImageSelect}
         icon={VideoIcon}
         ariaLabel={t("createPost.uploadVideo")}
-        className={s.toolbarButton}
+        className={cn(s.toolbarButton, "max-sm:hidden")}
+        iconClassName={s.toolbarIcon}
+      />
+      <MediaUploadOverflowMenu
+        imageFileInputRef={imageFileInputRef}
+        videoFileInputRef={videoFileInputRef}
+        isImageUploadDisabled={isImageUploadDisabled}
+        isVideoUploadDisabled={isVideoUploadDisabled}
+        className={cn(s.toolbarButton, "sm:hidden")}
         iconClassName={s.toolbarIcon}
       />
     </div>
   );
 
-  /** Text formatting buttons — order: Bold, Italic, Font, Size, Code, URL, Center */
+  /** Text formatting buttons — order: Emoji, Bold, Italic, Font, Size, Code, URL, Center */
   const formatButtons = (
     <div className="flex items-center gap-1">
+      {/* Emoji at the head of the decoration area */}
+      {emojiButton}
       {/* Bold, Italic — always visible */}
       <TextFormatButton
         icon={Bold}
@@ -309,29 +560,33 @@ export function PostComposerContent({
         iconClassName={s.toolbarIcon}
       />
 
-      {/* Font, Size — always visible in dialog; desktop-only in card */}
-      <FontFormatButton
-        icon={Type}
-        textareaRef={textareaRef}
-        setContent={setContent}
-        content={content}
-        selectionRange={selectionRange}
-        setSelectionRange={setSelectionRange}
-        ariaLabel={t("createPost.formatFont")}
-        className={cn(s.toolbarButton, layout === "card" && "max-sm:hidden")}
-        iconClassName={s.toolbarIcon}
-      />
-      <SizeFormatButton
-        icon={ALargeSmall}
-        textareaRef={textareaRef}
-        setContent={setContent}
-        content={content}
-        selectionRange={selectionRange}
-        setSelectionRange={setSelectionRange}
-        ariaLabel={t("createPost.formatSize")}
-        className={cn(s.toolbarButton, layout === "card" && "max-sm:hidden")}
-        iconClassName={s.toolbarIcon}
-      />
+      {/* Font, Size — dialog only; card uses the overflow menu (mobile behavior) */}
+      {layout === "dialog" && (
+        <>
+          <FontFormatButton
+            icon={Type}
+            textareaRef={textareaRef}
+            setContent={setContent}
+            content={content}
+            selectionRange={selectionRange}
+            setSelectionRange={setSelectionRange}
+            ariaLabel={t("createPost.formatFont")}
+            className={s.toolbarButton}
+            iconClassName={s.toolbarIcon}
+          />
+          <SizeFormatButton
+            icon={ALargeSmall}
+            textareaRef={textareaRef}
+            setContent={setContent}
+            content={content}
+            selectionRange={selectionRange}
+            setSelectionRange={setSelectionRange}
+            ariaLabel={t("createPost.formatSize")}
+            className={s.toolbarButton}
+            iconClassName={s.toolbarIcon}
+          />
+        </>
+      )}
 
       {/* Code, Link, Center:
           - card layout: always in overflow menu
@@ -377,7 +632,7 @@ export function PostComposerContent({
           />
         </>
       )}
-      {/* Overflow menu: card always, dialog mobile only (Code/Link/Center only) */}
+      {/* Overflow menu: card always (Font/Size/Code/Link/Center), dialog mobile only (Code/Link/Center) */}
       <FormatOverflowMenu
         textareaRef={textareaRef}
         setContent={setContent}
@@ -393,7 +648,7 @@ export function PostComposerContent({
 
   /** Avatar + Textarea row */
   const textareaRow = (
-    <div className={cn("relative flex gap-3", layout === "dialog" && "pt-0 p-3")}>
+    <div className="relative flex gap-3">
       {avatar}
       <Textarea
         ref={textareaRef}
@@ -402,9 +657,10 @@ export function PostComposerContent({
         onChange={handleContentChange}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
-        onBlur={onBlur}
         placeholder={placeholder}
-        className={`flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0`}
+        className={cn(
+          "flex-1 max-h-[400px] mt-2.25 md:mt-2 max-sm:max-h-[50vh] resize-none text-base md:text-lg bg-transparent hover:bg-transparent border-none outline-none ring-0 focus-visible:ring-0 px-0 py-0 overflow-y-auto rounded-none min-h-0",
+        )}
         maxLength={maxContentLength}
         disabled={createPostMutation.isPending || isUploading}
       />
@@ -413,42 +669,137 @@ export function PostComposerContent({
         value={content}
         setValue={setContent}
         disabled={createPostMutation.isPending || isUploading}
+        contentClassName={s.floatingContent}
       />
     </div>
   );
 
+  const drawingHistory = (
+    <DrawingHistoryButtons
+      canUndo={drawingStrokes.length > 0}
+      canRedo={redoStrokes.length > 0}
+      onUndo={handleUndo}
+      onRedo={handleRedo}
+      disabled={createPostMutation.isPending || isUploading}
+      className={s.toolbarButton}
+    />
+  );
+
+  /** Full width: the avatar is hidden in drawing mode to give the canvas more room */
+  const drawingRow = (
+    <DrawingCanvas
+      strokes={drawingStrokes}
+      onChange={handleDrawingChange}
+      tool={drawingTool}
+      color={drawingColor}
+      brush={drawingBrush}
+      background={drawingBackground}
+      pencilSize={pencilSize}
+      eraserSize={eraserSize}
+      pencilStabilization={pencilStabilization}
+      eraserStabilization={eraserStabilization}
+      onKeyDown={handleDrawingKeyDown}
+      disabled={createPostMutation.isPending || isUploading}
+      ariaLabel={t("createPost.drawing.canvas")}
+      className={
+        fullscreen && layout === "dialog"
+          ? "mx-auto w-[min(100%,calc((100dvh-var(--keyboard-inset,0px)-7.25rem)*1.5))]"
+          : undefined
+      }
+    />
+  );
+
+  const drawingTools = (
+    <DrawingToolButtons
+      tool={drawingTool}
+      onToolChange={setDrawingTool}
+      color={drawingColor}
+      onColorChange={setDrawingColor}
+      brush={drawingBrush}
+      onBrushChange={setDrawingBrush}
+      background={drawingBackground}
+      onBackgroundChange={setDrawingBackground}
+      pencilSize={pencilSize}
+      onPencilSizeChange={setPencilSize}
+      eraserSize={eraserSize}
+      onEraserSizeChange={setEraserSize}
+      pencilStabilization={pencilStabilization}
+      onPencilStabilizationChange={setPencilStabilization}
+      eraserStabilization={eraserStabilization}
+      onEraserStabilizationChange={setEraserStabilization}
+      sourceDrawing={replyDrawing ?? quotedPost?.drawing}
+      disabled={createPostMutation.isPending || isUploading}
+      className={s.toolbarButton}
+    />
+  );
+
   /** OGP link preview */
-  const ogpPreview = ogpUrl ? (
-    <div className={s.contentPadding}>
-      <OgpCard url={ogpUrl} />
-    </div>
-  ) : null;
+  const ogpPreview = ogpUrl ? <OgpCard url={ogpUrl} variant="timeline" /> : null;
 
   /** Media preview (images / video) */
   const mediaPreview =
     previewMedia.length > 0 ? (
-      <div className={s.contentPadding}>
+      <div className={contentIndent}>
         <PostMediaPreview
           media={previewMedia}
           editable
           onRemove={handleRemoveMedia}
           onCrop={handleCropOpen}
+          onQualityChange={handleQualityChange}
+          maxHeight={
+            fullscreen && layout === "dialog"
+              ? "calc(100dvh - var(--keyboard-inset, 0px) - 11.5rem)"
+              : undefined
+          }
         />
       </div>
     ) : null;
 
+  /** Quoted post preview (non-interactive) */
+  const quotedPostPreview = quotedPost ? (
+    <div className={contentIndent}>
+      <div className="pointer-events-none select-none">
+        <PostCard post={quotedPost} variant="embedded" isLast />
+      </div>
+    </div>
+  ) : null;
+
+  /**
+   * Editor + attachments. Spacing between items comes only from `space-y-3`;
+   * items themselves carry no vertical margin so both layouts stay in sync.
+   */
+  const contentBlock = (
+    <div
+      className={cn(
+        "space-y-3",
+        layout === "card" ? "min-h-[100px]" : !quotedPost && "min-h-[200px]",
+      )}
+    >
+      {composerMode === "drawing" ? drawingRow : textareaRow}
+      {composerMode === "text" && ogpPreview}
+      {composerMode === "text" && mediaPreview}
+      {quotedPostPreview}
+    </div>
+  );
+
   /** Drag & drop overlay */
   const dragOverlay =
-    isDragging && !isDropDisabled ? (
+    composerMode === "text" && isDragging && !isDropDisabled ? (
       <div className="absolute inset-0 z-10 bg-background/90 border-2 border-dashed border-c-1 rounded-xl flex items-center justify-center pointer-events-none">
         <div className="text-center">
           <ImageIcon className="w-12 h-12 mx-auto mb-2 text-c-1" />
-          <p className="text-lg font-medium text-foreground">
-            {t("createPost.dropMedia")}
-          </p>
+          <p className="text-lg font-medium text-foreground">{t("createPost.dropMedia")}</p>
         </div>
       </div>
     ) : null;
+
+  const discardConfirm = (
+    <DrawingDiscardConfirm
+      open={discardDrawingOpen}
+      onOpenChange={setDiscardDrawingOpen}
+      onConfirm={discardDrawing}
+    />
+  );
 
   // ---- Layout assembly ----------------------------------------------------
 
@@ -457,44 +808,52 @@ export function PostComposerContent({
       <>
         {dragOverlay}
 
-        {/* Header: close button (left) + counter & post (right) */}
+        {/* Header: close (left) + mode, counter & post (right) */}
         <div className="pt-3 px-3 flex flex-row items-center justify-between shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onClose?.()}
-            disabled={closeDisabled}
-            aria-label={t("common.close")}
-            className="h-8 w-8"
-          >
-            <X className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onClose?.()}
+              disabled={closeDisabled}
+              aria-label={t("common.close")}
+              className="h-8 w-8"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
           {counterAndPost}
         </div>
 
         {/* Scrollable content */}
-        <div className="overflow-y-auto max-sm:max-h-[calc(100vh-4rem)]">
-          <div className="min-h-[200px]">
-            {textareaRow}
-            {ogpPreview}
-            {mediaPreview}
-          </div>
+        <div
+          className={cn(
+            "overflow-y-auto p-3 space-y-3",
+            fullscreen ? "flex flex-col [&>*]:shrink-0" : "max-sm:max-h-[calc(100vh-4rem)]",
+          )}
+        >
+          {contentBlock}
 
-          {/* Upload & format buttons */}
-          <div className="px-3 pb-3 flex items-center justify-between">
-            {uploadButtons}
-            {formatButtons}
+          {/* Upload & format buttons / drawing tools & undo-redo; pinned to the bottom in fullscreen */}
+          <div className={cn("flex items-center justify-between", fullscreen && "mt-auto")}>
+            {composerMode === "drawing" ? drawingTools : uploadButtons}
+            {composerMode === "drawing" ? drawingHistory : formatButtons}
           </div>
         </div>
+
+        {discardConfirm}
 
         {cropDialogOpen && cropImageSrc && pendingCropImage && (
           <ImageCropDialog
             open={cropDialogOpen}
             onOpenChange={handleCropDialogOpenChange}
             imageSrc={cropImageSrc}
+            aspectMode={{ mode: "selectable", defaultId: "free" }}
             title={t("createPost.cropTitle")}
             originalFile={pendingCropImage.originalFile}
             initialCrop={pendingCropImage.crop}
+            initialTransform={pendingCropImage.cropTransform}
+            initialAspectId={pendingCropImage.cropAspectId}
             contentClassName={cropDialogZIndexClass}
             overlayClassName="z-[65]"
             onCropComplete={handleCropComplete}
@@ -510,33 +869,32 @@ export function PostComposerContent({
       {dragOverlay}
 
       <div className="space-y-3">
-        <div className="min-h-[100px] space-y-3">
-          {textareaRow}
-          {ogpPreview}
-          {mediaPreview}
-        </div>
+        {contentBlock}
 
-        {/* Actions bar: upload (left) + counter & post (right) */}
-        <div
-          className={cn("flex items-center justify-between", s.contentPadding)}
-        >
-          <div>{uploadButtons}</div>
-          <div className="flex flex-row gap-3">
+        {/* Actions bar: upload + format (left) + counter & post (right) */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            {uploadButtons}
+            <Separator orientation="vertical" className="h-5 mx-1 w-[2px] rounded-full" />
             {formatButtons}
-            {counterAndPost}
           </div>
+          <div className="flex items-center gap-3">{counterAndPost}</div>
         </div>
       </div>
+
+      {discardConfirm}
 
       {cropDialogOpen && cropImageSrc && pendingCropImage && (
         <ImageCropDialog
           open={cropDialogOpen}
           onOpenChange={handleCropDialogOpenChange}
           imageSrc={cropImageSrc}
-          aspect={1}
+          aspectMode={{ mode: "selectable", defaultId: "free" }}
           title={t("createPost.cropTitle")}
           originalFile={pendingCropImage.originalFile}
           initialCrop={pendingCropImage.crop}
+          initialTransform={pendingCropImage.cropTransform}
+          initialAspectId={pendingCropImage.cropAspectId}
           contentClassName={cropDialogZIndexClass}
           overlayClassName="z-[65]"
           onCropComplete={handleCropComplete}

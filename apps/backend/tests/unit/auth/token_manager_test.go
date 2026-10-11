@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -141,23 +142,9 @@ func TestTokenManager_InvalidateUserTokens_RevokesPreexistingTokens(t *testing.T
 	m, _ := newTokenManagerWithRedis(t, time.Minute)
 	uid := uuid.New()
 
-	// Construct a token with IssuedAt 2 seconds in the past so the revocation
-	// timestamp (now) is strictly greater, avoiding same-second comparison issues
-	// caused by JWT's second-level precision.
-	past := time.Now().Add(-2 * time.Second)
-	claims := auth.Claims{
-		UserID:    uid.String(),
-		Username:  "alice",
-		TokenType: "access",
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(past),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
-		},
-	}
-	jwtTok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tok, err := jwtTok.SignedString([]byte("secret"))
+	tok, _, err := m.Issue(auth.User{ID: uid, Username: "alice"})
 	if err != nil {
-		t.Fatalf("sign: %v", err)
+		t.Fatalf("Issue: %v", err)
 	}
 
 	if err := m.InvalidateUserTokens(context.Background(), uid.String()); err != nil {
@@ -167,6 +154,36 @@ func TestTokenManager_InvalidateUserTokens_RevokesPreexistingTokens(t *testing.T
 	_, err = m.Parse(tok)
 	if err == nil {
 		t.Fatal("expected token to be rejected after invalidation")
+	}
+}
+
+func TestTokenManager_InvalidateUserTokens_RejectsSameSecondTokens(t *testing.T) {
+	m, mr := newTokenManagerWithRedis(t, time.Minute)
+	uid := uuid.New()
+	revokedAt := time.Now().Unix()*1_000_000_000 + 500_000_000
+	key := "token:revoke:" + uid.String()
+	if err := mr.Set(key, strconv.FormatInt(revokedAt, 10)); err != nil {
+		t.Fatal(err)
+	}
+	issuedAt := time.Unix(0, revokedAt-1)
+	claims := auth.Claims{
+		UserID: uid.String(), Username: "alice", TokenType: "access",
+		IssuedAtNs: revokedAt - 1,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt: jwt.NewNumericDate(issuedAt), ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+		},
+	}
+	for _, legacy := range []bool{false, true} {
+		if legacy {
+			claims.IssuedAtNs = 0
+		}
+		token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("secret"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := m.Parse(token); err == nil {
+			t.Fatalf("same-second token accepted (legacy=%v)", legacy)
+		}
 	}
 }
 
@@ -189,7 +206,7 @@ func TestTokenManager_InvalidateUserTokens_TokenIssuedAfterIsValid(t *testing.T)
 }
 
 func TestTokenManager_InvalidateUserTokens_KeyExpiresAfterTTL(t *testing.T) {
-	ttl := 200 * time.Millisecond
+	ttl := 2 * time.Second
 	m, mr := newTokenManagerWithRedis(t, ttl)
 	uid := uuid.New()
 

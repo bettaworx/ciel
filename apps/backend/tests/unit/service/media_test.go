@@ -26,7 +26,7 @@ func TestDeleteMedia_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewMediaService(store, "/tmp/media", getDefaultMediaConfig(), nil)
@@ -61,7 +61,7 @@ func TestDeleteMedia_NotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewMediaService(store, "/tmp/media", getDefaultMediaConfig(), nil)
@@ -93,7 +93,7 @@ func TestDeleteMedia_Forbidden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewMediaService(store, "/tmp/media", getDefaultMediaConfig(), nil)
@@ -146,7 +146,7 @@ func TestNewMediaService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := service.NewMediaService(store, "/tmp/media", getDefaultMediaConfig(), nil)
@@ -160,7 +160,7 @@ func TestMediaService_InitError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	initErr := assert.AnError // Simulate initialization error

@@ -33,6 +33,12 @@ interface MfmRendererProps {
   allowList?: MfmAllowList;
   /** Additional CSS class names for the root wrapper element. */
   className?: string;
+  /**
+   * When true, suppresses rendering of the leading mention node.
+   * Used for reply posts where `@parentAuthor` is prepended to the
+   * stored content but should not be shown in the UI.
+   */
+  skipLeadingMention?: boolean;
 }
 
 /**
@@ -58,6 +64,7 @@ export function MfmRenderer({
   simple = false,
   allowList,
   className,
+  skipLeadingMention = false,
 }: MfmRendererProps) {
   const settings = useAtomValue(mfmSettingsAtom);
 
@@ -89,13 +96,27 @@ export function MfmRenderer({
     return filterMfmNodes(parsed, settingsAllowList);
   }, [text, simple, allowList, settings]);
 
-  if (nodes.length === 0) {
+  let renderNodes = nodes;
+  if (skipLeadingMention && renderNodes.length > 0 && renderNodes[0].type === "mention") {
+    renderNodes = renderNodes.slice(1);
+    if (renderNodes.length > 0 && renderNodes[0].type === "text") {
+      const head = renderNodes[0];
+      if (head.props.text.startsWith(" ")) {
+        renderNodes = [
+          { ...head, props: { ...head.props, text: head.props.text.replace(/^ /, "") } },
+          ...renderNodes.slice(1),
+        ];
+      }
+    }
+  }
+
+  if (renderNodes.length === 0) {
     return null;
   }
 
   return (
     <span className={className}>
-      {nodes.map((node, i) => (
+      {renderNodes.map((node, i) => (
         <MfmNode key={i} node={node} />
       ))}
     </span>

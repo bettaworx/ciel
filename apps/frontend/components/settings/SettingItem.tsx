@@ -36,9 +36,7 @@ export function SettingItem({
         <div className="flex-1">
           <h3 className="text-base font-semibold mb-1">{title}</h3>
           <p className="text-sm text-muted-foreground">{description}</p>
-          {helperText && (
-            <p className="text-sm text-muted-foreground mt-2">{helperText}</p>
-          )}
+          {helperText && <p className="text-sm text-muted-foreground mt-2">{helperText}</p>}
         </div>
         <div className="md:w-64 shrink-0">{children}</div>
       </CardContent>

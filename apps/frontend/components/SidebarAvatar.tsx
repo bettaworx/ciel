@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { userAtom } from "@/atoms/auth";
+import { orderedAccountsAtom } from "@/atoms/accounts";
 import { sidebarMenuOpenAtom } from "@/atoms/sidebar";
 import { useUserMenu } from "@/lib/hooks/use-user-menu";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
@@ -11,9 +12,9 @@ import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { DesktopUserMenu } from "@/components/auth/DesktopUserMenu";
 import { MobileUserMenu } from "@/components/auth/MobileUserMenu";
 import { MobileLogoutConfirm } from "@/components/auth/MobileLogoutConfirm";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 
 interface SidebarAvatarProps {
   /** サイドバー展開時にユーザー名を表示するか */
@@ -28,27 +29,29 @@ interface SidebarAvatarProps {
  * サイドバー用のアバターコンポーネント
  * Avatar component for sidebar with menu functionality
  */
-export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate = true }: SidebarAvatarProps) {
+export function SidebarAvatar({
+  isExpanded = false,
+  isPinned = false,
+  canAnimate = true,
+}: SidebarAvatarProps) {
   const user = useAtomValue(userAtom);
+  const accounts = useAtomValue(orderedAccountsAtom);
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const setMenuOpen = useSetAtom(sidebarMenuOpenAtom);
 
   const {
-    menuView,
-    setMenuView,
     isMenuOpen,
     isLogoutOpen,
     setIsLogoutOpen,
-    theme,
-    setTheme,
-    locale,
     handleMenuOpenChange,
     handleLogoutClick,
     handleLogoutConfirm,
-    handleLanguageChange,
     handleUserInfoClick,
     handleProfileClick,
+    handleBookmarksClick,
     handleSettingsClick,
+    handleAccountClick,
+    handleAddAccount,
   } = useUserMenu();
 
   useEffect(() => {
@@ -68,21 +71,15 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
         initials={initials}
         isOpen={isMenuOpen}
         onOpenChange={handleMenuOpenChange}
-        currentView={menuView}
-        onViewChange={setMenuView}
         isLogoutOpen={isLogoutOpen}
         onLogoutOpenChange={setIsLogoutOpen}
-        theme={theme}
-        onThemeChange={setTheme}
-        locale={locale}
-        onLanguageChange={handleLanguageChange}
         onLogoutClick={handleLogoutClick}
         onLogoutConfirm={handleLogoutConfirm}
-        onProfileClick={() => handleProfileClick(user.username)}
-        onSettingsClick={handleSettingsClick}
-        onUserInfoClick={() => handleUserInfoClick(user.username)}
         isExpanded={isExpanded}
         canAnimate={canAnimate}
+        accounts={accounts}
+        onAccountClick={handleAccountClick}
+        onAddAccount={handleAddAccount}
       />
     );
   }
@@ -95,16 +92,14 @@ export function SidebarAvatar({ isExpanded = false, isPinned = false, canAnimate
         initials={initials}
         isOpen={isMenuOpen}
         onOpenChange={handleMenuOpenChange}
-        currentView={menuView}
-        onViewChange={setMenuView}
-        theme={theme}
-        onThemeChange={setTheme}
-        locale={locale}
-        onLanguageChange={handleLanguageChange}
         onLogoutClick={handleLogoutClick}
         onProfileClick={() => handleProfileClick(user.username)}
+        onBookmarksClick={handleBookmarksClick}
         onSettingsClick={handleSettingsClick}
         onUserInfoClick={() => handleUserInfoClick(user.username)}
+        accounts={accounts}
+        onAccountClick={handleAccountClick}
+        onAddAccount={handleAddAccount}
       />
 
       <MobileLogoutConfirm
@@ -131,6 +126,7 @@ export function SidebarAvatarButton() {
   return (
     <Button variant="link" className="w-14 h-14" aria-label={tNav("openUserMenu")}>
       <Avatar className="w-12 h-12">
+        <AvatarImage src={user?.avatarUrl ?? undefined} alt={user.displayName || user.username} />
         <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
           {initials}
         </AvatarFallback>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "@/lib/i18n";
 import { createKotodoki } from "@ciel/kotodoki";
 import { frontendKotodokiCatalog } from "@/lib/kotodoki/catalog";
 

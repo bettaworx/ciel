@@ -27,9 +27,7 @@ export function insertCenterDecoration(
   if (mfmMatch) {
     const block = value.slice(mfmMatch.prefixStart, mfmMatch.suffixEnd);
     const newValue =
-      value.slice(0, mfmMatch.prefixStart) +
-      OPEN + block + CLOSE +
-      value.slice(mfmMatch.suffixEnd);
+      value.slice(0, mfmMatch.prefixStart) + OPEN + block + CLOSE + value.slice(mfmMatch.suffixEnd);
     return {
       newValue,
       newStart: mfmMatch.prefixStart + OPEN.length,
@@ -49,8 +47,7 @@ export function insertCenterDecoration(
   }
 
   return {
-    newValue:
-      value.slice(0, selectionStart) + OPEN + CLOSE + value.slice(selectionStart),
+    newValue: value.slice(0, selectionStart) + OPEN + CLOSE + value.slice(selectionStart),
     newStart: selectionStart + OPEN.length,
     newEnd: selectionStart + OPEN.length,
   };

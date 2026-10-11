@@ -1,0 +1,18 @@
+# Shell scripts run inside Linux containers (see Dockerfile.backend). A CRLF
+# checkout on Windows leaves "#!/bin/sh\r" in the shebang, and the image fails
+# with "no such file or directory" on an executable that plainly exists.
+*.sh text eol=lf
+
+# The formatters (Biome, gofmt/goimports) write LF. core.autocrlf=true would
+# otherwise hand Windows checkouts CRLF files that every local format check
+# flags, while the same files pass in CI on Linux.
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.jsonc text eol=lf
+*.css text eol=lf
+*.go text eol=lf

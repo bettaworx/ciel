@@ -1,0 +1,475 @@
+/oauth/authorize/info:
+  get:
+    tags:
+    - OAuth2
+    summary: Describe a pending authorization request
+    description: >-
+      Validates an authorization request and returns what the consent screen
+      needs to render it. Called by the client-side consent route before the
+      user is asked anything.
+
+
+      The two failure classes differ on purpose (RFC 6749 §4.1.2.1). An unknown
+      client or a redirect_uri that matches no registered URI is reported here,
+      because redirecting to an unverified URI to report an error is itself the
+      open redirect this check exists to prevent. Everything else is safe to
+      hand back to the app.
+    parameters:
+    - name: client_id
+      in: query
+      required: true
+      schema:
+        type: string
+    - name: redirect_uri
+      in: query
+      required: true
+      schema:
+        type: string
+    - name: scope
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Space-delimited.
+    - name: response_type
+      in: query
+      required: true
+      schema:
+        type: string
+    - name: code_challenge
+      in: query
+      required: true
+      schema:
+        type: string
+    - name: code_challenge_method
+      in: query
+      required: true
+      schema:
+        type: string
+      description: S256 only.
+    - name: state
+      in: query
+      required: false
+      schema:
+        type: string
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/OAuthAuthorizationInfo
+      '400':
+        description: Invalid request, client or redirect URI
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '503':
+        description: Authorization codes temporarily unavailable
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/oauth/authorize:
+  post:
+    tags:
+    - OAuth2
+    summary: Approve or refuse an authorization request
+    description: >-
+      Records the signed-in user's decision and returns the URI to navigate to.
+      On approval that URI carries a single-use authorization code; on refusal
+      it carries error=access_denied, because an app that is never told will sit
+      waiting for a callback forever.
+
+
+      Every parameter the consent screen displayed is sent back and re-validated
+      here rather than being held server-side between the two calls, so what is
+      approved is exactly what the user was shown.
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/oauth.yml#/components/schemas/OAuthAuthorizeRequest
+    responses:
+      '200':
+        description: Decision recorded
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/OAuthAuthorizeResponse
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+/oauth/token:
+  post:
+    tags:
+    - OAuth2
+    summary: Exchange a grant for an access token
+    description: >-
+      RFC 6749 §4.1.3, §4.4 and §6. Form encoded, not JSON, because that is what
+      the RFC specifies and what every OAuth client library sends.
+
+
+      Supported grant types are `authorization_code` (with PKCE, S256 only),
+      `refresh_token` and `client_credentials`. Refresh tokens rotate: the
+      presented token is revoked and a new one issued, and presenting an
+      already-spent refresh token revokes the entire grant, since there is no
+      way to tell a stolen token from a retried one and theft is the reading
+      that fails safe.
+
+
+      Confidential clients authenticate with either HTTP Basic
+      (`client_secret_basic`) or `client_secret` in the body
+      (`client_secret_post`). Public clients send `client_id` alone and rely on
+      PKCE.
+    requestBody:
+      required: true
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            required:
+            - grant_type
+            properties:
+              grant_type:
+                type: string
+                enum:
+                - authorization_code
+                - refresh_token
+                - client_credentials
+              code:
+                type: string
+              redirect_uri:
+                type: string
+              code_verifier:
+                type: string
+              refresh_token:
+                type: string
+              scope:
+                type: string
+              client_id:
+                type: string
+              client_secret:
+                type: string
+    responses:
+      '200':
+        description: Token issued
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/OAuthTokenResponse
+      '400':
+        description: Invalid grant or request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/OAuthError
+      '401':
+        description: Client authentication failed
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/OAuthError
+/oauth/revoke:
+  post:
+    tags:
+    - OAuth2
+    summary: Revoke an access or refresh token
+    description: >-
+      RFC 7009. Always answers 200, including for a token that was never valid:
+      reporting "unknown token" would turn this into an oracle for testing
+      whether a stolen string is live.
+    requestBody:
+      required: true
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            required:
+            - token
+            properties:
+              token:
+                type: string
+              client_id:
+                type: string
+              client_secret:
+                type: string
+    responses:
+      '200':
+        description: Revoked, or the token was not valid in the first place
+      '401':
+        description: Client authentication failed
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/OAuthError
+/me/oauth/clients:
+  get:
+    tags:
+    - OAuth2
+    summary: List the OAuth2 apps this account has registered
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/OAuthClientPage
+      '401':
+        description: Unauthorized
+  post:
+    tags:
+    - OAuth2
+    summary: Register an OAuth2 app
+    description: >-
+      Any signed-in account may register apps, up to a per-account cap. The
+      client secret is in the response and nowhere else afterwards.
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/oauth.yml#/components/schemas/CreateOAuthClientRequest
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/OAuthClientWithSecret
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+      '409':
+        description: This account has registered the maximum number of apps
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/oauth/clients/{clientUuid}:
+  delete:
+    tags:
+    - OAuth2
+    summary: Delete an OAuth2 app
+    description: Its tokens go with it, so this also disconnects everyone using it.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: clientUuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Deleted
+      '401':
+        description: Unauthorized
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/oauth/clients/{clientUuid}/secret:
+  post:
+    tags:
+    - OAuth2
+    summary: Issue a new client secret
+    description: >-
+      Requires step-up authentication. The secret is what lets an app act as its
+      owner, so replacing it sits with changing the password rather than with
+      editing a display name.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: clientUuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: X-Stepup-Token
+      in: header
+      # Optional in the schema, enforced in the handler — the same shape the
+      # other step-up endpoints use. Declaring it required makes the generated
+      # wrapper answer 400 before the handler runs, so a missing step-up would
+      # report as a malformed request instead of as the 401 that tells a client
+      # to go and re-authenticate.
+      required: false
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Rotated
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/OAuthClientWithSecret
+      '401':
+        description: Unauthorized or step-up required
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '409':
+        description: This client is public and has no secret
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/oauth/authorizations:
+  get:
+    tags:
+    - OAuth2
+    summary: List apps currently connected to this account
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/OAuthAuthorizationPage
+      '401':
+        description: Unauthorized
+/me/oauth/authorizations/{clientId}:
+  delete:
+    tags:
+    - OAuth2
+    summary: Disconnect an app from this account
+    description: Revokes every live token the app holds for this account.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: clientId
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '204':
+        description: Disconnected
+      '401':
+        description: Unauthorized
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/oauth/tokens:
+  get:
+    tags:
+    - OAuth2
+    summary: List this account's personal access tokens
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/PersonalAccessTokenPage
+      '401':
+        description: Unauthorized
+  post:
+    tags:
+    - OAuth2
+    summary: Issue a personal access token
+    description: >-
+      Requires step-up authentication. An OAuth grant is made deliberate by the
+      consent screen; here the owner is both parties, so re-authenticating is
+      the equivalent friction in front of minting a credential that acts as the
+      account.
+
+
+      The token is in the response and nowhere else afterwards.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      # Optional in the schema, enforced in the handler — the same shape the
+      # other step-up endpoints use. Declaring it required makes the generated
+      # wrapper answer 400 before the handler runs, so a missing step-up would
+      # report as a malformed request instead of as the 401 that tells a client
+      # to go and re-authenticate.
+      required: false
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/oauth.yml#/components/schemas/CreatePersonalAccessTokenRequest
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/oauth.yml#/components/schemas/PersonalAccessTokenWithSecret
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized or step-up required
+      '409':
+        description: This account has the maximum number of tokens
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/me/oauth/tokens/{tokenId}:
+  delete:
+    tags:
+    - OAuth2
+    summary: Revoke a personal access token
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: tokenId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    responses:
+      '204':
+        description: Revoked
+      '401':
+        description: Unauthorized
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

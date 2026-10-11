@@ -48,22 +48,80 @@ export const DISPLAY_NAME_ALLOW_LIST: MfmAllowList = {
  */
 export const BIO_ALLOW_LIST: MfmAllowList = {
   nodeTypes: new Set([
-    "text", "plain", "bold", "italic", "strike", "small",
-    "center", "quote", "blockCode", "inlineCode",
-    "mathBlock", "mathInline",
-    "url", "link", "fn",
-    "unicodeEmoji", "emojiCode",
-    "mention", "hashtag",
+    "text",
+    "plain",
+    "bold",
+    "italic",
+    "strike",
+    "small",
+    "center",
+    "quote",
+    "blockCode",
+    "inlineCode",
+    "mathBlock",
+    "mathInline",
+    "url",
+    "link",
+    "fn",
+    "unicodeEmoji",
+    "emojiCode",
+    "mention",
+    "hashtag",
     // "search" is intentionally excluded
   ]),
   fnNames: new Set([
-    "jelly", "tada", "jump", "bounce", "spin",
-    "shake", "twitch", "rainbow", "sparkle",
-    "flip", "font", "blur",
-    "fg", "bg", "rotate", "position", "scale",
-    "x2", "x3", "x4", "ruby",
+    "jelly",
+    "tada",
+    "jump",
+    "bounce",
+    "spin",
+    "shake",
+    "twitch",
+    "rainbow",
+    "sparkle",
+    "flip",
+    "font",
+    "blur",
+    "fg",
+    "bg",
+    "rotate",
+    "position",
+    "scale",
+    "x2",
+    "x3",
+    "x4",
+    "ruby",
     // "border" is intentionally excluded
   ]),
+};
+
+/**
+ * Preset allow-list for the post excerpt on a notification row.
+ *
+ * The excerpt is a clamped, small strip of text, so anything that claims its own
+ * line or changes the box size is excluded: block elements (center, quote, code
+ * blocks, block math, search) and the fn decorations that scale, move, rotate or
+ * animate. `blur` stays so spoilered text is not revealed in a notification.
+ */
+export const NOTIFICATION_EXCERPT_ALLOW_LIST: MfmAllowList = {
+  nodeTypes: new Set([
+    "text",
+    "plain",
+    "bold",
+    "italic",
+    "strike",
+    "small",
+    "inlineCode",
+    "mathInline",
+    "url",
+    "link",
+    "fn",
+    "unicodeEmoji",
+    "emojiCode",
+    "mention",
+    "hashtag",
+  ]),
+  fnNames: new Set(["flip", "font", "fg", "bg", "blur"]),
 };
 
 /**
@@ -92,12 +150,26 @@ export function buildAllowListFromSettings(s: MfmSettings): MfmAllowList {
 
   // fn node is needed if any fn-based feature is enabled
   const hasFn =
-    s.ruby || s.flip || s.blur || s.bg || s.fg || s.border ||
-    s.rotate || s.position || s.scale ||
+    s.ruby ||
+    s.flip ||
+    s.blur ||
+    s.bg ||
+    s.fg ||
+    s.border ||
+    s.rotate ||
+    s.position ||
+    s.scale ||
     (s.font.enabled && (s.font.serif || s.font.monospace || s.font.cursive || s.font.fantasy)) ||
-    (s.animation.enabled && (s.animation.jelly || s.animation.tada || s.animation.jump ||
-    s.animation.bounce || s.animation.spin || s.animation.shake ||
-    s.animation.twitch)) || s.rainbow || s.sparkle ||
+    (s.animation.enabled &&
+      (s.animation.jelly ||
+        s.animation.tada ||
+        s.animation.jump ||
+        s.animation.bounce ||
+        s.animation.spin ||
+        s.animation.shake ||
+        s.animation.twitch)) ||
+    s.rainbow ||
+    s.sparkle ||
     true; // x2 is always allowed
 
   if (hasFn) nodeTypes.add("fn");
@@ -146,10 +218,7 @@ export function buildAllowListFromSettings(s: MfmSettings): MfmAllowList {
  * This is used to combine context-level restrictions (e.g. display name whitelist)
  * with user-level MFM settings.
  */
-export function intersectAllowLists(
-  a: MfmAllowList,
-  b: MfmAllowList,
-): MfmAllowList {
+export function intersectAllowLists(a: MfmAllowList, b: MfmAllowList): MfmAllowList {
   const nodeTypes = new Set<string>();
   for (const t of a.nodeTypes) {
     if (b.nodeTypes.has(t)) nodeTypes.add(t);
@@ -182,7 +251,11 @@ function extractPlainAndEmoji(nodes: MfmNode[]): MfmNode[] {
         const lastSpace = raw.lastIndexOf(" ");
         const baseText = lastSpace >= 0 ? raw.slice(0, lastSpace) : raw;
         if (baseText) {
-          result.push({ type: "text", props: { text: baseText }, children: [] } as unknown as MfmNode);
+          result.push({
+            type: "text",
+            props: { text: baseText },
+            children: [],
+          } as unknown as MfmNode);
         }
       } else if ("children" in node && node.children && (node.children as MfmNode[]).length > 0) {
         result.push(...extractPlainAndEmoji(node.children as MfmNode[]));
@@ -217,6 +290,15 @@ export function parseMfmToPlaintext(text: string): MfmNode[] {
   return extractPlainAndEmoji(parsed);
 }
 
+/**
+ * Parse MFM text and return just its visible characters, with all syntax
+ * markers removed. For places that need a bare string rather than nodes —
+ * `alt`, `aria-label`, avatar initials.
+ */
+export function mfmToPlainText(text: string): string {
+  return extractPlainText(mfm.parse(text));
+}
+
 function extractVisibleContent(nodes: MfmNode[]): MfmNode[] {
   const result: MfmNode[] = [];
 
@@ -233,7 +315,11 @@ function extractVisibleContent(nodes: MfmNode[]): MfmNode[] {
         const lastSpace = raw.lastIndexOf(" ");
         const baseText = lastSpace >= 0 ? raw.slice(0, lastSpace) : raw;
         if (baseText) {
-          result.push({ type: "text", props: { text: baseText }, children: [] } as unknown as MfmNode);
+          result.push({
+            type: "text",
+            props: { text: baseText },
+            children: [],
+          } as unknown as MfmNode);
         }
         continue;
       }
@@ -265,14 +351,10 @@ function extractPlainText(nodes: MfmNode[]): string {
       if (node.type === "emojiCode") return `:${node.props.name}:`;
       if (node.type === "blockCode" || node.type === "inlineCode")
         return (node.props as { code: string }).code;
-      if (node.type === "search")
-        return (node.props as { query: string }).query;
-      if (node.type === "mention")
-        return (node.props as { acct: string }).acct;
-      if (node.type === "url")
-        return (node.props as { url: string }).url;
-      if (node.type === "hashtag")
-        return `#${(node.props as { hashtag: string }).hashtag}`;
+      if (node.type === "search") return (node.props as { query: string }).query;
+      if (node.type === "mention") return (node.props as { acct: string }).acct;
+      if (node.type === "url") return (node.props as { url: string }).url;
+      if (node.type === "hashtag") return `#${(node.props as { hashtag: string }).hashtag}`;
       if ("children" in node && node.children) {
         return extractPlainText(node.children as MfmNode[]);
       }
@@ -286,10 +368,7 @@ function extractPlainText(nodes: MfmNode[]): string {
  * Disallowed nodes are replaced with plain text nodes preserving their text content.
  * Children of allowed nodes are recursively filtered as well.
  */
-export function filterMfmNodes(
-  nodes: MfmNode[],
-  allowList: MfmAllowList,
-): MfmNode[] {
+export function filterMfmNodes(nodes: MfmNode[], allowList: MfmAllowList): MfmNode[] {
   const result: MfmNode[] = [];
 
   for (const node of nodes) {
@@ -305,7 +384,11 @@ export function filterMfmNodes(
 
     // For fn nodes, additionally check if the function name is allowed
     if (node.type === "fn") {
-      const fnNode = node as { type: "fn"; props: { name: string; args: Record<string, string | true> }; children: MfmNode[] };
+      const fnNode = node as {
+        type: "fn";
+        props: { name: string; args: Record<string, string | true> };
+        children: MfmNode[];
+      };
       if (!allowList.fnNames.has(fnNode.props.name)) {
         result.push(...extractVisibleContent([node]));
         continue;

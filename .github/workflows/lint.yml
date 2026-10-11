@@ -1,0 +1,59 @@
+name: Lint
+
+on:
+  push:
+
+jobs:
+  lint-backend:
+    name: Backend (Go) Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+
+      - name: Cache generated code
+        id: gen-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/backend/internal/db/sqlc/*.go
+            apps/backend/internal/api/*.go
+            packages/api/openapi.bundled.yml
+          key: go-generate-${{ hashFiles('apps/backend/db/schema.sql', 'apps/backend/db/queries*.sql', 'apps/backend/sqlc.yaml', 'apps/backend/oapi-codegen.yaml', 'packages/api/openapi.yml', 'packages/api/paths/**', 'packages/api/schemas/**') }}
+
+      - name: Generate code
+        if: steps.gen-cache.outputs.cache-hit != 'true'
+        working-directory: apps/backend
+        run: go generate ./...
+
+      - name: Build (warm module and build cache)
+        working-directory: apps/backend
+        run: go build ./...
+
+      # Pin the version: "latest" means an unrelated golangci-lint release can
+      # turn this job red on a commit that changed nothing.
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          working-directory: apps/backend
+
+  lint-js:
+    name: JS/TS (Biome) Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Biome (lint + format check)
+        run: pnpm run lint:ci

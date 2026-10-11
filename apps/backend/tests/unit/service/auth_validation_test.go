@@ -55,7 +55,7 @@ func TestAuthService_Register_SignupDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	tm := auth.NewTokenManager([]byte("secret"), time.Minute)
@@ -80,7 +80,7 @@ func TestAuthService_Register_TermsVersionMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	tm := auth.NewTokenManager([]byte("secret"), time.Minute)
@@ -115,7 +115,7 @@ func TestAuthService_Register_PrivacyVersionMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	tm := auth.NewTokenManager([]byte("secret"), time.Minute)

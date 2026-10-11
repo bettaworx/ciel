@@ -32,9 +32,7 @@ describe("custom emoji helpers", () => {
 
   it("builds a map indexed by shortcode", () => {
     const emojiMap = buildCustomEmojiMap(emojis);
-    expect(emojiMap.get("blobcat")?.imageUrl).toBe(
-      "https://example.com/blobcat.webp",
-    );
+    expect(emojiMap.get("blobcat")?.imageUrl).toBe("https://example.com/blobcat.webp");
   });
 
   it("resolves local custom emoji and ignores remote shortcodes", () => {

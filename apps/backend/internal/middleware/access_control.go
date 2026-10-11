@@ -24,9 +24,9 @@ type AccessControlOptions struct {
 //   - deny:user (SET) contains user UUID strings
 //   - deny:route:{route} (SET) contains subjects like "ip:{ip}" or "user:{uuid}" or "*"
 //   - Temporary bans (TTL):
-//       - deny:ip:{ip} (STRING with TTL)
-//       - deny:user:{uuid} (STRING with TTL)
-//       - deny:route:{route}:ban (STRING with TTL)
+//   - deny:ip:{ip} (STRING with TTL)
+//   - deny:user:{uuid} (STRING with TTL)
+//   - deny:route:{route}:ban (STRING with TTL)
 func AccessControl(rdb *redis.Client, opt AccessControlOptions) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

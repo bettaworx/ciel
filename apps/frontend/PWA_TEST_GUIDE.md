@@ -198,7 +198,7 @@ pnpm -C apps/frontend build && pnpm -C apps/frontend start
 
 ```bash
 # ビルドディレクトリをクリア
-rm -rf apps/frontend/.next
+rm -rf apps/frontend/dist
 
 # 再ビルド
 pnpm -C apps/frontend build && pnpm -C apps/frontend start

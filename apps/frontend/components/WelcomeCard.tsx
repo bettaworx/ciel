@@ -1,8 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import Image from "next/image";
+import { useRouter } from "@/lib/navigation";
+import { useTranslations } from "@/lib/i18n";
+import Image from "@/components/ui/image";
+import Link from "@/components/ui/link";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,13 +12,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Globe, Ellipsis, Info } from "lucide-react";
-import { type Locale } from "@/i18n/constants";
+import type { Locale } from "@/i18n/constants";
 import { useServerInfo } from "@/lib/hooks/use-queries";
 import { setClientLocale } from "@/i18n/client-locale";
 import { MfmRenderer } from "@/components/mfm/MfmRenderer";
@@ -32,9 +30,16 @@ export function WelcomeCard() {
   const { data: serverInfo } = useServerInfo();
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
+  useEffect(() => {
+    router.prefetch("/login");
+    router.prefetch("/signup");
+    router.prefetch("/about");
+    router.prefetch("/version");
+  }, [router]);
+
   const handleLanguageChange = (newLocale: Locale) => {
     setClientLocale(newLocale);
-    window.dispatchEvent(new Event('ciel:locale-change'));
+    window.dispatchEvent(new Event("ciel:locale-change"));
   };
 
   return (
@@ -60,9 +65,7 @@ export function WelcomeCard() {
             })}
           </h1>
           <div className="text-xs sm:text-sm text-muted-foreground">
-            <MfmRenderer
-              text={serverInfo?.serverDescription || t("welcome.descriptionFallback")}
-            />
+            <MfmRenderer text={serverInfo?.serverDescription || t("welcome.descriptionFallback")} />
           </div>
         </div>
         <div>
@@ -121,9 +124,7 @@ export function WelcomeCard() {
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="sm:w-auto">
                 <Globe className="sm:ml-4 w-4 h-4 sm:mr-2" />
-                <div className="hidden sm:block sm:mr-4">
-                  {t("setup.welcome.changeLanguage")}
-                </div>
+                <div className="hidden sm:block sm:mr-4">{t("setup.welcome.changeLanguage")}</div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -137,11 +138,15 @@ export function WelcomeCard() {
           </DropdownMenu>
         </div>
         <div className="flex flex-row gap-3">
-          <Button onClick={() => router.push("/login")}>
-            {t("login.title")}
+          <Button asChild>
+            <Link href="/login" prefetch>
+              {t("login.title")}
+            </Link>
           </Button>
-          <Button variant="primary" onClick={() => router.push("/signup")}>
-            {t("signup.createAccount")}
+          <Button asChild variant="primary">
+            <Link href="/signup" prefetch>
+              {t("signup.createAccount")}
+            </Link>
           </Button>
         </div>
       </div>

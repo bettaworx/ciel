@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff } from "lucide-react";
 import { validateUsername, validatePassword } from "@/lib/validation";
@@ -13,10 +12,7 @@ interface CreateAdminStepProps {
   loading?: boolean;
 }
 
-export function CreateAdminStep({
-  onCreate,
-  loading = false,
-}: CreateAdminStepProps) {
+export function CreateAdminStep({ onCreate, loading = false }: CreateAdminStepProps) {
   const t = useTranslations("adminSetup");
   const tCommon = useTranslations();
   const [username, setUsername] = useState("");
@@ -27,26 +23,26 @@ export function CreateAdminStep({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    
+
     // Validate both fields
     const validationErrors: string[] = [];
-    
+
     const usernameErrorKey = validateUsername(username);
     if (usernameErrorKey) {
       validationErrors.push(tCommon(usernameErrorKey));
     }
-    
+
     const passwordErrorKey = validatePassword(password);
     if (passwordErrorKey) {
       validationErrors.push(tCommon(passwordErrorKey));
     }
-    
+
     // If there are validation errors, show them and stop
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
       return;
     }
-    
+
     // Clear errors and proceed
     setErrors([]);
     await onCreate(username.trim(), password);
@@ -54,17 +50,11 @@ export function CreateAdminStep({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <form
-        id="create-admin-form"
-        onSubmit={handleSubmit}
-        className="flex flex-col h-full min-h-0"
-      >
+      <form id="create-admin-form" onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
         <div className="flex-1 flex flex-col justify-center">
           <div className="space-y-2 mb-6">
             <h2 className="text-2xl font-bold">{t("createAdmin.title")}</h2>
-            <p className="text-muted-foreground text-sm">
-              {t("createAdmin.description")}
-            </p>
+            <p className="text-muted-foreground text-sm">{t("createAdmin.description")}</p>
           </div>
 
           {errors.length > 0 && (
@@ -120,16 +110,10 @@ export function CreateAdminStep({
                   disabled={loading}
                   tabIndex={-1}
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-muted-foreground text-sm">
-                {tCommon("passwordRequirements")}
-              </p>
+              <p className="text-muted-foreground text-sm">{tCommon("passwordRequirements")}</p>
             </div>
           </div>
         </div>

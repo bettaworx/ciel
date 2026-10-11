@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useMe } from './use-queries';
-import { useAgreementVersions } from './use-queries';
+import { useMe } from "./use-queries";
+import { useAgreementVersions } from "./use-queries";
 
 interface UseAgreementCheckOptions {
   enabled?: boolean;

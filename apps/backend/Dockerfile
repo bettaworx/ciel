@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.26-alpine AS build
+FROM golang:1.26.9-alpine AS build
 WORKDIR /src
 
 RUN apk add --no-cache ca-certificates
@@ -10,8 +10,7 @@ RUN go mod download
 
 COPY . .
 
-ENV CGO_ENABLED=0
-RUN go build -trimpath -ldflags="-s -w" -o /out/backend .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/backend .
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,11 +18,7 @@ interface LogoutConfirmDialogProps {
   onConfirm: () => void;
 }
 
-export function LogoutConfirmDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-}: LogoutConfirmDialogProps) {
+export function LogoutConfirmDialog({ open, onOpenChange, onConfirm }: LogoutConfirmDialogProps) {
   const t = useTranslations();
 
   return (
@@ -30,16 +26,11 @@ export function LogoutConfirmDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t("logoutConfirm.title")}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t("logoutConfirm.description")}
-          </AlertDialogDescription>
+          <AlertDialogDescription>{t("logoutConfirm.description")}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t("logoutConfirm.cancel")}</AlertDialogCancel>
-          <AlertDialogAction 
-            onClick={onConfirm} 
-            variant="destructive"
-          >
+          <AlertDialogAction onClick={onConfirm} variant="destructive">
             {t("logoutConfirm.confirm")}
           </AlertDialogAction>
         </AlertDialogFooter>

@@ -4,11 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { CustomEmoji } from "@/components/CustomEmoji";
 import { applyFormatToTextarea } from "@/components/post-composer/applyFormat";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { useCustomEmojis } from "@/lib/hooks/use-queries";
 import {
   applyEmojiSuggestion,
@@ -23,6 +19,8 @@ interface EmojiAutocompleteProps {
   value: string;
   setValue: Dispatch<SetStateAction<string>>;
   disabled?: boolean;
+  /** Classes applied to the portaled suggestions popover. */
+  contentClassName?: string;
 }
 
 interface CaretPosition {
@@ -36,6 +34,7 @@ export function EmojiAutocomplete({
   value,
   setValue,
   disabled = false,
+  contentClassName,
 }: EmojiAutocompleteProps) {
   const { data: emojis } = useCustomEmojis();
   const [match, setMatch] = useState<EmojiSuggestionMatch | null>(null);
@@ -85,14 +84,7 @@ export function EmojiAutocomplete({
       }
 
       const { nextValue, caret } = applyEmojiSuggestion(value, match, shortcode);
-      applyFormatToTextarea(
-        textarea,
-        nextValue,
-        caret,
-        caret,
-        setValue,
-        () => {},
-      );
+      applyFormatToTextarea(textarea, nextValue, caret, caret, setValue, () => {});
       setMatch(null);
       setCaretPosition(null);
       setActiveIndex(0);
@@ -202,7 +194,7 @@ export function EmojiAutocomplete({
         align="start"
         sideOffset={8}
         onOpenAutoFocus={(event) => event.preventDefault()}
-        className="w-auto min-w-52 max-w-72 overflow-hidden rounded-xl p-0"
+        className={cn("w-auto min-w-52 max-w-72 overflow-hidden rounded-xl p-0", contentClassName)}
       >
         <ul className="py-1">
           {suggestions.map((emoji, index) => {
@@ -232,10 +224,7 @@ export function EmojiAutocomplete({
   );
 }
 
-function getTextareaCaretPosition(
-  textarea: HTMLTextAreaElement,
-  caret: number,
-): CaretPosition {
+function getTextareaCaretPosition(textarea: HTMLTextAreaElement, caret: number): CaretPosition {
   const mirror = document.createElement("div");
   const style = window.getComputedStyle(textarea);
   const properties = [

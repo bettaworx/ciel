@@ -1,0 +1,19 @@
+version: "2"
+
+# 静的解析は govet（= go vet 相当）、lint は staticcheck ほか、
+# フォーマットは gofmt、import 整理は goimports に集約している。
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - ineffassign
+    - unused
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+run:
+  timeout: 5m

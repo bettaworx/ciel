@@ -22,25 +22,19 @@ export function getDatasetCollections(
   }
 
   const categorySet = new Set(categories);
-  return catalog.collections.filter((collection) =>
-    categorySet.has(collection.category),
-  );
+  return catalog.collections.filter((collection) => categorySet.has(collection.category));
 }
 
 export function getDatasetsByCategory(
   catalog: KotodokiDatasetCatalog,
   category: KotodokiDatasetCategoryId,
 ): readonly KotodokiDataset[] {
-  return getDatasetCollections(catalog, [category]).flatMap(
-    (collection) => collection.datasets,
-  );
+  return getDatasetCollections(catalog, [category]).flatMap((collection) => collection.datasets);
 }
 
 export function getAllDatasets(
   catalog: KotodokiDatasetCatalog,
   categories?: readonly KotodokiDatasetCategoryId[],
 ): readonly KotodokiDataset[] {
-  return getDatasetCollections(catalog, categories).flatMap(
-    (collection) => collection.datasets,
-  );
+  return getDatasetCollections(catalog, categories).flatMap((collection) => collection.datasets);
 }

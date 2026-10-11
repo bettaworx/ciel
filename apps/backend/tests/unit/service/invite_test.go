@@ -33,7 +33,7 @@ func TestGenerateInviteCode_OnlyValidCharacters(t *testing.T) {
 			t.Fatalf("GenerateInviteCode() error = %v", err)
 		}
 		for _, ch := range code {
-			if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')) {
+			if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') {
 				t.Errorf("GenerateInviteCode() contains invalid character %c in %s", ch, code)
 			}
 		}
@@ -101,7 +101,7 @@ func TestCreateInviteCode_AutoGenerate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := admin.NewInvitesService(store)
@@ -146,7 +146,7 @@ func TestCreateInviteCode_CustomCode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := admin.NewInvitesService(store)
@@ -188,7 +188,7 @@ func TestCreateInviteCode_WithMaxUses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := admin.NewInvitesService(store)
@@ -231,7 +231,7 @@ func TestCreateInviteCode_WithExpiration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := admin.NewInvitesService(store)
@@ -274,7 +274,7 @@ func TestValidateInviteCode_Valid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := admin.NewInvitesService(store)
@@ -311,7 +311,7 @@ func TestValidateInviteCode_NotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := admin.NewInvitesService(store)
@@ -340,7 +340,7 @@ func TestValidateInviteCode_Expired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := admin.NewInvitesService(store)
@@ -378,7 +378,7 @@ func TestValidateInviteCode_Exhausted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := admin.NewInvitesService(store)
@@ -416,7 +416,7 @@ func TestValidateInviteCode_Disabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := repository.NewStore(db)
 	svc := admin.NewInvitesService(store)

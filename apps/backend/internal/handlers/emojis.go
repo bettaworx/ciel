@@ -174,7 +174,7 @@ func (h API) PostAdminEmojis(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, api.Error{Code: "invalid_request", Message: "image is required"})
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	params := service.EmojiCreateParams{
 		Shortcode: shortcode,
@@ -237,7 +237,7 @@ func (h API) PutAdminEmojisEmojiId(w http.ResponseWriter, r *http.Request, emoji
 	if f, fh, ferr := r.FormFile("image"); ferr == nil {
 		imageFile = f
 		imageHeader = fh
-		defer imageFile.Close()
+		defer func() { _ = imageFile.Close() }()
 	}
 	params.File = imageFile
 	params.Header = imageHeader

@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import { useEffect } from 'react'
-import type { AnimationDirection } from '@/lib/config/setup-animation'
+import { useEffect } from "react";
+import type { AnimationDirection } from "@/lib/config/setup-animation";
 
 interface SetupTransitionProps {
-  children: React.ReactNode
-  currentStep: number
-  direction: AnimationDirection
-  onAnimationComplete?: () => void
+  children: React.ReactNode;
+  currentStep: number;
+  direction: AnimationDirection;
+  onAnimationComplete?: () => void;
 }
 
 /**
@@ -21,8 +21,8 @@ export function SetupTransition({
   onAnimationComplete,
 }: SetupTransitionProps) {
   useEffect(() => {
-    onAnimationComplete?.()
-  }, [currentStep, direction, onAnimationComplete])
+    onAnimationComplete?.();
+  }, [currentStep, direction, onAnimationComplete]);
 
-  return <div className="w-full flex-1 h-full min-h-0 flex flex-col">{children}</div>
+  return <div className="w-full flex-1 h-full min-h-0 flex flex-col">{children}</div>;
 }

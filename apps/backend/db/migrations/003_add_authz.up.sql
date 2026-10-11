@@ -53,6 +53,10 @@ CREATE TABLE IF NOT EXISTS server_settings (
   signup_enabled BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+-- Existing databases may already have server_settings from schema.sql initialization.
+ALTER TABLE server_settings
+  ADD COLUMN IF NOT EXISTS signup_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+
 INSERT INTO roles (id, name, description) VALUES
   ('user', 'user', 'Default user role'),
   ('admin', 'admin', 'Administrator role')

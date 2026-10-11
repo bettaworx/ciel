@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { applyFormatToTextarea } from "./applyFormat";
@@ -135,9 +135,7 @@ export function removeLinkDecoration(
 
   // Replace the entire link with just the display text
   const newValue =
-    content.slice(0, match.prefixStart) +
-    displayText +
-    content.slice(match.suffixEnd);
+    content.slice(0, match.prefixStart) + displayText + content.slice(match.suffixEnd);
 
   // Adjust cursor positions
   const offset = match.prefixStart - match.prefixEnd + 1; // shift from removing [
@@ -175,11 +173,7 @@ export function LinkFormatButton({
   className,
   iconClassName,
 }: LinkFormatButtonProps) {
-  const linkMatch = findLinkDecoration(
-    content,
-    selectionRange.start,
-    selectionRange.end,
-  );
+  const linkMatch = findLinkDecoration(content, selectionRange.start, selectionRange.end);
   const isActive = linkMatch !== null;
 
   const handleClick = () => {
@@ -209,24 +203,19 @@ export function LinkFormatButton({
 
       if (isUrl) {
         const newValue =
-          value.slice(0, selectionStart) +
-          "[](" +
-          selected +
-          ")" +
-          value.slice(selectionEnd);
+          value.slice(0, selectionStart) + "[](" + selected + ")" + value.slice(selectionEnd);
         apply(newValue, selectionStart + 1, selectionStart + 1);
       } else {
         const newValue =
-          value.slice(0, selectionStart) +
-          "[" +
-          selected +
-          "]()" +
-          value.slice(selectionEnd);
-        apply(newValue, selectionStart + 1 + selected.length + 2, selectionStart + 1 + selected.length + 2);
+          value.slice(0, selectionStart) + "[" + selected + "]()" + value.slice(selectionEnd);
+        apply(
+          newValue,
+          selectionStart + 1 + selected.length + 2,
+          selectionStart + 1 + selected.length + 2,
+        );
       }
     } else {
-      const newValue =
-        value.slice(0, selectionStart) + "[](url)" + value.slice(selectionStart);
+      const newValue = `${value.slice(0, selectionStart)}[](url)${value.slice(selectionStart)}`;
       apply(newValue, selectionStart + 1, selectionStart + 1);
     }
   };
@@ -240,7 +229,9 @@ export function LinkFormatButton({
       aria-label={ariaLabel}
       aria-pressed={isActive}
       className={cn(
-        isActive && "text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15",
+        isActive
+          ? "text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15"
+          : "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
         className,
       )}
     >

@@ -21,9 +21,10 @@ type TokenManager struct {
 }
 
 type Claims struct {
-	UserID    string `json:"uid"`
-	Username  string `json:"usr"`
-	TokenType string `json:"token_type,omitempty"`
+	UserID     string `json:"uid"`
+	Username   string `json:"usr"`
+	TokenType  string `json:"token_type,omitempty"`
+	IssuedAtNs int64  `json:"iat_ns,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -49,7 +50,7 @@ func (m *TokenManager) InvalidateUserTokens(ctx context.Context, userID string) 
 		return nil
 	}
 	key := "token:revoke:" + userID
-	ts := strconv.FormatInt(time.Now().UTC().Unix(), 10)
+	ts := strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
 	return m.redis.Set(ctx, key, ts, m.ttl).Err()
 }
 
@@ -57,9 +58,10 @@ func (m *TokenManager) Issue(user User) (token string, expiresInSeconds int, err
 	now := time.Now().UTC()
 	exp := now.Add(m.ttl)
 	claims := Claims{
-		UserID:    user.ID.String(),
-		Username:  user.Username,
-		TokenType: tokenTypeAccess,
+		UserID:     user.ID.String(),
+		Username:   user.Username,
+		TokenType:  tokenTypeAccess,
+		IssuedAtNs: now.UnixNano(),
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(exp),
@@ -131,7 +133,7 @@ func (m *TokenManager) Parse(token string) (User, error) {
 	if claims.TokenType != "" && claims.TokenType != tokenTypeAccess {
 		return User{}, ErrUnauthorized
 	}
-	if claims.UserID == "" || claims.Username == "" {
+	if claims.UserID == "" || claims.Username == "" || claims.IssuedAt == nil {
 		return User{}, ErrUnauthorized
 	}
 	uid, err := uuid.Parse(claims.UserID)
@@ -152,7 +154,16 @@ func (m *TokenManager) Parse(token string) (User, error) {
 		}
 		if err == nil {
 			if revokedAt, err := strconv.ParseInt(val, 10, 64); err == nil {
-				if claims.IssuedAt.Unix() < revokedAt {
+				// Older revocation keys used seconds; reject their whole second.
+				if revokedAt < 1_000_000_000_000 {
+					if claims.IssuedAt.Unix() <= revokedAt {
+						return User{}, ErrUnauthorized
+					}
+				} else if claims.IssuedAtNs > 0 {
+					if claims.IssuedAtNs <= revokedAt {
+						return User{}, ErrUnauthorized
+					}
+				} else if claims.IssuedAt.Unix() <= revokedAt/1_000_000_000 {
 					return User{}, ErrUnauthorized
 				}
 			}

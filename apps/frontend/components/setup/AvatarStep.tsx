@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useState, useRef, useEffect } from "react";
+import { useAtomValue } from "jotai";
+import { useTranslations } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { ImageCropDialog } from "@/components/shared/ImageCropDialog";
 import { User, Upload } from "lucide-react";
-import Image from "next/image";
+import Image from "@/components/ui/image";
+import { userAtom } from "@/atoms/auth";
+import { generateAvatar, rasterizeSvgToFile } from "@/lib/avatar";
+import { isImageFile } from "@/lib/media/normalize";
 
 interface AvatarStepProps {
   onNext: (file: File | null) => void;
@@ -12,27 +17,50 @@ interface AvatarStepProps {
   loading?: boolean;
 }
 
-export function AvatarStep({
-  onNext,
-  onSkip,
-  loading = false,
-}: AvatarStepProps) {
+export function AvatarStep({ onNext, onSkip, loading = false }: AvatarStepProps) {
   const t = useTranslations();
+  const user = useAtomValue(userAtom);
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [avatarSource, setAvatarSource] = useState<"generated" | "custom">("generated");
+  const [generatedFile, setGeneratedFile] = useState<File | null>(null);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!user?.username) return;
+
+    const { dataUri } = generateAvatar(user.username);
+    setPreview(dataUri);
+
+    rasterizeSvgToFile(dataUri)
+      .then(setGeneratedFile)
+      .catch(() => {});
+  }, [user?.username]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    e.target.value = "";
+    if (!file || !isImageFile(file)) return;
 
-    // Preview
     const reader = new FileReader();
     reader.onloadend = () => {
-      setPreview(reader.result as string);
+      setCropImageSrc(reader.result as string);
+      setPendingCropFile(file);
+      setCropDialogOpen(true);
     };
     reader.readAsDataURL(file);
-    setSelectedFile(file);
+  };
+
+  const handleCropComplete = (croppedFile: File) => {
+    setPreview(URL.createObjectURL(croppedFile));
+    setSelectedFile(croppedFile);
+    setAvatarSource("custom");
+    setCropDialogOpen(false);
+    setCropImageSrc(null);
+    setPendingCropFile(null);
   };
 
   const handleUploadClick = () => {
@@ -41,23 +69,27 @@ export function AvatarStep({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onNext(selectedFile);
+    if (avatarSource === "custom" && selectedFile) {
+      onNext(selectedFile);
+    } else if (avatarSource === "generated" && generatedFile) {
+      onNext(generatedFile);
+    } else {
+      onNext(null);
+    }
   };
 
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Form content */}
-      <form
-        id="setup-avatar-form"
-        onSubmit={handleSubmit}
-        className="flex flex-col h-full min-h-0"
-      >
+      <form id="setup-avatar-form" onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
         <div className="flex-1 flex flex-col justify-center">
           {/* Title and subtitle - left aligned */}
           <div className="space-y-2 mb-6">
             <h2 className="text-2xl font-bold">{t("setup.avatar.title")}</h2>
             <p className="text-muted-foreground text-sm">
-              {t("setup.avatar.description")}
+              {avatarSource === "generated" && preview
+                ? t("setup.avatar.descriptionGenerated")
+                : t("setup.avatar.description")}
             </p>
           </div>
 
@@ -69,6 +101,7 @@ export function AvatarStep({
                   src={preview}
                   alt="Avatar preview"
                   fill
+                  unoptimized
                   className="object-cover"
                 />
               ) : (
@@ -79,7 +112,7 @@ export function AvatarStep({
             <input
               ref={fileInputRef}
               type="file"
-              accept="file"
+              accept="image/*"
               onChange={handleFileSelect}
               className="hidden"
             />
@@ -97,6 +130,18 @@ export function AvatarStep({
           </div>
         </div>
       </form>
+
+      {cropDialogOpen && cropImageSrc && pendingCropFile && (
+        <ImageCropDialog
+          open={cropDialogOpen}
+          onOpenChange={setCropDialogOpen}
+          imageSrc={cropImageSrc}
+          aspectMode={{ mode: "fixed", aspect: 1 }}
+          title={t("setup.avatar.cropTitle")}
+          originalFile={pendingCropFile}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </div>
   );
 }

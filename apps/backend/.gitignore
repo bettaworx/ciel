@@ -1,5 +1,6 @@
 # generated files
 data/
+tmp/
 
 # env files
 .env*

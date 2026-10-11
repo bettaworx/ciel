@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Globe, ChevronLeft } from "lucide-react";
 import {
@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type Locale } from "@/i18n/constants";
+import type { Locale } from "@/i18n/constants";
 import type { SetupStep } from "@/lib/config/setup-steps";
 import { setClientLocale } from "@/i18n/client-locale";
 
@@ -40,17 +40,17 @@ export function SetupFooter({
   const t = useTranslations();
   const [isPending, startTransition] = useTransition();
 
-	const handleLocaleChange = (locale: Locale) => {
-		if (onChangeLocale) {
-			onChangeLocale(locale);
-			return;
-		}
+  const handleLocaleChange = (locale: Locale) => {
+    if (onChangeLocale) {
+      onChangeLocale(locale);
+      return;
+    }
 
-		startTransition(() => {
-			setClientLocale(locale);
-			window.dispatchEvent(new Event('ciel:locale-change'));
-		});
-	};
+    startTransition(() => {
+      setClientLocale(locale);
+      window.dispatchEvent(new Event("ciel:locale-change"));
+    });
+  };
 
   if (currentStep === "welcome") {
     return (
@@ -113,8 +113,7 @@ export function SetupFooter({
         : currentStep === "bio"
           ? "setup-bio-form"
           : undefined;
-  const nextLabel =
-    currentStep === "bio" ? t("setup.complete") : t("setup.next");
+  const nextLabel = currentStep === "bio" ? t("setup.complete") : t("setup.next");
   const nextLoadingLabel =
     currentStep === "avatar" ? t("setup.avatar.uploading") : t("setup.saving");
 

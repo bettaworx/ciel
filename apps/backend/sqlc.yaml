@@ -6,6 +6,7 @@ sql:
     queries:
       - "db/queries.sql"
       - "db/queries_refresh_tokens.sql"
+      - "db/queries_mfa.sql"
     gen:
       go:
         package: "sqlc"
