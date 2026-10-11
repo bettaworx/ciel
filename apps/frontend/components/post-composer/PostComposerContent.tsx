@@ -438,7 +438,8 @@ export function PostComposerContent({
             ? drawingStrokes.length === 0 ||
               drawingDataBytes > maxDrawingInputBytes ||
               drawingStrokes.length > maxDrawingStrokes ||
-              drawingStrokes.reduce((n, stroke) => n + stroke.points.length, 0) > maxDrawingPoints ||
+              drawingStrokes.reduce((n, stroke) => n + stroke.points.length, 0) >
+                maxDrawingPoints ||
               createPostMutation.isPending ||
               isUploading
             : !canPost
