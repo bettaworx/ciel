@@ -329,10 +329,15 @@ describe("mergeTimelineOwnerThreads", () => {
       rootId: root.id,
       createdAt: "2026-05-17T00:03:00.000Z",
     });
+    const reply4 = post("reply-4", owner, {
+      parentId: reply3.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:04:00.000Z",
+    });
 
-    const items = mergeTimelineOwnerThreads([reply3, reply2, reply1, root], new Map());
+    const items = mergeTimelineOwnerThreads([reply4, reply3, reply2, reply1, root], new Map());
 
-    expect(itemIds(items)).toEqual(["merged:root:reply-3"]);
+    expect(itemIds(items)).toEqual(["merged:root:reply-4"]);
   });
 
   it("keeps owner-authored threads of up to three posts expanded", () => {
@@ -480,7 +485,7 @@ describe("mergeTimelineOwnerThreads", () => {
     expect(itemIds(items)).toEqual(["thread:root:other-reply,owner-under-other"]);
   });
 
-  it("collapses a long alternating-author conversation into one timeline item", () => {
+  it("shows the reply target when a long alternating-author conversation is collapsed", () => {
     const root = post("root", owner);
     const otherReply1 = post("other-reply-1", other, {
       parentId: root.id,
@@ -503,7 +508,35 @@ describe("mergeTimelineOwnerThreads", () => {
       new Map([[root.id, root]]),
     );
 
-    expect(itemIds(items)).toEqual(["merged:root:other-reply-2"]);
+    expect(itemIds(items)).toEqual(["merged:root:owner-reply,other-reply-2"]);
+  });
+
+  it("shows B immediately above A in a collapsed A-B-A-B-A conversation", () => {
+    const root = post("a-1", owner);
+    const b1 = post("b-1", other, {
+      parentId: root.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:01:00.000Z",
+    });
+    const a2 = post("a-2", owner, {
+      parentId: b1.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:02:00.000Z",
+    });
+    const b2 = post("b-2", other, {
+      parentId: a2.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:03:00.000Z",
+    });
+    const a3 = post("a-3", owner, {
+      parentId: b2.id,
+      rootId: root.id,
+      createdAt: "2026-05-17T00:04:00.000Z",
+    });
+
+    const items = mergeTimelineOwnerThreads([a3, b2, a2, b1, root], new Map());
+
+    expect(itemIds(items)).toEqual(["merged:a-1:b-2,a-3"]);
   });
 
   it("keeps multiple owner threads under one root independent", () => {

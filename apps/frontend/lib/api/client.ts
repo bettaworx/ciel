@@ -491,7 +491,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
         { headers: stepup(stepupToken) },
       ),
 
-    refresh: () => refreshSession(baseUrl),
+    refresh: () => refreshSession(getBaseUrl()),
 
     logout: () => request<void>("POST", "/auth/logout"),
 

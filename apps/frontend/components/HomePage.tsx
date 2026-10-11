@@ -193,7 +193,7 @@ export function HomePage() {
                     onUserClick={(username) => router.push(`/users/${username}`)}
                     onShowThread={() =>
                       router.push(
-                        `/posts/${item.replies[0]?.id ?? item.rootPost.id}?expandAncestors=1`,
+                        `/posts/${item.replies.at(-1)?.id ?? item.rootPost.id}?expandAncestors=1`,
                       )
                     }
                     isLast={index === timelineItems.length - 1}

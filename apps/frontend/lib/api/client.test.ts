@@ -16,6 +16,18 @@ describe("createApiClient session refresh", () => {
     vi.unstubAllGlobals();
   });
 
+  it("uses the configured base URL for direct refresh", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ expiresInSeconds: 3600 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createApiClient({ baseUrl: "https://api.example.test" }).refresh();
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.example.test/api/v1/auth/refresh", {
+      method: "POST",
+      credentials: "include",
+    });
+  });
+
   it("shares a single refresh request across concurrent clients", async () => {
     let timelineRequests = 0;
     const onSessionExpired = vi.fn();
