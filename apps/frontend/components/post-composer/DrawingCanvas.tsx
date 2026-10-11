@@ -13,8 +13,7 @@ import {
   DRAWING_SCALE,
   DRAWING_WIDTH,
   drawingLineWidth,
-  drawStrokePoint,
-  drawStrokeSegment,
+  drawDecodedStroke,
   encodeDrawingPoint,
   renderDrawing,
   stabilizeDrawingPoint,
@@ -61,6 +60,8 @@ export function DrawingCanvas({
   const activePointerRef = useRef<number | null>(null);
   const currentStrokeRef = useRef<DrawingStroke | null>(null);
   const currentPointRef = useRef<DecodedDrawingPoint | null>(null);
+  const livePointsRef = useRef<DecodedDrawingPoint[]>([]);
+  const beforeStrokeRef = useRef<HTMLCanvasElement | null>(null);
   const lastEventTimeRef = useRef<number | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number; size: number } | null>(null);
 
@@ -125,8 +126,16 @@ export function DrawingCanvas({
 
     stroke.points.push(encodeDrawingPoint(previous, point));
     if (stroke.brush !== "pencil") {
-      if (previous) drawStrokeSegment(context, stroke, previous, point, color);
-      else drawStrokePoint(context, stroke, point, color);
+      // Curves run through midpoints, so the tip is redrawn each sample: restore the canvas as it
+      // was before this stroke, then draw the stroke exactly as the final render will.
+      const live = livePointsRef.current;
+      live.push(point);
+      const before = beforeStrokeRef.current;
+      if (before) {
+        context.clearRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
+        context.drawImage(before, 0, 0);
+      }
+      drawDecodedStroke(context, stroke, live, color);
     }
     currentPointRef.current = point;
     return true;
@@ -151,6 +160,12 @@ export function DrawingCanvas({
       points: [],
     };
     currentPointRef.current = null;
+    livePointsRef.current = [];
+    const before = document.createElement("canvas");
+    before.width = DRAWING_WIDTH;
+    before.height = DRAWING_HEIGHT;
+    before.getContext("2d")?.drawImage(event.currentTarget, 0, 0);
+    beforeStrokeRef.current = before;
     lastEventTimeRef.current = null;
     updateCursor(event, true);
     appendEvent(event.nativeEvent);

@@ -411,6 +411,59 @@ export function buildDrawingReplay(
   return steps.map((step) => ({ ...step, at: step.at * scale }));
 }
 
+export interface DrawingSegment {
+  from: DecodedDrawingPoint;
+  /** Quadratic control point; null draws a straight line. */
+  control: DecodedDrawingPoint | null;
+  to: DecodedDrawingPoint;
+}
+
+function midpoint(a: DecodedDrawingPoint, b: DecodedDrawingPoint): DecodedDrawingPoint {
+  return {
+    delayMs: 0,
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+    pressure: (a.pressure + b.pressure) / 2,
+  };
+}
+
+/**
+ * Smooths a polyline by curving through the midpoints of consecutive samples, with each sample as
+ * the control point. The first and last half-segments are straight so the stroke still ends on
+ * the real first and last samples.
+ */
+export function curveSegments(points: DecodedDrawingPoint[]): DrawingSegment[] {
+  const last = points.length - 1;
+  if (last < 1) return [];
+  if (last === 1) return [{ from: points[0], control: null, to: points[1] }];
+  const segments: DrawingSegment[] = [
+    { from: points[0], control: null, to: midpoint(points[0], points[1]) },
+  ];
+  for (let index = 1; index < last; index++) {
+    segments.push({
+      from: midpoint(points[index - 1], points[index]),
+      control: points[index],
+      to: midpoint(points[index], points[index + 1]),
+    });
+  }
+  segments.push({
+    from: midpoint(points[last - 1], points[last]),
+    control: null,
+    to: points[last],
+  });
+  return segments;
+}
+
+function traceSegment(context: CanvasRenderingContext2D, segment: DrawingSegment) {
+  context.beginPath();
+  context.moveTo(segment.from.x, segment.from.y);
+  if (segment.control) {
+    context.quadraticCurveTo(segment.control.x, segment.control.y, segment.to.x, segment.to.y);
+  } else {
+    context.lineTo(segment.to.x, segment.to.y);
+  }
+}
+
 export function drawingLineWidth(sizeQ4: number, pressure: number, brush: DrawingBrush = "gpen") {
   const size = sizeQ4 / DRAWING_SCALE;
   const normalizedPressure = pressure / 1024;
@@ -500,16 +553,12 @@ function drawPencilStroke(
     );
     layerContext.fill();
   }
-  for (let index = 1; index < points.length; index++) {
-    const from = points[index - 1];
-    const to = points[index];
+  for (const segment of curveSegments(points)) {
     layerContext.lineWidth =
-      (drawingLineWidth(stroke.size, from.pressure, "pencil") +
-        drawingLineWidth(stroke.size, to.pressure, "pencil")) /
+      (drawingLineWidth(stroke.size, segment.from.pressure, "pencil") +
+        drawingLineWidth(stroke.size, segment.to.pressure, "pencil")) /
       2;
-    layerContext.beginPath();
-    layerContext.moveTo(from.x, from.y);
-    layerContext.lineTo(to.x, to.y);
+    traceSegment(layerContext, segment);
     layerContext.stroke();
   }
 
@@ -557,19 +606,16 @@ export function drawStrokePoint(
 export function drawStrokeSegment(
   context: CanvasRenderingContext2D,
   stroke: DrawingStroke,
-  from: DecodedDrawingPoint,
-  to: DecodedDrawingPoint,
+  segment: DrawingSegment,
   color: string,
 ) {
   context.save();
   const brush = prepareStrokeContext(context, stroke, color);
   context.lineWidth =
-    (drawingLineWidth(stroke.size, from.pressure, brush) +
-      drawingLineWidth(stroke.size, to.pressure, brush)) /
+    (drawingLineWidth(stroke.size, segment.from.pressure, brush) +
+      drawingLineWidth(stroke.size, segment.to.pressure, brush)) /
     2;
-  context.beginPath();
-  context.moveTo(from.x, from.y);
-  context.lineTo(to.x, to.y);
+  traceSegment(context, segment);
   context.stroke();
   context.restore();
 }
@@ -596,9 +642,7 @@ export function drawDecodedStroke(
     return;
   }
   if (points.length === 1) drawStrokePoint(context, stroke, points[0], color);
-  for (let index = 1; index < points.length; index++) {
-    drawStrokeSegment(context, stroke, points[index - 1], points[index], color);
-  }
+  for (const segment of curveSegments(points)) drawStrokeSegment(context, stroke, segment, color);
 }
 
 export function createDrawingUpload(

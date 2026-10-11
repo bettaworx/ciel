@@ -3,6 +3,7 @@ import {
   addRecentDrawingColor,
   buildDrawingReplay,
   createDrawingDocument,
+  curveSegments,
   decodeDrawingStroke,
   drawingPostPalette,
   drawingDocumentBytes,
@@ -221,5 +222,28 @@ describe("drawing format", () => {
         strokes: [{ tool: "eraser", color: "#FFFFFF", size: 10, points: [[0, 0, 0, 1]] }],
       }),
     ).toBeNull();
+  });
+});
+
+describe("curveSegments", () => {
+  const pt = (x: number, y: number, pressure = 1000) => ({ delayMs: 0, x, y, pressure });
+
+  it("draws nothing for one point and a straight line for two", () => {
+    expect(curveSegments([pt(0, 0)])).toEqual([]);
+    expect(curveSegments([pt(0, 0), pt(10, 0)])).toEqual([
+      { from: pt(0, 0), control: null, to: pt(10, 0) },
+    ]);
+  });
+
+  it("curves through midpoints and ends on the real first and last samples", () => {
+    const points = [pt(0, 0), pt(10, 0), pt(10, 10)];
+    const segments = curveSegments(points);
+    expect(segments).toHaveLength(3);
+    expect(segments[0].from).toEqual(points[0]);
+    expect(segments[1].control).toEqual(points[1]);
+    expect(segments[1].from).toEqual(pt(5, 0));
+    expect(segments[1].to).toEqual(pt(10, 5));
+    expect(segments[2].to).toEqual(points[2]);
+    for (let i = 1; i < segments.length; i++) expect(segments[i].from).toEqual(segments[i - 1].to);
   });
 });
