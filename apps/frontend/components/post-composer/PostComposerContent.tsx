@@ -655,7 +655,7 @@ export function PostComposerContent({
   );
 
   const drawingRow = (
-    <div className={cn("flex gap-3", layout === "dialog" && "pt-3")}>
+    <div className="flex gap-3">
       {avatar}
       <div className="min-w-0 flex-1">
         <DrawingCanvas
@@ -787,7 +787,7 @@ export function PostComposerContent({
         </div>
 
         {/* Scrollable content */}
-        <div className="overflow-y-auto max-sm:max-h-[calc(100vh-4rem)] px-3 pb-3 space-y-3">
+        <div className="overflow-y-auto max-sm:max-h-[calc(100vh-4rem)] p-3 space-y-3">
           {contentBlock}
 
           {/* Upload & format buttons / drawing tools & undo-redo */}
