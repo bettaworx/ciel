@@ -725,6 +725,8 @@
       "stabilizationFor": "{tool} stabilization amount, low to high",
       "undo": "Undo",
       "redo": "Redo",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen",
       "uploadError": "Failed to post drawing",
       "discard": {
         "title": "Discard drawing?",

@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
-import { PostComposerContent } from "./post-composer/PostComposerContent";
+import { fullscreenDialogClass, PostComposerContent } from "./post-composer/PostComposerContent";
 import type { components } from "@/lib/api/api";
+import { useComposerFullscreen } from "./post-composer/useComposerFullscreen";
 import { useDrawingDialogClose } from "./post-composer/useDrawingDialogClose";
 
 type Post = components["schemas"]["Post"];
@@ -33,6 +34,7 @@ export function CreateQuoteDialog({
     referenceId,
     onSuccess: () => onOpenChange(false),
   });
+  const { fullscreen, onFullscreenToggle } = useComposerFullscreen();
   const drawingClose = useDrawingDialogClose(compose, () => onOpenChange(false));
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -57,7 +59,10 @@ export function CreateQuoteDialog({
           onDragEnter={compose.handleDragEnter}
           onDragLeave={compose.handleDragLeave}
           onDrop={compose.handleDrop}
-          className={`
+          className={
+            fullscreen
+              ? `gap-0 p-0 [&>button]:hidden z-[60] ${fullscreenDialogClass}`
+              : `
         sm:max-w-2xl
         gap-0
         p-0
@@ -75,7 +80,8 @@ export function CreateQuoteDialog({
         max-sm:!max-h-[calc(100vh-24px)]
         max-sm:overflow-hidden
         z-[60]
-      `}
+      `
+          }
         >
           <DialogTitle className="sr-only">{t("createPost.quoteTitle")}</DialogTitle>
 
@@ -84,6 +90,8 @@ export function CreateQuoteDialog({
             compose={compose}
             avatar={avatarElement}
             onClose={() => handleOpenChange(false)}
+            fullscreen={fullscreen}
+            onFullscreenToggle={onFullscreenToggle}
             closeDisabled={compose.createPostMutation.isPending || compose.isUploading}
             placeholder={t("createPost.quotePlaceholder")}
             submitLabel={t("createPost.quotePost")}

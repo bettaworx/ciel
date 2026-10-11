@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
-import { PostComposerContent } from "./post-composer/PostComposerContent";
+import { fullscreenDialogClass, PostComposerContent } from "./post-composer/PostComposerContent";
+import { useComposerFullscreen } from "./post-composer/useComposerFullscreen";
 import { useDrawingDialogClose } from "./post-composer/useDrawingDialogClose";
 
 // Types
@@ -58,6 +59,7 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
   const compose = useComposePost({
     onSuccess: () => onOpenChange(false),
   });
+  const { fullscreen, onFullscreenToggle } = useComposerFullscreen();
   const drawingClose = useDrawingDialogClose(compose, () => onOpenChange(false));
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -83,7 +85,10 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
           onDragEnter={compose.handleDragEnter}
           onDragLeave={compose.handleDragLeave}
           onDrop={compose.handleDrop}
-          className={`
+          className={
+            fullscreen
+              ? `gap-0 p-0 [&>button]:hidden z-[60] ${fullscreenDialogClass}`
+              : `
         sm:max-w-2xl
         gap-0
         p-0
@@ -101,7 +106,8 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
         max-sm:!max-h-[calc(100vh-24px)]
         max-sm:overflow-hidden
         z-[60]
-      `}
+      `
+          }
         >
           {/* Visually hidden title for accessibility */}
           <DialogTitle className="sr-only">{t("createPost.title")}</DialogTitle>
@@ -111,6 +117,8 @@ export function CreatePostDialog({ open, onOpenChange }: CreatePostDialogProps) 
             compose={compose}
             avatar={avatarElement}
             onClose={() => handleOpenChange(false)}
+            fullscreen={fullscreen}
+            onFullscreenToggle={onFullscreenToggle}
             closeDisabled={compose.createPostMutation.isPending || compose.isUploading}
           />
         </DialogContent>

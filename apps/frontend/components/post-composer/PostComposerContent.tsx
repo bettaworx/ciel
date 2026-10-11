@@ -21,6 +21,8 @@ import {
   Link,
   AlignHorizontalSpaceAround,
   PenLine,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -92,7 +94,14 @@ interface PostComposerContentProps {
   quotedPost?: Post;
   /** Drawing attached to the replied-to post, when available. */
   replyDrawing?: Drawing | null;
+  /** (dialog only) Drawing-mode fullscreen state, owned by the dialog that styles its container. */
+  fullscreen?: boolean;
+  onFullscreenToggle?: () => void;
 }
+
+/** Container overrides that stretch a composer dialog over the whole viewport. */
+export const fullscreenDialogClass =
+  "!fixed !inset-0 !m-0 !h-[calc(100dvh-var(--keyboard-inset,0px))] !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 !rounded-none grid-rows-[auto_minmax(0,1fr)]";
 
 // ---------------------------------------------------------------------------
 // Layout-specific style tokens
@@ -142,6 +151,8 @@ export function PostComposerContent({
   submittingLabel,
   quotedPost,
   replyDrawing,
+  fullscreen,
+  onFullscreenToggle,
 }: PostComposerContentProps) {
   const t = useTranslations();
   const s = styles[layout];
@@ -419,6 +430,21 @@ export function PostComposerContent({
   /** Character counter + Post button group */
   const counterAndPost = (
     <div className="flex items-center gap-3">
+      {layout === "dialog" && onFullscreenToggle && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onFullscreenToggle}
+          aria-label={t(
+            fullscreen ? "createPost.drawing.exitFullscreen" : "createPost.drawing.fullscreen",
+          )}
+          aria-pressed={fullscreen}
+          className={s.toolbarButton}
+        >
+          {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </Button>
+      )}
       {/* Drawing is dialog-only: the card is too narrow for the canvas */}
       {layout === "dialog" && modeSwitch}
       <CharacterCounter
@@ -675,6 +701,11 @@ export function PostComposerContent({
       onKeyDown={handleDrawingKeyDown}
       disabled={createPostMutation.isPending || isUploading}
       ariaLabel={t("createPost.drawing.canvas")}
+      className={
+        fullscreen && layout === "dialog"
+          ? "mx-auto w-[min(100%,calc((100dvh-var(--keyboard-inset,0px)-7.25rem)*1.5))]"
+          : undefined
+      }
     />
   );
 
@@ -708,13 +739,20 @@ export function PostComposerContent({
   /** Media preview (images / video) */
   const mediaPreview =
     previewMedia.length > 0 ? (
-      <PostMediaPreview
-        media={previewMedia}
-        editable
-        onRemove={handleRemoveMedia}
-        onCrop={handleCropOpen}
-        onQualityChange={handleQualityChange}
-      />
+      <div className={contentIndent}>
+        <PostMediaPreview
+          media={previewMedia}
+          editable
+          onRemove={handleRemoveMedia}
+          onCrop={handleCropOpen}
+          onQualityChange={handleQualityChange}
+          maxHeight={
+            fullscreen && layout === "dialog"
+              ? "calc(100dvh - var(--keyboard-inset, 0px) - 11.5rem)"
+              : undefined
+          }
+        />
+      </div>
     ) : null;
 
   /** Quoted post preview (non-interactive) */
@@ -788,11 +826,16 @@ export function PostComposerContent({
         </div>
 
         {/* Scrollable content */}
-        <div className="overflow-y-auto max-sm:max-h-[calc(100vh-4rem)] p-3 space-y-3">
+        <div
+          className={cn(
+            "overflow-y-auto p-3 space-y-3",
+            fullscreen ? "flex flex-col [&>*]:shrink-0" : "max-sm:max-h-[calc(100vh-4rem)]",
+          )}
+        >
           {contentBlock}
 
-          {/* Upload & format buttons / drawing tools & undo-redo */}
-          <div className="flex items-center justify-between">
+          {/* Upload & format buttons / drawing tools & undo-redo; pinned to the bottom in fullscreen */}
+          <div className={cn("flex items-center justify-between", fullscreen && "mt-auto")}>
             {composerMode === "drawing" ? drawingTools : uploadButtons}
             {composerMode === "drawing" ? drawingHistory : formatButtons}
           </div>

@@ -725,6 +725,8 @@
       "stabilizationFor": "{tool}の手ブレ補正量（弱から強）",
       "undo": "元に戻す",
       "redo": "やり直す",
+      "fullscreen": "全画面",
+      "exitFullscreen": "全画面を終了",
       "uploadError": "ドローイングの投稿に失敗しました",
       "discard": {
         "title": "ドローイングを破棄しますか？",
