@@ -51,43 +51,46 @@ export function buildEmojiSearchDataset(
     createCustomEmojiItem(emoji, index),
   );
   const entryMap = new Map<string, EmojiSearchEntry>();
-  const index = new Index({
-    tokenize: "full",
-    encoder: "Default",
-    cache: true,
-  });
   let order = 0;
 
   for (const item of customItems) {
-    const entry: EmojiSearchEntry = {
+    entryMap.set(`search:${item.key}`, {
       id: `search:${item.key}`,
       order,
       categoryId: "custom",
       item,
-    };
-    entryMap.set(entry.id, entry);
-    index.add(entry.id, item.searchText);
+    });
     order += 1;
   }
 
   for (const category of standardCategories) {
     for (const item of category.emojis) {
-      const entry: EmojiSearchEntry = {
+      entryMap.set(`search:${item.key}`, {
         id: `search:${item.key}`,
         order,
         categoryId: category.id,
         item,
-      };
-      entryMap.set(entry.id, entry);
-      index.add(entry.id, item.searchText);
+      });
       order += 1;
     }
   }
 
+  // FlexSearch indexing is the expensive part and only needed once the user
+  // types, so build it on first access to keep the picker's first open cheap.
+  let index: Index | null = null;
+
   return {
     customItems,
     entryMap,
-    index,
+    get index() {
+      if (!index) {
+        index = new Index({ tokenize: "full", encoder: "Default", cache: true });
+        for (const entry of entryMap.values()) {
+          index.add(entry.id, entry.item.searchText);
+        }
+      }
+      return index;
+    },
     recentLookup: buildRecentLookup(standardCategories, customItems),
   };
 }
