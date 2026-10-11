@@ -195,6 +195,8 @@ export function PostComposerContent({
     // Computed
     maxContentLength,
     maxDrawingInputBytes,
+    maxDrawingStrokes,
+    maxDrawingPoints,
     contentLength,
     contentPercentage,
     showCharacterCount,
@@ -435,6 +437,8 @@ export function PostComposerContent({
           composerMode === "drawing"
             ? drawingStrokes.length === 0 ||
               drawingDataBytes > maxDrawingInputBytes ||
+              drawingStrokes.length > maxDrawingStrokes ||
+              drawingStrokes.reduce((n, stroke) => n + stroke.points.length, 0) > maxDrawingPoints ||
               createPostMutation.isPending ||
               isUploading
             : !canPost

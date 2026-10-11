@@ -1,3 +1,7 @@
+-- Drawing-backed posts cannot be represented before this migration, and their
+-- empty content would collide with the pure-boost unique index restored below.
+DELETE FROM posts WHERE drawing_id IS NOT NULL;
+
 DROP INDEX IF EXISTS idx_posts_unique_pure_boost;
 CREATE UNIQUE INDEX idx_posts_unique_pure_boost
     ON posts(user_id, reference_id)

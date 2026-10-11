@@ -48,6 +48,8 @@ import type { ComposerMode } from "./composerMode";
 import {
   createDrawingUpload,
   FALLBACK_MAX_DRAWING_INPUT_BYTES,
+  FALLBACK_MAX_DRAWING_POINTS,
+  FALLBACK_MAX_DRAWING_STROKES,
   readDrawingPreferences,
   type DrawingStroke,
 } from "./drawing";
@@ -184,6 +186,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
   const maxContentLength = mediaLimits.maxPostContentLength;
   const maxDrawingInputBytes =
     serverConfig?.drawingLimits.maxInputBytes ?? FALLBACK_MAX_DRAWING_INPUT_BYTES;
+  const maxDrawingStrokes = serverConfig?.drawingLimits.maxStrokes ?? FALLBACK_MAX_DRAWING_STROKES;
+  const maxDrawingPoints = serverConfig?.drawingLimits.maxPoints ?? FALLBACK_MAX_DRAWING_POINTS;
   const contentLength = content.length;
   const contentPercentage = (contentLength / maxContentLength) * 100;
   const showCharacterCount = contentPercentage >= CHARACTER_COUNT_THRESHOLD;
@@ -1000,6 +1004,8 @@ export function useComposePost(options: UseComposePostOptions = {}) {
     // Computed
     maxContentLength,
     maxDrawingInputBytes,
+    maxDrawingStrokes,
+    maxDrawingPoints,
     contentLength,
     contentPercentage,
     showCharacterCount,

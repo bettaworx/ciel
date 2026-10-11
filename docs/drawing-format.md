@@ -1,6 +1,6 @@
 # Drawing replay format v1
 
-Drawing posts store an immutable replay document and a static WebP preview. A post is either a standard text/media post or a drawing post; the two modes cannot be combined.
+Drawing posts store an immutable replay document and a static PNG preview. A post is either a standard text/media post or a drawing post; the two modes cannot be combined.
 
 ## Canvas and limits
 
@@ -10,7 +10,7 @@ Drawing posts store an immutable replay document and a static WebP preview. A po
 | Coordinate unit | Q4 (1 unit = 0.25 px) |
 | Upload JSON | 16 MiB |
 | Stored gzip replay | 4 MiB |
-| WebP preview | 2 MiB |
+| PNG preview | 2 MiB |
 | Strokes | 10,000 |
 | Points across all strokes | 250,000 |
 
@@ -22,10 +22,11 @@ Clients should read the same values from the public server configuration before 
 {
   "version": 1,
   "background": "#FFFFFF",
+  "color": "#0A1B2C",
   "strokes": [
     {
       "tool": "pencil",
-      "color": "#0A1B2C",
+      "brush": "round",
       "size": 24,
       "points": [
         [0, 400, 800, 512],
@@ -45,8 +46,8 @@ Clients should read the same values from the public server configuration before 
 ```
 
 - `tool` is either `pencil` or `eraser`.
-- Pencil strokes require a `#RRGGBB` color; the server normalizes lowercase input to uppercase.
-- Eraser strokes must omit `color`. They remove pixels from the transparent ink layer before it is composited over the background.
+- `background` and `color` are required document-level `#RRGGBB` colors (the canvas background and the ink color for all pencil strokes); the server normalizes lowercase input to uppercase. Strokes have no `color` field.
+- Pencil strokes may set `brush` to `round`, `gpen` or `pencil` (default `round`). Eraser strokes must omit `brush`. They remove pixels from the transparent ink layer before it is composited over the background.
 - Brush `size` is an integer from 1 through 1200 in Q4 units.
 - Every point is `[delayMs, xOrDxQ4, yOrDyQ4, pressure]`.
 - A stroke's first point contains absolute canvas coordinates. Later points contain signed deltas from the preceding point. This reduces storage while retaining replay order and timing.
