@@ -777,6 +777,7 @@
     "convertingPercent": "変換中 {percent}%",
     "conversionComplete": "変換完了",
     "videoCannotFit": "この動画は{maxSize}MB以内に収められません",
+    "qualityChange": "品質変更",
     "qualityImageTitle": "画像の品質",
     "qualityVideoTitle": "動画の品質",
     "qualityDotByDot": "ドット絵",

@@ -777,6 +777,7 @@
     "convertingPercent": "Converting {percent}%",
     "conversionComplete": "Conversion complete",
     "videoCannotFit": "This video cannot be compressed under {maxSize}MB",
+    "qualityChange": "Change quality",
     "qualityImageTitle": "Image quality",
     "qualityVideoTitle": "Video quality",
     "qualityDotByDot": "Dotted",

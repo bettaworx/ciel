@@ -83,9 +83,10 @@ export function MediaQualityControl({
       // The cell behind is a lightbox or crop trigger in some layouts.
       onClick={(e) => e.stopPropagation()}
       aria-label={title}
-      className="absolute top-2 left-2 z-10 rounded-full bg-black/40 p-2 text-white transition-colors hover:bg-black/60"
+      className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1.5 text-xs text-white transition-colors hover:bg-black/60"
     >
       <Icon className="h-3.5 w-3.5" />
+      {t("qualityChange")}
     </button>
   );
 
