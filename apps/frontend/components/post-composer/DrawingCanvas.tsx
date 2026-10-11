@@ -35,7 +35,6 @@ interface DrawingCanvasProps {
   eraserSize: number;
   pencilStabilization: number;
   eraserStabilization: number;
-  onDrawingStateChange?: (isDrawing: boolean) => void;
   onKeyDown?: KeyboardEventHandler<HTMLCanvasElement>;
   disabled?: boolean;
   className?: string;
@@ -53,7 +52,6 @@ export function DrawingCanvas({
   eraserSize,
   pencilStabilization,
   eraserStabilization,
-  onDrawingStateChange,
   onKeyDown,
   disabled = false,
   className,
@@ -146,7 +144,6 @@ export function DrawingCanvas({
     event.currentTarget.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
     activePointerRef.current = event.pointerId;
-    onDrawingStateChange?.(true);
     currentStrokeRef.current = {
       tool,
       ...(tool === "pencil" ? { brush } : {}),
@@ -178,7 +175,6 @@ export function DrawingCanvas({
     if (appended) renderActivePencil();
     const stroke = currentStrokeRef.current;
     activePointerRef.current = null;
-    onDrawingStateChange?.(false);
     currentStrokeRef.current = null;
     currentPointRef.current = null;
     lastEventTimeRef.current = null;
@@ -192,7 +188,6 @@ export function DrawingCanvas({
   const cancelStroke = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (activePointerRef.current !== event.pointerId) return;
     activePointerRef.current = null;
-    onDrawingStateChange?.(false);
     currentStrokeRef.current = null;
     currentPointRef.current = null;
     lastEventTimeRef.current = null;

@@ -158,7 +158,6 @@ export function PostComposerContent({
   const [eraserStabilization, setEraserStabilization] = useState(
     initialDrawingPreferences.eraserStabilization,
   );
-  const [isDrawingStroke, setIsDrawingStroke] = useState(false);
   const [discardDrawingOpen, setDiscardDrawingOpen] = useState(false);
   const hadTypedContentRef = useRef(false);
   const generatedPlaceholder = useComposerPlaceholder(placeholderRefreshKey);
@@ -658,7 +657,7 @@ export function PostComposerContent({
   const drawingRow = (
     <div className={cn("flex gap-3", layout === "dialog" && "pt-3")}>
       {avatar}
-      <div className="relative min-w-0 flex-1">
+      <div className="min-w-0 flex-1">
         <DrawingCanvas
           strokes={drawingStrokes}
           onChange={handleDrawingChange}
@@ -670,16 +669,10 @@ export function PostComposerContent({
           eraserSize={eraserSize}
           pencilStabilization={pencilStabilization}
           eraserStabilization={eraserStabilization}
-          onDrawingStateChange={setIsDrawingStroke}
           onKeyDown={handleDrawingKeyDown}
           disabled={createPostMutation.isPending || isUploading}
           ariaLabel={t("createPost.drawing.canvas")}
         />
-        {!isDrawingStroke && (
-          <div className="absolute right-3 top-3 z-10 rounded-full bg-popover/70 p-0.5 text-popover-foreground shadow-sm backdrop-blur-sm">
-            {drawingHistory}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -797,10 +790,10 @@ export function PostComposerContent({
         <div className="overflow-y-auto max-sm:max-h-[calc(100vh-4rem)] px-3 pb-3 space-y-3">
           {contentBlock}
 
-          {/* Upload & format buttons */}
+          {/* Upload & format buttons / drawing tools & undo-redo */}
           <div className="flex items-center justify-between">
             {composerMode === "drawing" ? drawingTools : uploadButtons}
-            {composerMode === "text" && formatButtons}
+            {composerMode === "drawing" ? drawingHistory : formatButtons}
           </div>
         </div>
 
