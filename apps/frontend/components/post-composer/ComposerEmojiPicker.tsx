@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { Smile } from "lucide-react";
-import { useTranslations } from "@/lib/i18n";
+import { useLocale, useTranslations } from "@/lib/i18n";
+import { useEmojiData } from "@/lib/emoji-picker/use-emoji-data";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import {
   EmojiPicker,
@@ -39,6 +40,8 @@ export function ComposerEmojiPicker({
   const t = useTranslations("createPost");
   const [open, setOpen] = React.useState(false);
   const isDesktop = useMediaQuery("(min-width: 640px)");
+  // Warm the emoji data cache so the first open does not pay for loading it.
+  useEmojiData(useLocale());
 
   const handleEmojiSelect = React.useCallback(
     ({ emoji }: EmojiSelectEvent) => {

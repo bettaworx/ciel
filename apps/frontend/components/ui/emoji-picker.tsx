@@ -3,7 +3,6 @@
 import * as React from "react";
 import { SearchIcon, XIcon, type LucideIcon } from "lucide-react";
 import { useTranslations } from "@/lib/i18n";
-import { Grid, type CellComponentProps } from "react-window";
 
 import { cn } from "@/lib/utils";
 import { useEmojiPickerData } from "@/lib/emoji-picker/use-emoji-picker-data";
@@ -34,7 +33,7 @@ const MOBILE_GRID_PADDING_X = 12;
 const DESKTOP_GRID_PADDING_X = 4;
 const CATEGORY_HEADER_HEIGHT = 44;
 const SECTION_SPACING = 4;
-const GRID_OVERSCAN_COUNT = 2;
+const GRID_CHUNK_ROWS = 3;
 const ACTIVE_CATEGORY_HEADER_OFFSET = CATEGORY_HEADER_HEIGHT;
 
 function useElementWidth<T extends HTMLElement>() {
@@ -374,7 +373,7 @@ const EmojiButton = React.memo(function EmojiButton({
           src={item.src}
           alt={item.type === "custom" ? (item.shortcode ?? item.label) : item.label}
           className="size-7 object-contain sm:size-6"
-          loading="lazy"
+          decoding="async"
           draggable={false}
         />
       ) : (
@@ -386,50 +385,6 @@ const EmojiButton = React.memo(function EmojiButton({
   );
 });
 
-interface EmojiGridData {
-  items: EmojiItem[];
-  columns: number;
-  rowCount: number;
-  onSelect: (event: EmojiSelectEvent) => void;
-  cellSize: number;
-  columnGap: number;
-  rowGap: number;
-}
-
-function EmojiGridCell({
-  columnIndex,
-  rowIndex,
-  style,
-  items,
-  columns,
-  rowCount,
-  onSelect,
-  columnGap,
-  rowGap,
-}: CellComponentProps<EmojiGridData>) {
-  const itemIndex = rowIndex * columns + columnIndex;
-  const item = items[itemIndex];
-
-  if (!item) {
-    return null;
-  }
-
-  return (
-    <div
-      style={{
-        ...style,
-        boxSizing: "border-box",
-        paddingRight: columnIndex === columns - 1 ? 0 : columnGap,
-        paddingBottom: rowIndex === rowCount - 1 ? 0 : rowGap,
-      }}
-    >
-      <div style={{ width: "100%", height: "100%" }}>
-        <EmojiButton item={item} onSelect={onSelect} />
-      </div>
-    </div>
-  );
-}
-
 function CategoryLabel({ category }: { category: EmojiCategory }) {
   const t = useTranslations("emojiPicker");
   if (category.labelKey) {
@@ -438,50 +393,132 @@ function CategoryLabel({ category }: { category: EmojiCategory }) {
   return <>{category.label}</>;
 }
 
+// The outer container scrolls, so a per-section react-window Grid never virtualized.
+// Instead, split each section into small row chunks and mount those near the viewport.
+function useNearViewport(rootRef: React.RefObject<HTMLElement | null>) {
+  const ref = React.useRef<HTMLDivElement | null>(null);
+  const [near, setNear] = React.useState(false);
+
+  React.useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    // Once mounted a chunk stays: remounting on every pass back over it costs more
+    // than keeping its few dozen nodes around.
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setNear(true);
+          observer.disconnect();
+        }
+      },
+      { root: rootRef.current, rootMargin: "160px 0px" },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [rootRef]);
+
+  return { ref, near };
+}
+
+const EmojiGridChunk = React.memo(function EmojiGridChunk({
+  items,
+  columns,
+  isLast,
+  onSelect,
+  metrics,
+  rootRef,
+}: {
+  items: EmojiItem[];
+  columns: number;
+  isLast: boolean;
+  onSelect: (event: EmojiSelectEvent) => void;
+  metrics: EmojiPickerLayoutMetrics;
+  rootRef: React.RefObject<HTMLElement | null>;
+}) {
+  const { ref, near } = useNearViewport(rootRef);
+  const rowCount = Math.ceil(items.length / columns);
+  const { cellSize, columnGap, rowGap } = metrics;
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        height: rowCount * cellSize,
+        width: getGridWidth(columns, metrics),
+      }}
+    >
+      {near && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${columns}, ${cellSize}px)`,
+            gridAutoRows: cellSize,
+          }}
+        >
+          {items.map((item, index) => (
+            <div
+              key={item.key}
+              style={{
+                boxSizing: "border-box",
+                paddingRight: index % columns === columns - 1 ? 0 : columnGap,
+                paddingBottom: isLast && Math.floor(index / columns) === rowCount - 1 ? 0 : rowGap,
+              }}
+            >
+              <EmojiButton item={item} onSelect={onSelect} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 function EmojiGrid({
   items,
   columns,
   onSelect,
   metrics,
+  rootRef,
 }: {
   items: EmojiItem[];
   columns: number;
   onSelect: (event: EmojiSelectEvent) => void;
   metrics: EmojiPickerLayoutMetrics;
+  rootRef: React.RefObject<HTMLElement | null>;
 }) {
-  const rowCount = columns > 0 ? Math.ceil(items.length / columns) : 0;
-  const gridWidth = getGridWidth(columns, metrics);
-  const itemData = React.useMemo<EmojiGridData>(
-    () => ({
-      items,
-      columns,
-      rowCount,
-      onSelect,
-      cellSize: metrics.cellSize,
-      columnGap: metrics.columnGap,
-      rowGap: metrics.rowGap,
-    }),
-    [items, columns, rowCount, onSelect, metrics.cellSize, metrics.columnGap, metrics.rowGap],
-  );
+  // Stable chunk arrays let the memoized chunks skip re-rendering when only the
+  // active category changes (which happens while scrolling).
+  const chunks = React.useMemo(() => {
+    const chunkSize = columns * GRID_CHUNK_ROWS;
+    const result: EmojiItem[][] = [];
+    if (columns > 0) {
+      for (let i = 0; i < items.length; i += chunkSize) {
+        result.push(items.slice(i, i + chunkSize));
+      }
+    }
+    return result;
+  }, [items, columns]);
 
-  if (rowCount === 0) {
+  if (chunks.length === 0) {
     return null;
   }
 
   return (
     <div className="px-3 sm:px-1" data-grid-item-count={items.length}>
-      <Grid
-        cellComponent={EmojiGridCell}
-        cellProps={itemData}
-        columnCount={columns}
-        columnWidth={metrics.cellSize}
-        defaultHeight={rowCount * metrics.cellSize}
-        defaultWidth={gridWidth}
-        overscanCount={GRID_OVERSCAN_COUNT}
-        rowCount={rowCount}
-        rowHeight={metrics.cellSize}
-        style={{ height: rowCount * metrics.cellSize, width: gridWidth }}
-      />
+      {chunks.map((chunk, index) => (
+        <EmojiGridChunk
+          key={chunk[0].key}
+          items={chunk}
+          columns={columns}
+          isLast={index === chunks.length - 1}
+          onSelect={onSelect}
+          metrics={metrics}
+          rootRef={rootRef}
+        />
+      ))}
     </div>
   );
 }
@@ -619,6 +656,7 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
                 columns={columns}
                 onSelect={onSelect}
                 metrics={layoutMetrics}
+                rootRef={contentRef}
               />
             </>
           ) : (
@@ -632,6 +670,7 @@ function EmojiPickerContent({ className }: EmojiPickerContentProps) {
                   columns={columns}
                   onSelect={onSelect}
                   metrics={layoutMetrics}
+                  rootRef={contentRef}
                 />
               </section>
             ))

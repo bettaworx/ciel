@@ -8,7 +8,8 @@ import { useRecentEmojis, useEmojiSkinTone, normalizeRecentEmojis } from "@/atom
 import { RECENT_CATEGORY_ICON, CUSTOM_CATEGORY_ICON } from "./constants";
 import { getEmojiSrc } from "./helpers";
 import type { EmojiItem, EmojiCategory } from "./types";
-import { buildEmojiSearchDataset, searchEmojiDataset } from "./search";
+import { buildEmojiSearchDataset, searchEmojiDataset, type EmojiSearchDataset } from "./search";
+import type { PublicEmoji } from "@/lib/custom-emojis";
 
 function resolveEmojiItemTone(item: EmojiItem, skinTone: number): EmojiItem {
   const resolvedEmoji = skinTone !== 0 && item.emoji ? resolveEmoji(item, skinTone) : item.emoji;
@@ -23,6 +24,23 @@ function resolveEmojiItemTone(item: EmojiItem, skinTone: number): EmojiItem {
     emoji: resolvedEmoji,
     src: getEmojiSrc(resolvedEmoji, "png"),
   };
+}
+
+// The picker remounts on every open; rebuilding the FlexSearch index each time
+// costs ~100ms. ponytail: single-entry cache, keyed by the react-query data identity.
+let cachedDataset: {
+  categories: EmojiCategory[];
+  customEmojis: PublicEmoji[] | undefined;
+  dataset: EmojiSearchDataset;
+} | null = null;
+
+function getSearchDataset(categories: EmojiCategory[], customEmojis: PublicEmoji[] | undefined) {
+  if (cachedDataset?.categories === categories && cachedDataset.customEmojis === customEmojis) {
+    return cachedDataset.dataset;
+  }
+  const dataset = buildEmojiSearchDataset(categories, customEmojis);
+  cachedDataset = { categories, customEmojis, dataset };
+  return dataset;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,7 +58,7 @@ export function useEmojiPickerData(searchQuery: string) {
   const isSearching = debouncedQuery.length > 0;
   const searchDataset = useMemo(() => {
     if (!emojiData) return null;
-    return buildEmojiSearchDataset(emojiData.categories, customEmojis);
+    return getSearchDataset(emojiData.categories, customEmojis);
   }, [emojiData, customEmojis]);
 
   const categories = useMemo(() => {
@@ -103,9 +121,11 @@ export function useEmojiPickerData(searchQuery: string) {
 
     // --- Standard categories ---
     for (const cat of emojiData.categories) {
-      const resolved = cat.emojis.map((item) => resolveEmojiItemTone(item, skinTone));
-
-      result.push({ ...cat, emojis: resolved });
+      result.push(
+        skinTone === 0
+          ? cat
+          : { ...cat, emojis: cat.emojis.map((item) => resolveEmojiItemTone(item, skinTone)) },
+      );
     }
 
     return result;
