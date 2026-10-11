@@ -98,10 +98,11 @@ interface PostComposerContentProps {
 // Layout-specific style tokens
 // ---------------------------------------------------------------------------
 
+/** Indent that aligns the quoted post under the textarea (past the avatar) */
+const contentIndent = "pl-15";
+
 const styles = {
   card: {
-    /** Padding that aligns content under the textarea (past the avatar) */
-    contentPadding: "pl-15 px-0",
     /** Upload / format button size */
     toolbarButton: "h-8 w-8",
     toolbarIcon: "w-4 h-4",
@@ -110,7 +111,6 @@ const styles = {
     floatingContent: "z-50",
   },
   dialog: {
-    contentPadding: "pl-18 px-3",
     toolbarButton: "h-8 w-8",
     toolbarIcon: "w-4 h-4",
     postButton: "h-8 px-4",
@@ -617,7 +617,7 @@ export function PostComposerContent({
 
   /** Avatar + Textarea row */
   const textareaRow = (
-    <div className={cn("relative flex gap-3", layout === "dialog" && "pt-0 p-3")}>
+    <div className="relative flex gap-3">
       {avatar}
       <Textarea
         ref={textareaRef}
@@ -655,7 +655,7 @@ export function PostComposerContent({
   );
 
   const drawingRow = (
-    <div className={cn("flex gap-3", layout === "dialog" && "p-3")}>
+    <div className={cn("flex gap-3", layout === "dialog" && "pt-3")}>
       {avatar}
       <div className="relative min-w-0 flex-1">
         <DrawingCanvas
@@ -708,34 +708,46 @@ export function PostComposerContent({
   );
 
   /** OGP link preview */
-  const ogpPreview = ogpUrl ? (
-    <div className={s.contentPadding}>
-      <OgpCard url={ogpUrl} variant="timeline" />
-    </div>
-  ) : null;
+  const ogpPreview = ogpUrl ? <OgpCard url={ogpUrl} variant="timeline" /> : null;
 
   /** Media preview (images / video) */
   const mediaPreview =
     previewMedia.length > 0 ? (
-      <div className={s.contentPadding}>
-        <PostMediaPreview
-          media={previewMedia}
-          editable
-          onRemove={handleRemoveMedia}
-          onCrop={handleCropOpen}
-          onQualityChange={handleQualityChange}
-        />
-      </div>
+      <PostMediaPreview
+        media={previewMedia}
+        editable
+        onRemove={handleRemoveMedia}
+        onCrop={handleCropOpen}
+        onQualityChange={handleQualityChange}
+      />
     ) : null;
 
   /** Quoted post preview (non-interactive) */
   const quotedPostPreview = quotedPost ? (
-    <div className={layout === "dialog" ? "mb-3 pr-3 pl-18" : "pr-0 pl-15"}>
+    <div className={contentIndent}>
       <div className="pointer-events-none select-none">
         <PostCard post={quotedPost} variant="embedded" isLast />
       </div>
     </div>
   ) : null;
+
+  /**
+   * Editor + attachments. Spacing between items comes only from `space-y-3`;
+   * items themselves carry no vertical margin so both layouts stay in sync.
+   */
+  const contentBlock = (
+    <div
+      className={cn(
+        "space-y-3",
+        layout === "card" ? "min-h-[100px]" : !quotedPost && "min-h-[200px]",
+      )}
+    >
+      {composerMode === "drawing" ? drawingRow : textareaRow}
+      {composerMode === "text" && ogpPreview}
+      {composerMode === "text" && mediaPreview}
+      {quotedPostPreview}
+    </div>
+  );
 
   /** Drag & drop overlay */
   const dragOverlay =
@@ -781,16 +793,11 @@ export function PostComposerContent({
         </div>
 
         {/* Scrollable content */}
-        <div className="overflow-y-auto max-sm:max-h-[calc(100vh-4rem)]">
-          <div className={cn(!quotedPost && "min-h-[200px]")}>
-            {composerMode === "drawing" ? drawingRow : textareaRow}
-            {composerMode === "text" && ogpPreview}
-            {composerMode === "text" && mediaPreview}
-            {quotedPostPreview}
-          </div>
+        <div className="overflow-y-auto max-sm:max-h-[calc(100vh-4rem)] px-3 pb-3 space-y-3">
+          {contentBlock}
 
           {/* Upload & format buttons */}
-          <div className="px-3 pb-3 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             {composerMode === "drawing" ? drawingTools : uploadButtons}
             {composerMode === "text" && formatButtons}
           </div>
@@ -824,15 +831,10 @@ export function PostComposerContent({
       {dragOverlay}
 
       <div className="space-y-3">
-        <div className="min-h-[100px] space-y-3">
-          {composerMode === "drawing" ? drawingRow : textareaRow}
-          {composerMode === "text" && ogpPreview}
-          {composerMode === "text" && mediaPreview}
-          {quotedPostPreview}
-        </div>
+        {contentBlock}
 
         {/* Actions bar: upload + format (left) + counter & post (right) */}
-        <div className={cn("flex items-center justify-between", s.contentPadding)}>
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             {composerMode === "drawing" ? (
               drawingTools
