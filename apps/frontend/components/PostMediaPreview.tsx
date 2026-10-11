@@ -71,10 +71,10 @@ function RemoveButton({
         e.stopPropagation();
         onClick(e);
       }}
-      className="absolute top-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors"
+      className="absolute top-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 sm:p-2 transition-colors"
       aria-label={label}
     >
-      <X className="w-3.5 h-3.5" />
+      <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
     </button>
   );
 }
@@ -87,10 +87,10 @@ function CropButton({ onClick, label }: { onClick: (e: React.MouseEvent) => void
         e.stopPropagation();
         onClick(e);
       }}
-      className="absolute top-2 right-[46px] z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors"
+      className="absolute top-2 right-[38px] sm:right-[46px] z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 sm:p-2 transition-colors"
       aria-label={label}
     >
-      <Crop className="w-3.5 h-3.5" />
+      <Crop className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
     </button>
   );
 }
