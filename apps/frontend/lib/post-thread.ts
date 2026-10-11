@@ -131,7 +131,13 @@ export function mergeTimelineOwnerThreads(
       if (!latestReply) {
         continue;
       }
-      const visibleReplies = isMerged ? [latestReply] : threadReplies;
+      const latestParent = threadReplies.find((reply) => reply.id === latestReply.parentId);
+      const visibleReplies =
+        isMerged && latestParent && latestParent.author.id !== latestReply.author.id
+          ? [latestParent, latestReply]
+          : isMerged
+            ? [latestReply]
+            : threadReplies;
 
       threadByLatestPostId.set(latestReply.id, {
         rootId,

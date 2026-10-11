@@ -13,7 +13,6 @@ type OwnerThreadTimelineItemProps = {
   isLast: boolean;
   onUserClick: (username: string) => void;
   onShowThread: () => void;
-  /** Passed through to every card: this whole thread is by one author. */
   skipHiddenCushion?: boolean;
 };
 
