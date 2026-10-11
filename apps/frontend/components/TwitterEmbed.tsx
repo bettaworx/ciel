@@ -62,7 +62,7 @@ export function TwitterEmbed({ url }: TwitterEmbedProps) {
     };
   }, [canonicalUrl]);
 
-  if (!parsed || hasError) return null;
+  if (!canonicalUrl || hasError) return null;
 
   return (
     <div ref={containerRef} className="overflow-hidden">
