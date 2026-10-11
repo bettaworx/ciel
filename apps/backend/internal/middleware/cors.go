@@ -18,6 +18,25 @@ func CORS() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
+			if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions {
+				_, authErr := r.Cookie("ciel_auth")
+				_, refreshErr := r.Cookie("ciel_refresh")
+				if authErr == nil || refreshErr == nil {
+					scheme := "http"
+					if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+						scheme = "https"
+					}
+					if origin == "" {
+						if r.Header.Get("Sec-Fetch-Site") != "same-origin" {
+							writeForbidden(w)
+							return
+						}
+					} else if origin != scheme+"://"+r.Host && !isAllowedOrigin(origin) {
+						writeForbidden(w)
+						return
+					}
+				}
+			}
 
 			// Check if origin is allowed (exact match only)
 			if isAllowedOrigin(origin) {

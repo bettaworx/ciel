@@ -3,3 +3,6 @@ packages:
   - packages/*
 onlyBuiltDependencies:
   - esbuild
+overrides:
+  browserslist: 4.29.3
+  baseline-browser-mapping: 2.11.28

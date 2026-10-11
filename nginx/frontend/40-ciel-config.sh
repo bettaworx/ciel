@@ -81,7 +81,7 @@ printf 'add_header Content-Security-Policy "%s" always;\n' "$CSP" > /etc/nginx/c
 cat > /etc/nginx/ciel/manifest-proxy.conf <<PROXY_CONF
 proxy_pass $(origin_of "$INTERNAL_API_BASE_URL")/pwa/manifest.json;
 proxy_set_header Host \$host;
-proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-For \$remote_addr;
 proxy_set_header X-Forwarded-Proto \$scheme;
 PROXY_CONF
 
