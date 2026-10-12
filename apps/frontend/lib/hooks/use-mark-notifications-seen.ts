@@ -9,13 +9,13 @@ import type { components } from "@/lib/api/api";
 type UnreadCount = components["schemas"]["UnreadCount"];
 
 /**
- * Delay before flushing hovered notifications. Long enough that sweeping the
- * cursor across the list does not mark everything it passes over as read.
+ * Delay before flushing seen notifications. Long enough that a fast scroll
+ * does not mark everything it passes over as read.
  */
 const FLUSH_DELAY_MS = 400;
 
 /**
- * Marks notifications read as the user hovers (or taps) them.
+ * Marks notifications read once they have been on screen.
  *
  * Ids are buffered and flushed as one request, and the cache is updated
  * optimistically so the unread highlight fades immediately.

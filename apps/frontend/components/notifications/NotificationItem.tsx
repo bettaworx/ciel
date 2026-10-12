@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from "@/lib/navigation";
 import { useAtomValue } from "jotai";
 import { userAtom } from "@/atoms/auth";
@@ -35,6 +35,25 @@ export function NotificationItem({
     if (isUnread) onSeen(notificationIds(notification));
   }, [isUnread, notification, onSeen]);
 
+  // Showing a row on screen is what counts as seeing it, on every device. The
+  // hook's flush delay keeps a fast scroll from marking rows that only flew past.
+  const rowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!isUnread || !el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          markSeen();
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.6 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isUnread, markSeen]);
+
   const targetPostId = notificationTargetPostId(notification);
 
   const handleClick = useCallback(() => {
@@ -54,10 +73,7 @@ export function NotificationItem({
 
   return (
     <div
-      onMouseEnter={markSeen}
-      onFocus={markSeen}
-      // Touch devices never fire hover, so any interaction has to count as seen.
-      onClick={markSeen}
+      ref={rowRef}
       className={cn("transition-colors duration-500", isUnread && "notification-unread-tint")}
     >
       {rendersAsPostCard(notification) && notification.post ? (
