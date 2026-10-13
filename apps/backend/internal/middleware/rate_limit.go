@@ -247,9 +247,9 @@ func classifyAuthRoute(method, path string) string {
 	}
 
 	switch path {
-	case "/api/v1/auth/login/start":
+	case "/api/v1/auth/login/start", "/api/v1/auth/login/passkey/options":
 		return "auth_login_start"
-	case "/api/v1/auth/login/finish":
+	case "/api/v1/auth/login/finish", "/api/v1/auth/login/passkey/verify":
 		return "auth_login_finish"
 	case "/api/v1/auth/stepup/start":
 		return "auth_stepup_start"

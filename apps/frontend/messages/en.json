@@ -189,6 +189,10 @@
         "updateError": "Could not change your password"
       },
       "mfa": {
+        "passkeyLogin": {
+          "title": "Passkey sign-in",
+          "enable": "Allow sign-in with a passkey"
+        },
         "title": "Two-factor authentication",
         "description": "Asking for a second factor on top of your password keeps your account safe even if the password leaks.",
         "cancel": "Cancel",
@@ -500,6 +504,8 @@
     "unblockConfirmDescription": "Unblocking @{username} lets them see your posts and reply or react to them again. The follows the block removed are not restored."
   },
   "login": {
+    "withPasskey": "Sign in with a passkey",
+    "passkeyFailed": "Could not sign in with this passkey.",
     "title": "Login",
     "success": "Successfully logged in",
     "failed": "Login failed",

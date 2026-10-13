@@ -154,8 +154,13 @@ func (s *AuthService) GetMfaStatus(ctx context.Context, user auth.User) (api.Mfa
 	if err != nil {
 		return api.MfaStatus{}, err
 	}
+	enabled, err := s.store.Q.PasskeyLoginEnabled(ctx, user.ID)
+	if err != nil {
+		return api.MfaStatus{}, err
+	}
 
 	return api.MfaStatus{
+		PasskeyLoginEnabled:  enabled,
 		TotpEnabled:          row.HasTotp,
 		TotpEnabledAt:        enabledAt,
 		WebauthnCredentials:  creds,
@@ -359,6 +364,12 @@ func (s *AuthService) DisableAllMFA(ctx context.Context, user auth.User) error {
 		return NewError(http.StatusUnauthorized, "unauthorized", "unauthorized")
 	}
 	err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		if _, err := q.LockPasskeyLoginUser(ctx, user.ID); err != nil {
+			return err
+		}
+		if err := q.DisablePasskeyLogin(ctx, user.ID); err != nil {
+			return err
+		}
 		if err := q.DeleteTotpByUserID(ctx, user.ID); err != nil {
 			return err
 		}
@@ -612,6 +623,12 @@ func (s *AuthService) ResetUserMFA(ctx context.Context, actor auth.User, targetU
 		return err
 	}
 	err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		if _, err := q.LockPasskeyLoginUser(ctx, targetUserID); err != nil {
+			return err
+		}
+		if err := q.DisablePasskeyLogin(ctx, targetUserID); err != nil {
+			return err
+		}
 		if err := q.DeleteTotpByUserID(ctx, targetUserID); err != nil {
 			return err
 		}
@@ -727,7 +744,8 @@ func (s *AuthService) WebAuthnRegisterOptions(ctx context.Context, user auth.Use
 	if err != nil {
 		return api.WebAuthnRegisterOptionsResponse{}, err
 	}
-	creation, sessionData, err := s.webauthn.BeginRegistration(waUser)
+	creation, sessionData, err := s.webauthn.BeginRegistration(waUser,
+		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementPreferred))
 	if err != nil {
 		return api.WebAuthnRegisterOptionsResponse{}, NewError(http.StatusBadRequest, "invalid_request", "failed to begin registration")
 	}
@@ -916,6 +934,9 @@ func (s *AuthService) DeleteWebAuthnCredential(ctx context.Context, user auth.Us
 		return NewError(http.StatusUnauthorized, "unauthorized", "unauthorized")
 	}
 	err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		if _, err := q.LockPasskeyLoginUser(ctx, user.ID); err != nil {
+			return err
+		}
 		n, err := q.DeleteWebAuthnCredential(ctx, sqlc.DeleteWebAuthnCredentialParams{
 			ID:     credID,
 			UserID: user.ID,
@@ -925,6 +946,15 @@ func (s *AuthService) DeleteWebAuthnCredential(ctx context.Context, user auth.Us
 		}
 		if n == 0 {
 			return NewError(http.StatusNotFound, "not_found", "credential not found")
+		}
+		remaining, err := q.CountWebAuthnCredentialsByUserID(ctx, user.ID)
+		if err != nil {
+			return err
+		}
+		if remaining == 0 {
+			if err := q.DisablePasskeyLogin(ctx, user.ID); err != nil {
+				return err
+			}
 		}
 		return s.cleanupBackupIfNoFactors(ctx, q, user.ID)
 	})

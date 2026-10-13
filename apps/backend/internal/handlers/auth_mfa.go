@@ -36,6 +36,7 @@ func (h API) requireMfaStepup(w http.ResponseWriter, r *http.Request, user auth.
 }
 
 func (h API) GetAuthMfa(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	user, ok := h.requireMfaAuth(w, r)
 	if !ok {
 		return

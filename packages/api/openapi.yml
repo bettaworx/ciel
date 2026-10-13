@@ -161,6 +161,12 @@ paths:
     $ref: ./paths/auth.yml#/~1auth~1password~1change
   /auth/mfa:
     $ref: ./paths/auth.yml#/~1auth~1mfa
+  /auth/mfa/passkey-login:
+    $ref: ./paths/auth.yml#/~1auth~1mfa~1passkey-login
+  /auth/login/passkey/options:
+    $ref: ./paths/auth.yml#/~1auth~1login~1passkey~1options
+  /auth/login/passkey/verify:
+    $ref: ./paths/auth.yml#/~1auth~1login~1passkey~1verify
   /auth/mfa/totp/setup:
     $ref: ./paths/auth.yml#/~1auth~1mfa~1totp~1setup
   /auth/mfa/totp/confirm:
