@@ -3,7 +3,6 @@
 **/*.log
 **/tmp
 **/node_modules
-**/.next
 **/dist
 **/out
 **/*.exe
@@ -12,6 +11,8 @@
 **/.vscode
 **/.turbo
 **/coverage
+**/storybook-static
+**/.tanstack
 
 # The frontend image installs from the repository root workspace.
 apps/frontend/pnpm-lock.yaml
@@ -24,7 +25,9 @@ apps/frontend/pnpm-workspace.yaml
 
 # Not needed for frontend build
 apps/backend
-nginx
+# The runtime image is nginx, so nginx/frontend/ is part of the build. The host
+# reverse-proxy config under nginx/config/ is not.
+nginx/config
 scripts
 README.md
 AGENTS.md

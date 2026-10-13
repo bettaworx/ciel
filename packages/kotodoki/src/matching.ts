@@ -15,25 +15,18 @@ export function matchesLocale(locales: readonly string[], locale: string): boole
   });
 }
 
-export function matchesRegion(
-  regions: readonly string[] | undefined,
-  region: string,
-): boolean {
+export function matchesRegion(regions: readonly string[] | undefined, region: string): boolean {
   if (!regions || regions.length === 0) {
     return true;
   }
 
   const normalizedRegion = region.toUpperCase();
   return regions.some(
-    (candidate) =>
-      candidate === "*" || candidate.toUpperCase() === normalizedRegion,
+    (candidate) => candidate === "*" || candidate.toUpperCase() === normalizedRegion,
   );
 }
 
-export function entryMatchesContext(
-  entry: PhraseEntry,
-  context: ResolvedKotodokiContext,
-): boolean {
+export function entryMatchesContext(entry: PhraseEntry, context: ResolvedKotodokiContext): boolean {
   if (!matchesLocale(entry.locales, context.locale)) {
     return false;
   }
@@ -65,17 +58,12 @@ export function entryMatchesContext(
 
   if (
     conditions.holidays &&
-    !conditions.holidays.some((holidayId) =>
-      context.holidayIds.includes(holidayId),
-    )
+    !conditions.holidays.some((holidayId) => context.holidayIds.includes(holidayId))
   ) {
     return false;
   }
 
-  if (
-    conditions.dayPeriods &&
-    !conditions.dayPeriods.includes(context.dayPeriod)
-  ) {
+  if (conditions.dayPeriods && !conditions.dayPeriods.includes(context.dayPeriod)) {
     return false;
   }
 
@@ -103,10 +91,7 @@ export function holidayMatchesLocaleAndRegion(
   locale: string,
   region: string,
 ): boolean {
-  return (
-    matchesLocale(holiday.locales, locale) &&
-    matchesRegion(holiday.regions, region)
-  );
+  return matchesLocale(holiday.locales, locale) && matchesRegion(holiday.regions, region);
 }
 
 function hourIsInRange(hour: number, [startHour, endHour]: readonly [number, number]) {

@@ -80,14 +80,8 @@ describe("emojibase data helpers", () => {
   it("builds localized standard emoji categories from emojibase data", () => {
     const categories = buildStandardEmojiCategories(bundle);
 
-    expect(categories.map((category) => category.label)).toEqual([
-      "スマイリーと感情",
-      "人体",
-    ]);
-    expect(categories[0].emojis.map((emoji) => emoji.label)).toEqual([
-      "にっこり笑う",
-      "著作権",
-    ]);
+    expect(categories.map((category) => category.label)).toEqual(["スマイリーと感情", "人体"]);
+    expect(categories[0].emojis.map((emoji) => emoji.label)).toEqual(["にっこり笑う", "著作権"]);
     expect(categories[0].emojis[0].searchText).toContain("スマイル");
     expect(categories[1].emojis[0].skins).toEqual([{ tone: 1, emoji: "👋🏻" }]);
   });
@@ -96,13 +90,6 @@ describe("emojibase data helpers", () => {
     const categories = buildStandardEmojiCategories(bundle);
     const allItems = categories.flatMap((category) => category.emojis);
 
-    expect(allItems.map((emoji) => emoji.emoji)).toEqual([
-      "😀",
-      "©️",
-      "👋",
-      "👍",
-      "❓",
-      "❌",
-    ]);
+    expect(allItems.map((emoji) => emoji.emoji)).toEqual(["😀", "©️", "👋", "👍", "❓", "❌"]);
   });
 });

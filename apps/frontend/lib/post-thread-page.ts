@@ -43,19 +43,14 @@ export function mergeThreadPages(
 
     childrenByParentId.set(incomingChildren.parentId, {
       ...incomingChildren,
-      childIds: appendUnique(
-        existingChildren.childIds,
-        incomingChildren.childIds,
-      ),
+      childIds: appendUnique(existingChildren.childIds, incomingChildren.childIds),
     });
   }
 
   return {
     root: nodesById.get(incoming.root.id) ?? incoming.root,
     anchor: nodesById.get(current.anchor.id) ?? current.anchor,
-    nodes: nodeIds
-      .map((id) => nodesById.get(id))
-      .filter((node): node is Post => Boolean(node)),
+    nodes: nodeIds.map((id) => nodesById.get(id)).filter((node): node is Post => Boolean(node)),
     children: Array.from(childrenByParentId.values()),
   };
 }
@@ -113,8 +108,7 @@ export function buildThreadRows(
         children: childChildren,
         canLoadChildren:
           Boolean(
-            childChildren?.hasMore &&
-              getFlowChildIds(child.id, childChildren).length === 0,
+            childChildren?.hasMore && getFlowChildIds(child.id, childChildren).length === 0,
           ) ||
           (!childChildren && child.replyCount > 0),
       });
@@ -129,10 +123,7 @@ export function buildThreadRows(
   return rows;
 }
 
-export function removePostFromThreadPage(
-  page: ThreadPage,
-  postId: string,
-): ThreadPage {
+export function removePostFromThreadPage(page: ThreadPage, postId: string): ThreadPage {
   const nodesById = new Map(page.nodes.map((node) => [node.id, node]));
   const deletedPost = nodesById.get(postId);
   if (!deletedPost) {
@@ -167,14 +158,10 @@ export function removePostFromThreadPage(
     };
   };
 
-  const nodes = page.nodes
-    .filter((node) => !removedPostIds.has(node.id))
-    .map(updateRemainingPost);
+  const nodes = page.nodes.filter((node) => !removedPostIds.has(node.id)).map(updateRemainingPost);
 
   return {
-    root: removedPostIds.has(page.root.id)
-      ? page.root
-      : updateRemainingPost(page.root),
+    root: removedPostIds.has(page.root.id) ? page.root : updateRemainingPost(page.root),
     anchor: removedPostIds.has(page.anchor.id)
       ? updateRemainingPost(page.root)
       : updateRemainingPost(page.anchor),
@@ -183,9 +170,7 @@ export function removePostFromThreadPage(
       .filter((children) => !removedPostIds.has(children.parentId))
       .map((children) => ({
         ...children,
-        childIds: children.childIds.filter(
-          (childId) => !removedPostIds.has(childId),
-        ),
+        childIds: children.childIds.filter((childId) => !removedPostIds.has(childId)),
       })),
   };
 }

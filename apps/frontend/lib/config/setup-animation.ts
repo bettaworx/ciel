@@ -17,15 +17,15 @@ export const SETUP_ANIMATION_CONFIG = {
   /**
    * GSAP easing function
    */
-  ease: 'power2.inOut',
+  ease: "power2.inOut",
 
   /**
    * Mobile breakpoint in pixels (matches Tailwind's sm: breakpoint)
    */
   mobileBreakpoint: 640,
-} as const
+} as const;
 
 /**
  * Animation direction for transitions
  */
-export type AnimationDirection = 'forward' | 'backward'
+export type AnimationDirection = "forward" | "backward";

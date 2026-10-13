@@ -75,9 +75,7 @@ describe("emoji picker search dataset", () => {
   it("finds standard emojis by substring", () => {
     const dataset = buildEmojiSearchDataset(standardCategories, customEmojis);
 
-    expect(searchEmojiDataset(dataset, "tears").map((item) => item.key)).toEqual([
-      "standard:😂",
-    ]);
+    expect(searchEmojiDataset(dataset, "tears").map((item) => item.key)).toEqual(["standard:😂"]);
   });
 
   it("finds custom emojis by name and shortcode", () => {

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  shouldCollapsePostContent,
-  shouldShowPostContentToggle,
-} from "@/lib/post-content";
+import { shouldCollapsePostContent, shouldShowPostContentToggle } from "@/lib/post-content";
 
 describe("post content collapse helpers", () => {
   it("collapses overflowing content only when collapsing is enabled and content is not expanded", () => {

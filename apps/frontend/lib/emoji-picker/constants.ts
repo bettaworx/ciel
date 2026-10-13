@@ -22,10 +22,7 @@ const TWEMOJI_CDN_BASE = `https://cdn.jsdelivr.net/gh/jdecked/twemoji@${TWEMOJI_
 
 export type TwemojiAssetType = "svg" | "png";
 
-export function buildTwemojiUrl(
-  codepoints: string,
-  assetType: TwemojiAssetType = "svg",
-): string {
+export function buildTwemojiUrl(codepoints: string, assetType: TwemojiAssetType = "svg"): string {
   if (assetType === "png") {
     return `${TWEMOJI_CDN_BASE}/72x72/${codepoints}.png`;
   }
@@ -40,10 +37,7 @@ export function buildTwemojiUrl(
  *   3: animals-nature, 4: food-drink, 5: travel-places,
  *   6: activities, 7: objects, 8: symbols, 9: flags
  */
-export const CATEGORY_META: Record<
-  number,
-  { id: string; icon: LucideIcon }
-> = {
+export const CATEGORY_META: Record<number, { id: string; icon: LucideIcon }> = {
   0: { id: "smileys-emotion", icon: Smile },
   1: { id: "people-body", icon: Hand },
   3: { id: "animals-nature", icon: Cat },

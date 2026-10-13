@@ -5,16 +5,25 @@
   "main": "index.js",
   "scripts": {
     "dev": "concurrently -n frontend,backend -c cyan,green \"pnpm run dev:frontend\" \"pnpm run dev:backend\"",
+    "build": "concurrently -n frontend,backend -c cyan,green \"pnpm run build:frontend\" \"pnpm run build:backend \"",
+    "run": "concurrently -n frontend,backend -c cyan,green \"pnpm run run:frontend\" \"pnpm run run:backend\"",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "lint:ci": "biome ci .",
     "gen:openapi": "cd apps/backend && go generate ./internal/api",
     "gen:openapi:ts": "pnpm -C apps/frontend run gen:openapi",
     "gen:sqlc": "cd apps/backend && go generate ./internal/db/sqlc",
     "gen:backend": "cd apps/backend && go generate ./...",
     "dev:backend": "cd apps/backend && go tool air",
     "run:backend": "cd apps/backend && go run .",
+    "run:frontend": "dotenv -e .env -- pnpm -C apps/frontend run start",
     "test:backend": "cd apps/backend && go test ./...",
+    "lint:backend": "cd apps/backend && golangci-lint run",
+    "fmt:backend": "cd apps/backend && golangci-lint fmt",
     "dev:frontend": "dotenv -e .env -- pnpm -C apps/frontend run dev",
     "build:frontend": "cd apps/frontend && pnpm run build",
+    "build:backend": "cd apps/backend && go build .",
     "build:kotodoki": "pnpm -C packages/kotodoki run build",
     "test:kotodoki": "pnpm -C packages/kotodoki run test",
     "migrate": "node scripts/migrate.mjs",
@@ -28,6 +37,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.28.0",
   "devDependencies": {
+    "@biomejs/biome": "2.5.14",
     "concurrently": "^10.0.1",
     "dotenv-cli": "^11.0.0"
   }

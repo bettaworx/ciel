@@ -1,6 +1,6 @@
 "use client";
 
-import Image, { type ImageProps } from "next/image";
+import Image, { type ImageProps } from "@/components/ui/image";
 import { useEffect, useRef, useState } from "react";
 import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { cn } from "@/lib/utils";
@@ -12,10 +12,9 @@ type BlurhashImageProps = Omit<ImageProps, "placeholder" | "blurDataURL"> & {
 const CROSSFADE_MS = 240;
 
 /**
- * next/image wrapper that overlays a BlurHash-decoded preview while the real
- * image is loading. Falls back to the bare image when no hash is provided or
- * decoding fails. Decoding happens client-side in an effect so SSR output
- * matches the no-hash variant.
+ * Image wrapper that overlays a BlurHash-decoded preview while the real image
+ * is loading. Falls back to the bare image when no hash is provided or decoding
+ * fails.
  */
 export function BlurhashImage({
   blurhash,
@@ -73,7 +72,6 @@ export function BlurhashImage({
   return (
     <>
       {placeholder && showPlaceholder && (
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={placeholder}
           alt=""
@@ -113,7 +111,10 @@ export function BlurhashImage({
             });
           };
 
-          void image.decode().catch(() => undefined).then(reveal);
+          void image
+            .decode()
+            .catch(() => undefined)
+            .then(reveal);
         }}
       />
     </>

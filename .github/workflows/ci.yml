@@ -32,10 +32,15 @@ jobs:
             backend:
               - 'apps/backend/**'
               - 'Dockerfile.backend'
+              - 'Dockerfile.backend.dockerignore'
             frontend:
               - 'apps/frontend/**'
               - 'packages/**'
               - 'Dockerfile.frontend'
+              - 'Dockerfile.frontend.dockerignore'
+              # The frontend image serves the SPA with nginx, so its config and
+              # entrypoint are part of the image.
+              - 'nginx/frontend/**'
 
   build-backend:
     needs: analyze

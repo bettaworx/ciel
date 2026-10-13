@@ -1,0 +1,46 @@
+components:
+  schemas:
+    PostSearchPage:
+      type: object
+      description: A page of post search results, newest first.
+      required:
+      - items
+      - estimatedTotal
+      - limit
+      - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: ./post.yml#/components/schemas/Post
+        estimatedTotal:
+          type: integer
+          description: Approximate number of matches. The search engine estimates
+            this, so it may differ from the number of items actually reachable
+            by paging.
+        limit:
+          type: integer
+        offset:
+          type: integer
+    UserSearchPage:
+      type: object
+      description: A page of user search results, most relevant first.
+      required:
+      - items
+      - estimatedTotal
+      - limit
+      - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: ./user.yml#/components/schemas/User
+        estimatedTotal:
+          type: integer
+          description: Approximate number of matches. The search engine estimates
+            this, so it may differ from the number of items actually reachable
+            by paging.
+        limit:
+          type: integer
+        offset:
+          type: integer

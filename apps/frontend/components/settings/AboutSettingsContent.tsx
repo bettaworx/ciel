@@ -1,0 +1,24 @@
+"use client";
+
+import { useTranslations } from "@/lib/i18n";
+import { Info, Server } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SettingsRow, SettingsRowGroup } from "@/components/settings/SettingsRow";
+
+export function AboutSettingsContent() {
+  const t = useTranslations();
+
+  return (
+    <>
+      <PageHeader backHref="/settings">{t("settings.about.title")}</PageHeader>
+      <SettingsRowGroup>
+        <SettingsRow
+          icon={Server}
+          label={t("settings.about.server")}
+          href="/settings/about/server"
+        />
+        <SettingsRow icon={Info} label={t("settings.about.app")} href="/settings/about/app" />
+      </SettingsRowGroup>
+    </>
+  );
+}

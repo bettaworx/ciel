@@ -89,6 +89,10 @@ type MediaEncodingConfig struct {
 	Video      bool `yaml:"video"`       // Encode videos to MP4 H.264+AAC (default: true)
 }
 
+// maxInputPixelsCeiling caps what media.max_input_pixels may be set to, so a
+// config cannot hand one request an unbounded allocation.
+const maxInputPixelsCeiling = 50_000_000
+
 // MediaConfig holds media upload and processing settings
 type MediaConfig struct {
 	MaxUploadSize     int                   `yaml:"max_upload_size"`    // in MiB (for images)
@@ -226,31 +230,36 @@ func (m *MediaConfig) MaxUploadBytesForType(mediaType string) int64 {
 	return int64(m.MaxUploadSize) << 20 // MiB to bytes (for images)
 }
 
-// IsExtensionAllowed checks if file extension is allowed
-// Known image formats: png, jpg, jpeg, webp, gif
-// Known video formats: mp4, webm, mov, avi, mkv, m4v, 3gp, ogv
+// IsExtensionAllowed checks if file extension is allowed.
+//
+// SECURITY: knownFormats is a hard floor that allowed_extensions can only narrow,
+// never widen:
+//
+//	webp             — what the browser normalizer re-encodes still images to
+//	png, jpg, jpeg   — accepted as-is; the passthrough path still decodes every
+//	                   pixel and strips metadata before storing
+//	gif              — passed through; browsers have no animated-WebP encoder
+//	webm, mp4        — every video is re-encoded to WebM, or to MP4 on browsers
+//	                   with no VP8/VP9/AV1 encoder (Safari)
+//
+// Container formats the normalizer never emits — mov, avi, mkv, m4v, 3gp, ogv —
+// stay out: for video the codec allowlist is what keeps unplayable and
+// CVE-prone streams from being stored.
 func (m *MediaConfig) IsExtensionAllowed(ext string) bool {
 	// Remove leading dot if present
 	ext = strings.TrimPrefix(ext, ".")
 	ext = strings.ToLower(ext)
 
-	// Only allow known formats for security
 	knownFormats := map[string]bool{
 		// Images
+		"webp": true,
 		"png":  true,
 		"jpg":  true,
 		"jpeg": true,
-		"webp": true,
 		"gif":  true,
 		// Videos
-		"mp4":  true,
 		"webm": true,
-		"mov":  true,
-		"avi":  true,
-		"mkv":  true,
-		"m4v":  true,
-		"3gp":  true,
-		"ogv":  true,
+		"mp4":  true,
 	}
 
 	// Check if extension is in allowed list AND is a known format
@@ -269,21 +278,19 @@ func (m *MediaConfig) IsVideoExtension(ext string) bool {
 	ext = strings.ToLower(ext)
 
 	videoExts := map[string]bool{
-		"mp4":  true,
 		"webm": true,
-		"mov":  true,
-		"avi":  true,
-		"mkv":  true,
-		"m4v":  true,
-		"3gp":  true,
-		"ogv":  true,
+		"mp4":  true,
 	}
 
 	return videoExts[ext]
 }
 
-// ClampQuality ensures all quality values are in 0-100 range
+// ClampQuality ensures all quality values are in 0-100 range, and holds
+// max_input_pixels under its ceiling.
 func (m *MediaConfig) ClampQuality() {
+	// A decoded pixel costs about four bytes, so this bounds what a single
+	// upload can ask the server to allocate.
+	m.MaxInputPixels = clamp(m.MaxInputPixels, 1, maxInputPixelsCeiling)
 	m.Post.Static.Quality = clamp(m.Post.Static.Quality, 0, 100)
 	m.Post.Gif.Quality = clamp(m.Post.Gif.Quality, 0, 100)
 	m.Avatar.Static.Quality = clamp(m.Avatar.Static.Quality, 0, 100)
@@ -396,6 +403,10 @@ func (m *MediaConfig) Validate() error {
 
 // LogClampedQuality logs warnings if quality values were clamped
 func (m *MediaConfig) LogClampedQuality(original *MediaConfig) {
+	if m.MaxInputPixels != original.MaxInputPixels {
+		slog.Warn("media.max_input_pixels clamped",
+			"original", original.MaxInputPixels, "clamped", m.MaxInputPixels)
+	}
 	if m.Post.Static.Quality != original.Post.Static.Quality {
 		slog.Warn("media config quality clamped to valid range",
 			"field", "post.static.quality",
@@ -490,10 +501,10 @@ func DefaultConfig() *Config {
 		},
 		Media: MediaConfig{
 			MaxUploadSize:     15,
-			AllowedExtensions: []string{"png", "jpg", "jpeg", "webp", "gif", "mp4", "webm", "mov", "avi", "mkv", "m4v", "3gp", "ogv"},
+			AllowedExtensions: []string{"webp", "png", "jpg", "jpeg", "gif", "webm", "mp4"},
 			MaxInputWidth:     16384,
 			MaxInputHeight:    16384,
-			MaxInputPixels:    100_000_000,
+			MaxInputPixels:    50_000_000,
 			Encoding: MediaEncodingConfig{
 				Post:       true,
 				Avatar:     true,

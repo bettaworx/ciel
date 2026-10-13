@@ -28,14 +28,10 @@ on:
         type: string
         default: ""
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
   build:
     name: Build Backend
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     env:
       BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/ciel-backend
 
@@ -61,8 +57,9 @@ jobs:
             --file Dockerfile.backend \
             --build-arg BUILD_COMMIT="${{ inputs.build_commit }}" \
             --build-arg BUILD_BRANCH="${{ inputs.build_branch }}" \
-            --cache-from "type=registry,ref=${BACKEND_IMAGE}:canary" \
-            --cache-from "type=registry,ref=${BACKEND_IMAGE}:latest" \
+            --cache-from "type=gha,scope=backend" \
+            --cache-to "type=gha,mode=max,scope=backend" \
+            --output "type=cacheonly" \
             .
 
       - name: Build and push
@@ -79,9 +76,8 @@ jobs:
             --file Dockerfile.backend \
             --build-arg BUILD_COMMIT="${{ inputs.build_commit }}" \
             --build-arg BUILD_BRANCH="${{ inputs.build_branch }}" \
-            --cache-from "type=registry,ref=${BACKEND_IMAGE}:canary" \
-            --cache-from "type=registry,ref=${BACKEND_IMAGE}:latest" \
-            --cache-to "type=inline" \
+            --cache-from "type=gha,scope=backend" \
+            --cache-to "type=gha,mode=max,scope=backend" \
             --tag "${BACKEND_IMAGE}:${{ inputs.tag }}" \
             "${EXTRA_TAGS[@]}" \
             --push \

@@ -6,7 +6,7 @@ This repository is a monorepo for **Ciel**, a minimal SNS (Social Networking Ser
 
 Ciel is a modern web application built with:
 - **Backend**: Go API with PostgreSQL and Redis
-- **Frontend**: Next.js with TypeScript
+- **Frontend**: Vite + TanStack Router SPA with TypeScript
 - **API Contract**: OpenAPI specification as the single source of truth
 
 ## Design Philosophy
@@ -42,8 +42,8 @@ ciel/
 │   │   ├── db/           # Schema, queries, migrations
 │   │   ├── tests/        # Unit and integration tests
 │   │   └── AGENTS.md     # Backend-specific guidelines
-│   └── frontend/         # Next.js application
-│       ├── app/          # App Router pages
+│   └── frontend/         # Vite single-page application
+│       ├── routes/       # TanStack Router route files
 │       ├── components/   # React components
 │       ├── lib/          # API client, hooks, utilities
 │       └── AGENTS.md     # Frontend-specific guidelines
@@ -84,7 +84,7 @@ pnpm install              # Install all dependencies
 ```bash
 pnpm -C apps/frontend dev           # Start dev server (port 3000)
 pnpm -C apps/frontend build         # Production build
-pnpm -C apps/frontend lint          # ESLint
+pnpm run lint                      # Biome (lint + format check, monorepo 全体)
 pnpm -C apps/frontend gen:openapi   # Generate API types
 pnpm -C apps/frontend storybook     # Storybook dev server (port 6006)
 pnpm -C apps/frontend build-storybook # Storybook static build
@@ -96,6 +96,12 @@ cd apps/backend
 go run main.go                      # Start API server (port 6137)
 go test ./tests/unit/...            # Run unit tests
 go test ./...                       # Run all tests (fast)
+```
+
+Lint / format (golangci-lint v2.13.2 — `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2`):
+```bash
+pnpm lint:backend                   # golangci-lint run (govet / staticcheck / errcheck / gofmt / goimports)
+pnpm fmt:backend                    # golangci-lint fmt — apply gofmt + goimports
 ```
 
 ### Database Migrations
@@ -135,7 +141,8 @@ pnpm -C apps/frontend gen:openapi   # Generate frontend API types
 - See `apps/backend/TESTING.md` for detailed requirements
 
 ### Frontend Tests
-- (To be added in the future)
+- `pnpm -C apps/frontend test` (vitest). Pure logic only — no DOM environment,
+  so files are `*.test.ts`, never `*.test.tsx`.
 
 ### Testing Guidelines
 - When implementing new functionality, **always add or update tests**

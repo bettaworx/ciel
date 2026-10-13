@@ -8,7 +8,7 @@ import { EmojiInline } from "@/components/EmojiInline";
 import type { components } from "@/lib/api/api";
 import { useReactionUsersPreview } from "@/lib/hooks/use-reaction-users";
 import { cn } from "@/lib/utils";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 
 interface ReactionBadgeProps {
   emoji: string;
@@ -54,19 +54,14 @@ export function ReactionBadge({
         "h-8 px-3 rounded-full transition-colors duration-160 ease",
         "flex items-center gap-2",
         isReacted
-          ? [
-              "bg-c-9 text-c-foreground-1",
-              "hover:bg-c-8 hover:text-c-foreground-1",
-            ]
+          ? ["bg-c-9 text-c-foreground-1", "hover:bg-c-8 hover:text-c-foreground-1"]
           : [
               "bg-muted text-muted-foreground border-border",
               "hover:bg-accent hover:text-muted-foreground hover:border-border",
             ],
       )}
       aria-label={
-        isReacted
-          ? t("labelWithYourReaction", { emoji, count })
-          : t("label", { emoji, count })
+        isReacted ? t("labelWithYourReaction", { emoji, count }) : t("label", { emoji, count })
       }
       aria-pressed={isReacted}
     >
@@ -83,14 +78,10 @@ export function ReactionBadge({
       <HoverCardContent className="w-64 p-2">
         <div className="flex flex-col gap-1">
           {preview.isLoading && (
-            <span className="px-2 py-1 text-xs text-muted-foreground">
-              {t("loadingUsers")}
-            </span>
+            <span className="px-2 py-1 text-xs text-muted-foreground">{t("loadingUsers")}</span>
           )}
           {!preview.isLoading && previewUsers.length === 0 && (
-            <span className="px-2 py-1 text-xs text-muted-foreground">
-              {t("noUsers")}
-            </span>
+            <span className="px-2 py-1 text-xs text-muted-foreground">{t("noUsers")}</span>
           )}
           {previewUsers.map((user) => (
             <ReactionUserButton key={user.id} user={user} />

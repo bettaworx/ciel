@@ -8,22 +8,15 @@ import (
 
 // ClientIP returns the best-effort client IP address.
 //
-// If trustProxy is true, X-Forwarded-For is used (left-most IP).
+// If trustProxy is true, use the IP appended by the nearest trusted proxy.
 // Otherwise, RemoteAddr is used.
 func ClientIP(r *http.Request, trustProxy bool) string {
 	if trustProxy {
 		if xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); xff != "" {
-			// XFF format: client, proxy1, proxy2
 			parts := strings.Split(xff, ",")
-			if len(parts) > 0 {
-				ip := strings.TrimSpace(parts[0])
-				if ip != "" {
-					return ip
-				}
+			if ip := net.ParseIP(strings.TrimSpace(parts[len(parts)-1])); ip != nil {
+				return ip.String()
 			}
-		}
-		if xrip := strings.TrimSpace(r.Header.Get("X-Real-Ip")); xrip != "" {
-			return xrip
 		}
 	}
 

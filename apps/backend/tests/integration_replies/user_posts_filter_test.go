@@ -17,8 +17,8 @@ func TestIntegration_UserPosts_ExcludeForeignReplies(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	uAlice := registerUser(t, client, base, "ef_alice", "password123")
-	uBob := registerUser(t, client, base, "ef_bob", "password123")
+	uAlice := registerUser(t, client, base, "ef_alice", "Password123")
+	uBob := registerUser(t, client, base, "ef_bob", "Password123")
 	aAlice := issueBearer(t, app.TokenManager, uAlice)
 	aBob := issueBearer(t, app.TokenManager, uBob)
 
@@ -75,8 +75,8 @@ func TestIntegration_UserPosts_ExcludeForeignReplies_OnlyRootPosts(t *testing.T)
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	uAlice := registerUser(t, client, base, "ef2_alice", "password123")
-	uBob := registerUser(t, client, base, "ef2_bob", "password123")
+	uAlice := registerUser(t, client, base, "ef2_alice", "Password123")
+	uBob := registerUser(t, client, base, "ef2_bob", "Password123")
 	aAlice := issueBearer(t, app.TokenManager, uAlice)
 	aBob := issueBearer(t, app.TokenManager, uBob)
 
@@ -111,8 +111,8 @@ func TestIntegration_UserPosts_ExcludeForeignReplies_AllReplysForeign(t *testing
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	uAlice := registerUser(t, client, base, "ef3_alice", "password123")
-	uBob := registerUser(t, client, base, "ef3_bob", "password123")
+	uAlice := registerUser(t, client, base, "ef3_alice", "Password123")
+	uBob := registerUser(t, client, base, "ef3_bob", "Password123")
 	aAlice := issueBearer(t, app.TokenManager, uAlice)
 	aBob := issueBearer(t, app.TokenManager, uBob)
 

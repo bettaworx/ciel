@@ -14,6 +14,7 @@ describe("post card display configs", () => {
       timestampFormat: "relative",
       timestampPlacement: "header",
       showReactions: true,
+      showMoreMenu: true,
     });
   });
 
@@ -25,6 +26,7 @@ describe("post card display configs", () => {
       timestampFormat: "full",
       timestampPlacement: "afterContent",
       showReactions: true,
+      showMoreMenu: true,
     });
   });
 
@@ -36,6 +38,19 @@ describe("post card display configs", () => {
       timestampFormat: "relative",
       timestampPlacement: "header",
       showReactions: false,
+      showMoreMenu: true,
+    });
+  });
+
+  it("keeps embedded cards minimal without chrome", () => {
+    expect(getPostCardDisplayConfig("embedded")).toEqual({
+      linkToDetail: true,
+      identityLayout: "inline",
+      collapseContent: true,
+      timestampFormat: "relative",
+      timestampPlacement: "header",
+      showReactions: false,
+      showMoreMenu: false,
     });
   });
 
@@ -43,6 +58,7 @@ describe("post card display configs", () => {
     expect(Object.keys(POST_CARD_DISPLAY_CONFIGS).sort()).toEqual([
       "compact",
       "detail",
+      "embedded",
       "timeline",
     ]);
   });

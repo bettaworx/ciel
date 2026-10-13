@@ -1,0 +1,107 @@
+/notifications:
+  get:
+    tags:
+    - Notifications
+    summary: List notifications for the authenticated user
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+    - name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        nullable: true
+    - name: unreadOnly
+      in: query
+      required: false
+      schema:
+        type: boolean
+        default: false
+    - name: tz
+      in: query
+      required: false
+      description: >-
+        IANA time zone name used to decide the day boundary that splits grouped
+        notifications: notifications from different days never merge into one
+        row. Defaults to UTC.
+      schema:
+        type: string
+        default: UTC
+        example: Asia/Tokyo
+    - name: type
+      in: query
+      required: false
+      description: Restrict results to the given notification types. Repeat the parameter for multiple types.
+      schema:
+        type: array
+        items:
+          $ref: ../schemas/enums.yml#/components/schemas/NotificationType
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/notification.yml#/components/schemas/NotificationsPage
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized
+/notifications/unread-count:
+  get:
+    tags:
+    - Notifications
+    summary: Count unread notifications for the authenticated user
+    security:
+    - bearerAuth: []
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/notification.yml#/components/schemas/UnreadCount
+      '401':
+        description: Unauthorized
+/notifications/read:
+  post:
+    tags:
+    - Notifications
+    summary: Mark notifications as read
+    description: Marks the given notification IDs as read, or every unread notification when ids is omitted.
+    security:
+    - bearerAuth: []
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/notification.yml#/components/schemas/MarkNotificationsReadRequest
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/notification.yml#/components/schemas/UnreadCount
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '401':
+        description: Unauthorized

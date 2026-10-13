@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
@@ -47,7 +47,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
         // Other error
         setError(t("login.wizard.username.error"));
       }
-    } catch (err) {
+    } catch (_err) {
       // Network or other error
       setError(t("login.wizard.username.error"));
     } finally {
@@ -114,12 +114,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
       >
         <div className="flex-1 flex flex-col justify-center">
           <div className="space-y-2 mb-6">
-            <h2 className="text-2xl font-bold">
-              {t("login.wizard.username.title")}
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              {t("login.wizard.username.description")}
-            </p>
+            <h2 className="text-2xl font-bold">{t("login.wizard.username.title")}</h2>
           </div>
 
           <div className="space-y-4">

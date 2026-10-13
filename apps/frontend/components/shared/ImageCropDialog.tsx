@@ -8,16 +8,12 @@ import ReactCrop, {
   centerCrop,
   makeAspectCrop,
 } from "react-image-crop";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { X, RotateCcw, FlipHorizontal2, BrushCleaning } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  ASPECT_RATIO_OPTIONS,
-  resolveAspect,
-  type AspectRatioId,
-} from "./image-crop/aspectRatios";
+import { ASPECT_RATIO_OPTIONS, resolveAspect, type AspectRatioId } from "./image-crop/aspectRatios";
 import {
   IDENTITY,
   buildTransformedImage,
@@ -57,6 +53,12 @@ interface ImageCropDialogProps {
   contentClassName?: string;
   /** Optional class override for dialog overlay. */
   overlayClassName?: string;
+  /**
+   * Longest edge of the cropped result, in pixels. Defaults to 1024. Raise it
+   * when the server's own target is larger than that, or it upscales what it is
+   * given and the difference is visible.
+   */
+  maxOutputSize?: number;
   onCropComplete: (
     file: File,
     crop?: Crop,
@@ -69,9 +71,9 @@ async function getCroppedFile(
   image: HTMLImageElement,
   pixelCrop: PixelCrop,
   originalFile: File,
+  maxSize: number,
 ): Promise<File> {
   const canvas = document.createElement("canvas");
-  const maxSize = 1024;
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
   const naturalW = pixelCrop.width * scaleX;
@@ -98,8 +100,7 @@ async function getCroppedFile(
     canvas.height,
   );
 
-  const outputMime =
-    originalFile.type === "image/jpeg" ? "image/jpeg" : "image/png";
+  const outputMime = originalFile.type === "image/jpeg" ? "image/jpeg" : "image/png";
   const ext = outputMime === "image/jpeg" ? "jpg" : "png";
   const baseName = originalFile.name.replace(/\.[^.]+$/, "");
 
@@ -107,9 +108,7 @@ async function getCroppedFile(
     canvas.toBlob(
       (blob) => {
         if (!blob) return reject(new Error("Canvas toBlob failed"));
-        resolve(
-          new File([blob], `${baseName}-cropped.${ext}`, { type: outputMime }),
-        );
+        resolve(new File([blob], `${baseName}-cropped.${ext}`, { type: outputMime }));
       },
       outputMime,
       0.92,
@@ -117,11 +116,7 @@ async function getCroppedFile(
   });
 }
 
-function makeDefaultCrop(
-  aspect: number | undefined,
-  width: number,
-  height: number,
-): PercentCrop {
+function makeDefaultCrop(aspect: number | undefined, width: number, height: number): PercentCrop {
   if (aspect === undefined) {
     return { unit: "%", x: 0, y: 0, width: 100, height: 100 };
   }
@@ -168,6 +163,7 @@ export function ImageCropDialog({
   initialAspectId,
   contentClassName,
   overlayClassName,
+  maxOutputSize = 1024,
   onCropComplete,
 }: ImageCropDialogProps) {
   const t = useTranslations("imageCrop");
@@ -178,17 +174,12 @@ export function ImageCropDialog({
   const pendingResetRef = useRef(false);
 
   const defaultAspectId: AspectRatioId =
-    aspectMode.mode === "selectable"
-      ? (aspectMode.defaultId ?? "free")
-      : "free";
+    aspectMode.mode === "selectable" ? (aspectMode.defaultId ?? "free") : "free";
   const startingAspectId: AspectRatioId =
-    aspectMode.mode === "selectable"
-      ? (initialAspectId ?? defaultAspectId)
-      : defaultAspectId;
+    aspectMode.mode === "selectable" ? (initialAspectId ?? defaultAspectId) : defaultAspectId;
   const startingTransform: Transform = initialTransform ?? IDENTITY;
 
-  const [selectedAspectId, setSelectedAspectId] =
-    useState<AspectRatioId>(startingAspectId);
+  const [selectedAspectId, setSelectedAspectId] = useState<AspectRatioId>(startingAspectId);
   const [transform, setTransform] = useState<Transform>(startingTransform);
   const [displaySrc, setDisplaySrc] = useState<string>(imageSrc);
   const [crop, setCrop] = useState<Crop>();
@@ -207,10 +198,7 @@ export function ImageCropDialog({
   );
 
   const currentAspect: number | undefined = imageSizeRef.current
-    ? computeAspect(
-        imageSizeRef.current.width,
-        imageSizeRef.current.height,
-      )
+    ? computeAspect(imageSizeRef.current.width, imageSizeRef.current.height)
     : aspectMode.mode === "fixed"
       ? aspectMode.aspect
       : undefined;
@@ -231,9 +219,24 @@ export function ImageCropDialog({
     };
   }, [imageSrc]);
 
+  // Only URLs built here may be revoked; imageSrc belongs to the caller.
+  const transformedUrlRef = useRef<string | null>(null);
+  const showTransformed = useCallback((url: string | null) => {
+    if (transformedUrlRef.current) URL.revokeObjectURL(transformedUrlRef.current);
+    transformedUrlRef.current = url;
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (transformedUrlRef.current) URL.revokeObjectURL(transformedUrlRef.current);
+    },
+    [],
+  );
+
   useEffect(() => {
     let cancelled = false;
     if (isIdentity(transform)) {
+      showTransformed(null);
       setDisplaySrc(imageSrc);
       return () => {
         cancelled = true;
@@ -253,9 +256,13 @@ export function ImageCropDialog({
         }
       }
       try {
-        const { dataUrl } = await buildTransformedImage(orig, transform);
-        if (cancelled) return;
-        setDisplaySrc(dataUrl);
+        const { url } = await buildTransformedImage(orig, transform);
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        showTransformed(url);
+        setDisplaySrc(url);
       } finally {
         if (!cancelled) setIsTransforming(false);
       }
@@ -264,7 +271,7 @@ export function ImageCropDialog({
     return () => {
       cancelled = true;
     };
-  }, [transform, imageSrc]);
+  }, [transform, imageSrc, showTransformed]);
 
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -341,14 +348,9 @@ export function ImageCropDialog({
     const size = imageSizeRef.current;
     const img = imgRef.current;
     if (!size || !img) return;
-    const ratio =
-      ASPECT_RATIO_OPTIONS.find((o) => o.id === id)?.ratio ?? "free";
+    const ratio = ASPECT_RATIO_OPTIONS.find((o) => o.id === id)?.ratio ?? "free";
     const aspect =
-      ratio === "free"
-        ? undefined
-        : ratio === "original"
-          ? size.width / size.height
-          : ratio;
+      ratio === "free" ? undefined : ratio === "original" ? size.width / size.height : ratio;
     if (id === "free" && isPercentCrop(crop)) {
       // keep current crop, just unlock aspect
       return;
@@ -402,16 +404,11 @@ export function ImageCropDialog({
   };
 
   const handleConfirm = async () => {
-    const hasValidCrop =
-      !!completedCrop && completedCrop.width > 0 && completedCrop.height > 0;
+    const hasValidCrop = !!completedCrop && completedCrop.width > 0 && completedCrop.height > 0;
     if (!hasValidCrop || !imgRef.current || !crop) return;
     setIsProcessing(true);
     try {
-      const file = await getCroppedFile(
-        imgRef.current,
-        completedCrop,
-        originalFile,
-      );
+      const file = await getCroppedFile(imgRef.current, completedCrop, originalFile, maxOutputSize);
       onCropComplete(file, crop, transform, selectedAspectId);
       onOpenChange(false);
     } finally {
@@ -471,10 +468,7 @@ export function ImageCropDialog({
             type="button"
             onClick={handleConfirm}
             disabled={
-              isBusy ||
-              !completedCrop ||
-              completedCrop.width <= 0 ||
-              completedCrop.height <= 0
+              isBusy || !completedCrop || completedCrop.width <= 0 || completedCrop.height <= 0
             }
             className="h-8"
           >
@@ -499,7 +493,6 @@ export function ImageCropDialog({
             circularCrop={false}
             className="max-h-[52vh]"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               ref={imgRef}
               src={displaySrc}

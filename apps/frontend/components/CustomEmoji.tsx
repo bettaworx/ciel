@@ -22,10 +22,7 @@ export function CustomEmoji({ shortcode, className }: CustomEmojiProps) {
   const normalized = normalizeCustomEmojiShortcode(shortcode);
   const emoji = failed ? undefined : resolveCustomEmoji(emojis, shortcode);
   const shouldHideWhileLoading =
-    !failed &&
-    isLoading &&
-    isCustomEmojiShortcode(shortcode) &&
-    !normalized.includes("@");
+    !failed && isLoading && isCustomEmojiShortcode(shortcode) && !normalized.includes("@");
 
   if (shouldHideWhileLoading) {
     return (
@@ -37,11 +34,7 @@ export function CustomEmoji({ shortcode, className }: CustomEmojiProps) {
   }
 
   if (!emoji?.imageUrl) {
-    return (
-      <span className={cn("mfm-inline-emoji", "mfm-emoji-code", className)}>
-        {fallback}
-      </span>
-    );
+    return <span className={cn("mfm-inline-emoji", "mfm-emoji-code", className)}>{fallback}</span>;
   }
 
   return (

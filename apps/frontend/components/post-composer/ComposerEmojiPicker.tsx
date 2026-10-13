@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { Smile } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "@/lib/i18n";
+import { useEmojiData } from "@/lib/emoji-picker/use-emoji-data";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import {
   EmojiPicker,
@@ -11,17 +12,8 @@ import {
   EmojiPickerFooter,
   type EmojiSelectEvent,
 } from "@/components/ui/emoji-picker";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { applyFormatToTextarea } from "./applyFormat";
@@ -48,6 +40,8 @@ export function ComposerEmojiPicker({
   const t = useTranslations("createPost");
   const [open, setOpen] = React.useState(false);
   const isDesktop = useMediaQuery("(min-width: 640px)");
+  // Warm the emoji data cache so the first open does not pay for loading it.
+  useEmojiData(useLocale());
 
   const handleEmojiSelect = React.useCallback(
     ({ emoji }: EmojiSelectEvent) => {
@@ -66,10 +60,13 @@ export function ComposerEmojiPicker({
       variant="ghost"
       size="icon"
       disabled={disabled}
-      className={className}
+      className={cn(
+        "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+        className,
+      )}
       aria-label={t("addEmoji")}
     >
-      <Smile className={cn("w-5 h-5", iconClassName)} />
+      <Smile className={cn("w-4 h-4", iconClassName)} />
     </Button>
   );
 
@@ -77,7 +74,7 @@ export function ComposerEmojiPicker({
     return (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-        <PopoverContent className="w-fit overflow-hidden p-0" align="start">
+        <PopoverContent className="w-fit overflow-hidden p-0 z-[70]" align="center" side="top">
           <EmojiPicker
             className="h-[400px] w-[400px]"
             columns={9}
@@ -99,7 +96,10 @@ export function ComposerEmojiPicker({
         <div className="w-full flex flex-col">
           <DrawerTitle className="sr-only">{t("addEmoji")}</DrawerTitle>
           <EmojiPicker
-            className="w-full h-[400px] border-0"
+            // Never taller than what the software keyboard leaves: the
+            // picker's search field is the first thing pushed off otherwise.
+            // The 8rem covers the sheet's handle and safe-area inset.
+            className="w-full h-[min(400px,calc(100dvh-var(--keyboard-inset,0px)-8rem))] border-0"
             columns={8}
             onEmojiSelect={handleEmojiSelect}
           >

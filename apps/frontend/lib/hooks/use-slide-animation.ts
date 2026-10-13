@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { animate } from 'framer-motion';
+import { useEffect, useRef } from "react";
+import { animate } from "framer-motion";
 
-type ViewType = 'main' | 'theme' | 'language';
+type ViewType = "main" | "theme" | "language";
 
 interface UseSlideAnimationProps {
   currentView: ViewType;
@@ -14,20 +14,20 @@ export function useSlideAnimation({
   currentView,
   containerRef,
   duration = 0.3,
-  ease = 'power2.inOut',
+  ease = "power2.inOut",
 }: UseSlideAnimationProps) {
-  const previousViewRef = useRef<ViewType>('main');
+  const previousViewRef = useRef<ViewType>("main");
 
   const resolveEase = (value: string) => {
-    if (value === 'power2.inOut') {
-      return (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    if (value === "power2.inOut") {
+      return (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
     }
 
-    if (value === 'linear') {
-      return 'linear' as const;
+    if (value === "linear") {
+      return "linear" as const;
     }
 
-    return 'easeInOut' as const;
+    return "easeInOut" as const;
   };
 
   useEffect(() => {
@@ -40,8 +40,8 @@ export function useSlideAnimation({
     if (previousView === currentView) return;
 
     // アニメーション方向を決定
-    const isGoingToSub = currentView !== 'main' && previousView === 'main';
-    const isGoingToMain = currentView === 'main' && previousView !== 'main';
+    const isGoingToSub = currentView !== "main" && previousView === "main";
+    const isGoingToMain = currentView === "main" && previousView !== "main";
 
     // 全ビュー要素を取得
     const mainView = container.querySelector('[data-view="main"]') as HTMLElement;
@@ -66,24 +66,24 @@ export function useSlideAnimation({
     };
 
     const resetWillChange = () => {
-      currentElement.style.willChange = 'auto';
-      previousElement.style.willChange = 'auto';
+      currentElement.style.willChange = "auto";
+      previousElement.style.willChange = "auto";
     };
 
-    currentElement.style.willChange = 'transform, opacity';
-    previousElement.style.willChange = 'transform, opacity';
+    currentElement.style.willChange = "transform, opacity";
+    previousElement.style.willChange = "transform, opacity";
 
     // 現在の要素の高さを取得するために一時的に表示
     applyStyles(currentElement, {
-      display: 'block',
-      position: 'absolute',
-      visibility: 'hidden',
-      opacity: '1',
-      transform: 'translateX(0%)',
+      display: "block",
+      position: "absolute",
+      visibility: "hidden",
+      opacity: "1",
+      transform: "translateX(0%)",
     });
 
     const targetHeight = currentElement.offsetHeight;
-    currentElement.style.visibility = 'visible';
+    currentElement.style.visibility = "visible";
 
     const currentHeight = container.offsetHeight;
     container.style.height = `${currentHeight}px`;
@@ -95,41 +95,41 @@ export function useSlideAnimation({
     if (isGoingToSub) {
       // メイン → サブ画面
       applyStyles(currentElement, {
-        transform: 'translateX(100%)',
-        opacity: '1',
-        display: 'block',
-        position: 'absolute',
+        transform: "translateX(100%)",
+        opacity: "1",
+        display: "block",
+        position: "absolute",
       });
 
       activeAnimations.push(
-        animate(previousElement, { x: '-100%', opacity: 0 }, { duration, ease: resolvedEase }),
-        animate(currentElement, { x: '0%', opacity: 1 }, { duration, ease: resolvedEase }),
+        animate(previousElement, { x: "-100%", opacity: 0 }, { duration, ease: resolvedEase }),
+        animate(currentElement, { x: "0%", opacity: 1 }, { duration, ease: resolvedEase }),
       );
     } else if (isGoingToMain) {
       // サブ画面 → メイン
       applyStyles(currentElement, {
-        transform: 'translateX(-100%)',
-        opacity: '1',
-        display: 'block',
-        position: 'relative',
+        transform: "translateX(-100%)",
+        opacity: "1",
+        display: "block",
+        position: "relative",
       });
 
       activeAnimations.push(
-        animate(previousElement, { x: '100%', opacity: 0 }, { duration, ease: resolvedEase }),
-        animate(currentElement, { x: '0%', opacity: 1 }, { duration, ease: resolvedEase }),
+        animate(previousElement, { x: "100%", opacity: 0 }, { duration, ease: resolvedEase }),
+        animate(currentElement, { x: "0%", opacity: 1 }, { duration, ease: resolvedEase }),
       );
     } else {
       // サブ画面間の切り替え（theme ⇔ language）
       applyStyles(currentElement, {
-        transform: 'translateX(100%)',
-        opacity: '1',
-        display: 'block',
-        position: 'absolute',
+        transform: "translateX(100%)",
+        opacity: "1",
+        display: "block",
+        position: "absolute",
       });
 
       activeAnimations.push(
-        animate(previousElement, { x: '-100%', opacity: 0 }, { duration, ease: resolvedEase }),
-        animate(currentElement, { x: '0%', opacity: 1 }, { duration, ease: resolvedEase }),
+        animate(previousElement, { x: "-100%", opacity: 0 }, { duration, ease: resolvedEase }),
+        animate(currentElement, { x: "0%", opacity: 1 }, { duration, ease: resolvedEase }),
       );
     }
 
@@ -137,9 +137,9 @@ export function useSlideAnimation({
     Promise.all(activeAnimations.map((animation) => animation.finished))
       .then(() => {
         if (!isActive) return;
-        previousElement.style.display = 'none';
+        previousElement.style.display = "none";
         if (isGoingToMain) {
-          container.style.height = 'auto';
+          container.style.height = "auto";
         } else {
           container.style.height = `${targetHeight}px`;
         }
@@ -155,7 +155,9 @@ export function useSlideAnimation({
 
     return () => {
       isActive = false;
-      activeAnimations.forEach((animation) => animation.stop());
+      activeAnimations.forEach((animation) => {
+        animation.stop();
+      });
     };
   }, [currentView, containerRef, duration, ease]);
 

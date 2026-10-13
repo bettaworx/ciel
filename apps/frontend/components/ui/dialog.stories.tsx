@@ -67,9 +67,7 @@ export const Simple: Story = {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Share link</DialogTitle>
-          <DialogDescription>
-            Anyone who has this link will be able to view this.
-          </DialogDescription>
+          <DialogDescription>Anyone who has this link will be able to view this.</DialogDescription>
         </DialogHeader>
         <div className="flex items-center space-x-2">
           <Input defaultValue="https://example.com/link/to/document" readOnly />

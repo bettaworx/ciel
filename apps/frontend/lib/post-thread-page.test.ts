@@ -25,10 +25,13 @@ function post(id: string, overrides: Partial<Post> = {}): Post {
       ...author,
     },
     content: id,
+    mode: "standard",
+    drawing: null,
     media: [],
     reactions: [],
     mentions: [],
     replyCount: 0,
+    boostCount: 0,
     createdAt: "2026-05-17T00:00:00.000Z",
     ...overrides,
   };
@@ -87,14 +90,17 @@ describe("buildThreadRows", () => {
     const reply = post("reply", { parentId: root.id, replyCount: 2 });
 
     const rows = buildThreadRows(
-      page([root, reply], [
-        {
-          parentId: root.id,
-          childIds: [reply.id],
-          nextCursor: null,
-          hasMore: false,
-        },
-      ]),
+      page(
+        [root, reply],
+        [
+          {
+            parentId: root.id,
+            childIds: [reply.id],
+            nextCursor: null,
+            hasMore: false,
+          },
+        ],
+      ),
     );
 
     expect(rows[0]?.canLoadChildren).toBe(true);
@@ -171,11 +177,7 @@ describe("buildThreadRows", () => {
           },
           {
             parentId: reply.id,
-            childIds: [
-              otherReply.id,
-              oldestContinuation.id,
-              newerContinuation.id,
-            ],
+            childIds: [otherReply.id, oldestContinuation.id, newerContinuation.id],
             nextCursor: null,
             hasMore: false,
           },
@@ -183,10 +185,7 @@ describe("buildThreadRows", () => {
       ),
     );
 
-    expect(rows.map((row) => row.post.id)).toEqual([
-      reply.id,
-      oldestContinuation.id,
-    ]);
+    expect(rows.map((row) => row.post.id)).toEqual([reply.id, oldestContinuation.id]);
     expect(rows[0]?.canLoadChildren).toBe(false);
   });
 });
@@ -222,11 +221,7 @@ describe("mergeThreadPages", () => {
 
     const merged = mergeThreadPages(current, incoming);
 
-    expect(merged.nodes.map((node) => node.id)).toEqual([
-      "root",
-      "first",
-      "second",
-    ]);
+    expect(merged.nodes.map((node) => node.id)).toEqual(["root", "first", "second"]);
     expect(merged.children[0]).toEqual({
       parentId: root.id,
       childIds: [first.id, second.id],
