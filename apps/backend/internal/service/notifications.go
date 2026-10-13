@@ -151,7 +151,7 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 	// The grouped query compares ids as text, since Postgres has no max(uuid).
 	var cID sql.NullString
 	if cursor != nil {
-		cTime = sql.NullTime{Time: time.UnixMilli(cursor.Score).UTC(), Valid: true}
+		cTime = sql.NullTime{Time: cursor.timestamp(), Valid: true}
 		if uid, perr := uuid.Parse(cursor.ID); perr == nil {
 			cID = sql.NullString{String: uid.String(), Valid: true}
 		}
@@ -279,7 +279,7 @@ func (s *NotificationsService) List(ctx context.Context, userID api.UserId, para
 	var nextCursor *string
 	if len(rows) == limit {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String(), Time: &last.CreatedAt})
 		nextCursor = &n
 	}
 	return api.NotificationsPage{Items: items, NextCursor: nextCursor}, nil

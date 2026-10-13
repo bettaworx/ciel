@@ -623,6 +623,10 @@ func (s *MediaService) uploadImagePassthrough(ctx context.Context, user auth.Use
 	// Full image validation using Go decoders (replaces ffprobe).
 	info, err := validateImageFile(inPath, s.cfg)
 	if err != nil {
+		var validationErr *Error
+		if errors.As(err, &validationErr) {
+			return api.Media{}, validationErr
+		}
 		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "invalid image")
 	}
 
@@ -878,6 +882,10 @@ func (s *MediaService) uploadImageWithOptions(ctx context.Context, user auth.Use
 
 	// Validate image using pure Go decoders (replaces ffprobe-based validation).
 	if _, err := validateImageFile(inPath, s.cfg); err != nil {
+		var validationErr *Error
+		if errors.As(err, &validationErr) {
+			return api.Media{}, validationErr
+		}
 		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "invalid image")
 	}
 
@@ -1204,6 +1212,10 @@ func (s *MediaService) uploadServerIconWithBothVersions(ctx context.Context, use
 
 	// Validate image using pure Go decoders (replaces ffprobe-based validation).
 	if _, err := validateImageFile(inPath, s.cfg); err != nil {
+		var validationErr *Error
+		if errors.As(err, &validationErr) {
+			return api.Media{}, validationErr
+		}
 		return api.Media{}, NewError(http.StatusBadRequest, "invalid_request", "invalid image")
 	}
 

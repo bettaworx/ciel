@@ -488,7 +488,7 @@ func (s *PostsService) GetThread(ctx context.Context, postID api.PostId, params 
 		}
 		if level == 1 && cursor != nil {
 			queryParams.CursorParentID = uuid.NullUUID{UUID: uuid.UUID(anchorID), Valid: true}
-			queryParams.CursorTime = sql.NullTime{Time: time.UnixMilli(cursor.Score).UTC(), Valid: true}
+			queryParams.CursorTime = sql.NullTime{Time: cursor.timestamp(), Valid: true}
 			cursorID, perr := uuid.Parse(cursor.ID)
 			if perr != nil {
 				return api.ThreadPage{}, NewError(http.StatusBadRequest, "invalid_request", "invalid cursor")
@@ -525,7 +525,7 @@ func (s *PostsService) GetThread(ctx context.Context, postID api.PostId, params 
 			var nextCursor *string
 			if hasMore && len(parentRows) > 0 {
 				last := parentRows[len(parentRows)-1]
-				n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String()})
+				n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String(), Time: &last.CreatedAt})
 				nextCursor = &n
 			}
 			children = append(children, api.ThreadChildren{
@@ -698,7 +698,7 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 		}
 	}
 	if cursor != nil {
-		ct := time.UnixMilli(cursor.Score).UTC()
+		ct := cursor.timestamp()
 		cTime = sql.NullTime{Time: ct, Valid: true}
 		uid, err := uuid.Parse(cursor.ID)
 		if err == nil {
@@ -774,7 +774,7 @@ func (s *PostsService) ListByUsername(ctx context.Context, username api.Username
 	var nextCursor *string
 	if len(rows) == limit {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String(), Time: &last.CreatedAt})
 		nextCursor = &n
 	}
 	return api.UserPostsPage{Items: items, NextCursor: nextCursor}, nil
@@ -1076,7 +1076,7 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 	var cTime sql.NullTime
 	var cID uuid.NullUUID
 	if cursor != nil {
-		ct := time.UnixMilli(cursor.Score).UTC()
+		ct := cursor.timestamp()
 		cTime = sql.NullTime{Time: ct, Valid: true}
 		uid, perr := uuid.Parse(cursor.ID)
 		if perr == nil {
@@ -1129,7 +1129,7 @@ func (s *PostsService) ListReplies(ctx context.Context, parentID api.PostId, par
 	var nextCursor *string
 	if len(rows) == limit {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String(), Time: &last.CreatedAt})
 		nextCursor = &n
 	}
 	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
