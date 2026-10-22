@@ -52,6 +52,30 @@ func TestRateLimit_AuthLoginStart_PerIP(t *testing.T) {
 	}
 }
 
+func TestRateLimit_PasskeyLogin_PerIP(t *testing.T) {
+	for _, endpoint := range []string{"options", "verify"} {
+		t.Run(endpoint, func(t *testing.T) {
+			mr := miniredis.RunT(t)
+			rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+			t.Cleanup(func() { _ = rdb.Close() })
+			h := middleware.RateLimit(rdb, middleware.RateLimitOptions{})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+			for i := 0; i < 11; i++ {
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login/passkey/"+endpoint, nil)
+				req.RemoteAddr = "1.2.3.4:1234"
+				rr := httptest.NewRecorder()
+				h.ServeHTTP(rr, req)
+				expected := http.StatusOK
+				if i == 10 {
+					expected = http.StatusTooManyRequests
+				}
+				if rr.Code != expected {
+					t.Fatalf("request %d: expected %d, got %d", i+1, expected, rr.Code)
+				}
+			}
+		})
+	}
+}
+
 func TestRateLimit_Health_IsExcluded(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})

@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import { KeyRound, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StepupGate } from "@/components/settings/StepupGate";
-import { SettingsRow, SettingsRowGroup } from "@/components/settings/SettingsRow";
+import {
+  SettingsRow,
+  SettingsRowGroup,
+  SettingsSwitchRow,
+} from "@/components/settings/SettingsRow";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
@@ -268,6 +272,20 @@ function MfaManager({
             </p>
           )}
         </section>
+
+        <SettingsRowGroup title={t("settings.security.mfa.passkeyLogin.title")}>
+          <SettingsSwitchRow
+            icon={KeyRound}
+            label={t("settings.security.mfa.passkeyLogin.enable")}
+            checked={status.passkeyLoginEnabled}
+            onCheckedChange={(enabled) => {
+              void guard(async () => {
+                await run((token) => api.setPasskeyLogin(enabled, token));
+              });
+            }}
+            disabled={pending || credentials.length === 0}
+          />
+        </SettingsRowGroup>
 
         {/* ---- Backup codes: only meaningful once a factor exists ---- */}
         {hasAnyFactor && (

@@ -10,9 +10,10 @@ import { useApi } from "@/lib/api/use-api";
 interface UsernameStepProps {
   onNext: (username: string) => void;
   initialValue?: string;
+  disabled?: boolean;
 }
 
-export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
+export function UsernameStep({ onNext, initialValue = "", disabled = false }: UsernameStepProps) {
   const t = useTranslations();
   const api = useApi();
   const [username, setUsername] = useState(initialValue);
@@ -23,6 +24,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (disabled) return;
     const trimmedUsername = username.trim();
 
     if (!trimmedUsername) {
@@ -68,7 +70,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
     const syncAutofilledValue = () => {
       const autofilledUsername = input.value.trim();
 
-      if (!autofilledUsername || autofillAttemptedRef.current || isVerifying) {
+      if (!autofilledUsername || autofillAttemptedRef.current || isVerifying || disabled) {
         return;
       }
 
@@ -103,7 +105,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
       window.cancelAnimationFrame(animationFrameId);
       window.clearTimeout(timeoutId);
     };
-  }, [api, initialValue, isVerifying, onNext, t]);
+  }, [api, initialValue, isVerifying, onNext, t, disabled]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -132,7 +134,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
               required
               autoFocus
               autoComplete="username"
-              disabled={isVerifying}
+              disabled={isVerifying || disabled}
               className="transition-colors duration-160 ease"
             />
 

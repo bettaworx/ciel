@@ -241,6 +241,70 @@
               $ref: ../schemas/common.yml#/components/schemas/Error
       '401':
         description: Unauthorized / step-up required
+/auth/login/passkey/options:
+  post:
+    tags: [Auth]
+    summary: Begin usernameless passkey login
+    description: Returns an account-independent challenge without credential IDs or opt-in information.
+    security: []
+    responses:
+      '200':
+        description: Discoverable credential assertion options
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/WebAuthnAssertionOptionsResponse
+/auth/login/passkey/verify:
+  post:
+    tags: [Auth]
+    summary: Complete usernameless passkey login
+    description: Requires user verification. Opt-in is checked only after cryptographic verification. All authentication failures use the same response.
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/PasskeyLoginVerifyRequest
+    responses:
+      '200':
+        description: Authenticated
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yml#/components/schemas/LoginAuthenticated
+      '401':
+        description: Authentication failed
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/auth/mfa/passkey-login:
+  put:
+    tags: [Auth]
+    summary: Opt in or out of passkey login for the current account
+    description: Requires step-up authentication. The preference is never exposed in public profiles.
+    security:
+    - bearerAuth: []
+    parameters:
+    - name: X-Stepup-Token
+      in: header
+      required: false
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/auth.yml#/components/schemas/PasskeyLoginPreferenceRequest
+    responses:
+      '204':
+        description: Preference updated
+      '400':
+        description: A registered passkey is required to opt in
+      '401':
+        description: Authentication or step-up required
 /auth/mfa:
   get:
     tags:

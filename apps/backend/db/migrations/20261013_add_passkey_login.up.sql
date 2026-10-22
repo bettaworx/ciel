@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS auth_passkey_login (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
+);

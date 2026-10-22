@@ -3,6 +3,25 @@ SELECT user_id, secret_enc, enabled_at, last_used_step
 FROM auth_totp
 WHERE user_id = $1;
 
+-- name: LockPasskeyLoginUser :one
+SELECT username FROM users WHERE id = $1 FOR NO KEY UPDATE;
+
+-- name: PasskeyLoginEnabled :one
+SELECT EXISTS(SELECT 1 FROM auth_passkey_login WHERE user_id = $1)::boolean;
+
+-- name: EnablePasskeyLogin :execrows
+INSERT INTO auth_passkey_login (user_id)
+SELECT $1 WHERE EXISTS(SELECT 1 FROM auth_webauthn_credentials WHERE user_id = $1)
+ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id;
+
+-- name: DisablePasskeyLogin :exec
+DELETE FROM auth_passkey_login WHERE user_id = $1;
+
+-- name: AdvancePasskeyLoginCredential :execrows
+UPDATE auth_webauthn_credentials
+SET sign_count = sqlc.arg(new_sign_count), backup_state = sqlc.arg(backup_state), last_used_at = now()
+WHERE id = sqlc.arg(id) AND sign_count = sqlc.arg(previous_sign_count);
+
 -- name: UpsertTotp :exec
 INSERT INTO auth_totp (user_id, secret_enc, enabled_at, last_used_step)
 VALUES ($1, $2, now(), NULL)

@@ -60,4 +60,12 @@ describe("manual option conversion", () => {
     expect(bytes(options.challenge as ArrayBuffer)).toEqual([1, 2, 3]);
     expect(options.allowCredentials).toBeUndefined();
   });
+
+  it("preserves required user verification for usernameless passkey login", () => {
+    const options = manualRequestOptions({
+      publicKey: { challenge: "AQID", rpId: "localhost", userVerification: "required" },
+    });
+    expect(options.userVerification).toBe("required");
+    expect(options.allowCredentials).toBeUndefined();
+  });
 });

@@ -199,6 +199,16 @@ export function useAuth() {
     return { ok: true };
   };
 
+  const loginWithPasskey = async (): Promise<{ ok: boolean }> => {
+    const options = await api.passkeyLoginOptions();
+    if (!options.ok) return { ok: false };
+    const credential = await getAssertion(options.data.options);
+    const result = await api.passkeyLoginVerify({ sessionId: options.data.sessionId, credential });
+    if (!result.ok) return { ok: false };
+    await finishLogin(result.data.user);
+    return { ok: true };
+  };
+
   // Second half of a login that came back mfa_required.
   const completeLoginMfa = async (
     mfaToken: string,
@@ -409,6 +419,7 @@ export function useAuth() {
   return {
     initAuth,
     login,
+    loginWithPasskey,
     completeLoginMfa,
     completeLoginMfaWebAuthn,
     register,

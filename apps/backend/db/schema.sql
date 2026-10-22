@@ -78,6 +78,11 @@ CREATE TABLE IF NOT EXISTS auth_webauthn_credentials (
 CREATE INDEX IF NOT EXISTS idx_auth_webauthn_credentials_user
   ON auth_webauthn_credentials (user_id);
 
+-- Private authentication preference; never part of a public user profile.
+CREATE TABLE IF NOT EXISTS auth_passkey_login (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TYPE permission_effect AS ENUM ('allow', 'deny');
 
 CREATE TABLE IF NOT EXISTS roles (

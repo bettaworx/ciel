@@ -1,10 +1,10 @@
 # Base image digest update policy
 
-`Dockerfile.frontend` pins `node:22-bookworm-slim` by digest. This keeps image layers reproducible and prevents unintended base image drift.
+`Dockerfile.frontend` pins `node:22.23.4-bookworm-slim` by digest. This keeps image layers reproducible and prevents unintended base image drift.
 
 ## Why we pin by digest
 
-- A tag alone (for example, `node:22-bookworm-slim`) can change over time.
+- A tag alone (for example, `node:22.23.4-bookworm-slim`) can change over time.
 - Digest pinning ensures CI/CD, local development, and production all use the same base image.
 - Security updates are adopted intentionally on your schedule.
 
@@ -22,7 +22,7 @@ Consider updating the digest when:
 
 ## Recommended update flow
 
-1. Fetch the latest amd64 digest for `node:22-bookworm-slim`.
+1. Fetch the latest amd64 digest for `node:22.23.4-bookworm-slim`.
 2. Update both `FROM` lines in `Dockerfile.frontend` (`base` and `runner`) to that digest.
 3. Rebuild `frontend` and verify behavior.
 
@@ -32,7 +32,7 @@ Consider updating the digest when:
 TOKEN=$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/node:pull" | jq -r .token)
 curl -fsSL -H "Authorization: Bearer $TOKEN" \
   -H "Accept: application/vnd.oci.image.index.v1+json" \
-  https://registry-1.docker.io/v2/library/node/manifests/22-bookworm-slim \
+  https://registry-1.docker.io/v2/library/node/manifests/22.23.4-bookworm-slim \
   | jq -r '.manifests[] | select(.platform.architecture=="amd64" and .platform.os=="linux") | .digest'
 ```
 

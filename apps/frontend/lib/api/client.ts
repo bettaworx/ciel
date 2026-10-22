@@ -342,6 +342,19 @@ export function createApiClient(options: ApiClientOptions = {}) {
     loginFinish: (body: components["schemas"]["LoginFinishRequest"]) =>
       request<components["schemas"]["LoginFinishResponse"]>("POST", "/auth/login/finish", { body }),
 
+    passkeyLoginOptions: () =>
+      request<components["schemas"]["WebAuthnAssertionOptionsResponse"]>(
+        "POST",
+        "/auth/login/passkey/options",
+        { credentials: "omit", _skipRefresh: true },
+      ),
+
+    passkeyLoginVerify: (body: components["schemas"]["PasskeyLoginVerifyRequest"]) =>
+      request<components["schemas"]["LoginAuthenticated"]>("POST", "/auth/login/passkey/verify", {
+        body,
+        _skipRefresh: true,
+      }),
+
     // --- Account switching -----------------------------------------------
     // The account token is minted for the *current* session (cookie auth) and
     // then only ever presented with a signature from the device key it is
@@ -382,6 +395,12 @@ export function createApiClient(options: ApiClientOptions = {}) {
     // 5-minute window (see requireMfaStepup on the backend), so the settings
     // screen mints one and drives the whole session with it.
     mfaStatus: () => request<components["schemas"]["MfaStatus"]>("GET", "/auth/mfa"),
+
+    setPasskeyLogin: (enabled: boolean, stepupToken: string) =>
+      request<void>("PUT", "/auth/mfa/passkey-login", {
+        body: { enabled },
+        headers: stepup(stepupToken),
+      }),
 
     totpSetup: (stepupToken?: string | null) =>
       request<components["schemas"]["TotpSetupResponse"]>("POST", "/auth/mfa/totp/setup", {

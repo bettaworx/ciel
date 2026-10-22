@@ -37,7 +37,7 @@ jobs:
       # turn this job red on a commit that changed nothing.
       - uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.13.2
+          version: v2.15.0
           working-directory: apps/backend
 
   lint-js:
@@ -50,7 +50,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile

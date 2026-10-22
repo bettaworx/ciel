@@ -322,13 +322,32 @@ components:
           type: string
           minLength: 8
           maxLength: 256
+    PasskeyLoginPreferenceRequest:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+    PasskeyLoginVerifyRequest:
+      type: object
+      required: [sessionId, credential]
+      properties:
+        sessionId:
+          type: string
+        credential:
+          type: object
+          additionalProperties: true
     MfaStatus:
       type: object
       required:
       - totpEnabled
       - webauthnCredentials
       - backupCodesRemaining
+      - passkeyLoginEnabled
       properties:
+        passkeyLoginEnabled:
+          type: boolean
+          description: Private opt-in status, available only to the authenticated account owner.
         totpEnabled:
           type: boolean
         totpEnabledAt:

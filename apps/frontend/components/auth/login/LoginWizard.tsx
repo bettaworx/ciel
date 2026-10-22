@@ -16,6 +16,7 @@ import { ChevronLeft } from "lucide-react";
 import { type LoginStep, getLoginStepIndex, getLoginStepByIndex } from "@/lib/config/auth-steps";
 import type { AnimationDirection } from "@/lib/config/setup-animation";
 import type { components } from "@/lib/api/api";
+import { isWebAuthnAvailable } from "@/lib/api/webauthn";
 
 type MfaMethod = components["schemas"]["MfaMethod"];
 
@@ -30,7 +31,7 @@ interface LoginWizardProps {
 export function LoginWizard({ initialUsername = "" }: LoginWizardProps) {
   const router = useRouter();
   const t = useTranslations();
-  const { login, completeLoginMfa, completeLoginMfaWebAuthn } = useAuth();
+  const { login, loginWithPasskey, completeLoginMfa, completeLoginMfaWebAuthn } = useAuth();
 
   // State
   const [currentStep, setCurrentStep] = useState<LoginStep>("username");
@@ -144,7 +145,9 @@ export function LoginWizard({ initialUsername = "" }: LoginWizardProps) {
   const renderCurrentStep = () => {
     switch (currentStep) {
       case "username":
-        return <UsernameStep onNext={handleUsernameNext} initialValue={username} />;
+        return (
+          <UsernameStep onNext={handleUsernameNext} initialValue={username} disabled={loading} />
+        );
 
       case "password":
         return (
@@ -170,7 +173,7 @@ export function LoginWizard({ initialUsername = "" }: LoginWizardProps) {
   const renderFooter = () => {
     if (currentStep === "username") {
       return (
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Button
             type="button"
             variant="secondary"
@@ -181,14 +184,29 @@ export function LoginWizard({ initialUsername = "" }: LoginWizardProps) {
             {t("signup.createAccount")}
           </Button>
 
-          <Button
-            type="submit"
-            form="login-username-form"
-            disabled={loading}
-            className="bg-c-1 text-c-foreground hover:bg-c-2 transition-colors duration-160 ease"
-          >
-            {t("setup.next")}
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            {isWebAuthnAvailable() && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={loading}
+                onClick={async () => {
+                  const failure = await runMfa(loginWithPasskey, "login.passkeyFailed");
+                  if (failure) toast.error(t(failure));
+                }}
+              >
+                {loading ? t("loading") : t("login.withPasskey")}
+              </Button>
+            )}
+            <Button
+              type="submit"
+              form="login-username-form"
+              disabled={loading}
+              className="bg-c-1 text-c-foreground hover:bg-c-2 transition-colors duration-160 ease"
+            >
+              {t("setup.next")}
+            </Button>
+          </div>
         </div>
       );
     }

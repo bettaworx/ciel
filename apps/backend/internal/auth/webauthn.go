@@ -102,7 +102,7 @@ func NewWebAuthn(cfg WebAuthnConfig) (*webauthn.WebAuthn, error) {
 type WebAuthnSessionData struct {
 	SessionID    string               `json:"sessionId"`
 	UserID       string               `json:"userId"`
-	Purpose      string               `json:"purpose"` // register | assert
+	Purpose      string               `json:"purpose"` // register | assert | passkey_login
 	MfaToken     string               `json:"mfaToken,omitempty"`
 	SessionData  webauthn.SessionData `json:"sessionData"`
 	ExpiresAtUTC time.Time            `json:"expiresAtUtc"`

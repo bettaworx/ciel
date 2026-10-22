@@ -69,6 +69,50 @@ describe("createApiClient session refresh", () => {
   });
 });
 
+describe("passkey login", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("begins without account information or session cookies", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ sessionId: "ceremony", options: {} }));
+    vi.stubGlobal("fetch", fetchMock);
+    await createApiClient({ baseUrl: "https://api.example.test" }).passkeyLoginOptions();
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://api.example.test/api/v1/auth/login/passkey/options");
+    expect(init.credentials).toBe("omit");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("does not refresh another account's session after a rejected passkey", async () => {
+    const onSessionExpired = vi.fn();
+    const fetchMock = vi.fn(async () => jsonResponse({ code: "unauthorized" }, { status: 401 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await createApiClient({ onSessionExpired }).passkeyLoginVerify({
+      sessionId: "ceremony",
+      credential: { type: "public-key" },
+    });
+    expect(result.ok).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onSessionExpired).not.toHaveBeenCalled();
+    const init = (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect(JSON.parse(init.body as string)).toEqual({
+      sessionId: "ceremony",
+      credential: { type: "public-key" },
+    });
+    expect(init.credentials).toBe("include");
+  });
+
+  it("sends the preference with the step-up token", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await createApiClient().setPasskeyLogin(true, "stepup");
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/auth/mfa/passkey-login");
+    expect(init.method).toBe("PUT");
+    expect(new Headers(init.headers).get("x-stepup-token")).toBe("stepup");
+    expect(JSON.parse(init.body as string)).toEqual({ enabled: true });
+  });
+});
+
 describe("drawing uploads", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
