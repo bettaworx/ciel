@@ -222,7 +222,7 @@ func (s *FollowsService) ListFollowRequests(ctx context.Context, userID uuid.UUI
 	var cTime sql.NullTime
 	var cID uuid.NullUUID
 	if c != nil {
-		cTime = sql.NullTime{Time: time.UnixMilli(c.Score).UTC(), Valid: true}
+		cTime = sql.NullTime{Time: c.timestamp(), Valid: true}
 		if id, err := uuid.Parse(c.ID); err == nil {
 			cID = uuid.NullUUID{UUID: id, Valid: true}
 		}
@@ -245,7 +245,7 @@ func (s *FollowsService) ListFollowRequests(ctx context.Context, userID uuid.UUI
 	var next *string
 	if len(rows) == lim {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.RequestedAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.RequestedAt.UnixMilli(), ID: last.ID.String(), Time: &last.RequestedAt})
 		next = &n
 	}
 	return api.FollowRequestsPage{Items: items, NextCursor: next}, nil
@@ -341,7 +341,7 @@ func (s *FollowsService) ListFollowers(ctx context.Context, username api.Usernam
 	var next *string
 	if len(rows) == lim {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.FollowedAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.FollowedAt.UnixMilli(), ID: last.ID.String(), Time: &last.FollowedAt})
 		next = &n
 	}
 	return api.UsersPage{Items: items, NextCursor: next}, nil
@@ -371,7 +371,7 @@ func (s *FollowsService) ListFollowing(ctx context.Context, username api.Usernam
 	var next *string
 	if len(rows) == lim {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.FollowedAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.FollowedAt.UnixMilli(), ID: last.ID.String(), Time: &last.FollowedAt})
 		next = &n
 	}
 	return api.UsersPage{Items: items, NextCursor: next}, nil
@@ -403,7 +403,7 @@ func (s *FollowsService) ListFollowersYouFollow(ctx context.Context, username ap
 	var next *string
 	if len(rows) == lim {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.FollowedAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.FollowedAt.UnixMilli(), ID: last.ID.String(), Time: &last.FollowedAt})
 		next = &n
 	}
 	page := api.UsersPage{Items: items, NextCursor: next}
@@ -482,7 +482,7 @@ func (s *FollowsService) listArgs(ctx context.Context, username api.Username, li
 	var cTime sql.NullTime
 	var cID uuid.NullUUID
 	if c != nil {
-		cTime = sql.NullTime{Time: time.UnixMilli(c.Score).UTC(), Valid: true}
+		cTime = sql.NullTime{Time: c.timestamp(), Valid: true}
 		if id, err := uuid.Parse(c.ID); err == nil {
 			cID = uuid.NullUUID{UUID: id, Valid: true}
 		}

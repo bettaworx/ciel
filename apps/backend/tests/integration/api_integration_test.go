@@ -1310,8 +1310,8 @@ func TestIntegration_Users_Profile_Update(t *testing.T) {
 	if updated.DisplayName == nil || *updated.DisplayName != "Alice" {
 		t.Fatalf("expected sanitized displayName, got %+v", updated.DisplayName)
 	}
-	if updated.Bio == nil || *updated.Bio != "hello" {
-		t.Fatalf("expected sanitized bio, got %+v", updated.Bio)
+	if updated.Bio == nil || *updated.Bio != "hello\nhttps://example.com" {
+		t.Fatalf("expected bio to preserve newlines and links, got %+v", updated.Bio)
 	}
 }
 
@@ -1891,7 +1891,7 @@ func TestIntegration_Media_Upload_LargeImage_AutoResize(t *testing.T) {
 		6000, 4000, media.Width, media.Height)
 
 	// Verify the image can be served
-	imgResp := get(t, client, base+"/media/"+media.Id.String()+"/image.webp", nil)
+	imgResp := get(t, client, base+"/media/"+media.Id.String()+"/image.webp", a)
 	if imgResp.StatusCode != http.StatusOK {
 		imgResp.Body.Close()
 		t.Fatalf("serve resized image: expected 200, got %d", imgResp.StatusCode)

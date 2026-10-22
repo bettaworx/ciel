@@ -38,8 +38,16 @@ func (s *TimelineService) SetPostsService(posts *PostsService) {
 }
 
 type timelineCursor struct {
-	Score int64  `json:"s"`
-	ID    string `json:"i"`
+	Score int64      `json:"s"`
+	ID    string     `json:"i"`
+	Time  *time.Time `json:"t,omitempty"` // SQL needs finer precision than Redis's millisecond score.
+}
+
+func (c timelineCursor) timestamp() time.Time {
+	if c.Time != nil {
+		return c.Time.UTC()
+	}
+	return time.UnixMilli(c.Score).UTC()
 }
 
 // TimelineCursor is the exported form of the timeline pagination cursor.
@@ -107,7 +115,7 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	var cTime sql.NullTime
 	var cID uuid.NullUUID
 	if cursor != nil {
-		ct := time.UnixMilli(cursor.Score).UTC()
+		ct := cursor.timestamp()
 		cTime = sql.NullTime{Time: ct, Valid: true}
 		uid, err := uuid.Parse(cursor.ID)
 		if err == nil {
@@ -147,7 +155,7 @@ func (s *TimelineService) Get(ctx context.Context, params api.GetTimelineParams,
 	var nextCursor *string
 	if len(rows) == limit {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String(), Time: &last.CreatedAt})
 		nextCursor = &n
 	}
 	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
@@ -241,7 +249,7 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 	var cTime sql.NullTime
 	var cID uuid.NullUUID
 	if cursor != nil {
-		cTime = sql.NullTime{Time: time.UnixMilli(cursor.Score).UTC(), Valid: true}
+		cTime = sql.NullTime{Time: cursor.timestamp(), Valid: true}
 		if uid, err := uuid.Parse(cursor.ID); err == nil {
 			cID = uuid.NullUUID{UUID: uid, Valid: true}
 		}
@@ -278,7 +286,7 @@ func (s *TimelineService) GetHome(ctx context.Context, params api.GetTimelineHom
 	var nextCursor *string
 	if len(rows) == limit {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.ID.String(), Time: &last.CreatedAt})
 		nextCursor = &n
 	}
 	return api.TimelinePage{Items: items, NextCursor: nextCursor}, nil
