@@ -98,7 +98,7 @@ go test ./tests/unit/...            # Run unit tests
 go test ./...                       # Run all tests (fast)
 ```
 
-Lint / format (golangci-lint v2.13.2 — `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2`):
+Lint / format (golangci-lint v2.15.0 — `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0`):
 ```bash
 pnpm lint:backend                   # golangci-lint run (govet / staticcheck / errcheck / gofmt / goimports)
 pnpm fmt:backend                    # golangci-lint fmt — apply gofmt + goimports
