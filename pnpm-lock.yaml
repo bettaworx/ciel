@@ -56,13 +56,13 @@ importers:
         version: 5.3.0
       '@fontsource/noto-sans-kr':
         specifier: ^5.3.0
-        version: 5.3.0
+        version: 5.3.1
       '@fontsource/noto-sans-sc':
         specifier: ^5.3.0
-        version: 5.3.0
+        version: 5.3.1
       '@fontsource/noto-sans-tc':
         specifier: ^5.3.0
-        version: 5.3.0
+        version: 5.3.1
       '@fontsource/noto-sans-thai':
         specifier: ^5.3.0
         version: 5.3.0
@@ -74,13 +74,13 @@ importers:
         version: 5.3.0
       '@fontsource/noto-serif-kr':
         specifier: ^5.3.0
-        version: 5.3.0
+        version: 5.3.1
       '@fontsource/noto-serif-sc':
         specifier: ^5.3.0
-        version: 5.3.0
+        version: 5.3.1
       '@fontsource/noto-serif-tc':
         specifier: ^5.3.0
-        version: 5.3.0
+        version: 5.3.1
       '@fontsource/noto-serif-thai':
         specifier: ^5.3.0
         version: 5.3.0
@@ -688,14 +688,14 @@ packages:
   '@fontsource/noto-sans-hebrew@5.3.0':
     resolution: {integrity: sha512-7owtzuw9D+ipt0g8mcBGOm7MS/mv/REKsjSwEUe749UUsrnG54TSmusNn7oxv2GxbUORAzADLQ8ggdtt7oKkpg==}
 
-  '@fontsource/noto-sans-kr@5.3.0':
-    resolution: {integrity: sha512-/JnpTjaCOXW7xUoqOyCVYSr05VOkDy5Yla9O+WAEiS7u+yYLsmHoqj6v1W0bf91G8G3XA2+NnRS3CX2Tf/FVZg==}
+  '@fontsource/noto-sans-kr@5.3.1':
+    resolution: {integrity: sha512-aKnPug5P6zBHaiLbGEVNyBQesyOeEUYl6C3Xedb00xO3iAHJZPQs2JOsPNVqHanKSVe1fTVmTPuYIao4noImXw==}
 
-  '@fontsource/noto-sans-sc@5.3.0':
-    resolution: {integrity: sha512-HeqIlGm0+ohOKxZLuHj1qW6r6avHH0OWdKERAcSDI0RQ+MXrteuLKA+M+5eOA8rYy0MFvOR5AT0fQo2rUkye0Q==}
+  '@fontsource/noto-sans-sc@5.3.1':
+    resolution: {integrity: sha512-YxZ/VWAWo9FWzH08Q6fGTzIW6vYNP2TMhUFCnfhlimbhdXnWrxJLrzX3KWt2FKnV0s8XiM5vjpGHQiyFRlTj0w==}
 
-  '@fontsource/noto-sans-tc@5.3.0':
-    resolution: {integrity: sha512-+0MguVH2vIxkVJLiaMHVKHk+yJZmZvMU9d8z88JdUx8C2CgMLOtm7WNloi3HYlvCNy7TpuvjIUvh5iiGp6INxQ==}
+  '@fontsource/noto-sans-tc@5.3.1':
+    resolution: {integrity: sha512-kiOTKRnkEV4dsMqfmIuH3TnkYp5Rqq2f4LgAArx0Y5eVzCebU2TgWup5TWCWWSk28nBf4mgunLTyQP+xQ74gcQ==}
 
   '@fontsource/noto-sans-thai@5.3.0':
     resolution: {integrity: sha512-ngqUyvDukkZUHypQbUJvUdAeYa2aYZsyeDTsdqMudf7GK2F2TK19OZ5kbo+37qsBtkNpmAMhEObQnWnzPqzKUw==}
@@ -703,14 +703,14 @@ packages:
   '@fontsource/noto-serif-hebrew@5.3.0':
     resolution: {integrity: sha512-UbTqdsCCQRYAxQ1ZNjWTcL+tbqYvCG0nhCSD0Y2CmWEfl32e71/DAlRw9IvhjEdCJnKJm0t9AOfiNiut1mHKeA==}
 
-  '@fontsource/noto-serif-kr@5.3.0':
-    resolution: {integrity: sha512-PMVJPol7ZsWntq4p1blZnhzl1hJruzzQZbWOZJPnJriw+nEUPYyG+pkWCCHfbziZ6OolSxl1o05Z0gy4iMGmPA==}
+  '@fontsource/noto-serif-kr@5.3.1':
+    resolution: {integrity: sha512-xtsAgK4S4MjPllHRSAFaMiB7xnFb8Nlhx47uPaD/qvyTP5WgRICNawZmwGzLVshCyA/QmydSVzA9kWF8otycpQ==}
 
-  '@fontsource/noto-serif-sc@5.3.0':
-    resolution: {integrity: sha512-0/zaEFkidiWldE62rTeD74x8ygUsQvejiSNtO0LQxQk3qpaHnlMZ3w4C7yH80B4KTIg8VKeFP4oSgwWMchY9+g==}
+  '@fontsource/noto-serif-sc@5.3.1':
+    resolution: {integrity: sha512-nIK2HyNGcUi2TGwIfrk2MItkh0O3Y5+TI8iPfPSzoNY6uyXYfQ9qqch8czk3aa1VhV4EU52uwCYCe1UDKJELpg==}
 
-  '@fontsource/noto-serif-tc@5.3.0':
-    resolution: {integrity: sha512-6ZvCwAxmIV9axb7PMdLFMRv9h0MAKFpgHB54dngBAt/pGXBfcdXMCV9MBhqIqPV16szpR6FFrXYGuC9fcPFJIw==}
+  '@fontsource/noto-serif-tc@5.3.1':
+    resolution: {integrity: sha512-bX+7aXbMU9IyncD2v00P4E+aciwQl2e9F9qmHp3H3By+hQVh6bwa4rR2RD0QP/Vtt+9mwgjEPzsnEKb2oyIxog==}
 
   '@fontsource/noto-serif-thai@5.3.0':
     resolution: {integrity: sha512-BPE5PdY1NqA/aIvFhJz5Bgp/mL/ZS6eWJJXtpG+rlpK5sNXWcJilRBy2kdZfOZFamk5+r9lWFpq6cIRxWVMftQ==}
@@ -4896,21 +4896,21 @@ snapshots:
 
   '@fontsource/noto-sans-hebrew@5.3.0': {}
 
-  '@fontsource/noto-sans-kr@5.3.0': {}
+  '@fontsource/noto-sans-kr@5.3.1': {}
 
-  '@fontsource/noto-sans-sc@5.3.0': {}
+  '@fontsource/noto-sans-sc@5.3.1': {}
 
-  '@fontsource/noto-sans-tc@5.3.0': {}
+  '@fontsource/noto-sans-tc@5.3.1': {}
 
   '@fontsource/noto-sans-thai@5.3.0': {}
 
   '@fontsource/noto-serif-hebrew@5.3.0': {}
 
-  '@fontsource/noto-serif-kr@5.3.0': {}
+  '@fontsource/noto-serif-kr@5.3.1': {}
 
-  '@fontsource/noto-serif-sc@5.3.0': {}
+  '@fontsource/noto-serif-sc@5.3.1': {}
 
-  '@fontsource/noto-serif-tc@5.3.0': {}
+  '@fontsource/noto-serif-tc@5.3.1': {}
 
   '@fontsource/noto-serif-thai@5.3.0': {}
 
