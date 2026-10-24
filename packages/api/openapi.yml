@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  version: 2026.1.2
+  version: 2026.1.3
   title: ciel-api
   description: 'Minimal SNS API (MVP).
 
