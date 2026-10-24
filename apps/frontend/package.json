@@ -108,7 +108,7 @@
     "license-checker-rseidelsohn": "^5.0.1",
     "openapi-typescript": "^7.10.1",
     "oxc-transform-react": "^0.150.0",
-    "storybook": "10.6.0",
+    "storybook": "10.6.2",
     "tailwindcss": "^4.1.18",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^6.0.2",
