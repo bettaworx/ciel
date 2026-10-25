@@ -90,9 +90,9 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
-    "@storybook/addon-themes": "10.6.0",
-    "@storybook/react": "10.6.0",
-    "@storybook/react-vite": "10.6.0",
+    "@storybook/addon-themes": "10.6.3",
+    "@storybook/react": "10.6.3",
+    "@storybook/react-vite": "10.6.3",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-router-devtools": "^1.167.2",
     "@tanstack/router-plugin": "^1.168.42",
@@ -108,7 +108,7 @@
     "license-checker-rseidelsohn": "^5.0.1",
     "openapi-typescript": "^7.10.1",
     "oxc-transform-react": "^0.150.0",
-    "storybook": "10.6.0",
+    "storybook": "10.6.3",
     "tailwindcss": "^4.1.18",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^6.0.2",
