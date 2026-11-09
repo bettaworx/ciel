@@ -5,18 +5,16 @@ import type { components } from "@/lib/api/api";
 import { cn } from "@/lib/utils";
 import {
   buildDrawingReplay,
+  createDrawingReplayPainter,
   DRAWING_HEIGHT,
   DRAWING_REPLAY_DURATION_MS,
   DRAWING_WIDTH,
-  drawStrokePoint,
-  drawStrokeSegment,
   parseDrawingDocument,
-  type DecodedDrawingPoint,
   type DrawingDocument,
-  type DrawingStroke,
 } from "@/components/post-composer/drawing";
 
-const MAX_REPLAY_STEPS = 2000;
+// Roughly what MAX_REPLAY_BYTES holds; about 280 short segments per frame over the 3s replay.
+const MAX_REPLAY_STEPS = 50_000;
 // ponytail: skip replay (static preview only) for big documents; avoids downloading/parsing MBs per feed item
 const MAX_REPLAY_BYTES = 512 << 10;
 
@@ -79,27 +77,25 @@ export function DrawingReplay({ drawing, label, className }: DrawingReplayProps)
     const context = canvasRef.current?.getContext("2d");
     if (!document || !context) return;
 
-    // Incremental: each step is drawn once onto the canvas, never redrawn. The total number of
-    // steps is capped so cost is O(1) regardless of how much was drawn; the server preview image
-    // replaces the canvas when the replay ends.
-    const all = buildDrawingReplay(document.strokes, DRAWING_REPLAY_DURATION_MS);
-    const stride = Math.ceil(all.length / MAX_REPLAY_STEPS);
-    const steps = all.filter((step, i) => i % stride === 0 || all[i + 1]?.stroke !== step.stroke);
-    const last = new Map<DrawingStroke, DecodedDrawingPoint>();
+    // Incremental: each step is drawn once onto the canvas, and the server preview image replaces
+    // the canvas when the replay ends. Thinning the steps would change the picture and make that
+    // swap visible, so documents too big to replay show the preview only.
+    const steps = buildDrawingReplay(document.strokes, DRAWING_REPLAY_DURATION_MS);
+    if (steps.length > MAX_REPLAY_STEPS) {
+      setDone(true);
+      return;
+    }
+    const paint = createDrawingReplayPainter(context, document.color);
     let index = 0;
     let frame = 0;
     let startedAt: number | null = null;
     const play = (now: number) => {
       startedAt ??= now;
       const elapsed = now - startedAt;
-      while (index < steps.length && steps[index].at <= elapsed) {
-        const { stroke, to } = steps[index++];
-        const prev = last.get(stroke);
-        if (prev)
-          drawStrokeSegment(context, stroke, { from: prev, control: null, to }, document.color);
-        else drawStrokePoint(context, stroke, to, document.color);
-        last.set(stroke, to);
-      }
+      let end = index;
+      while (end < steps.length && steps[end].at <= elapsed) end++;
+      paint(steps.slice(index, end));
+      index = end;
       if (index < steps.length) frame = window.requestAnimationFrame(play);
       else setDone(true);
     };

@@ -645,6 +645,65 @@ export function drawDecodedStroke(
   for (const segment of curveSegments(points)) drawStrokeSegment(context, stroke, segment, color);
 }
 
+/**
+ * Paints replay steps incrementally so the last frame matches the server preview: every sample is
+ * kept, plain strokes are straight capsules like the preview's, and pencil strokes go through the
+ * same per-stroke mask because stroking a texture segment by segment darkens every overlap.
+ */
+export function createDrawingReplayPainter(context: CanvasRenderingContext2D, color: string) {
+  let active: { stroke: DrawingStroke; points: DecodedDrawingPoint[]; saved: boolean } | null =
+    null;
+  let snapshot: CanvasRenderingContext2D | null = null;
+
+  // ponytail: an unfinished pencil stroke is repainted whole each frame, O(its length); keep its
+  // mask between frames if single huge pencil strokes ever drop frames.
+  const paintActive = () => {
+    if (!active) return;
+    if (active.saved && snapshot) {
+      context.clearRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
+      context.drawImage(snapshot.canvas, 0, 0);
+    }
+    drawDecodedStroke(context, active.stroke, active.points, color);
+  };
+
+  const saveBeforeActive = () => {
+    if (!snapshot) {
+      const canvas = document.createElement("canvas");
+      canvas.width = DRAWING_WIDTH;
+      canvas.height = DRAWING_HEIGHT;
+      snapshot = canvas.getContext("2d");
+    }
+    if (!snapshot) return false;
+    snapshot.clearRect(0, 0, DRAWING_WIDTH, DRAWING_HEIGHT);
+    snapshot.drawImage(context.canvas, 0, 0);
+    return true;
+  };
+
+  return (steps: DrawingReplayStep[]) => {
+    for (const { stroke, from, to } of steps) {
+      if (active && active.stroke !== stroke) {
+        paintActive();
+        active = null;
+      }
+      if (strokeBrush(stroke) === "pencil") {
+        active ??= { stroke, points: [], saved: false };
+        active.points.push(to);
+      } else if (from) {
+        drawStrokeSegment(context, stroke, { from, control: null, to }, color);
+      } else if (stroke.points.length === 1) {
+        drawStrokePoint(context, stroke, to, color);
+      }
+    }
+    if (!active) return;
+    // Only a stroke that outlives this frame needs restoring on the next one.
+    if (active.points.length < active.stroke.points.length && !active.saved) {
+      active.saved = saveBeforeActive();
+    }
+    paintActive();
+    if (active.points.length === active.stroke.points.length) active = null;
+  };
+}
+
 export function createDrawingUpload(
   strokes: DrawingStroke[],
   background = DRAWING_BACKGROUND,
