@@ -321,10 +321,14 @@ func TestIntegration_ListReplies(t *testing.T) {
 
 	// 5 replies in known order.
 	replies := make([]api.Post, 0, 5)
+	created := time.Now().UTC().Truncate(time.Millisecond).Add(123 * time.Microsecond)
 	for i := 0; i < 5; i++ {
 		r, _ := createReply(t, client, base, a, "reply "+strconv.Itoa(i), root.Id)
+		// Keep every reply within one millisecond to exercise cursor precision.
+		if _, err := app.SQLDB.Exec("UPDATE posts SET created_at = $1 WHERE id = $2", created.Add(time.Duration(i)*100*time.Microsecond), r.Id); err != nil {
+			t.Fatal(err)
+		}
 		replies = append(replies, r)
-		time.Sleep(3 * time.Millisecond)
 	}
 
 	// First page (limit=3) ordered ascending by creation time.

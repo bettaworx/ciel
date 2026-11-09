@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash/crc32"
 	"mime/multipart"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"backend/internal/auth"
 	"backend/internal/config"
 )
 
@@ -65,6 +67,38 @@ func TestValidateImageFile_RejectsOversizeBeforeDecoding(t *testing.T) {
 	var svcErr *Error
 	if !errors.As(err, &svcErr) || svcErr.Message != "image too large" {
 		t.Fatalf("expected rejection on dimensions, got %v", err)
+	}
+}
+
+func TestImageUploadsPreserveValidationErrors(t *testing.T) {
+	for _, encoded := range []bool{false, true} {
+		for _, oversized := range []bool{false, true} {
+			name := fmt.Sprintf("encoded=%v/oversized=%v", encoded, oversized)
+			t.Run(name, func(t *testing.T) {
+				width := uint32(16)
+				want := "invalid image"
+				if oversized {
+					width = 20000
+					want = "image too large"
+				}
+				file, err := os.Open(hugePNGHeader(t, width, width))
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer func() { _ = file.Close() }()
+				svc := &MediaService{cfg: testMediaConfig(), mediaDir: t.TempDir()}
+				header := &multipart.FileHeader{Filename: "test.png"}
+				if encoded {
+					_, err = svc.uploadImageWithOptions(context.Background(), auth.User{}, file, header, "image", nil, 0)
+				} else {
+					_, err = svc.uploadImagePassthrough(context.Background(), auth.User{}, file, header)
+				}
+				var svcErr *Error
+				if !errors.As(err, &svcErr) || svcErr.Status != http.StatusBadRequest || svcErr.Message != want {
+					t.Fatalf("expected 400 %q, got %v", want, err)
+				}
+			})
+		}
 	}
 }
 

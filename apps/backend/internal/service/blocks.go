@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"net/http"
 	"strings"
-	"time"
 
 	"backend/internal/api"
 	"backend/internal/auth"
@@ -172,7 +171,7 @@ func (s *BlocksService) ListMutes(ctx context.Context, viewer uuid.UUID, limit *
 	var next *string
 	if len(rows) == lim {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.HiddenAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.HiddenAt.UnixMilli(), ID: last.ID.String(), Time: &last.HiddenAt})
 		next = &n
 	}
 	return api.UsersPage{Items: items, NextCursor: next}, nil
@@ -205,7 +204,7 @@ func (s *BlocksService) ListBlocks(ctx context.Context, viewer uuid.UUID, limit 
 	var next *string
 	if len(rows) == lim {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.HiddenAt.UnixMilli(), ID: last.ID.String()})
+		n := encodeCursor(timelineCursor{Score: last.HiddenAt.UnixMilli(), ID: last.ID.String(), Time: &last.HiddenAt})
 		next = &n
 	}
 	return api.UsersPage{Items: items, NextCursor: next}, nil
@@ -229,7 +228,7 @@ func (s *BlocksService) listArgs(limit *int, cursor *string) (int, sql.NullTime,
 	var cTime sql.NullTime
 	var cID uuid.NullUUID
 	if c != nil {
-		cTime = sql.NullTime{Time: time.UnixMilli(c.Score).UTC(), Valid: true}
+		cTime = sql.NullTime{Time: c.timestamp(), Valid: true}
 		if id, err := uuid.Parse(c.ID); err == nil {
 			cID = uuid.NullUUID{UUID: id, Valid: true}
 		}
