@@ -7,7 +7,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.40.0
 	github.com/buckket/go-blurhash v1.1.0
 	github.com/fxamacker/cbor/v2 v2.10.0
-	github.com/getkin/kin-openapi v0.152.0
+	github.com/getkin/kin-openapi v0.153.0
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -18,8 +18,8 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.12.3
 	github.com/meilisearch/meilisearch-go v0.36.3
-	github.com/oapi-codegen/oapi-codegen/v2 v2.8.1
-	github.com/oapi-codegen/runtime v1.8.0
+	github.com/oapi-codegen/oapi-codegen/v2 v2.8.2
+	github.com/oapi-codegen/runtime v1.9.0
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/sqlc-dev/pqtype v0.3.0
 	github.com/sqlc-dev/sqlc v1.31.1
@@ -164,8 +164,6 @@ require (
 	github.com/ncruces/go-sqlite3 v0.32.0 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/neo4j/neo4j-go-driver v1.8.1-0.20200803113522-b626aa943eba // indirect
-	github.com/oasdiff/yaml v0.1.1 // indirect
-	github.com/oasdiff/yaml3 v0.0.14 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/pganalyze/pg_query_go/v6 v6.2.2 // indirect
@@ -225,6 +223,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	go.yaml.in/yaml/v4 v4.0.0 // indirect
 	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b // indirect
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
