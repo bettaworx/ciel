@@ -1,4 +1,7 @@
-name: Build and Release
+name: Build images
+
+# Builds images from any branch for testing, tagged sha-<commit> or the given tag.
+# Releases and the stable/canary channel tags go through release.yml.
 
 on:
   workflow_dispatch:
@@ -26,15 +29,6 @@ on:
         required: false
         default: ""
         type: string
-      channel:
-        description: "Release channel"
-        required: true
-        default: "canary"
-        type: choice
-        options:
-          - stable
-          - canary
-          - none
 
 permissions:
   contents: read
@@ -67,7 +61,6 @@ jobs:
       push: true
       platform: ${{ github.event.inputs.platform }}
       tag: ${{ needs.set-tag.outputs.tag }}
-      channel: ${{ github.event.inputs.channel }}
       build_commit: ${{ needs.set-tag.outputs.build_commit }}
       build_branch: ${{ github.ref_name }}
     secrets: inherit
@@ -80,7 +73,6 @@ jobs:
       push: true
       platform: ${{ github.event.inputs.platform }}
       tag: ${{ needs.set-tag.outputs.tag }}
-      channel: ${{ github.event.inputs.channel }}
       build_commit: ${{ needs.set-tag.outputs.build_commit }}
       build_branch: ${{ github.ref_name }}
     secrets: inherit
