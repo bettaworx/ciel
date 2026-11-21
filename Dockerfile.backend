@@ -29,12 +29,13 @@ COPY apps/backend ./
 RUN go generate ./internal/db/sqlc
 RUN go generate ./internal/api
 
+ARG BUILD_VERSION=dev
 ARG BUILD_COMMIT=dev
 ARG BUILD_BRANCH=dev
 RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
     --mount=type=cache,id=go-build,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -trimpath \
-    -ldflags="-s -w -X backend/internal/version.Commit=${BUILD_COMMIT} -X backend/internal/version.Branch=${BUILD_BRANCH}" \
+    -ldflags="-s -w -X backend/internal/version.Version=${BUILD_VERSION} -X backend/internal/version.Commit=${BUILD_COMMIT} -X backend/internal/version.Branch=${BUILD_BRANCH}" \
     -o /out/backend .
 
 FROM debian:bookworm-slim
@@ -50,8 +51,10 @@ COPY apps/backend/scripts/migrate-db.sh /app/migrate-db
 RUN chmod +x /app/migrate-db
 
 # Last, because a new commit value invalidates every instruction after it.
+ARG BUILD_VERSION=dev
 ARG BUILD_COMMIT=dev
 ARG BUILD_BRANCH=dev
+LABEL org.opencontainers.image.version=${BUILD_VERSION}
 LABEL org.opencontainers.image.revision=${BUILD_COMMIT}
 LABEL org.opencontainers.image.ref.name=${BUILD_BRANCH}
 

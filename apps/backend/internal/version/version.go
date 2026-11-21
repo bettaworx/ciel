@@ -1,15 +1,20 @@
 package version
 
-// Version is the application's semantic version.
-// Bump this manually when cutting a release.
-const Version = "2026.1.3"
-
-// These variables are set at build time via -ldflags so a running backend can
-// report the exact source revision used to build its image.
+// These variables are set at build time via -ldflags. Version is the release
+// tag the image was built for (e.g. 2026.1.4 or 2026.1.4-canary.1), and Commit
+// and Branch report the exact source revision.
 var (
-	Commit = ""
-	Branch = ""
+	Version = ""
+	Commit  = ""
+	Branch  = ""
 )
+
+func VersionOrDev() string {
+	if Version == "" {
+		return "dev"
+	}
+	return Version
+}
 
 func CommitOrDev() string {
 	if Commit == "" {

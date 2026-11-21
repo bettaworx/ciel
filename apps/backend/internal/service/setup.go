@@ -355,7 +355,7 @@ func optionalString(s string) *string {
 func (s *SetupService) buildServerInfoEvent(ctx context.Context, cfg *config.Config) api.ServerInfo {
 	versionStr := version.CommitOrDev()
 	branchStr := version.BranchOrDev()
-	semVer := version.Version
+	semVer := version.VersionOrDev()
 
 	info := api.ServerInfo{
 		ServerName:        optionalString(cfg.Server.Name),
