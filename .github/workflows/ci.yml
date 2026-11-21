@@ -3,13 +3,12 @@ name: CI Build Check
 on:
   pull_request:
     branches:
-      - development
       - main
-  # PRs can only restore caches from their base branch, so development has to
-  # write the Docker layer cache for them to reuse.
+  # PRs can only restore caches from their base branch, so main has to write the
+  # Docker layer cache for them to reuse.
   push:
     branches:
-      - development
+      - main
 
 permissions:
   contents: read
