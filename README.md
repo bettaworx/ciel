@@ -35,6 +35,8 @@ Clone the repository and set up config files:
 ```bash
 git clone https://github.com/bettaworx/ciel
 cd ciel
+# main is where development happens; check out a stable release (see Releases below)
+git checkout <version>   # e.g. 2026.1.3
 cp .env.example .env
 cp docker-compose.yml.example docker-compose.yml
 cp apps/backend/config/config.yaml.example apps/backend/config/config.yaml
@@ -114,6 +116,28 @@ docker compose run --rm backend /app/migrate-db down 1
 # Roll back all migrations
 docker compose run --rm backend /app/migrate-db down -all
 ```
+
+## Releases
+
+Ciel is developed on `main` and released on two channels:
+
+- **stable**: tagged `<version>` (e.g. `2026.1.4`) and marked Latest on the Releases page.
+- **canary**: tagged `<version>-canary.<n>` and published as a prerelease. Every version is
+  released as a canary first, and only a commit that has been a canary becomes stable.
+
+Each release has prebuilt images for linux/amd64 and linux/arm64,
+`ghcr.io/bettaworx/ciel-backend` and `ghcr.io/bettaworx/ciel-frontend`. They are tagged with
+the release (`:2026.1.4`, `:2026.1.5-canary.1`) and with its channel (`:stable` and `:latest`,
+or `:canary`). `docker-compose.prod.yml.example` runs these images instead of building them.
+
+To cut a release, run the **Release** workflow (Actions → Release → Run workflow):
+
+1. On `main` with channel `canary`. The version defaults to the one the current canaries are
+   for, or to the next patch after the latest stable release. Enter a version such as
+   `2026.2.0` to start another.
+2. Once the canary has been verified, run it with channel `stable`. On `main` it releases
+   main's head, which therefore has to be the canary's commit. To promote an older canary
+   after main has moved on, run the workflow on that canary's tag instead.
 
 ## Local development (native apps, containerized dependencies)
 
