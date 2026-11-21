@@ -521,23 +521,29 @@ func main() {
 	emojiSvc := service.NewEmojiService(store, mediaSvc, cacheImpl)
 	ogpSvc := service.NewOGPService(ogp.NewClient(), cacheImpl)
 
-	// Public media routes (authentication bypassed in OptionalAuth middleware)
-	r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
-	r.Get("/media/{mediaId}/image.webp", mediaSvc.ServeImage)
-	r.Get("/media/{mediaId}/image.jpg", mediaSvc.ServeImage)
-	r.Get("/media/{mediaId}/image.jpeg", mediaSvc.ServeImage)
-	r.Get("/media/{mediaId}/image.gif", mediaSvc.ServeImage)
-	r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
-	r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
+	// Media and emoji files. Each handler sets its own Cache-Control when it serves a
+	// file; its errors keep NoStoreByDefault's no-store so a CDN does not cache them.
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.NoStoreByDefault)
 
-	// Video and thumbnail routes
-	r.Get("/media/{mediaId}/video.mp4", mediaSvc.ServeVideo)
-	r.Get("/media/{mediaId}/video.webm", mediaSvc.ServeVideo)
-	r.Get("/media/{mediaId}/thumbnail.webp", mediaSvc.ServeThumbnail)
-	r.Get("/media/{drawingId}", drawingSvc.ServePreview)
+		// Public media routes (authentication bypassed in OptionalAuth middleware)
+		r.Get("/media/{mediaId}/image.png", mediaSvc.ServeImage)
+		r.Get("/media/{mediaId}/image.webp", mediaSvc.ServeImage)
+		r.Get("/media/{mediaId}/image.jpg", mediaSvc.ServeImage)
+		r.Get("/media/{mediaId}/image.jpeg", mediaSvc.ServeImage)
+		r.Get("/media/{mediaId}/image.gif", mediaSvc.ServeImage)
+		r.Get("/media/{mediaId}/image_static.png", mediaSvc.ServeImage)
+		r.Get("/media/{mediaId}/image_static.webp", mediaSvc.ServeImage)
 
-	// Emoji image route (public, no auth required)
-	r.Get("/emoji/{emojiId}/image.webp", mediaSvc.ServeEmojiImage)
+		// Video and thumbnail routes
+		r.Get("/media/{mediaId}/video.mp4", mediaSvc.ServeVideo)
+		r.Get("/media/{mediaId}/video.webm", mediaSvc.ServeVideo)
+		r.Get("/media/{mediaId}/thumbnail.webp", mediaSvc.ServeThumbnail)
+		r.Get("/media/{drawingId}", drawingSvc.ServePreview)
+
+		// Emoji image route (public, no auth required)
+		r.Get("/emoji/{emojiId}/image.webp", mediaSvc.ServeEmojiImage)
+	})
 
 	apiServer := handlers.API{
 		Auth:          authSvc,
