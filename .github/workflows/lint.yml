@@ -2,6 +2,10 @@ name: Lint
 
 on:
   push:
+    branches:
+      - development
+      - main
+  pull_request:
 
 jobs:
   lint-backend:
@@ -13,6 +17,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
 
       - name: Cache generated code
         id: gen-cache
@@ -22,7 +27,7 @@ jobs:
             apps/backend/internal/db/sqlc/*.go
             apps/backend/internal/api/*.go
             packages/api/openapi.bundled.yml
-          key: go-generate-${{ hashFiles('apps/backend/db/schema.sql', 'apps/backend/db/queries*.sql', 'apps/backend/sqlc.yaml', 'apps/backend/oapi-codegen.yaml', 'packages/api/openapi.yml', 'packages/api/paths/**', 'packages/api/schemas/**') }}
+          key: go-generate-${{ hashFiles('apps/backend/go.sum', 'apps/backend/db/schema.sql','apps/backend/db/queries*.sql', 'apps/backend/sqlc.yaml', 'apps/backend/oapi-codegen.yaml', 'packages/api/openapi.yml', 'packages/api/paths/**', 'packages/api/schemas/**') }}
 
       - name: Generate code
         if: steps.gen-cache.outputs.cache-hit != 'true'
@@ -51,7 +56,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.23.4'
-          cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 

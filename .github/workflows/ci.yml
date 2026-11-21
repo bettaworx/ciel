@@ -5,6 +5,11 @@ on:
     branches:
       - development
       - main
+  # PRs can only restore caches from their base branch, so development has to
+  # write the Docker layer cache for them to reuse.
+  push:
+    branches:
+      - development
 
 permissions:
   contents: read
@@ -28,6 +33,8 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # On push, compare with the previous commit instead of the default branch.
+          base: ${{ github.ref }}
           filters: |
             backend:
               - 'apps/backend/**'

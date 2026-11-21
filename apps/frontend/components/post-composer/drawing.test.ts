@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   addRecentDrawingColor,
   buildDrawingReplay,
+  createDrawingReplayPainter,
   createDrawingDocument,
   curveSegments,
   decodeDrawingStroke,
@@ -245,5 +246,71 @@ describe("curveSegments", () => {
     expect(segments[1].to).toEqual(pt(10, 5));
     expect(segments[2].to).toEqual(points[2]);
     for (let i = 1; i < segments.length; i++) expect(segments[i].from).toEqual(segments[i - 1].to);
+  });
+});
+
+describe("createDrawingReplayPainter", () => {
+  const fakeContext = () => {
+    const calls: string[] = [];
+    const record = (name: string) => () => calls.push(name);
+    const context = {
+      canvas: {},
+      save: () => {},
+      restore: () => {},
+      beginPath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      quadraticCurveTo: () => {},
+      arc: record("arc"),
+      fill: record("fill"),
+      stroke: record("stroke"),
+      fillRect: () => {},
+      clearRect: record("clearRect"),
+      drawImage: record("drawImage"),
+      createPattern: () => "pattern",
+      putImageData: () => {},
+      createImageData: (width: number, height: number) => ({
+        data: new Uint8ClampedArray(width * height * 4),
+      }),
+    } as unknown as CanvasRenderingContext2D;
+    vi.stubGlobal("document", {
+      createElement: () => ({ getContext: () => fakeContext().context }),
+    });
+    return { context, calls };
+  };
+  const stroke = (brush: "round" | "pencil", count: number): DrawingStroke => ({
+    tool: "pencil",
+    brush,
+    size: 24,
+    points: Array.from({ length: count }, (_, i) => [8, i === 0 ? 40 : 4, 40, 1024]),
+  });
+
+  it("draws every sample of a plain stroke without a dot on its first point", () => {
+    const { context, calls } = fakeContext();
+    createDrawingReplayPainter(context, "#111111")(buildDrawingReplay([stroke("round", 4)]));
+    expect(calls).toEqual(["stroke", "stroke", "stroke"]);
+  });
+
+  it("still draws a dot for a single-point stroke", () => {
+    const { context, calls } = fakeContext();
+    createDrawingReplayPainter(context, "#111111")(buildDrawingReplay([stroke("round", 1)]));
+    expect(calls).toEqual(["arc", "fill"]);
+  });
+
+  it("composites a pencil stroke once from its mask, never segment by segment", () => {
+    const { context, calls } = fakeContext();
+    createDrawingReplayPainter(context, "#111111")(buildDrawingReplay([stroke("pencil", 4)]));
+    expect(calls).toEqual(["drawImage"]);
+  });
+
+  it("restores the canvas before repainting an unfinished pencil stroke", () => {
+    const { context, calls } = fakeContext();
+    const paint = createDrawingReplayPainter(context, "#111111");
+    const steps = buildDrawingReplay([stroke("pencil", 4)]);
+    paint(steps.slice(0, 2));
+    expect(calls).toEqual(["clearRect", "drawImage", "drawImage"]);
+    calls.length = 0;
+    paint(steps.slice(2));
+    expect(calls).toEqual(["clearRect", "drawImage", "drawImage"]);
   });
 });

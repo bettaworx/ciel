@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"net/http"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"backend/internal/api"
@@ -217,7 +216,7 @@ func (s *BookmarksService) ListPosts(ctx context.Context, userID uuid.UUID, list
 	var cTime sql.NullTime
 	var cID uuid.NullUUID
 	if c != nil {
-		cTime = sql.NullTime{Time: time.UnixMilli(c.Score).UTC(), Valid: true}
+		cTime = sql.NullTime{Time: c.timestamp(), Valid: true}
 		if id, err := uuid.Parse(c.ID); err == nil {
 			cID = uuid.NullUUID{UUID: id, Valid: true}
 		}
@@ -262,7 +261,7 @@ func (s *BookmarksService) ListPosts(ctx context.Context, userID uuid.UUID, list
 	var next *string
 	if len(rows) == lim {
 		last := rows[len(rows)-1]
-		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.PostID.String()})
+		n := encodeCursor(timelineCursor{Score: last.CreatedAt.UnixMilli(), ID: last.PostID.String(), Time: &last.CreatedAt})
 		next = &n
 	}
 	return api.UserPostsPage{Items: items, NextCursor: next}, nil

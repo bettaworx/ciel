@@ -14,13 +14,21 @@ RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
 RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
     go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
 
+ARG TARGETARCH
+
+# Depends only on go.mod, so it stays cached across source changes as long as
+# it comes before the COPY below.
+RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
+    --mount=type=cache,id=go-build,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -tags postgres -trimpath \
+    -o /out/migrate github.com/golang-migrate/migrate/v4/cmd/migrate
+
 COPY packages/api /packages/api
 COPY apps/backend ./
 
 RUN go generate ./internal/db/sqlc
 RUN go generate ./internal/api
 
-ARG TARGETARCH
 ARG BUILD_COMMIT=dev
 ARG BUILD_BRANCH=dev
 RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
@@ -29,16 +37,7 @@ RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
     -ldflags="-s -w -X backend/internal/version.Commit=${BUILD_COMMIT} -X backend/internal/version.Branch=${BUILD_BRANCH}" \
     -o /out/backend .
 
-RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
-    --mount=type=cache,id=go-build,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -tags postgres -trimpath \
-    -o /out/migrate github.com/golang-migrate/migrate/v4/cmd/migrate
-
 FROM debian:bookworm-slim
-ARG BUILD_COMMIT=dev
-ARG BUILD_BRANCH=dev
-LABEL org.opencontainers.image.revision=${BUILD_COMMIT}
-LABEL org.opencontainers.image.ref.name=${BUILD_BRANCH}
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
@@ -49,5 +48,12 @@ COPY --from=build /out/migrate /app/migrate
 COPY --from=build /src/db/migrations /app/db/migrations
 COPY apps/backend/scripts/migrate-db.sh /app/migrate-db
 RUN chmod +x /app/migrate-db
+
+# Last, because a new commit value invalidates every instruction after it.
+ARG BUILD_COMMIT=dev
+ARG BUILD_BRANCH=dev
+LABEL org.opencontainers.image.revision=${BUILD_COMMIT}
+LABEL org.opencontainers.image.ref.name=${BUILD_BRANCH}
+
 EXPOSE 6137
 CMD ["/app/backend"]
