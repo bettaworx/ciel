@@ -15,10 +15,10 @@ on:
         description: "Image tag (required when push is true)"
         type: string
         default: ""
-      channel:
-        description: "Release channel (stable/canary/none)"
+      version:
+        description: "Version to embed in the image (the release tag)"
         type: string
-        default: "none"
+        default: "dev"
       build_commit:
         description: "Short commit hash to embed in image"
         type: string
@@ -61,6 +61,7 @@ jobs:
           file: Dockerfile.backend
           platforms: ${{ inputs.platform }}
           build-args: |
+            BUILD_VERSION=${{ inputs.version }}
             BUILD_COMMIT=${{ inputs.build_commit }}
             BUILD_BRANCH=${{ inputs.build_branch }}
           # Keyed on the runner arch because the build stage runs on $BUILDPLATFORM.
@@ -68,11 +69,9 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend-${{ runner.arch }}
           outputs: ${{ !inputs.push && 'type=cacheonly' || '' }}
           push: ${{ inputs.push }}
-          tags: |
-            ${{ inputs.tag != '' && format('{0}:{1}', env.BACKEND_IMAGE, inputs.tag) || '' }}
-            ${{ inputs.channel == 'canary' && format('{0}:canary', env.BACKEND_IMAGE) || '' }}
-            ${{ inputs.channel == 'stable' && format('{0}:stable', env.BACKEND_IMAGE) || '' }}
-            ${{ inputs.channel == 'stable' && format('{0}:latest', env.BACKEND_IMAGE) || '' }}
+          # Channel tags (stable, canary, latest) are moved by release.yml once every
+          # image of a release is pushed, so a failed build never moves them.
+          tags: ${{ inputs.tag != '' && format('{0}:{1}', env.BACKEND_IMAGE, inputs.tag) || '' }}
 
       - name: Prune BuildKit cache
         if: inputs.push
