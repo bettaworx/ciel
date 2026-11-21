@@ -45,13 +45,27 @@ if (!migrateArgs) {
   process.exit(1);
 }
 
+const backendDir = resolve(rootDir, "apps/backend");
+
+// The migrate CLI runs at the version go.mod requires, outside the module: importing it
+// would put the dependencies of every database driver it supports into go.mod.
+const version = spawnSync(
+  "go",
+  ["list", "-m", "-f", "{{.Version}}", "github.com/golang-migrate/migrate/v4"],
+  { cwd: backendDir, encoding: "utf8" },
+);
+if (version.status !== 0) {
+  process.stderr.write(version.stderr ?? "");
+  process.exit(version.status ?? 1);
+}
+
 const result = spawnSync(
   "go",
   [
     "run",
     "-tags",
     "postgres",
-    "github.com/golang-migrate/migrate/v4/cmd/migrate",
+    `github.com/golang-migrate/migrate/v4/cmd/migrate@${version.stdout.trim()}`,
     "-path",
     "./db/migrations",
     "-database",
@@ -59,7 +73,7 @@ const result = spawnSync(
     ...migrateArgs,
   ],
   {
-    cwd: resolve(rootDir, "apps/backend"),
+    cwd: backendDir,
     stdio: "inherit",
   },
 );

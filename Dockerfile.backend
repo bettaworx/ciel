@@ -16,12 +16,17 @@ RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
 
 ARG TARGETARCH
 
-# Depends only on go.mod, so it stays cached across source changes as long as
-# it comes before the COPY below.
+# Installed as cmd/migrate@<version> at the version go.mod requires, so that go.mod need
+# not list the dependencies of drivers a postgres build never links. go install puts a
+# cross-compiled binary under /go/bin/linux_<arch>/, hence the find. Depends only on
+# go.mod, so it stays cached across source changes as long as it comes before the COPY
+# below.
 RUN --mount=type=cache,id=go-mod,target=/go/pkg/mod \
     --mount=type=cache,id=go-build,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -tags postgres -trimpath \
-    -o /out/migrate github.com/golang-migrate/migrate/v4/cmd/migrate
+    version=$(go list -m -f '{{.Version}}' github.com/golang-migrate/migrate/v4) && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go install -tags postgres -trimpath \
+      "github.com/golang-migrate/migrate/v4/cmd/migrate@${version}" && \
+    mkdir -p /out && find /go/bin -name migrate -type f -exec cp {} /out/migrate \;
 
 COPY packages/api /packages/api
 COPY apps/backend ./
