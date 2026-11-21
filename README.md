@@ -134,7 +134,7 @@ To cut a release, run the **Release** workflow (Actions → Release → Run work
 
 1. On `main` with channel `canary`. The version defaults to the one the current canaries are
    for, or to the next patch after the latest stable release. Enter a version such as
-   `2026.2.0` to start another.
+   `2026.2.0` to start another, or `2026.1.4p1` for a patch on top of `2026.1.4`.
 2. Once the canary has been verified, run it with channel `stable`. On `main` it releases
    main's head, which therefore has to be the canary's commit. To promote an older canary
    after main has moved on, run the workflow on that canary's tag instead.
