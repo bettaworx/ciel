@@ -64,9 +64,7 @@ export default defineConfig({
   define: {
     "import.meta.env.VITE_BUILD_COMMIT": JSON.stringify(process.env.BUILD_COMMIT ?? "dev"),
     "import.meta.env.VITE_BUILD_BRANCH": JSON.stringify(process.env.BUILD_BRANCH ?? "dev"),
-    "import.meta.env.VITE_BUILD_VERSION": JSON.stringify(
-      process.env.npm_package_version ?? "0.0.0",
-    ),
+    "import.meta.env.VITE_BUILD_VERSION": JSON.stringify(process.env.BUILD_VERSION ?? "dev"),
   },
   server: { port, strictPort: true, allowedHosts, proxy, fs: { allow: [workspaceRoot] } },
   preview: { port, strictPort: true, allowedHosts, proxy },

@@ -23,8 +23,10 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 FROM base AS builder
 WORKDIR /app
 
+ARG BUILD_VERSION=dev
 ARG BUILD_COMMIT=dev
 ARG BUILD_BRANCH=dev
+ENV BUILD_VERSION=${BUILD_VERSION}
 ENV BUILD_COMMIT=${BUILD_COMMIT}
 ENV BUILD_BRANCH=${BUILD_BRANCH}
 
@@ -54,8 +56,10 @@ RUN pnpm run build
 # moved to the backend, and the SPA is the same bytes for every deployment.
 FROM nginx:1.29-alpine AS runner
 
+ARG BUILD_VERSION=dev
 ARG BUILD_COMMIT=dev
 ARG BUILD_BRANCH=dev
+LABEL org.opencontainers.image.version=${BUILD_VERSION}
 LABEL org.opencontainers.image.revision=${BUILD_COMMIT}
 LABEL org.opencontainers.image.ref.name=${BUILD_BRANCH}
 
