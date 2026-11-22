@@ -99,10 +99,26 @@ func TestUploadEmojiImage_PreservesGIFAndClearsStaleFiles(t *testing.T) {
 	}
 }
 
+func emojiRequest(id uuid.UUID) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, "/emoji/"+id.String()+"/image.webp", nil)
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("emojiId", id.String())
+	return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+}
+
 func TestServeEmojiImage_ServesStoredGIFOnLegacyRoute(t *testing.T) {
 	mediaDir := t.TempDir()
-	svc := service.NewMediaService(nil, mediaDir, getDefaultMediaConfig(), nil)
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	svc := service.NewMediaService(repository.NewStore(db), mediaDir, getDefaultMediaConfig(), nil)
 	emojiID := uuid.New()
+	mock.ExpectQuery(`-- name: GetCustomEmojiByID`).WithArgs(emojiID).WillReturnRows(
+		sqlmock.NewRows([]string{"id", "shortcode", "name", "category", "license", "width", "height", "created_at", "updated_at"}).
+			AddRow(emojiID, "wave", nil, nil, nil, 32, 32, time.Now(), time.Now()),
+	)
 
 	emojiDir := filepath.Join(mediaDir, emojiID.String())
 	if err := os.MkdirAll(emojiDir, 0o755); err != nil {
@@ -111,13 +127,8 @@ func TestServeEmojiImage_ServesStoredGIFOnLegacyRoute(t *testing.T) {
 	gifPath := filepath.Join(emojiDir, "image.gif")
 	writeAnimatedGIF(t, gifPath)
 
-	req := httptest.NewRequest(http.MethodGet, "/emoji/"+emojiID.String()+"/image.webp", nil)
-	routeCtx := chi.NewRouteContext()
-	routeCtx.URLParams.Add("emojiId", emojiID.String())
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
-
 	rec := httptest.NewRecorder()
-	svc.ServeEmojiImage(rec, req)
+	svc.ServeEmojiImage(rec, emojiRequest(emojiID))
 
 	resp := rec.Result()
 	defer func() { _ = resp.Body.Close() }()
@@ -128,8 +139,39 @@ func TestServeEmojiImage_ServesStoredGIFOnLegacyRoute(t *testing.T) {
 	if got := resp.Header.Get("Content-Type"); got != "image/gif" {
 		t.Fatalf("expected image/gif, got %q", got)
 	}
+	if got := resp.Header.Get("Cache-Control"); got != "public, max-age=86400" {
+		t.Fatalf("Cache-Control = %q, want public, max-age=86400", got)
+	}
 	if rec.Body.Len() == 0 {
 		t.Fatal("expected non-empty response body")
+	}
+}
+
+// User uploads live in the same mediaDir as emoji images, so the emoji route
+// must not serve a file whose id is not a custom emoji.
+func TestServeEmojiImage_DoesNotServeNonEmojiMedia(t *testing.T) {
+	mediaDir := t.TempDir()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	svc := service.NewMediaService(repository.NewStore(db), mediaDir, getDefaultMediaConfig(), nil)
+	id := uuid.New()
+	dir := filepath.Join(mediaDir, id.String())
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeAnimatedGIF(t, filepath.Join(dir, "image.gif"))
+	mock.ExpectQuery(`-- name: GetCustomEmojiByID`).WithArgs(id).WillReturnError(sql.ErrNoRows)
+
+	rec := httptest.NewRecorder()
+	svc.ServeEmojiImage(rec, emojiRequest(id))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 
