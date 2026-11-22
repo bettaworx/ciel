@@ -71,6 +71,10 @@ func TestBlocksService_Block_SeversFollowsInSameTransaction(t *testing.T) {
 
 	expectGetUserByUsername(mock, targetID, "bob")
 	mock.ExpectBegin()
+	// The pair lock comes first, so a concurrent Follow cannot insert between
+	// the block and the delete.
+	mock.ExpectExec(`-- name: LockFollowPair`).WithArgs(callerID, targetID).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`INSERT INTO account_blocks`).WithArgs(callerID, targetID).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(`DELETE FROM follows`).WithArgs(callerID, targetID).

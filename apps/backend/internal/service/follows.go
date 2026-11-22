@@ -80,6 +80,12 @@ func (s *FollowsService) Follow(ctx context.Context, follower auth.User, usernam
 	var created []CreatedNotification
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
 		created = nil
+		// The scope check above ran outside this transaction. Take the pair
+		// lock Block also takes, so FollowUser's own block check sees any
+		// block that committed since, and a block cannot commit mid-insert.
+		if err := q.LockFollowPair(ctx, sqlc.LockFollowPairParams{UserID: follower.ID, OtherID: target.ID}); err != nil {
+			return err
+		}
 		n, err := q.FollowUser(ctx, sqlc.FollowUserParams{
 			FollowerID: follower.ID,
 			FolloweeID: target.ID,
@@ -89,8 +95,8 @@ func (s *FollowsService) Follow(ctx context.Context, follower auth.User, usernam
 			return err
 		}
 		if n == 0 {
-			// Already following, or a request is already pending. Nothing
-			// changed, so do not notify again.
+			// Already following, a request is already pending, or a block
+			// landed after the scope check. Nothing changed, so do not notify.
 			return nil
 		}
 		id, err := Notify(ctx, q, NotifyParams{
