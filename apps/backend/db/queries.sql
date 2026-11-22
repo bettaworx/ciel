@@ -2169,12 +2169,18 @@ WHERE user_id = sqlc.arg('user_id')::uuid
 -- name: FollowUser :execrows
 -- accepted = false records a pending follow request, which is what following a
 -- private user creates. Returns 0 rows when a row already existed, so callers
--- can stay idempotent.
+-- can stay idempotent, and when a block exists in either direction. Run it
+-- after LockFollowPair: the block check here only sees blocks committed before
+-- the statement starts.
 INSERT INTO follows (follower_id, followee_id, accepted_at)
-VALUES (
+SELECT
 	sqlc.arg('follower_id')::uuid,
 	sqlc.arg('followee_id')::uuid,
 	CASE WHEN sqlc.arg('accepted')::boolean THEN now() ELSE NULL END
+WHERE NOT EXISTS (
+	SELECT 1 FROM account_blocks
+	WHERE (blocker_id = sqlc.arg('follower_id')::uuid AND blocked_id = sqlc.arg('followee_id')::uuid)
+		OR (blocker_id = sqlc.arg('followee_id')::uuid AND blocked_id = sqlc.arg('follower_id')::uuid)
 )
 ON CONFLICT DO NOTHING;
 
@@ -2760,6 +2766,18 @@ ON CONFLICT DO NOTHING;
 DELETE FROM account_blocks
 WHERE blocker_id = sqlc.arg('blocker_id')::uuid
 	AND blocked_id = sqlc.arg('blocked_id')::uuid;
+
+-- name: LockFollowPair :exec
+-- Serializes Follow against Block for one pair of accounts until the
+-- transaction ends. Under READ COMMITTED, a follow inserted while a block is
+-- committing escapes both the block check and DeleteFollowsBothWays; taking
+-- this lock first in both transactions closes that window. The key is built
+-- from the ordered pair, so either direction maps to the same lock.
+SELECT pg_advisory_xact_lock(hashtextextended(
+	LEAST(sqlc.arg('user_id')::uuid, sqlc.arg('other_id')::uuid)::text
+		|| GREATEST(sqlc.arg('user_id')::uuid, sqlc.arg('other_id')::uuid)::text,
+	0
+));
 
 -- name: DeleteFollowsBothWays :exec
 -- Blocking severs the follow graph in both directions. Pending requests go too:

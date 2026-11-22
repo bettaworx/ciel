@@ -81,6 +81,11 @@ func (s *BlocksService) Block(ctx context.Context, caller auth.User, username ap
 	}
 
 	if err := s.store.WithTx(ctx, func(q *sqlc.Queries) error {
+		// Serializes with Follow for this pair, so a follow being inserted
+		// cannot commit after DeleteFollowsBothWays has run.
+		if err := q.LockFollowPair(ctx, sqlc.LockFollowPairParams{UserID: caller.ID, OtherID: target.ID}); err != nil {
+			return err
+		}
 		if err := q.BlockUser(ctx, sqlc.BlockUserParams{BlockerID: caller.ID, BlockedID: target.ID}); err != nil {
 			return err
 		}
