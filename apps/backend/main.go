@@ -73,10 +73,12 @@ func main() {
 			hint:      "generate with: openssl rand -base64 32",
 			forbidden: []string{"replace", "secret", "changeme", "jwt-secret"},
 		},
+		// The only secret guarding first-admin creation on an unauthenticated
+		// endpoint, so the .env.example placeholder must not pass.
 		"INITIAL_SETUP_PASSWORD": {
-			minLength: 1,
-			hint:      "set a simple passphrase for initial server setup",
-			forbidden: []string{},
+			minLength: 16,
+			hint:      "generate with: openssl rand -base64 24",
+			forbidden: []string{"your-setup-passphrase", "replace", "changeme"},
 		},
 	}
 
