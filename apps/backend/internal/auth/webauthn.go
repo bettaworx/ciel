@@ -127,8 +127,19 @@ func NewMemoryWebAuthnSessionStore() *MemoryWebAuthnSessionStore {
 func (s *MemoryWebAuthnSessionStore) Put(session WebAuthnSessionData) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Passkey login options are unauthenticated, and a ceremony that is never
+	// verified is never consumed, so expired entries must be dropped here.
+	s.pruneLocked(time.Now().UTC())
 	s.sessions[session.SessionID] = session
 	return nil
+}
+
+func (s *MemoryWebAuthnSessionStore) pruneLocked(now time.Time) {
+	for k, v := range s.sessions {
+		if now.After(v.ExpiresAtUTC) {
+			delete(s.sessions, k)
+		}
+	}
 }
 
 func (s *MemoryWebAuthnSessionStore) Consume(sessionID string) (WebAuthnSessionData, bool) {
