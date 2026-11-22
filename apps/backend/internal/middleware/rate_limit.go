@@ -57,6 +57,10 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		{routeKey: "auth_login_finish", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "auth_stepup_start", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		{routeKey: "auth_stepup_finish", limit: 10, window: 1 * time.Minute, subject: subjectIP},
+		// Second-factor checks (TOTP, backup code, WebAuthn) for login and
+		// step-up. The per-account attempt limiter caps guesses per account;
+		// this caps one caller across accounts.
+		{routeKey: "auth_mfa_verify", limit: 10, window: 1 * time.Minute, subject: subjectIP},
 		// Initial setup: an unauthenticated passphrase check that hands out the
 		// token for creating the first admin, so guesses are capped hard.
 		{routeKey: "setup_verify_password", limit: 10, window: 15 * time.Minute, subject: subjectIP},
@@ -260,6 +264,9 @@ func classifyAuthRoute(method, path string) string {
 		return "auth_stepup_finish"
 	case "/api/v1/auth/session/exchange":
 		return "auth_session_exchange"
+	case "/api/v1/auth/mfa/verify", "/api/v1/auth/mfa/webauthn/verify",
+		"/api/v1/auth/stepup/mfa/verify", "/api/v1/auth/stepup/mfa/webauthn/verify":
+		return "auth_mfa_verify"
 	case "/api/v1/setup/verify-password":
 		return "setup_verify_password"
 	default:
