@@ -199,8 +199,19 @@ func TestAuthService_VerifyMfaCode_BackupCode(t *testing.T) {
 		ExpiresAtUTC: time.Now().UTC().Add(5 * time.Minute),
 	})
 
+	boxKey := make([]byte, 32)
+	for i := range boxKey {
+		boxKey[i] = byte(i + 1)
+	}
+	box, _ := auth.NewSecretBox(boxKey)
+
 	// No TOTP row ↁEfalls through to backup code path.
 	mock.ExpectQuery(`SELECT user_id, secret_enc`).WithArgs(userID).
+		WillReturnError(sql.ErrNoRows)
+	// The keyed hash is tried first; this code predates keyed hashing, so it
+	// only matches the unkeyed hash on the second lookup.
+	mock.ExpectQuery(`UPDATE auth_backup_codes AS c`).
+		WithArgs(userID, box.BackupCodeHash("ABCD-EF01")).
 		WillReturnError(sql.ErrNoRows)
 	mock.ExpectQuery(`UPDATE auth_backup_codes AS c`).
 		WithArgs(userID, auth.HashBackupCode("ABCD-EF01")).
@@ -225,6 +236,9 @@ func TestAuthService_VerifyMfaCode_BackupCode(t *testing.T) {
 	}
 	if login.AccessToken == "" {
 		t.Fatal("expected access token")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
 	}
 }
 

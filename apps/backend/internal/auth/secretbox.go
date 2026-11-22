@@ -3,7 +3,9 @@ package auth
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -16,9 +18,11 @@ var (
 	ErrSecretBoxSealed = errors.New("invalid ciphertext")
 )
 
-// SecretBox encrypts small secrets with AES-256-GCM.
+// SecretBox encrypts small secrets with AES-256-GCM and keys hashes of
+// low-entropy secrets (backup codes) with a subkey of the same key.
 type SecretBox struct {
-	gcm cipher.AEAD
+	gcm    cipher.AEAD
+	macKey []byte
 }
 
 // NewSecretBoxFromBase64 builds a SecretBox from a base64-encoded 32-byte key.
@@ -50,7 +54,23 @@ func NewSecretBox(key []byte) (*SecretBox, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &SecretBox{gcm: gcm}, nil
+	// A separate subkey, so the MAC never uses the AES key directly.
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte("ciel/backup-codes/v1"))
+	return &SecretBox{gcm: gcm, macKey: mac.Sum(nil)}, nil
+}
+
+// BackupCodeHash returns HMAC-SHA256 of the normalized code under the box's
+// subkey. Backup codes carry only 32 bits, so an unkeyed hash read from the
+// database can be inverted by trying every code. Without a box (no
+// TOTP_ENCRYPTION_KEY) it falls back to the unkeyed HashBackupCode.
+func (b *SecretBox) BackupCodeHash(code string) []byte {
+	if b == nil || b.macKey == nil {
+		return HashBackupCode(code)
+	}
+	mac := hmac.New(sha256.New, b.macKey)
+	mac.Write([]byte(NormalizeBackupCode(code)))
+	return mac.Sum(nil)
 }
 
 // Seal encrypts plaintext. Output is nonce || ciphertext.
