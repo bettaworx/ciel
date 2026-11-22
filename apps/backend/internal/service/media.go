@@ -209,7 +209,9 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 	row, err := s.store.Q.GetServableMediaByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			s.serveEmojiImageFromMediaRoute(w, r, id)
+			// Custom emojis are server assets with no owning account, so account
+			// privacy never applies and the long immutable cache stands.
+			s.serveEmojiImage(w, r, id, "public, max-age=31536000, immutable")
 		} else {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
@@ -299,7 +301,10 @@ func (s *MediaService) ServeImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
 }
 
-func (s *MediaService) serveEmojiImageFromMediaRoute(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
+// serveEmojiImage serves a custom emoji's stored image. Emoji files share
+// mediaDir with user uploads, so the emoji row must exist before the path is
+// resolved; otherwise any media id would reach the upload's file.
+func (s *MediaService) serveEmojiImage(w http.ResponseWriter, r *http.Request, id uuid.UUID, cacheControl string) {
 	if _, err := s.store.Q.GetCustomEmojiByID(r.Context(), id); err != nil {
 		http.NotFound(w, r)
 		return
@@ -325,9 +330,7 @@ func (s *MediaService) serveEmojiImageFromMediaRoute(w http.ResponseWriter, r *h
 
 	filename := "image." + ext
 	w.Header().Set("Content-Type", mimeForExt(ext))
-	// Custom emojis are server assets with no owning account, so account privacy
-	// never applies and the long immutable cache stands.
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Cache-Control", cacheControl)
 	http.ServeContent(w, r, filename, stat.ModTime(), f)
 }
 
@@ -2053,32 +2056,14 @@ func (s *MediaService) resolveStoredEmojiImagePath(id uuid.UUID) (string, string
 // ServeEmojiImage serves the stored image for a custom emoji.
 // This endpoint is public (no authentication required).
 func (s *MediaService) ServeEmojiImage(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "emojiId")
-	id, err := uuid.Parse(idStr)
+	id, err := uuid.Parse(chi.URLParam(r, "emojiId"))
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-
-	p, ext, err := s.resolveStoredEmojiImagePath(id)
-	if err != nil {
-		http.NotFound(w, r)
+	if s.store == nil {
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	f, err := os.Open(p)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	defer func() { _ = f.Close() }()
-
-	fi, err := f.Stat()
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", mimeForExt(ext))
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	http.ServeContent(w, r, "image."+ext, fi.ModTime(), f)
+	s.serveEmojiImage(w, r, id, "public, max-age=86400")
 }
