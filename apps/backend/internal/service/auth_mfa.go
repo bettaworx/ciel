@@ -51,16 +51,13 @@ func (s *AuthService) SetMFA(
 	s.totpIssuer = issuer
 }
 
-// mfaBlocked reports whether the account is locked out after repeated failed
-// verifications. Nil limiter (tests, legacy wiring) means the check passes.
-func (s *AuthService) mfaBlocked(key string) bool {
-	return s.attempts != nil && s.attempts.Blocked(key)
-}
-
-func (s *AuthService) recordMfaFailure(key string) {
-	if s.attempts != nil {
-		s.attempts.Fail(key)
-	}
+// reserveMfaAttempt counts one verification attempt against the account and
+// reports whether it is within the cap. It runs before the code is checked, so
+// concurrent guesses cannot all pass the same read of the counter. A
+// successful verification resets the count. Nil limiter (tests, legacy
+// wiring) means the check passes.
+func (s *AuthService) reserveMfaAttempt(key string) bool {
+	return s.attempts == nil || s.attempts.Reserve(key)
 }
 
 func (s *AuthService) resetMfaFailures(key string) {
@@ -471,7 +468,7 @@ func (s *AuthService) VerifyMfaCode(ctx context.Context, req api.MfaCodeVerifyRe
 	}
 
 	// Account-level lockout after repeated failures (brute-force defense).
-	if s.mfaBlocked(sess.UserID) {
+	if !s.reserveMfaAttempt(sess.UserID) {
 		auditMFA(ctx, "auth.mfa.verify", "failure", auth.User{ID: userID, Username: sess.Username}, "locked_out")
 		return login, stepup, "", NewError(http.StatusTooManyRequests, "too_many_attempts", "too many failed attempts; try again later")
 	}
@@ -483,7 +480,6 @@ func (s *AuthService) VerifyMfaCode(ctx context.Context, req api.MfaCodeVerifyRe
 
 	verified, verifyErr := s.verifyCodeForUser(ctx, userID, req.Code, methodHint)
 	if verifyErr != nil || !verified {
-		s.recordMfaFailure(sess.UserID)
 		auditMFA(ctx, "auth.mfa.verify", "failure", auth.User{ID: userID, Username: sess.Username}, "invalid_code")
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid code")
 	}
@@ -1043,7 +1039,7 @@ func (s *AuthService) WebAuthnAssertionVerify(ctx context.Context, mfaToken stri
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid mfa token")
 	}
 
-	if s.mfaBlocked(mfaSess.UserID) {
+	if !s.reserveMfaAttempt(mfaSess.UserID) {
 		auditMFA(ctx, "auth.webauthn.verify", "failure", auth.User{ID: userID, Username: mfaSess.Username}, "locked_out")
 		return login, stepup, "", NewError(http.StatusTooManyRequests, "too_many_attempts", "too many failed attempts; try again later")
 	}
@@ -1060,17 +1056,14 @@ func (s *AuthService) WebAuthnAssertionVerify(ctx context.Context, mfaToken stri
 	}
 	credJSON, err := json.Marshal(credential)
 	if err != nil {
-		s.recordMfaFailure(mfaSess.UserID)
 		return login, stepup, "", NewError(http.StatusBadRequest, "invalid_request", "invalid credential")
 	}
 	parsed, err := protocol.ParseCredentialRequestResponseBytes(credJSON)
 	if err != nil {
-		s.recordMfaFailure(mfaSess.UserID)
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid credential")
 	}
 	updated, err := s.webauthn.ValidateLogin(waUser, waSess.SessionData, parsed)
 	if err != nil {
-		s.recordMfaFailure(mfaSess.UserID)
 		auditMFA(ctx, "auth.webauthn.verify", "failure", auth.User{ID: userID, Username: mfaSess.Username}, "invalid_assertion")
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid credential")
 	}
@@ -1083,7 +1076,6 @@ func (s *AuthService) WebAuthnAssertionVerify(ctx context.Context, mfaToken stri
 	// Clone detection: a non-zero counter that does not strictly advance means
 	// the credential may have been duplicated.
 	if int64(updated.Authenticator.SignCount) > 0 && int64(updated.Authenticator.SignCount) <= dbCred.SignCount {
-		s.recordMfaFailure(mfaSess.UserID)
 		auditMFA(ctx, "auth.webauthn.verify", "failure", auth.User{ID: userID, Username: mfaSess.Username}, "sign_count_regression")
 		return login, stepup, "", NewError(http.StatusUnauthorized, "unauthorized", "invalid credential")
 	}

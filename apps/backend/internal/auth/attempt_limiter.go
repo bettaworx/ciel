@@ -17,13 +17,13 @@ const (
 	DefaultAttemptWindow = 15 * time.Minute
 )
 
-// AttemptLimiter tracks failed MFA verifications per account and locks out
-// accounts that exceed the allowed number of attempts inside the window.
+// AttemptLimiter counts MFA verifications per account and locks out accounts
+// that exceed the allowed number of attempts inside the window.
 type AttemptLimiter interface {
-	// Blocked reports whether the key has exceeded the attempt cap.
-	Blocked(key string) bool
-	// Fail records one failed attempt.
-	Fail(key string)
+	// Reserve counts one attempt and reports whether it is within the cap.
+	// Callers reserve before checking the code: a separate read-then-count
+	// lets a concurrent burst all pass the same read.
+	Reserve(key string) bool
 	// Reset clears the counter after a successful verification.
 	Reset(key string)
 }
@@ -56,24 +56,16 @@ func (l *MemoryAttemptLimiter) get(key string) (attemptEntry, bool) {
 	return e, true
 }
 
-func (l *MemoryAttemptLimiter) Blocked(key string) bool {
+func (l *MemoryAttemptLimiter) Reserve(key string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	e, ok := l.get(key)
-	return ok && e.count >= l.max
-}
-
-func (l *MemoryAttemptLimiter) Fail(key string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	now := time.Now().UTC()
 	e, ok := l.get(key)
 	if !ok {
-		l.counts[key] = attemptEntry{count: 1, expiresAt: now.Add(l.window)}
-		return
+		e = attemptEntry{expiresAt: time.Now().UTC().Add(l.window)}
 	}
 	e.count++
 	l.counts[key] = e
+	return e.count <= l.max
 }
 
 func (l *MemoryAttemptLimiter) Reset(key string) {
@@ -100,32 +92,23 @@ func attemptKey(key string) string {
 	return "mfa:fails:" + key
 }
 
-func (l *RedisAttemptLimiter) count(ctx context.Context, key string) (int, error) {
-	n, err := l.redis.Get(ctx, attemptKey(key)).Int()
-	if err != nil {
-		return 0, err
-	}
-	return n, nil
-}
+// reserveAttemptScript increments the counter and starts its window in one
+// step, so the key can never be left without an expiry.
+var reserveAttemptScript = redis.NewScript(`
+local n = redis.call('INCR', KEYS[1])
+if n == 1 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+return n
+`)
 
-func (l *RedisAttemptLimiter) Blocked(key string) bool {
-	n, err := l.count(context.Background(), key)
+func (l *RedisAttemptLimiter) Reserve(key string) bool {
+	n, err := reserveAttemptScript.Run(context.Background(), l.redis,
+		[]string{attemptKey(key)}, l.window.Milliseconds()).Int()
 	if err != nil {
-		return false // redis.Nil → not counted; other errors fail open here,
-		// verification itself still requires a valid code.
+		return true // fail open; verification itself still requires a valid code
 	}
-	return n >= l.max
-}
-
-func (l *RedisAttemptLimiter) Fail(key string) {
-	ctx := context.Background()
-	n, err := l.redis.Incr(ctx, attemptKey(key)).Result()
-	if err != nil {
-		return
-	}
-	if n == 1 {
-		l.redis.Expire(ctx, attemptKey(key), l.window)
-	}
+	return n <= l.max
 }
 
 func (l *RedisAttemptLimiter) Reset(key string) {
