@@ -281,7 +281,7 @@ func (s *AuthService) TotpConfirm(ctx context.Context, user auth.User, req api.T
 			return err
 		}
 		if firstFactor {
-			plain, hashes, err := auth.GenerateBackupCodes(auth.BackupCodeCount)
+			plain, hashes, err := auth.GenerateBackupCodes(s.secretBox, auth.BackupCodeCount)
 			if err != nil {
 				return err
 			}
@@ -408,7 +408,7 @@ func (s *AuthService) RegenerateBackupCodes(ctx context.Context, user auth.User)
 		return api.BackupCodesRegenerateResponse{}, NewError(http.StatusBadRequest, "mfa_not_enabled", "enable a second factor first")
 	}
 
-	plain, hashes, err := auth.GenerateBackupCodes(auth.BackupCodeCount)
+	plain, hashes, err := auth.GenerateBackupCodes(s.secretBox, auth.BackupCodeCount)
 	if err != nil {
 		return api.BackupCodesRegenerateResponse{}, err
 	}
@@ -570,18 +570,25 @@ func (s *AuthService) verifyTotpCode(ctx context.Context, userID uuid.UUID, code
 }
 
 func (s *AuthService) consumeBackupCode(ctx context.Context, userID uuid.UUID, code string) (bool, error) {
-	hash := auth.HashBackupCode(code)
-	_, err := s.store.Q.ConsumeBackupCode(ctx, sqlc.ConsumeBackupCodeParams{
-		UserID:   userID,
-		CodeHash: hash,
-	})
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, nil
-		}
-		return false, err
+	hashes := [][]byte{s.secretBox.BackupCodeHash(code)}
+	if s.secretBox != nil {
+		// Codes issued before keyed hashing were stored unkeyed; keep them
+		// usable until the user regenerates.
+		hashes = append(hashes, auth.HashBackupCode(code))
 	}
-	return true, nil
+	for _, hash := range hashes {
+		_, err := s.store.Q.ConsumeBackupCode(ctx, sqlc.ConsumeBackupCodeParams{
+			UserID:   userID,
+			CodeHash: hash,
+		})
+		if err == nil {
+			return true, nil
+		}
+		if err != sql.ErrNoRows {
+			return false, err
+		}
+	}
+	return false, nil
 }
 
 func (s *AuthService) completeLogin(ctx context.Context, userID uuid.UUID, username string) (api.LoginAuthenticated, api.StepupAuthenticated, string, error) {
@@ -853,7 +860,7 @@ func (s *AuthService) WebAuthnRegisterVerify(ctx context.Context, user auth.User
 		}
 		stored = row
 		if firstFactor {
-			plain, hashes, err := auth.GenerateBackupCodes(auth.BackupCodeCount)
+			plain, hashes, err := auth.GenerateBackupCodes(s.secretBox, auth.BackupCodeCount)
 			if err != nil {
 				return err
 			}

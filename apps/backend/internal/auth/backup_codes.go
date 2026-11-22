@@ -11,9 +11,10 @@ const (
 	backupCodeBytes = 4 // 8 hex chars → XXXX-XXXX
 )
 
-// GenerateBackupCodes returns plaintext backup codes and their SHA-256 hashes.
+// GenerateBackupCodes returns plaintext backup codes and their hashes under
+// box (see SecretBox.BackupCodeHash; a nil box gives unkeyed hashes).
 // Plaintext format: uppercase hex groups "ABCD-EF01".
-func GenerateBackupCodes(n int) (plain []string, hashes [][]byte, err error) {
+func GenerateBackupCodes(box *SecretBox, n int) (plain []string, hashes [][]byte, err error) {
 	if n <= 0 {
 		n = BackupCodeCount
 	}
@@ -32,7 +33,7 @@ func GenerateBackupCodes(n int) (plain []string, hashes [][]byte, err error) {
 		}
 		seen[code] = struct{}{}
 		plain = append(plain, code)
-		hashes = append(hashes, HashBackupCode(code))
+		hashes = append(hashes, box.BackupCodeHash(code))
 	}
 	return plain, hashes, nil
 }
@@ -45,7 +46,9 @@ func NormalizeBackupCode(code string) string {
 	return s
 }
 
-// HashBackupCode returns SHA-256 of the normalized code.
+// HashBackupCode returns the unkeyed SHA-256 of the normalized code. New codes
+// use SecretBox.BackupCodeHash when a key is configured; this form stays for
+// codes stored before that and for deployments without TOTP_ENCRYPTION_KEY.
 func HashBackupCode(code string) []byte {
 	norm := NormalizeBackupCode(code)
 	sum := sha256.Sum256([]byte(norm))
