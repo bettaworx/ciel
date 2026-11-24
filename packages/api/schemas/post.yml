@@ -30,7 +30,7 @@ components:
           nullable: true
         media:
           type: array
-          maxItems: 4
+          maxItems: 20
           items:
             $ref: ./media.yml#/components/schemas/Media
         reactions:
@@ -202,7 +202,7 @@ components:
         mediaIds:
           type: array
           description: Media IDs to attach to the post (in order).
-          maxItems: 4
+          maxItems: 20
           items:
             $ref: ./common.yml#/components/schemas/MediaId
         drawingId:

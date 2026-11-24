@@ -604,7 +604,8 @@ JOIN media m ON m.id = pm.media_id
 WHERE pm.post_id = $1
 	AND m.type IN ('image', 'video')
 ORDER BY pm.sort_order ASC, m.created_at ASC, m.id ASC
-LIMIT 4;
+-- Keep in sync with maxPostMedia (internal/service/posts.go).
+LIMIT 20;
 
 
 -- name: ListMediaForPosts :many

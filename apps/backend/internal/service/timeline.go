@@ -545,7 +545,7 @@ func (s *TimelineService) attachMediaToPosts(ctx context.Context, posts []api.Po
 		if !ok {
 			continue
 		}
-		if counts[row.PostID] >= 4 {
+		if counts[row.PostID] >= maxPostMedia {
 			continue
 		}
 

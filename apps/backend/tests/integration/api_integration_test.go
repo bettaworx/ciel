@@ -1727,18 +1727,80 @@ func TestIntegration_Posts_Create_TooManyMediaIds_Returns400(t *testing.T) {
 	u := registerUser(t, client, base, "pc1", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
-	ids := []string{
-		"00000000-0000-0000-0000-000000000001",
-		"00000000-0000-0000-0000-000000000002",
-		"00000000-0000-0000-0000-000000000003",
-		"00000000-0000-0000-0000-000000000004",
-		"00000000-0000-0000-0000-000000000005",
+	ids := make([]string, 21)
+	for i := range ids {
+		ids[i] = uuid.New().String()
 	}
 	resp := postJSON(t, client, base+"/api/v1/posts", map[string]any{"content": "x", "mediaIds": ids}, a)
 	if resp.StatusCode != http.StatusBadRequest {
 		errBody := decodeJSON[map[string]any](t, resp)
 		t.Fatalf("expected 400, got %d (%v)", resp.StatusCode, errBody)
 	}
+}
+
+// Twenty attachments is the cap; every read path (create response, single
+// post, timeline, profile list) must return all of them in upload order.
+func TestIntegration_Posts_Create_TwentyMedia_RoundTrips(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Close()
+
+	client := app.Server.Client()
+	base := app.Server.URL
+
+	u := registerUser(t, client, base, "media20", "Password123")
+	a := issueBearer(t, app.TokenManager, u)
+
+	ids := make([]string, 20)
+	for i := range ids {
+		ids[i] = uploadMediaPNG(t, client, base, a).Id.String()
+	}
+	resp := postJSON(t, client, base+"/api/v1/posts", map[string]any{"content": "twenty", "mediaIds": ids}, a)
+	if resp.StatusCode != http.StatusCreated {
+		errBody := decodeJSON[map[string]any](t, resp)
+		t.Fatalf("create: expected 201, got %d (%v)", resp.StatusCode, errBody)
+	}
+	created := decodeJSON[api.Post](t, resp)
+
+	checkMedia := func(where string, p api.Post) {
+		t.Helper()
+		if len(p.Media) != len(ids) {
+			t.Fatalf("%s: expected %d media, got %d", where, len(ids), len(p.Media))
+		}
+		for i, m := range p.Media {
+			if m.Id.String() != ids[i] {
+				t.Fatalf("%s: media[%d] = %s, want %s", where, i, m.Id, ids[i])
+			}
+		}
+	}
+	checkMedia("create", created)
+
+	getResp := get(t, client, base+"/api/v1/posts/"+created.Id.String(), nil)
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("get post: expected 200, got %d", getResp.StatusCode)
+	}
+	checkMedia("get", decodeJSON[api.Post](t, getResp))
+
+	findIn := func(where string, items []api.Post) {
+		t.Helper()
+		for _, it := range items {
+			if it.Id == created.Id {
+				checkMedia(where, it)
+				return
+			}
+		}
+		t.Fatalf("%s: post not found", where)
+	}
+	tlResp := get(t, client, base+"/api/v1/timeline?limit=30", nil)
+	if tlResp.StatusCode != http.StatusOK {
+		t.Fatalf("timeline: expected 200, got %d", tlResp.StatusCode)
+	}
+	findIn("timeline", decodeJSON[api.TimelinePage](t, tlResp).Items)
+
+	upResp := get(t, client, base+"/api/v1/users/"+string(u.Username)+"/posts?limit=10", nil)
+	if upResp.StatusCode != http.StatusOK {
+		t.Fatalf("user posts: expected 200, got %d", upResp.StatusCode)
+	}
+	findIn("user posts", decodeJSON[api.UserPostsPage](t, upResp).Items)
 }
 
 func TestIntegration_Posts_Create_DuplicateMediaIds_Returns400(t *testing.T) {
