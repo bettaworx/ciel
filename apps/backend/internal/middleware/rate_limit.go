@@ -67,8 +67,9 @@ func RateLimit(rdb *redis.Client, opt RateLimitOptions) func(http.Handler) http.
 		// Account switching: one request per listed account when the menu opens,
 		// so the cap has to clear a handful of accounts a few times a minute.
 		{routeKey: "auth_session_exchange", limit: 60, window: 1 * time.Minute, subject: subjectIP},
-		// Media upload: per-user, per-file. A post can carry twenty images, so
-		// the window has to hold several full posts, not several files.
+		// Media upload: per-user, per-file. A post can carry twenty media
+		// (images or videos), so the window has to hold several full posts, not
+		// several files.
 		{routeKey: "media_upload", limit: 100, window: 10 * time.Minute, subject: subjectUser},
 		{routeKey: "media_upload", limit: 400, window: 24 * time.Hour, subject: subjectUser},
 		// Drawing upload: per-user. Each request validates, renders a preview and

@@ -201,7 +201,7 @@ components:
           maxLength: 300
         mediaIds:
           type: array
-          description: Media IDs to attach to the post (in order).
+          description: Media IDs to attach to the post, in display order. Up to 20 media; each may be an image or a video, in any mix.
           maxItems: 20
           items:
             $ref: ./common.yml#/components/schemas/MediaId

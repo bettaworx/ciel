@@ -1738,9 +1738,10 @@ func TestIntegration_Posts_Create_TooManyMediaIds_Returns400(t *testing.T) {
 	}
 }
 
-// Twenty attachments is the cap; every read path (create response, single
-// post, timeline, profile list) must return all of them in upload order.
-func TestIntegration_Posts_Create_TwentyMedia_RoundTrips(t *testing.T) {
+// Twenty attachments is the cap, images and videos in any mix; every read path
+// (create response, single post, timeline, profile lists) must return all of
+// them in upload order.
+func TestIntegration_Posts_Create_TwentyMixedMedia_RoundTrips(t *testing.T) {
 	app := newTestApp(t)
 	defer app.Close()
 
@@ -1750,9 +1751,16 @@ func TestIntegration_Posts_Create_TwentyMedia_RoundTrips(t *testing.T) {
 	u := registerUser(t, client, base, "media20", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
+	// Every fourth attachment is a video, so videos sit before, between and
+	// after images.
 	ids := make([]string, 20)
+	types := make([]api.MediaType, 20)
 	for i := range ids {
-		ids[i] = uploadMediaPNG(t, client, base, a).Id.String()
+		if i%4 == 0 {
+			ids[i], types[i] = createVideoMediaRecord(t, app, u.Id).String(), api.MediaType("video")
+			continue
+		}
+		ids[i], types[i] = uploadMediaPNG(t, client, base, a).Id.String(), api.MediaType("image")
 	}
 	resp := postJSON(t, client, base+"/api/v1/posts", map[string]any{"content": "twenty", "mediaIds": ids}, a)
 	if resp.StatusCode != http.StatusCreated {
@@ -1767,8 +1775,8 @@ func TestIntegration_Posts_Create_TwentyMedia_RoundTrips(t *testing.T) {
 			t.Fatalf("%s: expected %d media, got %d", where, len(ids), len(p.Media))
 		}
 		for i, m := range p.Media {
-			if m.Id.String() != ids[i] {
-				t.Fatalf("%s: media[%d] = %s, want %s", where, i, m.Id, ids[i])
+			if m.Id.String() != ids[i] || m.Type != types[i] {
+				t.Fatalf("%s: media[%d] = %s (%s), want %s (%s)", where, i, m.Id, m.Type, ids[i], types[i])
 			}
 		}
 	}
@@ -1796,11 +1804,14 @@ func TestIntegration_Posts_Create_TwentyMedia_RoundTrips(t *testing.T) {
 	}
 	findIn("timeline", decodeJSON[api.TimelinePage](t, tlResp).Items)
 
-	upResp := get(t, client, base+"/api/v1/users/"+string(u.Username)+"/posts?limit=10", nil)
-	if upResp.StatusCode != http.StatusOK {
-		t.Fatalf("user posts: expected 200, got %d", upResp.StatusCode)
+	// A mixed post belongs to both the image and the video media filters.
+	for _, filter := range []string{"", "&mediaType=image", "&mediaType=video", "&mediaType=media"} {
+		upResp := get(t, client, base+"/api/v1/users/"+string(u.Username)+"/posts?limit=10"+filter, nil)
+		if upResp.StatusCode != http.StatusOK {
+			t.Fatalf("user posts%s: expected 200, got %d", filter, upResp.StatusCode)
+		}
+		findIn("user posts"+filter, decodeJSON[api.UserPostsPage](t, upResp).Items)
 	}
-	findIn("user posts", decodeJSON[api.UserPostsPage](t, upResp).Items)
 }
 
 func TestIntegration_Posts_Create_DuplicateMediaIds_Returns400(t *testing.T) {
