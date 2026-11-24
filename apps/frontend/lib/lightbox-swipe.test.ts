@@ -1,25 +1,8 @@
 import { describe, expect, it } from "vitest";
-import {
-  commitDistance,
-  dismissProgress,
-  resolveSwipe,
-  rubberBand,
-  swipeAxis,
-  type SwipeInput,
-} from "./lightbox-swipe";
+import { commitDistance, dismissProgress, shouldDismiss, swipeAxis } from "./lightbox-swipe";
 
-const base: SwipeInput = {
-  dx: 0,
-  dy: 0,
-  vx: 0,
-  vy: 0,
-  width: 400,
-  height: 800,
-  hasPrev: true,
-  hasNext: true,
-};
-
-const swipe = (over: Partial<SwipeInput>) => resolveSwipe({ ...base, ...over });
+const release = (over: Partial<{ dy: number; vy: number; height: number }>) =>
+  shouldDismiss({ dy: 0, vy: 0, height: 800, ...over });
 
 describe("swipeAxis", () => {
   it("returns null when there is no travel", () => {
@@ -44,71 +27,39 @@ describe("commitDistance", () => {
   });
 });
 
-describe("resolveSwipe — horizontal", () => {
-  it("does nothing below the distance threshold", () => {
-    expect(swipe({ dx: 90, dy: 5 })).toBe("none"); // 400 * 0.25 = 100
-  });
-
-  it("goes to the previous item when dragged right past the threshold", () => {
-    expect(swipe({ dx: 120, dy: 5 })).toBe("prev");
-  });
-
-  it("goes to the next item when dragged left past the threshold", () => {
-    expect(swipe({ dx: -120, dy: 5 })).toBe("next");
-  });
-
-  it("commits on a short flick", () => {
-    expect(swipe({ dx: -30, dy: 5, vx: -0.9 })).toBe("next");
-  });
-
-  it("cancels when the flick direction disagrees with the travel", () => {
-    expect(swipe({ dx: -30, dy: 5, vx: 0.9 })).toBe("none");
-  });
-
-  it("pages on a desktop-width stage without a 480px drag", () => {
-    expect(swipe({ dx: -140, dy: 5, width: 1920 })).toBe("next");
-    expect(swipe({ dx: -90, dy: 5, width: 1920 })).toBe("none");
-  });
-
-  it("stays put at the edges", () => {
-    expect(swipe({ dx: 120, dy: 5, hasPrev: false })).toBe("none");
-    expect(swipe({ dx: -120, dy: 5, hasNext: false })).toBe("none");
-  });
-});
-
-describe("resolveSwipe — vertical", () => {
+describe("shouldDismiss", () => {
   it("dismisses when dragged down past the threshold", () => {
-    expect(swipe({ dx: 5, dy: 200 })).toBe("dismiss"); // 800 * 0.2 = 160
+    expect(release({ dy: 200 })).toBe(true); // 800 * 0.2 = 160
   });
 
   it("does nothing below the threshold", () => {
-    expect(swipe({ dx: 5, dy: 100 })).toBe("none");
+    expect(release({ dy: 100 })).toBe(false);
   });
 
   it("dismisses on a downward flick", () => {
-    expect(swipe({ dx: 5, dy: 40, vy: 0.8 })).toBe("dismiss");
+    expect(release({ dy: 40, vy: 0.8 })).toBe(true);
   });
 
   it("dismisses on a tall stage without a full-height drag", () => {
-    expect(swipe({ dx: 5, dy: 200, height: 1400 })).toBe("dismiss");
+    expect(release({ dy: 200, height: 1400 })).toBe(true);
   });
 
   it("dismisses upward on the same threshold", () => {
-    expect(swipe({ dx: 5, dy: -200 })).toBe("dismiss");
-    expect(swipe({ dx: 5, dy: -100 })).toBe("none");
+    expect(release({ dy: -200 })).toBe(true);
+    expect(release({ dy: -100 })).toBe(false);
   });
 
   it("dismisses on an upward flick", () => {
-    expect(swipe({ dx: 5, dy: -40, vy: -0.8 })).toBe("dismiss");
+    expect(release({ dy: -40, vy: -0.8 })).toBe(true);
   });
 
   it("ignores a flick that disagrees with the travel", () => {
-    expect(swipe({ dx: 5, dy: 40, vy: -0.8 })).toBe("none");
-    expect(swipe({ dx: 5, dy: -40, vy: 0.8 })).toBe("none");
+    expect(release({ dy: 40, vy: -0.8 })).toBe(false);
+    expect(release({ dy: -40, vy: 0.8 })).toBe(false);
   });
 
   it("does nothing when the pointer never moved", () => {
-    expect(swipe({})).toBe("none");
+    expect(release({})).toBe(false);
   });
 });
 
@@ -129,12 +80,5 @@ describe("dismissProgress", () => {
 
   it("is 0 rather than NaN before the stage is measured", () => {
     expect(dismissProgress(100, 0)).toBe(0);
-  });
-});
-
-describe("rubberBand", () => {
-  it("damps travel and keeps its sign", () => {
-    expect(rubberBand(100)).toBeCloseTo(30);
-    expect(rubberBand(-100)).toBeCloseTo(-30);
   });
 });

@@ -28,6 +28,10 @@ const (
 	defaultThreadChildLimit    = 5
 	maxThreadDepth             = 5
 	maxThreadChildLimit        = 30
+	// maxPostMedia caps the attachments on one post. ListMediaForPost in
+	// db/queries.sql repeats it as a literal LIMIT, and the OpenAPI
+	// mediaIds/media maxItems mirror it for clients.
+	maxPostMedia = 20
 )
 
 type PostsService struct {
@@ -881,7 +885,7 @@ func (s *PostsService) attachMediaToPosts(ctx context.Context, posts []api.Post)
 		if !ok {
 			continue
 		}
-		if counts[row.PostID] >= 4 {
+		if counts[row.PostID] >= maxPostMedia {
 			continue
 		}
 
@@ -922,7 +926,7 @@ func normalizeMediaIDs(v *[]api.MediaId) ([]uuid.UUID, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	if len(ids) > 4 {
+	if len(ids) > maxPostMedia {
 		return nil, NewError(http.StatusBadRequest, "invalid_request", "too many mediaIds")
 	}
 	seen := make(map[uuid.UUID]struct{}, len(ids))

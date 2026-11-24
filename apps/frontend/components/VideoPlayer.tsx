@@ -15,6 +15,7 @@ import {
 import { useTranslations } from "@/lib/i18n";
 import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
+import { PlayMarkIcon, playMarkClass } from "@/components/PlayMark";
 import { videoVolumeAtom, claimPlayback, releasePlayback } from "@/atoms/video-player";
 
 interface VideoPlayerProps {
@@ -985,17 +986,19 @@ export function VideoPlayer({ src, width, height, poster, className, style }: Vi
       {activeSrc && !isPlaying && (
         <button
           onClick={togglePlay}
-          className="absolute inset-0 m-auto w-12 h-12 z-20 flex items-center justify-center bg-black/55 backdrop-blur-sm rounded-full hover:bg-black/70 hover:scale-110 transition-all duration-150"
+          className={cn(playMarkClass("self"), "z-20")}
           style={{ textShadow: "none" }}
           aria-label={t("play")}
         >
-          <Play className="w-5 h-5 text-white ml-0.5" fill="white" style={{ filter: "none" }} />
+          <PlayMarkIcon />
         </button>
       )}
 
-      {/* Control bar — hidden when src is unloaded */}
+      {/* Control bar — hidden when src is unloaded. Marked so the lightbox
+          leaves drags here (seeking, volume) to the player. */}
       {activeSrc && (
         <div
+          data-video-controls=""
           className={cn(
             "absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 select-none",
             showControls || !isPlaying ? "opacity-100" : "opacity-0",

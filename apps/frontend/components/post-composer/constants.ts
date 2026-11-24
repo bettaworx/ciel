@@ -3,8 +3,8 @@
  */
 
 export const MAX_CONTENT_LENGTH = 1000;
-export const MAX_IMAGES = 4;
-export const MAX_VIDEOS = 1;
+/** Attachments per post, images and videos in any mix. Mirrors maxPostMedia in the backend. */
+export const MAX_MEDIA = 20;
 
 // Note: File size limit is now dynamically fetched from server-info API
 // See useMediaLimits() hook in @/lib/hooks/use-queries
@@ -15,8 +15,7 @@ export const WARNING_THRESHOLD = 90; // Yellow at 90%
 
 // Anything the browser can decode is accepted: lib/media/normalize.ts converts
 // every import into WebP or WebM before it is uploaded.
-export const ACCEPTED_IMAGE_ACCEPT = "image/*";
-export const ACCEPTED_VIDEO_ACCEPT = "video/*";
+export const ACCEPTED_MEDIA_ACCEPT = "image/*,video/*";
 
 // Guards on the *raw* import, before normalization. The server-side limits apply
 // to the normalized result, so checking them here would reject a 60 MB PNG that

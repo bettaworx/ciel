@@ -12,7 +12,6 @@ import { useTranslations } from "@/lib/i18n";
 import {
   X,
   Image as ImageIcon,
-  Video as VideoIcon,
   Bold,
   Italic,
   Type,
@@ -41,10 +40,9 @@ import { CodeFormatButton } from "./CodeFormatButton";
 import { SizeFormatButton } from "./SizeFormatButton";
 import { LinkFormatButton } from "./LinkFormatButton";
 import { FormatOverflowMenu } from "./FormatOverflowMenu";
-import { MediaUploadOverflowMenu } from "./MediaUploadOverflowMenu";
 import { ComposerEmojiPicker } from "./ComposerEmojiPicker";
 import { insertCenterDecoration } from "./centerDecoration";
-import { ACCEPTED_IMAGE_ACCEPT, ACCEPTED_VIDEO_ACCEPT } from "./constants";
+import { ACCEPTED_MEDIA_ACCEPT } from "./constants";
 import type { UseComposePostReturn } from "./useComposePost";
 import { useComposerPlaceholder } from "./useComposerPlaceholder";
 import { shouldShowComposerModeSwitch, type ComposerMode } from "./composerMode";
@@ -182,8 +180,7 @@ export function PostComposerContent({
   // ---------------------------------------------------------------------------
   const {
     // Refs — only used as JSX `ref` props or inside callbacks, never read .current during render
-    imageFileInputRef,
-    videoFileInputRef,
+    mediaFileInputRef,
     textareaRef,
     // State setters
     setContent,
@@ -214,8 +211,7 @@ export function PostComposerContent({
     hasMedia,
     canPost,
     isDropDisabled,
-    isImageUploadDisabled,
-    isVideoUploadDisabled,
+    isMediaUploadDisabled,
     cropDialogOpen,
     cropImageSrc,
     pendingCropImage,
@@ -223,7 +219,7 @@ export function PostComposerContent({
     // Handlers
     handleContentChange,
     handleKeyDown,
-    handleImageSelect,
+    handleMediaSelect,
     handlePaste,
     handleRemoveMedia,
     handleCropOpen,
@@ -479,7 +475,6 @@ export function PostComposerContent({
     </div>
   );
 
-  /** Upload buttons — separate for images and video */
   /** Emoji picker — shown at the head of the format area (composer-wide) */
   const emojiButton = (
     <ComposerEmojiPicker
@@ -493,38 +488,19 @@ export function PostComposerContent({
     />
   );
 
+  /** Media picker: images and videos are both media, so one button takes either. */
   const uploadButtons = (
-    <div className="flex items-center gap-1">
-      <MediaUploadButton
-        inputRef={imageFileInputRef}
-        accept={ACCEPTED_IMAGE_ACCEPT}
-        multiple
-        disabled={isImageUploadDisabled}
-        onChange={handleImageSelect}
-        icon={ImageIcon}
-        ariaLabel={t("createPost.uploadImage")}
-        className={cn(s.toolbarButton, "max-sm:hidden")}
-        iconClassName={s.toolbarIcon}
-      />
-      <MediaUploadButton
-        inputRef={videoFileInputRef}
-        accept={ACCEPTED_VIDEO_ACCEPT}
-        disabled={isVideoUploadDisabled}
-        onChange={handleImageSelect}
-        icon={VideoIcon}
-        ariaLabel={t("createPost.uploadVideo")}
-        className={cn(s.toolbarButton, "max-sm:hidden")}
-        iconClassName={s.toolbarIcon}
-      />
-      <MediaUploadOverflowMenu
-        imageFileInputRef={imageFileInputRef}
-        videoFileInputRef={videoFileInputRef}
-        isImageUploadDisabled={isImageUploadDisabled}
-        isVideoUploadDisabled={isVideoUploadDisabled}
-        className={cn(s.toolbarButton, "sm:hidden")}
-        iconClassName={s.toolbarIcon}
-      />
-    </div>
+    <MediaUploadButton
+      inputRef={mediaFileInputRef}
+      accept={ACCEPTED_MEDIA_ACCEPT}
+      multiple
+      disabled={isMediaUploadDisabled}
+      onChange={handleMediaSelect}
+      icon={ImageIcon}
+      ariaLabel={t("createPost.uploadMedia")}
+      className={s.toolbarButton}
+      iconClassName={s.toolbarIcon}
+    />
   );
 
   /** Text formatting buttons — order: Emoji, Bold, Italic, Font, Size, Code, URL, Center */
