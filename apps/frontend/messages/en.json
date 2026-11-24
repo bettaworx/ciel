@@ -785,9 +785,14 @@
     "qualityHigh": "Quality first",
     "qualityNone": "As is"
   },
+  "mediaCarousel": {
+    "previous": "Previous media",
+    "next": "Next media"
+  },
   "lightbox": {
     "title": "Image viewer",
     "open": "Open image",
+    "openVideo": "Play video",
     "close": "Close",
     "previous": "Previous image",
     "next": "Next image",

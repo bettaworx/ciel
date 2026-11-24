@@ -1,6 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  startTransition,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useTranslations } from "@/lib/i18n";
@@ -16,18 +26,50 @@ import {
   swipeAxis,
   type SwipeIntent,
 } from "@/lib/lightbox-swipe";
+import { createNotchDetector } from "@/lib/media/wheel-notch";
 import { boxGeometry, containRect, containsPoint, type Rect } from "@/lib/lightbox-morph";
 import { anchorPan, clampPan, clampScale, panLimit } from "@/lib/lightbox-zoom";
 import { cn } from "@/lib/utils";
 
+// Split out like PostMediaPreview used to: only a lightbox showing a video
+// needs the media stack.
+const VideoPlayer = lazy(() =>
+  import("@/components/VideoPlayer").then((mod) => ({ default: mod.VideoPlayer })),
+);
+
 export interface LightboxItem {
-  /** `video` is accepted by the type but not rendered yet — see the render switch. */
+  /** Videos play here; cards only show their poster. */
   type: "image" | "video";
   url: string;
   width?: number;
   height?: number;
   blurhash?: string | null;
+  /** A video's poster frame. */
+  poster?: string | null;
   alt?: string;
+}
+
+/**
+ * Whether a gesture started on the video player rather than on the lightbox.
+ * Taps anywhere on the player are its own (play, pause, unmute); drags only on
+ * its controls (seeking, volume), so a swipe across the picture still pages.
+ */
+function onPlayer(target: EventTarget | null, part: "player" | "controls") {
+  if (!(target instanceof Element)) return false;
+  return !!target.closest(
+    part === "player" ? "[data-lightbox-video]" : "[data-video-controls], button",
+  );
+}
+
+/** A video's box: fitted to the stage like an image, by CSS so resizing needs no JS. */
+function videoBoxStyle(item: LightboxItem): React.CSSProperties {
+  const w = item.width || 16;
+  const h = item.height || 9;
+  const pad = STAGE_PADDING * 2;
+  return {
+    aspectRatio: `${w} / ${h}`,
+    width: `min(calc(100vw - ${pad}px), calc((100dvh - ${pad}px) * ${w / h}))`,
+  };
 }
 
 interface LightboxProps {
@@ -144,6 +186,33 @@ export function Lightbox({
   const t = useTranslations("lightbox");
   const reduceMotion = useReducedMotion();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  /** The index the DOM currently shows; trails `currentIndex` until commit. */
+  const renderedIndexRef = useRef(initialIndex);
+  /** Set when the next index change should carry the strip offset with it. */
+  const shiftOnCommitRef = useRef(false);
+  /** True while the native horizontal scroll is moving the strip. */
+  const scrubbingRef = useRef(false);
+  /** The native scroller behind the stage; see handleNativeScroll. */
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  /** The item the native scroll has reached; leads `currentIndex` until commit. */
+  const scrollIndexRef = useRef(initialIndex);
+  /** A scrollLeft set from code, whose scroll event is only an echo. */
+  const echoScrollRef = useRef<number | null>(null);
+  /** The pending index change came from the scroller, which must not be moved to match it. */
+  const fromScrollRef = useRef(false);
+  /** Where mouse-wheel notches are taking the scroller, until it settles. */
+  const notchTargetRef = useRef<number | null>(null);
+
+  /** Scroll the native scroller to `index`, marking the scroll event as an echo. */
+  const placeScroller = useCallback((index: number) => {
+    scrollIndexRef.current = index;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const left = index * scroller.clientWidth;
+    if (Math.abs(scroller.scrollLeft - left) < 1) return;
+    echoScrollRef.current = left;
+    scroller.scrollLeft = left;
+  }, []);
   const [zoomed, setZoomed] = useState(false);
   const zoomedRef = useRef(false);
   /**
@@ -246,6 +315,7 @@ export function Lightbox({
   const appear = useMotionValue(0);
   const backdropOpacity = useTransform([dismiss, appear], ([d, a]: number[]) => (1 - d) * a);
   const stageScale = useTransform(dismiss, [0, 1], [1, 0.6]);
+  const neighbourOpacity = useTransform(dismiss, [0, 0.05], [1, 0]);
 
   const maxIndex = Math.max(0, items.length - 1);
   const hasPrev = currentIndex > 0;
@@ -273,6 +343,8 @@ export function Lightbox({
     index: currentIndex,
     item: currentItem,
     getSource,
+    onShownIndexChange,
+    openIndex: clampIndex(initialIndex, 0, Math.max(0, items.length - 1)),
     reduce: !!reduceMotion,
   });
   latest.current = {
@@ -284,6 +356,8 @@ export function Lightbox({
     index: currentIndex,
     item: currentItem,
     getSource,
+    onShownIndexChange,
+    openIndex,
     reduce: !!reduceMotion,
   };
 
@@ -410,7 +484,14 @@ export function Lightbox({
     // already told the card which thumbnail to hide.
     if (phaseRef.current !== "open") return;
     restBox();
-    onShownIndexChange?.(currentIndex);
+    // Low priority: the card re-renders to follow (hide the shown thumbnail,
+    // centre it in a carousel) and that render is heavy. As a transition it
+    // yields to the frames of a scroll or swipe still running on top. The
+    // report on opening stays urgent, since it is what hides the thumbnail
+    // the morph flies out of.
+    // Held while a horizontal scroll runs: it can pass several items in a
+    // second, and the card only needs the one it settles on.
+    if (!scrubbingRef.current) startTransition(() => onShownIndexChange?.(currentIndex));
   }, [currentIndex, resetZoom, restBox, onShownIndexChange]);
 
   /**
@@ -419,10 +500,13 @@ export function Lightbox({
    */
   useEffect(() => {
     if (phase !== "open") return;
-    const onResize = () => restBox();
+    const onResize = () => {
+      restBox();
+      placeScroller(scrollIndexRef.current);
+    };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [phase, restBox]);
+  }, [phase, restBox, placeScroller]);
 
   const goTo = useCallback(
     (delta: number) => {
@@ -584,7 +668,7 @@ export function Lightbox({
   const zoomAt = useCallback(
     (clientX: number, clientY: number, target: number) => {
       const stage = stageRef.current;
-      if (!stage) return;
+      if (!stage || latest.current.item?.type === "video") return;
 
       const next = clampScale(target, latest.current.maxScale);
       const base = zoom.get();
@@ -625,6 +709,90 @@ export function Lightbox({
     [zoom, zoomAt],
   );
 
+  /**
+   * Make `next` the current item while the strip keeps its place on screen.
+   *
+   * The neighbours sit one stage width either side, so the drag offset has to
+   * move by a width for every index step, in the same frame the new item is
+   * drawn. Rather than forcing that render synchronously, which stalled
+   * scrolling for a few hundred ms per item, the index updates on React's
+   * normal schedule and the layout effect below shifts the offset at commit,
+   * before paint.
+   */
+  const stepStrip = useCallback((next: number) => {
+    // Back to what is already drawn (a scroll that crossed and came straight
+    // back): cancel the pending change and its shift. React bails out of the
+    // commit, so the layout effect would never clear the flag itself.
+    shiftOnCommitRef.current = next !== renderedIndexRef.current;
+    setCurrentIndex(next);
+  }, []);
+
+  useLayoutEffect(() => {
+    const delta = currentIndex - renderedIndexRef.current;
+    renderedIndexRef.current = currentIndex;
+    if (!shiftOnCommitRef.current) return;
+    shiftOnCommitRef.current = false;
+    const width = stageRef.current?.getBoundingClientRect().width ?? 0;
+    dragX.set(dragX.get() + delta * width);
+  }, [currentIndex, dragX]);
+
+  // Arrows, keys, dots and touch swipes move the strip themselves; the
+  // scroller follows so the next trackpad scroll starts from the right item.
+  useLayoutEffect(() => {
+    if (fromScrollRef.current) {
+      fromScrollRef.current = false;
+      return;
+    }
+    placeScroller(currentIndex);
+  }, [currentIndex, placeScroller]);
+
+  const attachScroller = useCallback(
+    (node: HTMLDivElement | null) => {
+      scrollerRef.current = node;
+      if (node) placeScroller(latest.current.openIndex);
+    },
+    [placeScroller],
+  );
+
+  /**
+   * Mirror the native scroller into the stage. A trackpad's sideways scroll is
+   * the browser's own here: it follows the fingers, rests where they rest,
+   * carries the OS momentum once they lift and then snaps to an item, which no
+   * wheel handler can reproduce since wheel events say nothing about fingers
+   * touching or lifting. The stage stays put and its items follow scrollLeft:
+   * the rendered item sits at (rendered index - scroll position) stage widths.
+   */
+  const handleNativeScroll = () => {
+    const scroller = scrollerRef.current;
+    const width = scroller?.clientWidth ?? 0;
+    if (!scroller || !width) return;
+    const echo = echoScrollRef.current;
+    if (echo !== null) {
+      echoScrollRef.current = null;
+      if (Math.abs(scroller.scrollLeft - echo) < 1) return;
+    }
+    revealControls();
+    scrubbingRef.current = true;
+    const position = scroller.scrollLeft / width;
+    const index = clampIndex(Math.round(position), 0, latest.current.maxIndex);
+    if (index !== scrollIndexRef.current) {
+      scrollIndexRef.current = index;
+      fromScrollRef.current = index !== renderedIndexRef.current;
+      stepStrip(index);
+    }
+    dragX.stop();
+    dragX.set((renderedIndexRef.current - position) * width);
+  };
+
+  /** The card follows once the scroll settles, not at every item it passes. */
+  const handleNativeScrollEnd = () => {
+    notchTargetRef.current = null;
+    if (!scrubbingRef.current) return;
+    scrubbingRef.current = false;
+    const index = scrollIndexRef.current;
+    startTransition(() => latest.current.onShownIndexChange?.(index));
+  };
+
   const commitSwipe = useCallback(
     (intent: SwipeIntent, width: number) => {
       if (intent === "dismiss") {
@@ -632,23 +800,20 @@ export function Lightbox({
         return;
       }
       if (intent === "prev" || intent === "next") {
-        // Slide the current image out, swap while both positions are
-        // off-screen, then slide the new one in from the opposite edge, so the
-        // old image never flashes back at centre.
+        // Slide the strip until the neighbour sits at centre, then make it the
+        // current item; the commit carries the offset back to 0 (see
+        // stepStrip), so the old item never flashes back at centre.
         const direction = intent === "prev" ? 1 : -1;
         animate(dragX, direction * width, {
           ...SETTLE,
-          onComplete: () => {
-            setCurrentIndex((prev) => clampIndex(prev - direction, 0, latest.current.maxIndex));
-            dragX.set(-direction * width);
-            animate(dragX, 0, SETTLE);
-          },
+          onComplete: () =>
+            stepStrip(clampIndex(latest.current.index - direction, 0, latest.current.maxIndex)),
         });
         return;
       }
       settle();
     },
-    [dragX, requestClose, settle],
+    [dragX, requestClose, settle, stepStrip],
   );
 
   /** Page by one, with the same slide a swipe produces. */
@@ -691,6 +856,8 @@ export function Lightbox({
     mc.get("pinch").recognizeWith("pan");
 
     // Per-gesture state, scoped to this manager.
+    /** The drag belongs to the video player's controls; the lightbox sits it out. */
+    let onControls = false;
     let axis: "x" | "y" | null = null;
     let panningZoomed = false;
     let pinching = false;
@@ -710,7 +877,8 @@ export function Lightbox({
 
     mc.on("panstart", (event) => {
       revealControls();
-      if (pinching) return;
+      onControls = onPlayer(event.target, "controls");
+      if (pinching || onControls) return;
       measure();
       panningZoomed = zoom.get() > ZOOM_EPSILON;
       startPanX = panX.get();
@@ -720,7 +888,7 @@ export function Lightbox({
 
     mc.on("panmove", (event) => {
       revealControls();
-      if (pinching) return;
+      if (pinching || onControls) return;
 
       if (panningZoomed) {
         const scale = zoom.get();
@@ -743,6 +911,10 @@ export function Lightbox({
     });
 
     mc.on("panend", (event) => {
+      if (onControls) {
+        onControls = false;
+        return;
+      }
       if (pinching || panningZoomed) {
         panningZoomed = false;
         return;
@@ -768,6 +940,7 @@ export function Lightbox({
     });
 
     mc.on("pancancel", () => {
+      onControls = false;
       axis = null;
       panningZoomed = false;
       settle();
@@ -787,6 +960,7 @@ export function Lightbox({
     });
 
     mc.on("pinchmove", (event) => {
+      if (latest.current.item?.type === "video") return;
       const rect = measure();
       const next = clampScale(startZoom * event.scale, latest.current.maxScale);
       const cx = event.center.x - (rect.left + rect.width / 2);
@@ -813,6 +987,13 @@ export function Lightbox({
       if (closeTimer) {
         clearTimeout(closeTimer);
         closeTimer = null;
+      }
+
+      // A video has no zoom to wait a double-tap out for: taps on the player
+      // are the player's own, and anywhere else closes at once.
+      if (latest.current.item?.type === "video") {
+        if (!onPlayer(event.target, "player")) requestClose();
+        return;
       }
 
       if ((event.tapCount ?? 1) >= 2) {
@@ -972,9 +1153,33 @@ export function Lightbox({
   useEffect(() => {
     if (!stage) return;
 
+    const isNotch = createNotchDetector();
     const handleWheel = (event: WheelEvent) => {
-      event.preventDefault();
       revealControls();
+      // Line-mode deltas (some mice) are scaled to roughly pixels.
+      const dx = event.deltaMode === 1 ? event.deltaX * 16 : event.deltaX;
+      const dy = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
+      // Sideways belongs to the native scroller around the stage (see
+      // handleNativeScroll) and a trackpad is left to it, except while zoomed.
+      // A mouse wheel's notch would only be snapped back to the item it
+      // started from, so it moves the scroller one item on, smoothly (see
+      // lib/media/wheel-notch.ts); quick notches keep counting from where the
+      // last one is headed.
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (zoom.get() > ZOOM_EPSILON) {
+          event.preventDefault();
+          return;
+        }
+        const scroller = scrollerRef.current;
+        if (!scroller || !isNotch(dx, event.timeStamp)) return;
+        event.preventDefault();
+        const from = notchTargetRef.current ?? scrollIndexRef.current;
+        const target = clampIndex(from + (dx > 0 ? 1 : -1), 0, latest.current.maxIndex);
+        notchTargetRef.current = target;
+        scroller.scrollTo({ left: target * scroller.clientWidth, behavior: "smooth" });
+        return;
+      }
+      event.preventDefault();
       const current = zoom.get();
       zoomAt(
         event.clientX,
@@ -1033,34 +1238,37 @@ export function Lightbox({
           {/* Two pills, not one: zooming and closing are unrelated actions, and
               sharing a surface made the × read as part of the zoom group. */}
           <div className="absolute right-3 top-3 flex items-center gap-2">
-            <div
-              className={cn(
-                "flex items-center gap-0.5 rounded-full p-1",
-                CONTROL_SURFACE,
-                interactive,
-              )}
-            >
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => zoomFromCentre(1 / WHEEL_STEP)}
-                className={cn("h-8 w-8 rounded-full", CONTROL_HOVER)}
-                aria-label={t("zoomOut")}
+            {/* Zoom is for images; a video keeps only the close button. */}
+            {currentItem.type !== "video" && (
+              <div
+                className={cn(
+                  "flex items-center gap-0.5 rounded-full p-1",
+                  CONTROL_SURFACE,
+                  interactive,
+                )}
               >
-                <ZoomOut className="h-5 w-5" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => zoomFromCentre(WHEEL_STEP)}
-                className={cn("h-8 w-8 rounded-full", CONTROL_HOVER)}
-                aria-label={t("zoomIn")}
-              >
-                <ZoomIn className="h-5 w-5" />
-              </Button>
-            </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => zoomFromCentre(1 / WHEEL_STEP)}
+                  className={cn("h-8 w-8 rounded-full", CONTROL_HOVER)}
+                  aria-label={t("zoomOut")}
+                >
+                  <ZoomOut className="h-5 w-5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => zoomFromCentre(WHEEL_STEP)}
+                  className={cn("h-8 w-8 rounded-full", CONTROL_HOVER)}
+                  aria-label={t("zoomIn")}
+                >
+                  <ZoomIn className="h-5 w-5" />
+                </Button>
+              </div>
+            )}
             <div className={cn("rounded-full p-1", CONTROL_SURFACE, interactive)}>
               <Button
                 type="button"
@@ -1172,72 +1380,145 @@ export function Lightbox({
           </div>
         </div>
 
+        {/* The native horizontal scroller (see handleNativeScroll): one
+            stage-wide snap cell per item, behind the stage, which sticks in
+            place while the scroller moves underneath it. */}
         <div
-          ref={attachStage}
+          ref={attachScroller}
+          data-lightbox-scroller=""
+          onScroll={handleNativeScroll}
+          onScrollEnd={handleNativeScrollEnd}
           className={cn(
-            "absolute inset-0 overscroll-contain",
-            // The morph is the image moving, not an overlay, so the stage
-            // stays visible throughout — it just does not take gestures.
-            phase !== "open" && "pointer-events-none",
+            "absolute inset-0 grid snap-x snap-mandatory overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            // Zoomed, sideways is not paging; morphing, nothing may move.
+            zoomed || phase !== "open" ? "overflow-x-hidden" : "overflow-x-auto",
           )}
-          style={{ touchAction: "none" }}
+          style={{ gridTemplateRows: "100%" }}
         >
-          {/* Swipe layer: horizontal paging and swipe-to-dismiss. */}
-          <motion.div className="h-full w-full" style={{ x: dragX, y: dragY, scale: stageScale }}>
-            {/* Zoom layer, nested so a dismiss shrinks the zoomed image too. */}
+          <div className="flex h-full" style={{ gridArea: "1 / 1" }}>
+            {items.map((item) => (
+              <div key={item.url} aria-hidden className="h-full w-screen shrink-0 snap-center" />
+            ))}
+          </div>
+          <div
+            ref={attachStage}
+            className={cn(
+              "sticky left-0 h-full w-screen overscroll-contain",
+              // The morph is the image moving, not an overlay, so the stage
+              // stays visible throughout — it just does not take gestures.
+              phase !== "open" && "pointer-events-none",
+            )}
+            style={{ touchAction: "none", gridArea: "1 / 1" }}
+          >
+            {/* Swipe layer: horizontal paging and swipe-to-dismiss. */}
             <motion.div
-              className="flex h-full w-full items-center justify-center"
-              style={{ x: panX, y: panY, scale: zoom }}
+              className="relative h-full w-full"
+              style={{ x: dragX, y: dragY, scale: stageScale }}
             >
-              {/* ponytail: images only for now. Video preview is typed but not
-                      implemented — add a <VideoPlayer> branch here, and drop the
-                      `type !== "video"` filter in PostCard, when it lands. */}
-              {currentItem.type === "video" ? null : (
-                // The image box. Its geometry *is* the morph: it starts on
-                // the card thumbnail and grows to the fitted rect, so the
-                // one <img> below travels rather than handing off to a copy.
-                <motion.div
-                  ref={boxRef}
-                  className="overflow-hidden"
-                  style={{
-                    x: boxX,
-                    y: boxY,
-                    width: boxW,
-                    height: boxH,
-                    borderRadius: boxRadius,
-                  }}
-                >
-                  <img
-                    key={currentItem.url}
-                    ref={attachImage}
-                    src={currentItem.url}
-                    alt={currentItem.alt || t("imageAlt")}
-                    draggable={false}
-                    onLoad={(event) => measureImage(event.currentTarget)}
-                    className={cn(
-                      "h-full w-full select-none",
-                      // Cover once the box carries the image's own aspect,
-                      // which is what unwinds the card's crop on the way
-                      // out; contain only while the box still spans the
-                      // stage because the natural size is unknown.
-                      fitted ? "object-cover" : "object-contain",
-                      // Fitted, a click closes rather than zooms — only the
-                      // zoomed state earns a magnifier.
-                      zoomed ? "cursor-zoom-out active:cursor-grabbing" : "cursor-default",
-                    )}
+              {/* The neighbours ride along one stage width either side, so a drag
+                or a horizontal scroll shows the next item coming in instead of
+                an empty gap. A video's neighbour is its poster. */}
+              {(
+                [
+                  [-1, items[currentIndex - 1]],
+                  [1, items[currentIndex + 1]],
+                ] as const
+              ).map(([side, item]) => {
+                const src = item?.type === "video" ? item.poster : item?.url;
+                if (!src) return null;
+                return (
+                  <motion.div
+                    key={side}
+                    aria-hidden
+                    data-lightbox-neighbour={side}
+                    className="pointer-events-none absolute inset-0 flex items-center justify-center"
                     style={{
-                      // Zooming is exactly where interpolation ruins pixel art.
-                      imageRendering: pixelArtRendering(currentItem.width),
-                      backgroundImage: blurhashUrl ? `url(${blurhashUrl})` : undefined,
-                      backgroundSize: fitted ? "cover" : "contain",
-                      backgroundRepeat: "no-repeat",
-                      backgroundPosition: "center",
+                      x: `${side * 100}%`,
+                      opacity: neighbourOpacity,
+                      padding: STAGE_PADDING,
                     }}
-                  />
-                </motion.div>
-              )}
+                  >
+                    <img
+                      src={src}
+                      alt=""
+                      draggable={false}
+                      className="h-full w-full select-none object-contain"
+                      style={{ imageRendering: pixelArtRendering(item?.width) }}
+                    />
+                  </motion.div>
+                );
+              })}
+              {/* Zoom layer, nested so a dismiss shrinks the zoomed image too. */}
+              <motion.div
+                className="flex h-full w-full items-center justify-center"
+                style={{ x: panX, y: panY, scale: zoom }}
+              >
+                {currentItem.type === "video" ? (
+                  // Fitted like an image, but without the open/close morph or
+                  // zoom. Keyed per item so paging away unmounts (and stops) it.
+                  <div
+                    key={currentItem.url}
+                    data-lightbox-video=""
+                    className="overflow-hidden"
+                    style={videoBoxStyle(currentItem)}
+                  >
+                    <Suspense fallback={<div className="h-full w-full bg-black" />}>
+                      <VideoPlayer
+                        src={currentItem.url}
+                        width={currentItem.width ?? 16}
+                        height={currentItem.height ?? 9}
+                        poster={currentItem.poster}
+                        className="h-full w-full"
+                      />
+                    </Suspense>
+                  </div>
+                ) : (
+                  // The image box. Its geometry *is* the morph: it starts on
+                  // the card thumbnail and grows to the fitted rect, so the
+                  // one <img> below travels rather than handing off to a copy.
+                  <motion.div
+                    ref={boxRef}
+                    className="overflow-hidden"
+                    style={{
+                      x: boxX,
+                      y: boxY,
+                      width: boxW,
+                      height: boxH,
+                      borderRadius: boxRadius,
+                    }}
+                  >
+                    <img
+                      key={currentItem.url}
+                      ref={attachImage}
+                      src={currentItem.url}
+                      alt={currentItem.alt || t("imageAlt")}
+                      draggable={false}
+                      onLoad={(event) => measureImage(event.currentTarget)}
+                      className={cn(
+                        "h-full w-full select-none",
+                        // Cover once the box carries the image's own aspect,
+                        // which is what unwinds the card's crop on the way
+                        // out; contain only while the box still spans the
+                        // stage because the natural size is unknown.
+                        fitted ? "object-cover" : "object-contain",
+                        // Fitted, a click closes rather than zooms — only the
+                        // zoomed state earns a magnifier.
+                        zoomed ? "cursor-zoom-out active:cursor-grabbing" : "cursor-default",
+                      )}
+                      style={{
+                        // Zooming is exactly where interpolation ruins pixel art.
+                        imageRendering: pixelArtRendering(currentItem.width),
+                        backgroundImage: blurhashUrl ? `url(${blurhashUrl})` : undefined,
+                        backgroundSize: fitted ? "cover" : "contain",
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "center",
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </motion.div>
             </motion.div>
-          </motion.div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

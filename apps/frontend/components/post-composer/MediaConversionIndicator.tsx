@@ -11,7 +11,7 @@ interface MediaConversionIndicatorProps {
 /**
  * Conversion state overlaid on a media item in the composer.
  *
- * Sits at the top-left of the preview, opposite the remove button, and stays
+ * Takes the bottom-left corner the quality control leaves while it converts, and stays
  * visible rather than appearing on hover: that a video is still converting is
  * the reason the post button is disabled, so it has to be readable at a glance.
  * Hovering slides the exact percentage out to the right of the ring.
@@ -28,7 +28,7 @@ export function MediaConversionIndicator({ progress }: MediaConversionIndicatorP
 
   // Same disc as RemoveButton: bg-black/40, rounded-full, p-2 on every side.
   const shell =
-    "absolute top-2 left-2 z-10 flex items-center rounded-full bg-black/40 p-2 text-white";
+    "absolute bottom-2 left-2 z-10 flex items-center rounded-full bg-black/40 p-2 text-white";
 
   if (done) {
     return (

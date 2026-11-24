@@ -624,18 +624,18 @@ export function PostCard({
     .toUpperCase()
     .slice(0, 2);
 
-  // Lightbox items (only non-video media for now)
+  // Every attachment opens in the lightbox, videos included (they play there),
+  // so a lightbox index is the attachment's own index.
   const lightboxItems = useMemo(
     () =>
-      media
-        .filter((m) => m.type !== "video")
-        .map((item) => ({
-          type: item.type as "image" | "video",
-          url: item.url,
-          width: item.width,
-          height: item.height,
-          blurhash: item.blurhash,
-        })),
+      media.map((item) => ({
+        type: item.type as "image" | "video",
+        url: item.url,
+        width: item.width,
+        height: item.height,
+        blurhash: item.blurhash,
+        poster: item.thumbnailUrl,
+      })),
     [media],
   );
 
@@ -1133,6 +1133,9 @@ export function PostCard({
         media={previewMedia}
         onLightboxOpen={handleLightboxOpen}
         hiddenIndex={hiddenMediaIndex}
+        // From the click, not from the lightbox reporting in, so the carousel
+        // starts centring the item as the lightbox opens; then it follows.
+        focusIndex={lightboxOpen ? (hiddenMediaIndex ?? lightboxIndex) : null}
       />
     </div>
   );

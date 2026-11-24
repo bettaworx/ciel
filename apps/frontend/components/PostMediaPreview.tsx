@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "@/lib/i18n";
 import { Crop, X } from "lucide-react";
 import { BlurhashImage } from "@/components/BlurhashImage";
@@ -8,21 +8,13 @@ import { getBlurhashDataUrl } from "@/lib/blurhash";
 import { pixelArtRendering } from "@/lib/media/display";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import { lightboxIndices, mediaGridLayout } from "@/lib/media/layout";
+import { carouselItemRatio, GRID_CELLS, MAX_GRID_ITEMS } from "@/lib/media/layout";
+import { MediaCarousel } from "@/components/MediaCarousel";
+import { PlayMarkIcon, playMarkClass } from "@/components/PlayMark";
 import { MediaQualityControl } from "@/components/post-composer/MediaQualityPicker";
 import { MediaConversionIndicator } from "@/components/post-composer/MediaConversionIndicator";
 import type { PreviewMediaItem } from "@/components/post-composer/types";
 import type { QualityMode } from "@/components/post-composer/MediaQualityPicker";
-
-// Split out because it pulls in the media stack, which most timelines never
-// need.
-const VideoPlayer = lazy(() =>
-  import("@/components/VideoPlayer").then((mod) => ({ default: mod.VideoPlayer })),
-);
-
-function VideoPlayerFallback() {
-  return <div className="w-full h-full bg-muted animate-pulse rounded-xl" />;
-}
 
 export interface PostMediaPreviewProps {
   /** List of media items to render. */
@@ -49,6 +41,11 @@ export interface PostMediaPreviewProps {
    * to its blurhash so the same image is never painted twice on screen at once.
    */
   hiddenIndex?: number | null;
+  /**
+   * The item the lightbox has open, which a carousel keeps centred: set from
+   * the click that opens it, then following every move inside it.
+   */
+  focusIndex?: number | null;
   /** Additional class name for the outer wrapper. */
   className?: string;
   /** CSS length the whole preview must fit within; narrows it instead of letting it overflow. */
@@ -124,12 +121,14 @@ function computeMediaStyle(
  * Images and videos share one ordered list (up to 20 per post), in any mix:
  * - 1 item: its own aspect ratio (clamped 3:4 to 21:9), max 512px tall on desktop
  * - 2-4 items: the side-by-side, 1+2 and 2×2 layouts
- * - 5+ items: a 3-column grid of squares, every item visible
- * See mediaGridLayout in lib/media/layout.ts.
+ * - 5+ items: a swipeable carousel (MediaCarousel); landscape slides are capped
+ *   at 4:3, portrait images keep their shape (videos stop at 3:4)
+ * See lib/media/layout.ts.
  *
- * Videos play in their own cell; the lightbox only takes images, so lightbox
- * indices count images alone. In `editable` mode the edit controls are
- * overlaid on each item.
+ * Outside the composer a video shows its poster with a play mark, and opens in
+ * the lightbox like an image does, so cell and lightbox indices are the same.
+ * In `editable` mode (the composer, which has no lightbox) a video plays in
+ * place, and the edit controls are overlaid on each item.
  */
 export function PostMediaPreview({
   media,
@@ -139,14 +138,13 @@ export function PostMediaPreview({
   onQualityChange,
   onLightboxOpen,
   hiddenIndex,
+  focusIndex,
   className,
   maxHeight,
 }: PostMediaPreviewProps) {
   const tLightbox = useTranslations("lightbox");
   const tCompose = useTranslations("createPost");
   const isDesktop = useMediaQuery("(min-width: 640px)");
-
-  const lightboxIndex = useMemo(() => lightboxIndices(media.map((m) => m.type)), [media]);
 
   const singleStyle = useMemo(
     () =>
@@ -162,7 +160,7 @@ export function PostMediaPreview({
   const cropLabel = tCompose("cropImage");
 
   const getImageCursorClass = (item: PreviewMediaItem) => {
-    if (onLightboxOpen) return "cursor-zoom-in";
+    if (onLightboxOpen) return item.type === "video" ? "cursor-pointer" : "cursor-zoom-in";
     if (editable && onCrop && !item.isAnimated) return "cursor-pointer";
     return undefined;
   };
@@ -197,22 +195,30 @@ export function PostMediaPreview({
   const hiddenClass = (index: number) => (isHidden(index) ? "invisible" : undefined);
 
   /**
-   * Controls overlaid on an image in editable mode. Animated images skip the
+   * Controls overlaid on an item in editable mode. Animated images skip the
    * quality and crop controls: they are passed through to the server untouched.
+   * Videos cannot be cropped, and show their conversion progress in place of
+   * the quality control while converting.
    */
   const renderEditOverlay = (item: PreviewMediaItem) => {
     if (!editable) return null;
+    const isVideo = item.type === "video";
     return (
       <>
-        {onQualityChange && !item.isAnimated && (
-          <MediaQualityControl
-            kind="image"
-            value={item.quality ?? "balance"}
-            allowNone={item.allowNoConversion}
-            onChange={(mode) => onQualityChange(item.id, mode)}
-          />
+        {isVideo && item.conversionProgress != null ? (
+          <MediaConversionIndicator progress={item.conversionProgress} />
+        ) : (
+          onQualityChange &&
+          !item.isAnimated && (
+            <MediaQualityControl
+              kind={item.type}
+              value={item.quality ?? "balance"}
+              allowNone={item.allowNoConversion}
+              onChange={(mode) => onQualityChange(item.id, mode)}
+            />
+          )
         )}
-        {onCrop && !item.isAnimated && (
+        {onCrop && !isVideo && !item.isAnimated && (
           <CropButton onClick={() => onCrop(item.id)} label={cropLabel} />
         )}
         {onRemove && <RemoveButton onClick={() => onRemove(item.id)} label={removeLabel} />}
@@ -225,7 +231,7 @@ export function PostMediaPreview({
     // parent is the element that carries the rect, the rounding and the index.
     const action: ((e: React.MouseEvent<HTMLButtonElement>) => void) | null = onLightboxOpen
       ? (e) => onLightboxOpen(index, e.currentTarget.parentElement)
-      : editable && onCrop && !item.isAnimated
+      : editable && onCrop && item.type === "image" && !item.isAnimated
         ? () => onCrop(item.id)
         : null;
 
@@ -236,7 +242,9 @@ export function PostMediaPreview({
         type="button"
         onClick={action}
         className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        aria-label={onLightboxOpen ? tLightbox("open") : cropLabel}
+        aria-label={
+          onLightboxOpen ? tLightbox(item.type === "video" ? "openVideo" : "open") : cropLabel
+        }
       />
     );
   };
@@ -249,61 +257,52 @@ export function PostMediaPreview({
     sizes: string,
     style?: React.CSSProperties,
   ) => {
-    const li = lightboxIndex[i];
-    // null exactly for videos, which play in place instead of in the lightbox.
-    if (li === null) {
-      return (
-        <div
-          key={item.id}
-          className={cn("relative bg-muted overflow-hidden group", cellClass)}
-          style={style}
-        >
-          <Suspense fallback={<VideoPlayerFallback />}>
-            <VideoPlayer
-              src={item.url}
-              width={item.width}
-              height={item.height}
-              poster={item.thumbnailUrl}
-              className="w-full h-full"
-            />
-          </Suspense>
-          {item.conversionProgress != null ? (
-            <MediaConversionIndicator progress={item.conversionProgress} />
-          ) : (
-            editable &&
-            onQualityChange && (
-              <MediaQualityControl
-                kind="video"
-                value={item.quality ?? "balance"}
-                allowNone={item.allowNoConversion}
-                onChange={(mode) => onQualityChange(item.id, mode)}
-              />
-            )
-          )}
-          {editable && onRemove && (
-            <RemoveButton onClick={() => onRemove(item.id)} label={removeLabel} />
-          )}
-        </div>
-      );
-    }
+    const isVideo = item.type === "video";
+    // Every cell is a still: the image itself, or a video's poster with a play
+    // mark. Videos only play in the lightbox. Clicking opens it, or crops an
+    // image in the composer, which has no lightbox.
+    const still = isVideo ? item.thumbnailUrl : item.url;
     return (
       <div
         key={item.id}
-        className={cn("relative overflow-hidden group", cellClass)}
-        {...lightboxIndexAttr(li)}
-        style={{ ...style, ...hiddenStyle(li, item) }}
+        className={cn("relative overflow-hidden group/media", isVideo && "bg-muted", cellClass)}
+        {...lightboxIndexAttr(i)}
+        style={{ ...style, ...hiddenStyle(i, item) }}
       >
-        <BlurhashImage
-          blurhash={item.blurhash}
-          src={item.url}
-          style={{ imageRendering: pixelArtRendering(item.width) }}
-          alt=""
-          fill
-          unoptimized
-          className={cn("object-cover", hiddenClass(li), getImageCursorClass(item))}
-          sizes={sizes}
-        />
-        {renderImageActionOverlay(item, li)}
+        {still && (
+          <BlurhashImage
+            blurhash={item.blurhash}
+            src={still}
+            style={{ imageRendering: pixelArtRendering(item.width) }}
+            alt=""
+            fill
+            unoptimized
+            className={cn("object-cover", hiddenClass(i), getImageCursorClass(item))}
+            sizes={sizes}
+          />
+        )}
+        {/* A video picked in the composer has no server thumbnail yet: its own
+            first frame stands in, without any player controls. */}
+        {isVideo && !still && (
+          <video
+            src={item.url}
+            muted
+            playsInline
+            preload="auto"
+            aria-hidden
+            className={cn("absolute inset-0 h-full w-full object-cover", hiddenClass(i))}
+          />
+        )}
+        {/* The player's own play button, reacting to hover on the cell. */}
+        {isVideo && (
+          <span
+            aria-hidden
+            className={cn(playMarkClass("cell"), "pointer-events-none", hiddenClass(i))}
+          >
+            <PlayMarkIcon />
+          </span>
+        )}
+        {renderImageActionOverlay(item, i)}
         {renderEditOverlay(item)}
       </div>
     );
@@ -323,20 +322,36 @@ export function PostMediaPreview({
     );
   }
 
-  const layout = mediaGridLayout(media.length);
-  // Capping the width at the grid's overall ratio is what caps its height.
+  if (media.length > MAX_GRID_ITEMS) {
+    return (
+      <MediaCarousel className={className} maxHeight={maxHeight} focusIndex={focusIndex}>
+        {media.map((item, i) =>
+          renderCell(
+            item,
+            i,
+            // min-w: two corner radii, the floor for an uncapped portrait image.
+            // max-w: never wider than the track, or an end slide could not rest
+            // flush with its edge (see carouselSnapPoints).
+            "h-full min-w-[calc(var(--radius-xl)*2)] max-w-full flex-none snap-center rounded-xl",
+            "(max-width: 600px) 75vw, 384px",
+            {
+              aspectRatio: `${carouselItemRatio(item.width, item.height, item.type)}`,
+            },
+          ),
+        )}
+      </MediaCarousel>
+    );
+  }
+
+  const cells = GRID_CELLS[media.length as 2 | 3 | 4];
+  // The 2-4 grids are all ~16:9 overall, so capping the width caps the height.
   const gridStyle: React.CSSProperties | undefined = maxHeight
-    ? { maxWidth: `calc(${maxHeight} * ${layout.ratio})` }
+    ? { maxWidth: `calc(${maxHeight} * 16 / 9)` }
     : undefined;
-  const sizes =
-    layout.columns === 3 ? "(max-width: 600px) 33vw, 200px" : "(max-width: 600px) 50vw, 300px";
 
   return (
-    <div
-      className={cn("grid gap-1", layout.columns === 3 ? "grid-cols-3" : "grid-cols-2", className)}
-      style={gridStyle}
-    >
-      {media.map((item, i) => renderCell(item, i, layout.cells[i], sizes))}
+    <div className={cn("grid grid-cols-2 gap-1", className)} style={gridStyle}>
+      {media.map((item, i) => renderCell(item, i, cells[i], "(max-width: 600px) 50vw, 300px"))}
     </div>
   );
 }

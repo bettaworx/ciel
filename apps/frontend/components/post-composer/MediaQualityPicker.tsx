@@ -83,9 +83,9 @@ export function MediaQualityControl({
       onClick={(e) => e.stopPropagation()}
       aria-label={title}
       className={cn(
-        "absolute left-2 z-10 flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 text-[11px] text-white sm:px-2.5 sm:py-1.5 sm:text-xs transition-colors hover:bg-black/60",
-        // The video player's own control bar sits along the bottom edge.
-        kind === "video" ? "top-2" : "bottom-2",
+        // Bottom-left for videos too: previews show a video as a still, with
+        // no player control bar along that edge.
+        "absolute bottom-2 left-2 z-10 flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 text-[11px] text-white sm:px-2.5 sm:py-1.5 sm:text-xs transition-colors hover:bg-black/60",
       )}
     >
       <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
