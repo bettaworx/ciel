@@ -125,10 +125,10 @@ function computeMediaStyle(
  *   at 4:3, portrait images keep their shape (videos stop at 3:4)
  * See lib/media/layout.ts.
  *
- * Outside the composer a video shows its poster with a play mark, and opens in
- * the lightbox like an image does, so cell and lightbox indices are the same.
- * In `editable` mode (the composer, which has no lightbox) a video plays in
- * place, and the edit controls are overlaid on each item.
+ * A video is a still with a play mark: its poster, or in the composer (where no
+ * thumbnail exists yet) its own first frame. Outside the composer it opens in
+ * the lightbox like an image does, so cell and lightbox indices are the same;
+ * in `editable` mode the edit controls are overlaid on each item instead.
  */
 export function PostMediaPreview({
   media,
@@ -330,9 +330,8 @@ export function PostMediaPreview({
             item,
             i,
             // min-w: two corner radii, the floor for an uncapped portrait image.
-            // max-w: never wider than the track, or an end slide could not rest
-            // flush with its edge (see carouselSnapPoints).
-            "h-full min-w-[calc(var(--radius-xl)*2)] max-w-full flex-none snap-center rounded-xl",
+            // max-w: never wider than the track, so a slide is always seen whole.
+            "h-full min-w-[calc(var(--radius-xl)*2)] max-w-full flex-none rounded-xl",
             "(max-width: 600px) 75vw, 384px",
             {
               aspectRatio: `${carouselItemRatio(item.width, item.height, item.type)}`,

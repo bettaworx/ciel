@@ -1,155 +1,84 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import useEmblaCarousel from "embla-carousel-react";
+import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "@/lib/i18n";
-import { carouselEdges, carouselSnapPoints, carouselStepTarget } from "@/lib/media/layout";
-import { createNotchDetector } from "@/lib/media/wheel-notch";
+import { WheelNotchPlugin } from "@/lib/media/wheel-notch";
 import { cn } from "@/lib/utils";
 
 interface MediaCarouselProps {
-  /**
-   * Slides, as direct children; each sizes itself from the track height and
-   * its aspect ratio, and carries `snap-center`.
-   */
+  /** Slides; each sizes itself from the track height and its aspect ratio. */
   children: ReactNode;
   className?: string;
   /** CSS length capping the track height (the slides follow it), e.g. inside the composer dialog. */
   maxHeight?: string;
   /**
-   * A slide to bring to rest, centred; null leaves the track where it is. The
-   * card passes the slide its lightbox is showing, so the carousel follows the
+   * A slide to bring to rest; null leaves the carousel where it is. The card
+   * passes the item its lightbox has open, so the carousel follows the
    * lightbox from the moment it opens and through every move inside it.
    */
   focusIndex?: number | null;
 }
 
-/** Where the track rests for each slide; see carouselSnapPoints. */
-function snapPointsOf(track: HTMLElement) {
-  // The track is `relative`, so offsetLeft is a slide's start in scroll coordinates.
-  const slides = Array.from(track.children as HTMLCollectionOf<HTMLElement>, (slide) => ({
-    start: slide.offsetLeft,
-    width: slide.offsetWidth,
-  }));
-  return carouselSnapPoints(slides, track.clientWidth, track.scrollWidth - track.clientWidth);
-}
-
 /**
- * Horizontal strip for five or more attachments.
+ * Horizontal strip for five or more attachments, on Embla.
  *
- * Swipe and horizontal scrolling are the browser's own overflow scrolling, and
- * CSS scroll snapping settles every gesture with a slide centred. The browser
- * clamps snap positions to the scroll range and the track is not padded, so
- * the first slide rests flush left and the last flush right instead of being
- * pulled to the middle. The arrow buttons step one slide at a time to the same
- * positions (carouselSnapPoints, carouselStepTarget).
+ * Swipe, mouse drag, a trackpad (WheelGesturesPlugin, which releases on its
+ * momentum), mouse-wheel notches (WheelNotchPlugin, one slide each) and the
+ * arrow buttons all move it, and it settles with a slide centred. `trimSnaps` drops the
+ * snap points that would leave empty track at either end, so the first slide
+ * rests flush left and the last flush right instead of being pulled to the
+ * middle.
  */
 export function MediaCarousel({ children, className, maxHeight, focusIndex }: MediaCarouselProps) {
   const t = useTranslations("mediaCarousel");
-  const trackRef = useRef<HTMLDivElement>(null);
-  /** Where an arrow-started smooth scroll is headed, until it gets there. */
-  const pendingRef = useRef<number | null>(null);
-  const [edges, setEdges] = useState({ atStart: true, atEnd: true });
+  // skipSnaps: a long scroll or a strong flick may carry past several slides.
+  const [viewportRef, api] = useEmblaCarousel(
+    { align: "center", containScroll: "trimSnaps", skipSnaps: true },
+    [WheelNotchPlugin(), WheelGesturesPlugin()],
+  );
+  const [edges, setEdges] = useState({ canPrev: false, canNext: false });
 
-  const updateEdges = useCallback(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const next = carouselEdges(track.scrollLeft, track.scrollWidth - track.clientWidth);
-    setEdges((prev) => (prev.atStart === next.atStart && prev.atEnd === next.atEnd ? prev : next));
-  }, []);
-
-  // After every render, since slides may have been added or removed (composer).
   useEffect(() => {
-    updateEdges();
-  });
-
-  // When the card changes width, and when any scroll settles: a swipe that
-  // interrupts an arrow step must not leave its target behind.
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const observer = new ResizeObserver(updateEdges);
-    observer.observe(track);
-    const settled = () => {
-      pendingRef.current = null;
-      updateEdges();
-    };
-    track.addEventListener("scrollend", settled);
+    if (!api) return;
+    const update = () => setEdges({ canPrev: api.canScrollPrev(), canNext: api.canScrollNext() });
+    update();
+    api.on("select", update).on("reInit", update);
     return () => {
-      observer.disconnect();
-      track.removeEventListener("scrollend", settled);
+      api.off("select", update).off("reInit", update);
     };
-  }, [updateEdges]);
-
-  const handleScroll = () => {
-    const track = trackRef.current;
-    // Arrival also ends a step, for browsers without `scrollend`.
-    if (
-      track &&
-      pendingRef.current !== null &&
-      Math.abs(track.scrollLeft - pendingRef.current) < 1
-    ) {
-      pendingRef.current = null;
-    }
-    updateEdges();
-  };
-
-  /** Smooth-scroll to `left`, remembering it until the track gets there. */
-  const scrollToPoint = useCallback((left: number) => {
-    const track = trackRef.current;
-    if (!track) return;
-    pendingRef.current = left;
-    track.scrollTo({ left, behavior: "smooth" });
-  }, []);
-
-  // A trackpad scrolls the track natively. A mouse wheel's notch would only
-  // be snapped back to the slide it started from, so it steps one slide like
-  // an arrow does (see lib/media/wheel-notch.ts).
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const isNotch = createNotchDetector();
-    const onWheel = (event: WheelEvent) => {
-      const dx = event.deltaMode === 1 ? event.deltaX * 16 : event.deltaX;
-      if (Math.abs(dx) <= Math.abs(event.deltaY) || !isNotch(dx, event.timeStamp)) return;
-      event.preventDefault();
-      const from = pendingRef.current ?? track.scrollLeft;
-      scrollToPoint(carouselStepTarget(snapPointsOf(track), from, dx > 0 ? 1 : -1));
-    };
-    track.addEventListener("wheel", onWheel, { passive: false });
-    return () => track.removeEventListener("wheel", onWheel);
-  }, [scrollToPoint]);
-
-  const step = (direction: 1 | -1) => {
-    const track = trackRef.current;
-    if (!track) return;
-    // Count from the step still in flight, so every press moves one more slide.
-    const from = pendingRef.current ?? track.scrollLeft;
-    scrollToPoint(carouselStepTarget(snapPointsOf(track), from, direction));
-  };
+  }, [api]);
 
   useEffect(() => {
-    const track = trackRef.current;
-    if (!track || focusIndex == null) return;
-    const target = snapPointsOf(track)[focusIndex];
-    if (target !== undefined) scrollToPoint(target);
-  }, [focusIndex, scrollToPoint]);
+    if (!api || focusIndex == null) return;
+    // Snaps, not slides: slides sharing a trimmed snap at an end rest together.
+    const snap = api
+      .internalEngine()
+      .slideRegistry.findIndex((slides) => slides.includes(focusIndex));
+    if (snap >= 0) api.scrollTo(snap);
+  }, [api, focusIndex]);
 
   return (
     <div className={cn("relative", className)}>
-      {/* Rounded and clipping, so a slide cut off by either edge mid-scroll
+      {/* Rounded and clipping, so a slide cut off by either edge mid-move
           keeps a rounded corner there instead of a square one. */}
-      <div
-        ref={trackRef}
-        onScroll={handleScroll}
-        data-media-carousel=""
-        className="relative flex h-56 gap-1 overflow-x-auto overscroll-x-contain rounded-xl snap-x snap-mandatory [scrollbar-width:none] sm:h-72 [&::-webkit-scrollbar]:hidden"
-        style={maxHeight ? { maxHeight } : undefined}
-      >
-        {children}
+      <div ref={viewportRef} className="overflow-hidden rounded-xl">
+        <div
+          data-media-carousel=""
+          className="flex h-56 gap-1 sm:h-72"
+          style={maxHeight ? { maxHeight } : undefined}
+        >
+          {children}
+        </div>
       </div>
-      {!edges.atStart && <ArrowButton side="left" label={t("previous")} onClick={() => step(-1)} />}
-      {!edges.atEnd && <ArrowButton side="right" label={t("next")} onClick={() => step(1)} />}
+      {edges.canPrev && (
+        <ArrowButton side="left" label={t("previous")} onClick={() => api?.scrollPrev()} />
+      )}
+      {edges.canNext && (
+        <ArrowButton side="right" label={t("next")} onClick={() => api?.scrollNext()} />
+      )}
     </div>
   );
 }

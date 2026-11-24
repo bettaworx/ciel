@@ -9,7 +9,7 @@ describe("createNotchDetector", () => {
     expect(isNotch(48, 400)).toBe(true); // 3 lines of 16px
   });
 
-  it("leaves a trackpad's small and fractional deltas to the browser", () => {
+  it("leaves a trackpad's small and fractional deltas alone", () => {
     const isNotch = createNotchDetector();
     expect(isNotch(3, 0)).toBe(false);
     expect(isNotch(12.5, 16)).toBe(false);
