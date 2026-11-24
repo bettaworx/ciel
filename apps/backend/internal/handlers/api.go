@@ -1439,18 +1439,22 @@ func (h API) PostSetupCreateAdmin(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("creating admin account", "remote_addr", r.RemoteAddr)
 
-	user, token, err := h.Setup.CreateAdminAccount(r.Context(), req.SetupToken, req.Username, req.Password)
+	login, refreshToken, err := h.Setup.CreateAdminAccount(r.Context(), req.SetupToken, req.Username, req.Password)
 	if err != nil {
 		slog.Error("failed to create admin account", "error", err, "username", req.Username)
 		writeServiceError(w, err)
 		return
 	}
 
-	slog.Info("admin account created successfully", "user_id", user.Id, "username", user.Username)
+	slog.Info("admin account created successfully", "user_id", login.User.Id, "username", login.User.Username)
 
+	// The wizard reloads and continues as this admin, so the session has to be
+	// established here exactly as PostAuthLoginFinish does.
+	setAuthCookie(w, r, login.AccessToken, login.ExpiresInSeconds)
+	setRefreshCookie(w, r, refreshToken, 30*24*60*60)
 	writeJSON(w, http.StatusCreated, map[string]interface{}{
-		"user":  user,
-		"token": token,
+		"user":  login.User,
+		"token": login.AccessToken,
 	})
 }
 
