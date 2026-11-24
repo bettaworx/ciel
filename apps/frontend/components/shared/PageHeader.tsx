@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@/lib/i18n";
 import { useRouter } from "@/lib/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ type PageHeaderProps = {
 
 export function PageHeader({ children, backHref, showBackButton = true, action }: PageHeaderProps) {
   const router = useRouter();
+  const t = useTranslations("common");
   const chrome = useContext(PageChromeContext);
 
   return (
@@ -55,7 +57,7 @@ export function PageHeader({ children, backHref, showBackButton = true, action }
             variant="ghost"
             size="icon"
             onClick={() => (backHref ? router.push(backHref) : router.back())}
-            aria-label="Go back"
+            aria-label={t("back")}
             className="shrink-0"
           >
             <ChevronLeft className="w-5 h-5" />
