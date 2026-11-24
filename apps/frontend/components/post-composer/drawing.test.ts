@@ -62,13 +62,13 @@ describe("drawing stabilization", () => {
 });
 
 describe("drawing preferences", () => {
-  function useStored(value: string | null) {
+  function stubStored(value: string | null) {
     vi.stubGlobal("window", {});
     vi.stubGlobal("localStorage", { getItem: vi.fn(() => value) });
   }
 
   it("loads pencil and eraser stabilization independently", () => {
-    useStored(JSON.stringify({ pencilStabilization: 20, eraserStabilization: 80 }));
+    stubStored(JSON.stringify({ pencilStabilization: 20, eraserStabilization: 80 }));
     expect(readDrawingPreferences()).toMatchObject({
       pencilStabilization: 20,
       eraserStabilization: 80,
@@ -76,16 +76,16 @@ describe("drawing preferences", () => {
   });
 
   it("falls back for legacy, malformed, and out-of-range stored values", () => {
-    useStored(JSON.stringify({ pencilStabilization: -1, eraserStabilization: 101 }));
+    stubStored(JSON.stringify({ pencilStabilization: -1, eraserStabilization: 101 }));
     expect(readDrawingPreferences()).toMatchObject({
       pencilStabilization: DEFAULT_DRAWING_PREFERENCES.pencilStabilization,
       eraserStabilization: DEFAULT_DRAWING_PREFERENCES.eraserStabilization,
     });
 
-    useStored("not json");
+    stubStored("not json");
     expect(readDrawingPreferences()).toEqual(DEFAULT_DRAWING_PREFERENCES);
 
-    useStored(JSON.stringify({ pencilSize: 12, eraserSize: 40 }));
+    stubStored(JSON.stringify({ pencilSize: 12, eraserSize: 40 }));
     expect(readDrawingPreferences()).toMatchObject({
       pencilStabilization: DEFAULT_DRAWING_PREFERENCES.pencilStabilization,
       eraserStabilization: DEFAULT_DRAWING_PREFERENCES.eraserStabilization,
