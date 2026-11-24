@@ -8,8 +8,20 @@ import type { ImageQualityMode, VideoQualityMode } from "@/lib/media/normalize";
  * Types for post composition
  */
 
-export interface LocalImage {
+/** What every composer attachment has, whether it is an image or a video. */
+interface LocalMediaBase {
   localId: string;
+  /** The file that will be uploaded. */
+  file: File;
+  previewUrl: string; // Object URL (blob:)
+  width: number;
+  height: number;
+  /** True when the file already suits the server and may be uploaded untouched. */
+  canSkipConversion: boolean;
+}
+
+export interface LocalImage extends LocalMediaBase {
+  type: "image";
   originalFile: File;
   originalPreviewUrl: string; // Object URL (blob:) for original file
   croppedFile: File | null;
@@ -17,35 +29,29 @@ export interface LocalImage {
   crop: Crop | null;
   cropTransform: Transform | null;
   cropAspectId: AspectRatioId | null;
-  file: File;
-  previewUrl: string; // Object URL (blob:)
   isAnimated: boolean; // true for GIF and other animated image formats
   /** How hard to compress on upload; chosen per image from the preview. */
   quality: ImageQualityMode;
-  /** True when the file already suits the server and may be uploaded untouched. */
-  canSkipConversion: boolean;
-  width: number;
-  height: number;
 }
 
-export interface LocalVideo {
-  localId: string;
-  /** The original file until conversion finishes, then the normalized WebM/MP4. */
-  file: File;
-  previewUrl: string; // Object URL (blob:) of the *original* file
-  width: number;
-  height: number;
+export interface LocalVideo extends LocalMediaBase {
+  type: "video";
+  // `file` is the original until conversion finishes, then the normalized
+  // WebM/MP4; `previewUrl` always points at the original.
   /** True while the file is being converted on submit. */
   converting: boolean;
   /** Conversion progress, 0-1. */
   progress: number;
   /** How hard to compress on upload; chosen from the preview. */
   quality: VideoQualityMode;
-  /** True when the file already suits the server and may be uploaded untouched. */
-  canSkipConversion: boolean;
 }
 
-export type LocalMedia = { kind: "image"; data: LocalImage } | { kind: "video"; data: LocalVideo };
+/**
+ * One attachment in the composer. Images and videos are both media: they share
+ * one ordered list and one per-post limit, and `type` says which it is, as on
+ * the API's Media.
+ */
+export type LocalMedia = LocalImage | LocalVideo;
 
 /**
  * Unified media item type used by the shared PostMediaPreview component.

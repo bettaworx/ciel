@@ -61,8 +61,7 @@ interface MediaQualityControlProps {
  * Compression control overlaid on an attachment in the composer.
  *
  * Sits in the same disc as the remove button, at the opposite corner, and opens
- * a dropdown on desktop or a sheet on touch — the same split
- * MediaUploadOverflowMenu makes for the upload buttons.
+ * a dropdown on desktop or a sheet on touch.
  */
 export function MediaQualityControl({
   kind,
