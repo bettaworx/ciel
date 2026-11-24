@@ -58,7 +58,9 @@ TWITTER_FRAME="https://platform.twitter.com https://syndication.twitter.com"
 # Each directive can be overridden wholesale from the environment; the defaults
 # are what the app actually needs.
 CSP="default-src ${CSP_DEFAULT_SRC:-'self'}"
-CSP="$CSP; script-src ${CSP_SCRIPT_SRC:-'self' $TWITTER_SCRIPT}"
+# 'wasm-unsafe-eval' lets the WebP encoder (libwebp compiled to WASM) start;
+# without it every image upload falls back to the browser's canvas encoder.
+CSP="$CSP; script-src ${CSP_SCRIPT_SRC:-'self' 'wasm-unsafe-eval' $TWITTER_SCRIPT}"
 CSP="$CSP; style-src ${CSP_STYLE_SRC:-'self' 'unsafe-inline'}"
 # Backend origins are appended unconditionally: the browser talks directly to
 # the backend for API calls, media and the WebSocket, so omitting them breaks
