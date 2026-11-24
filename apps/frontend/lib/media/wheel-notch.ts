@@ -8,9 +8,11 @@ type EmblaApi = NonNullable<UseEmblaCarouselType[1]>;
  * a notch has to turn the slide itself. A trackpad sends a stream of small or
  * fractional deltas instead, and is left to that plugin.
  *
- * A notch is a whole-pixel delta of NOTCH_MIN_PX or more. A big delta in the
- * middle of a trackpad stream (a fast flick) still belongs to the trackpad:
- * anything within FINE_GAP_MS of a fine delta counts as trackpad.
+ * A notch is a whole number of device pixels, NOTCH_MIN_PX or more. Measured
+ * in device pixels because the browser reports CSS pixels: at 150% scaling a
+ * 100px notch arrives as 66.67. A big delta in the middle of a trackpad stream
+ * (a fast flick) still belongs to the trackpad: anything within FINE_GAP_MS of
+ * a fine delta counts as trackpad.
  */
 export const NOTCH_MIN_PX = 40;
 export const FINE_GAP_MS = 150;
@@ -18,8 +20,9 @@ export const FINE_GAP_MS = 150;
 /** One detector per carousel: it remembers when the last fine delta arrived. */
 export function createNotchDetector() {
   let fineUntil = -Infinity;
-  return (dx: number, now: number): boolean => {
-    const notchSized = Math.abs(dx) >= NOTCH_MIN_PX && Number.isInteger(dx);
+  return (dx: number, now: number, pixelRatio = 1): boolean => {
+    const device = Math.abs(dx) * pixelRatio;
+    const notchSized = device >= NOTCH_MIN_PX && Math.abs(device - Math.round(device)) < 0.01;
     if (!notchSized) {
       fineUntil = now + FINE_GAP_MS;
       return false;
@@ -46,7 +49,7 @@ export function WheelNotchPlugin(enabled: () => boolean = () => true) {
       const listener = (event: WheelEvent) => {
         const dx = event.deltaMode === 1 ? event.deltaX * 16 : event.deltaX;
         if (Math.abs(dx) <= Math.abs(event.deltaY)) return;
-        if (!isNotch(dx, event.timeStamp) || !enabled()) return;
+        if (!isNotch(dx, event.timeStamp, window.devicePixelRatio) || !enabled()) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         if (dx > 0) embla.scrollNext();

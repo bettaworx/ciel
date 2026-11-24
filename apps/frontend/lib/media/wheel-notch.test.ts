@@ -9,6 +9,15 @@ describe("createNotchDetector", () => {
     expect(isNotch(48, 400)).toBe(true); // 3 lines of 16px
   });
 
+  it("measures in device pixels, so scaled screens still see notches", () => {
+    const isNotch = createNotchDetector();
+    // A 100px notch at 150% and 300% scaling, reported in CSS pixels.
+    expect(isNotch(100 / 1.5, 0, 1.5)).toBe(true);
+    expect(isNotch(100 / 3, 400, 3)).toBe(true);
+    // A fractional trackpad delta stays fractional in device pixels.
+    expect(isNotch(57.3333, 800, 1)).toBe(false);
+  });
+
   it("leaves a trackpad's small and fractional deltas alone", () => {
     const isNotch = createNotchDetector();
     expect(isNotch(3, 0)).toBe(false);
