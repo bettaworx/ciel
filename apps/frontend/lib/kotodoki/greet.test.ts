@@ -1,11 +1,7 @@
 import { createKotodoki } from "@ciel/kotodoki";
 import { describe, expect, it } from "vitest";
 import { frontendKotodokiCatalog } from "@/lib/kotodoki/catalog";
-import {
-  enUSGreetDataset,
-  greetDatasets,
-  jaJPGreetDataset,
-} from "@/lib/kotodoki/greet";
+import { enUSGreetDataset, greetDatasets, jaJPGreetDataset } from "@/lib/kotodoki/greet";
 
 describe("frontend greet datasets", () => {
   it("keeps greet datasets split by locale files", () => {
@@ -19,10 +15,7 @@ describe("frontend greet datasets", () => {
       for (const entry of dataset.phrases) {
         const prohibitedPunctuation = entry.phrase.match(/[、。，．,.]/g) ?? [];
 
-        expect(
-          prohibitedPunctuation,
-          `${entry.id} should not use commas or periods`,
-        ).toEqual([]);
+        expect(prohibitedPunctuation, `${entry.id} should not use commas or periods`).toEqual([]);
       }
     }
   });

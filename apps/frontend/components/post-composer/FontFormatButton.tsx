@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type RefObject } from "react";
-import { type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -72,9 +72,7 @@ export function findFontDecoration(
   // Check if selection wraps the decoration
   if (selectionStart !== selectionEnd) {
     const selected = content.slice(selectionStart, selectionEnd);
-    const wrapMatch = /^\$\[font\.(serif|monospace|cursive|fantasy) /.exec(
-      selected,
-    );
+    const wrapMatch = /^\$\[font\.(serif|monospace|cursive|fantasy) /.exec(selected);
     if (wrapMatch && selected.endsWith("]")) {
       return {
         fontName: wrapMatch[1] as FontName,
@@ -92,6 +90,7 @@ export function findFontDecoration(
 
   let lastMatch: RegExpExecArray | null = null;
   let m: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: RegExp.exec を回す定型ループ
   while ((m = FONT_REGEX.exec(before)) !== null) {
     lastMatch = m;
   }
@@ -142,15 +141,11 @@ export function removeFontDecoration(
   match: FontMatch,
 ): { newValue: string; newStart: number; newEnd: number } {
   const prefixLen = match.prefixEnd - match.prefixStart;
-  const suffixLen = match.suffixEnd - match.suffixStart;
 
   // Remove suffix first (higher index)
-  let newValue =
-    content.slice(0, match.suffixStart) + content.slice(match.suffixEnd);
+  let newValue = content.slice(0, match.suffixStart) + content.slice(match.suffixEnd);
   // Then remove prefix
-  newValue =
-    newValue.slice(0, match.prefixStart) +
-    newValue.slice(match.prefixStart + prefixLen);
+  newValue = newValue.slice(0, match.prefixStart) + newValue.slice(match.prefixStart + prefixLen);
 
   return {
     newValue,
@@ -196,11 +191,7 @@ export function insertFontDecoration(
     }
 
     const newValue =
-      value.slice(0, selectionStart) +
-      prefix +
-      selected +
-      suffix +
-      value.slice(selectionEnd);
+      value.slice(0, selectionStart) + prefix + selected + suffix + value.slice(selectionEnd);
     return {
       newValue,
       newStart: selectionStart + prefix.length,
@@ -208,11 +199,7 @@ export function insertFontDecoration(
     };
   }
 
-  const newValue =
-    value.slice(0, selectionStart) +
-    prefix +
-    suffix +
-    value.slice(selectionStart);
+  const newValue = value.slice(0, selectionStart) + prefix + suffix + value.slice(selectionStart);
   const cursor = selectionStart + prefix.length;
   return { newValue, newStart: cursor, newEnd: cursor };
 }
@@ -242,11 +229,7 @@ export function FontFormatButton({
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const fontMatch = findFontDecoration(
-    content,
-    selectionRange.start,
-    selectionRange.end,
-  );
+  const fontMatch = findFontDecoration(content, selectionRange.start, selectionRange.end);
   const isActive = fontMatch !== null;
 
   const handleRemove = () => {
@@ -286,10 +269,7 @@ export function FontFormatButton({
         onClick={handleRemove}
         aria-label={ariaLabel}
         aria-pressed
-        className={cn(
-          "text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15",
-          className,
-        )}
+        className={cn("text-c-1 hover:text-c-2 bg-c-2/10 hover:bg-c-2/15", className)}
       >
         <Icon className={cn(iconClassName)} />
       </Button>
@@ -302,7 +282,10 @@ export function FontFormatButton({
       size="icon"
       type="button"
       aria-label={ariaLabel}
-      className={cn(className)}
+      className={cn(
+        "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+        className,
+      )}
     >
       <Icon className={cn(iconClassName)} />
     </Button>

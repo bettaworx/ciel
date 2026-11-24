@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useRef,
-  useEffect,
-  useLayoutEffect,
-  useState,
-  useCallback,
-  useId,
-} from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, useId } from "react";
 import {
   Play,
   Pause,
@@ -19,14 +12,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
-import {
-  videoVolumeAtom,
-  claimPlayback,
-  releasePlayback,
-} from "@/atoms/video-player";
+import { videoVolumeAtom, claimPlayback, releasePlayback } from "@/atoms/video-player";
 
 interface VideoPlayerProps {
   src: string;
@@ -35,22 +24,6 @@ interface VideoPlayerProps {
   poster?: string | null;
   className?: string;
   style?: React.CSSProperties;
-}
-
-function getMimeType(url: string): string {
-  const ext = url.split(".").pop()?.split("?")[0]?.toLowerCase();
-  switch (ext) {
-    case "webm":
-      return "video/webm";
-    case "ogg":
-    case "ogv":
-      return "video/ogg";
-    case "m3u8":
-      return "application/x-mpegURL";
-    case "mp4":
-    default:
-      return "video/mp4";
-  }
 }
 
 function formatTime(seconds: number): string {
@@ -68,22 +41,12 @@ function formatTime(seconds: number): string {
 function useIsTouchDevice() {
   const [isTouch, setIsTouch] = useState(false);
   useEffect(() => {
-    setIsTouch(
-      typeof window !== "undefined" &&
-        window.matchMedia("(pointer: coarse)").matches,
-    );
+    setIsTouch(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
   }, []);
   return isTouch;
 }
 
-export function VideoPlayer({
-  src,
-  width,
-  height,
-  poster,
-  className,
-  style,
-}: VideoPlayerProps) {
+export function VideoPlayer({ src, width, height, poster, className, style }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -336,10 +299,7 @@ export function VideoPlayer({
     }
     // Absolute position seek on mouse down
     const rect = progressBarRef.current.getBoundingClientRect();
-    const ratio = Math.max(
-      0,
-      Math.min(1, (e.clientX - rect.left) / rect.width),
-    );
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const newTime = ratio * duration;
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
@@ -347,14 +307,10 @@ export function VideoPlayer({
   };
 
   const handleProgressBarMouseMove = (e: MouseEvent) => {
-    if (!isDraggingProgress || !progressBarRef.current || !videoRef.current)
-      return;
+    if (!isDraggingProgress || !progressBarRef.current || !videoRef.current) return;
     // Absolute position for mouse drag
     const rect = progressBarRef.current.getBoundingClientRect();
-    const ratio = Math.max(
-      0,
-      Math.min(1, (e.clientX - rect.left) / rect.width),
-    );
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const newTime = ratio * duration;
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
@@ -382,20 +338,14 @@ export function VideoPlayer({
   };
 
   const handleProgressBarTouchMove = (e: TouchEvent) => {
-    if (!isDraggingProgress || !progressBarRef.current || !videoRef.current)
-      return;
+    if (!isDraggingProgress || !progressBarRef.current || !videoRef.current) return;
     e.preventDefault();
     const touch = e.touches[0] ?? e.changedTouches[0];
     if (!touch) return;
     // Relative drag for touch
     const rect = progressBarRef.current.getBoundingClientRect();
-    const delta =
-      ((touch.clientX - progressDragStartRef.current.x) / rect.width) *
-      duration;
-    const newTime = Math.max(
-      0,
-      Math.min(duration, progressDragStartRef.current.value + delta),
-    );
+    const delta = ((touch.clientX - progressDragStartRef.current.x) / rect.width) * duration;
+    const newTime = Math.max(0, Math.min(duration, progressDragStartRef.current.value + delta));
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
   };
@@ -413,10 +363,7 @@ export function VideoPlayer({
     hasUserInteracted.current = true;
     // Absolute position on mouse down
     const rect = volumeBarRef.current.getBoundingClientRect();
-    const newVol = Math.max(
-      0,
-      Math.min(1, (e.clientX - rect.left) / rect.width),
-    );
+    const newVol = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     videoRef.current.volume = newVol;
     setVolume(newVol);
     setSavedVolume(newVol);
@@ -431,10 +378,7 @@ export function VideoPlayer({
     if (!isDraggingVolume || !volumeBarRef.current || !videoRef.current) return;
     // Absolute position for mouse drag
     const rect = volumeBarRef.current.getBoundingClientRect();
-    const newVol = Math.max(
-      0,
-      Math.min(1, (e.clientX - rect.left) / rect.width),
-    );
+    const newVol = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     videoRef.current.volume = newVol;
     setVolume(newVol);
     setSavedVolume(newVol);
@@ -469,10 +413,7 @@ export function VideoPlayer({
     // Relative drag for touch
     const rect = volumeBarRef.current.getBoundingClientRect();
     const delta = (touch.clientX - volumeDragStartRef.current.x) / rect.width;
-    const newVol = Math.max(
-      0,
-      Math.min(1, volumeDragStartRef.current.value + delta),
-    );
+    const newVol = Math.max(0, Math.min(1, volumeDragStartRef.current.value + delta));
     videoRef.current.volume = newVol;
     setVolume(newVol);
     setSavedVolume(newVol);
@@ -609,8 +550,7 @@ export function VideoPlayer({
     const now = Date.now();
     const tapState = tapStateRef.current;
 
-    const isSequential =
-      now - tapState.lastTime < 400 && tapState.lastSide === side;
+    const isSequential = now - tapState.lastTime < 400 && tapState.lastSide === side;
     tapState.lastTime = now;
     tapState.lastSide = side;
 
@@ -632,10 +572,7 @@ export function VideoPlayer({
       tapState.animKey++;
 
       const video = videoRef.current;
-      const newTime = Math.max(
-        0,
-        Math.min(video.duration || 0, video.currentTime + delta),
-      );
+      const newTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + delta));
       video.currentTime = newTime;
       setCurrentTime(newTime);
 
@@ -848,12 +785,7 @@ export function VideoPlayer({
     const rect = container.getBoundingClientRect();
     const vh = window.innerHeight;
     const midY = (rect.top + rect.bottom) / 2;
-    if (
-      midY > vh * 0.3 &&
-      midY < vh * 0.7 &&
-      !userPaused.current &&
-      activeSrcRef.current
-    ) {
+    if (midY > vh * 0.3 && midY < vh * 0.7 && !userPaused.current && activeSrcRef.current) {
       claimPlayback(playerId, () => video.pause());
       video.play().catch(() => {});
     }
@@ -968,10 +900,7 @@ export function VideoPlayer({
     if (!isTouchDevice || !showVolumeSlider) return;
 
     const handleTouchOutside = (e: TouchEvent) => {
-      if (
-        volumeAreaRef.current &&
-        !volumeAreaRef.current.contains(e.target as Node)
-      ) {
+      if (volumeAreaRef.current && !volumeAreaRef.current.contains(e.target as Node)) {
         setShowVolumeSlider(false);
       }
     };
@@ -1038,23 +967,13 @@ export function VideoPlayer({
           <div className="flex items-center gap-1 bg-black/60 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
             {seekOverlay.side === "left" ? (
               <>
-                <ChevronsLeft
-                  className="w-3.5 h-3.5"
-                  style={{ filter: "none" }}
-                />
-                <span>
-                  {t("seekSeconds", { seconds: seekOverlay.seconds })}
-                </span>
+                <ChevronsLeft className="w-3.5 h-3.5" style={{ filter: "none" }} />
+                <span>{t("seekSeconds", { seconds: seekOverlay.seconds })}</span>
               </>
             ) : (
               <>
-                <span>
-                  {t("seekSeconds", { seconds: seekOverlay.seconds })}
-                </span>
-                <ChevronsRight
-                  className="w-3.5 h-3.5"
-                  style={{ filter: "none" }}
-                />
+                <span>{t("seekSeconds", { seconds: seekOverlay.seconds })}</span>
+                <ChevronsRight className="w-3.5 h-3.5" style={{ filter: "none" }} />
               </>
             )}
           </div>
@@ -1070,11 +989,7 @@ export function VideoPlayer({
           style={{ textShadow: "none" }}
           aria-label={t("play")}
         >
-          <Play
-            className="w-5 h-5 text-white ml-0.5"
-            fill="white"
-            style={{ filter: "none" }}
-          />
+          <Play className="w-5 h-5 text-white ml-0.5" fill="white" style={{ filter: "none" }} />
         </button>
       )}
 
@@ -1165,9 +1080,7 @@ export function VideoPlayer({
               <div
                 className={cn(
                   "relative transition-all overflow-hidden",
-                  volumeSliderVisible
-                    ? "w-[88px] opacity-100"
-                    : "w-0 opacity-0",
+                  volumeSliderVisible ? "w-[88px] opacity-100" : "w-0 opacity-0",
                 )}
               >
                 {/* py-3 creates a tall transparent hit area; the visible
@@ -1178,10 +1091,7 @@ export function VideoPlayer({
                   onMouseDown={handleVolumeBarMouseDown}
                   onTouchStart={handleVolumeBarTouchStart}
                 >
-                  <div
-                    ref={volumeBarRef}
-                    className="h-1 bg-white/25 rounded-full w-full"
-                  >
+                  <div ref={volumeBarRef} className="h-1 bg-white/25 rounded-full w-full">
                     <div
                       className="h-full bg-white rounded-full relative"
                       style={{ width: `${isMuted ? 0 : volume * 100}%` }}

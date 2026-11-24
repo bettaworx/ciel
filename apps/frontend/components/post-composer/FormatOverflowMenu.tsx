@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type RefObject } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import {
   Ellipsis,
   Type,
@@ -18,6 +18,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -39,18 +42,9 @@ import {
   SIZE_LABELS,
   type SizeName,
 } from "./SizeFormatButton";
-import {
-  findCodeDecoration,
-  removeCodeDecoration,
-} from "./CodeFormatButton";
-import {
-  findLinkDecoration,
-  removeLinkDecoration,
-} from "./LinkFormatButton";
-import {
-  isInsideDecoration,
-  removeDecoration,
-} from "./TextFormatButton";
+import { findCodeDecoration, removeCodeDecoration } from "./CodeFormatButton";
+import { findLinkDecoration, removeLinkDecoration } from "./LinkFormatButton";
+import { isInsideDecoration, removeDecoration } from "./TextFormatButton";
 import { insertCenterDecoration } from "./centerDecoration";
 import type { TextSelectionRange, TextSelectionRangeSetter } from "./types";
 
@@ -64,7 +58,7 @@ interface FormatOverflowMenuProps {
   content: string;
   selectionRange: TextSelectionRange;
   setSelectionRange: TextSelectionRangeSetter;
-  /** Whether to include Font/Size in the mobile Drawer (default: true) */
+  /** Whether to include Font/Size in the overflow menu (card layout unifies to mobile behavior) */
   includeFontSize?: boolean;
   className?: string;
   iconClassName?: string;
@@ -95,22 +89,17 @@ export function FormatOverflowMenu({
   const sizeMatch = findSizeDecoration(content, start, end);
   const codeMatch = findCodeDecoration(content, start, end);
   const linkMatch = findLinkDecoration(content, start, end);
-  const isCenterActive = isInsideDecoration(
-    content,
-    start,
-    end,
-    "<center>",
-    "</center>",
-  );
+  const isCenterActive = isInsideDecoration(content, start, end, "<center>", "</center>");
 
-  // On desktop, Font/Size have dedicated buttons so don't count them here
-  const hasAnyActive = isDesktop
-    ? codeMatch !== null || linkMatch !== null || isCenterActive
-    : fontMatch !== null ||
-      sizeMatch !== null ||
-      codeMatch !== null ||
-      linkMatch !== null ||
-      isCenterActive;
+  // Card layout unifies to mobile behavior: Font/Size live in the overflow menu
+  const hasAnyActive =
+    isDesktop && !includeFontSize
+      ? codeMatch !== null || linkMatch !== null || isCenterActive
+      : fontMatch !== null ||
+        sizeMatch !== null ||
+        codeMatch !== null ||
+        linkMatch !== null ||
+        isCenterActive;
 
   const apply = (newValue: string, newStart: number, newEnd: number) => {
     const textarea = textareaRef.current;
@@ -125,14 +114,29 @@ export function FormatOverflowMenu({
     const { selectionStart, selectionEnd, value } = textarea;
 
     if (fontMatch && fontMatch.fontName === fontName) {
-      const { newValue, newStart, newEnd } = removeFontDecoration(value, selectionStart, selectionEnd, fontMatch);
+      const { newValue, newStart, newEnd } = removeFontDecoration(
+        value,
+        selectionStart,
+        selectionEnd,
+        fontMatch,
+      );
       apply(newValue, newStart, newEnd);
     } else if (fontMatch) {
-      const { newValue, newStart, newEnd } = removeFontDecoration(value, selectionStart, selectionEnd, fontMatch);
+      const { newValue, newStart, newEnd } = removeFontDecoration(
+        value,
+        selectionStart,
+        selectionEnd,
+        fontMatch,
+      );
       const result = insertFontDecoration(newValue, newStart, newEnd, fontName);
       apply(result.newValue, result.newStart, result.newEnd);
     } else {
-      const { newValue, newStart, newEnd } = insertFontDecoration(value, selectionStart, selectionEnd, fontName);
+      const { newValue, newStart, newEnd } = insertFontDecoration(
+        value,
+        selectionStart,
+        selectionEnd,
+        fontName,
+      );
       apply(newValue, newStart, newEnd);
     }
     setDrawerOpen(false);
@@ -145,14 +149,29 @@ export function FormatOverflowMenu({
     const { selectionStart, selectionEnd, value } = textarea;
 
     if (sizeMatch && sizeMatch.sizeName === sizeName) {
-      const { newValue, newStart, newEnd } = removeSizeDecoration(value, selectionStart, selectionEnd, sizeMatch);
+      const { newValue, newStart, newEnd } = removeSizeDecoration(
+        value,
+        selectionStart,
+        selectionEnd,
+        sizeMatch,
+      );
       apply(newValue, newStart, newEnd);
     } else if (sizeMatch) {
-      const { newValue, newStart, newEnd } = removeSizeDecoration(value, selectionStart, selectionEnd, sizeMatch);
+      const { newValue, newStart, newEnd } = removeSizeDecoration(
+        value,
+        selectionStart,
+        selectionEnd,
+        sizeMatch,
+      );
       const result = insertSizeDecoration(newValue, newStart, newEnd, sizeName);
       apply(result.newValue, result.newStart, result.newEnd);
     } else {
-      const { newValue, newStart, newEnd } = insertSizeDecoration(value, selectionStart, selectionEnd, sizeName);
+      const { newValue, newStart, newEnd } = insertSizeDecoration(
+        value,
+        selectionStart,
+        selectionEnd,
+        sizeName,
+      );
       apply(newValue, newStart, newEnd);
     }
     setDrawerOpen(false);
@@ -165,12 +184,21 @@ export function FormatOverflowMenu({
     const { selectionStart, selectionEnd, value } = textarea;
 
     if (codeMatch) {
-      const { newValue, newStart, newEnd } = removeCodeDecoration(value, selectionStart, selectionEnd, codeMatch);
+      const { newValue, newStart, newEnd } = removeCodeDecoration(
+        value,
+        selectionStart,
+        selectionEnd,
+        codeMatch,
+      );
       apply(newValue, newStart, newEnd);
     } else {
       const hasSelection = selectionStart !== selectionEnd;
       if (!hasSelection) {
-        apply(value.slice(0, selectionStart) + "``" + value.slice(selectionStart), selectionStart + 1, selectionStart + 1);
+        apply(
+          `${value.slice(0, selectionStart)}\`\`${value.slice(selectionStart)}`,
+          selectionStart + 1,
+          selectionStart + 1,
+        );
       } else {
         const selected = value.slice(selectionStart, selectionEnd);
         if (selected.includes("\n")) {
@@ -183,7 +211,7 @@ export function FormatOverflowMenu({
           );
         } else {
           apply(
-            value.slice(0, selectionStart) + "`" + selected + "`" + value.slice(selectionEnd),
+            `${value.slice(0, selectionStart)}\`${selected}\`${value.slice(selectionEnd)}`,
             selectionStart + 1,
             selectionEnd + 1,
           );
@@ -200,20 +228,37 @@ export function FormatOverflowMenu({
     const { selectionStart, selectionEnd, value } = textarea;
 
     if (linkMatch) {
-      const { newValue, newStart, newEnd } = removeLinkDecoration(value, selectionStart, selectionEnd, linkMatch);
+      const { newValue, newStart, newEnd } = removeLinkDecoration(
+        value,
+        selectionStart,
+        selectionEnd,
+        linkMatch,
+      );
       apply(newValue, newStart, newEnd);
     } else {
       const hasSelection = selectionStart !== selectionEnd;
       if (hasSelection) {
         const selected = value.slice(selectionStart, selectionEnd);
         if (/^https?:\/\/\S+$/.test(selected.trim())) {
-          apply(value.slice(0, selectionStart) + "[](" + selected + ")" + value.slice(selectionEnd), selectionStart + 1, selectionStart + 1);
+          apply(
+            `${value.slice(0, selectionStart)}[](${selected})${value.slice(selectionEnd)}`,
+            selectionStart + 1,
+            selectionStart + 1,
+          );
         } else {
           const cursor = selectionStart + 1 + selected.length + 2;
-          apply(value.slice(0, selectionStart) + "[" + selected + "]()" + value.slice(selectionEnd), cursor, cursor);
+          apply(
+            `${value.slice(0, selectionStart)}[${selected}]()${value.slice(selectionEnd)}`,
+            cursor,
+            cursor,
+          );
         }
       } else {
-        apply(value.slice(0, selectionStart) + "[](url)" + value.slice(selectionStart), selectionStart + 1, selectionStart + 1);
+        apply(
+          `${value.slice(0, selectionStart)}[](url)${value.slice(selectionStart)}`,
+          selectionStart + 1,
+          selectionStart + 1,
+        );
       }
     }
     setDrawerOpen(false);
@@ -226,10 +271,20 @@ export function FormatOverflowMenu({
     const { selectionStart, selectionEnd, value } = textarea;
 
     if (isCenterActive) {
-      const { newValue, newStart, newEnd } = removeDecoration(value, selectionStart, selectionEnd, "<center>", "</center>");
+      const { newValue, newStart, newEnd } = removeDecoration(
+        value,
+        selectionStart,
+        selectionEnd,
+        "<center>",
+        "</center>",
+      );
       apply(newValue, newStart, newEnd);
     } else {
-      const { newValue, newStart, newEnd } = insertCenterDecoration(value, selectionStart, selectionEnd);
+      const { newValue, newStart, newEnd } = insertCenterDecoration(
+        value,
+        selectionStart,
+        selectionEnd,
+      );
       apply(newValue, newStart, newEnd);
     }
     setDrawerOpen(false);
@@ -243,32 +298,75 @@ export function FormatOverflowMenu({
       size="icon"
       type="button"
       aria-label={t("postCard.actions.more")}
-      className={cn(hasAnyActive && "text-c-1", className)}
+      className={cn(
+        hasAnyActive
+          ? "text-c-1"
+          : "text-muted-foreground hover:text-foreground transition-colors duration-160 ease",
+        className,
+      )}
     >
       <Ellipsis className={cn(iconClassName)} />
     </Button>
   );
 
   // ---------------------------------------------------------------------------
-  // Desktop: DropdownMenu (Code, Link, Center only — Font/Size have dedicated buttons)
+  // Desktop: DropdownMenu
+  // - dialog (includeFontSize=false): Code, Link, Center only (Font/Size are direct buttons)
+  // - card (includeFontSize=true): Font, Size, Code, Link, Center (unified to mobile behavior)
   // ---------------------------------------------------------------------------
   if (isDesktop) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="z-[70]">
-          <DropdownMenuItem
-            className={cn(codeMatch && activeClass)}
-            onClick={handleCodeToggle}
-          >
+          {includeFontSize && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className={cn(fontMatch && activeClass)}>
+                <Type />
+                {t("createPost.formatFont")}
+                {fontMatch && <Check className="ml-auto h-4 w-4" />}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="z-[70]">
+                {FONT_NAMES.map((name) => (
+                  <DropdownMenuItem
+                    key={name}
+                    className={cn(fontMatch?.fontName === name && activeClass)}
+                    onClick={() => handleFontSelect(name)}
+                  >
+                    <span className={FONT_LABELS[name].style}>{FONT_LABELS[name].label}</span>
+                    {fontMatch?.fontName === name && <Check className="ml-auto h-4 w-4" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
+          {includeFontSize && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className={cn(sizeMatch && activeClass)}>
+                <ALargeSmall />
+                {t("createPost.formatSize")}
+                {sizeMatch && <Check className="ml-auto h-4 w-4" />}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="z-[70]">
+                {SIZE_NAMES.map((name) => (
+                  <DropdownMenuItem
+                    key={name}
+                    className={cn(sizeMatch?.sizeName === name && activeClass)}
+                    onClick={() => handleSizeSelect(name)}
+                  >
+                    {SIZE_LABELS[name]}
+                    {sizeMatch?.sizeName === name && <Check className="ml-auto h-4 w-4" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
+          <DropdownMenuItem className={cn(codeMatch && activeClass)} onClick={handleCodeToggle}>
             <CodeXml />
             {t("createPost.formatCode")}
             {codeMatch && <Check className="ml-auto h-4 w-4" />}
           </DropdownMenuItem>
-          <DropdownMenuItem
-            className={cn(linkMatch && activeClass)}
-            onClick={handleLinkToggle}
-          >
+          <DropdownMenuItem className={cn(linkMatch && activeClass)} onClick={handleLinkToggle}>
             <Link />
             {t("createPost.formatLink")}
             {linkMatch && <Check className="ml-auto h-4 w-4" />}
@@ -301,10 +399,7 @@ export function FormatOverflowMenu({
           {includeFontSize && (
             <Drawer nested>
               <DrawerTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={cn(itemClass, fontMatch && activeClass)}
-                >
+                <Button variant="ghost" className={cn(itemClass, fontMatch && activeClass)}>
                   <Type className="h-4 w-4" />
                   {t("createPost.formatFont")}
                   <span className="ml-auto flex items-center gap-1">
@@ -319,18 +414,11 @@ export function FormatOverflowMenu({
                     <Button
                       key={name}
                       variant="ghost"
-                      className={cn(
-                        itemClass,
-                        fontMatch?.fontName === name && activeClass,
-                      )}
+                      className={cn(itemClass, fontMatch?.fontName === name && activeClass)}
                       onClick={() => handleFontSelect(name)}
                     >
-                      <span className={FONT_LABELS[name].style}>
-                        {FONT_LABELS[name].label}
-                      </span>
-                      {fontMatch?.fontName === name && (
-                        <Check className="ml-auto h-4 w-4" />
-                      )}
+                      <span className={FONT_LABELS[name].style}>{FONT_LABELS[name].label}</span>
+                      {fontMatch?.fontName === name && <Check className="ml-auto h-4 w-4" />}
                     </Button>
                   ))}
                 </div>
@@ -342,10 +430,7 @@ export function FormatOverflowMenu({
           {includeFontSize && (
             <Drawer nested>
               <DrawerTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={cn(itemClass, sizeMatch && activeClass)}
-                >
+                <Button variant="ghost" className={cn(itemClass, sizeMatch && activeClass)}>
                   <ALargeSmall className="h-4 w-4" />
                   {t("createPost.formatSize")}
                   <span className="ml-auto flex items-center gap-1">
@@ -360,16 +445,11 @@ export function FormatOverflowMenu({
                     <Button
                       key={name}
                       variant="ghost"
-                      className={cn(
-                        itemClass,
-                        sizeMatch?.sizeName === name && activeClass,
-                      )}
+                      className={cn(itemClass, sizeMatch?.sizeName === name && activeClass)}
                       onClick={() => handleSizeSelect(name)}
                     >
                       {SIZE_LABELS[name]}
-                      {sizeMatch?.sizeName === name && (
-                        <Check className="ml-auto h-4 w-4" />
-                      )}
+                      {sizeMatch?.sizeName === name && <Check className="ml-auto h-4 w-4" />}
                     </Button>
                   ))}
                 </div>

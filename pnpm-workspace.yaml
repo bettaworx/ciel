@@ -3,3 +3,13 @@ packages:
   - packages/*
 onlyBuiltDependencies:
   - esbuild
+overrides:
+  browserslist: 4.29.3
+  baseline-browser-mapping: 2.11.28
+  # @redocly/openapi-core (openapi-typescript) pins js-yaml 4.1.1, which has known advisories
+  '@redocly/openapi-core>js-yaml': ^4.3.2
+  # The Storybook docgen plugin and @npmcli (license-checker) still ask for glob 13 and
+  # minimatch 10, which have known advisories. They only call glob(), minimatch() and
+  # new Minimatch(), which glob 14 and minimatch 11 keep
+  glob@13: ^14.0.6
+  minimatch@10: ^11.0.9

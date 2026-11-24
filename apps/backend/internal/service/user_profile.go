@@ -22,8 +22,23 @@ const (
 var profileTagPattern = regexp.MustCompile(`<[^>]*>`)
 var profileURLPattern = regexp.MustCompile(`(?i)\b(?:https?://|www\.)\S+`)
 
-func mapUserWithProfile(id uuid.UUID, username string, createdAt time.Time, displayName sql.NullString, bio sql.NullString, avatarMediaID uuid.NullUUID, avatarExt sql.NullString, bannerMediaID uuid.NullUUID, bannerExt sql.NullString, bannerBlurhash sql.NullString, termsVersion int32, privacyVersion int32, termsAcceptedAt sql.NullTime, privacyAcceptedAt sql.NullTime) api.User {
-	user := api.User{Id: id, Username: username, CreatedAt: createdAt}
+// ProfileFlags carries the account-level badges every user response must state.
+// See mapUserWithProfile for why they are a struct and not two bool arguments.
+type ProfileFlags struct {
+	IsPrivate bool
+	IsBot     bool
+}
+
+func mapUserWithProfile(id uuid.UUID, username string, createdAt time.Time, displayName sql.NullString, bio sql.NullString, avatarMediaID uuid.NullUUID, avatarExt sql.NullString, bannerMediaID uuid.NullUUID, bannerExt sql.NullString, bannerBlurhash sql.NullString, termsVersion int32, privacyVersion int32, termsAcceptedAt sql.NullTime, privacyAcceptedAt sql.NullTime, flags ProfileFlags) api.User {
+	// The flags are a required parameter rather than something callers may set
+	// afterwards: the compiler then names every place a user is built, which is
+	// the only way to be sure none of them silently omits a badge.
+	//
+	// They travel in a struct rather than as two bools in the argument list
+	// precisely because they are both bools. Positional, a caller that wrote
+	// them the wrong way round would compile, pass review, and quietly publish
+	// every private account. Named fields make that swap impossible to write.
+	user := api.User{Id: id, Username: username, CreatedAt: createdAt, IsPrivate: &flags.IsPrivate, IsBot: &flags.IsBot}
 	if displayName.Valid {
 		if v := strings.TrimSpace(displayName.String); v != "" {
 			user.DisplayName = &v
@@ -73,7 +88,7 @@ func mapUserWithProfile(id uuid.UUID, username string, createdAt time.Time, disp
 }
 
 func sanitizeDisplayName(input string) string {
-	cleaned := sanitizeProfileText(input, false)
+	cleaned := profileURLPattern.ReplaceAllString(sanitizeProfileText(input, false), "")
 	fields := strings.Fields(cleaned)
 	if len(fields) == 0 {
 		return ""
@@ -89,7 +104,6 @@ func sanitizeBio(input string) string {
 func sanitizeProfileText(input string, allowNewlines bool) string {
 	out := strings.TrimSpace(input)
 	out = profileTagPattern.ReplaceAllString(out, "")
-	out = profileURLPattern.ReplaceAllString(out, "")
 	out = stripProfileControl(out, allowNewlines)
 	if !allowNewlines {
 		out = strings.ReplaceAll(out, "\n", " ")

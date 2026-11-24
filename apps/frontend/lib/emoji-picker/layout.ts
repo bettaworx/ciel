@@ -17,10 +17,7 @@ export interface EmojiPickerSectionLayout {
   offsetTop: number;
 }
 
-export function getGridWidth(
-  columns: number,
-  metrics: EmojiPickerLayoutMetrics,
-): number {
+export function getGridWidth(columns: number, metrics: EmojiPickerLayoutMetrics): number {
   return columns * metrics.cellSize;
 }
 
@@ -48,7 +45,9 @@ export function buildSectionLayouts(
     const rowCount = columns > 0 ? Math.ceil(category.emojis.length / columns) : 0;
     const gridHeight = getGridHeight(category.emojis.length, columns, metrics);
     const sectionHeight =
-      metrics.headerHeight + gridHeight + (index === categories.length - 1 ? 0 : metrics.sectionSpacing);
+      metrics.headerHeight +
+      gridHeight +
+      (index === categories.length - 1 ? 0 : metrics.sectionSpacing);
 
     const layout: EmojiPickerSectionLayout = {
       id: category.id,

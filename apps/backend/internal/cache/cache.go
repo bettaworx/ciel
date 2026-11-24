@@ -31,6 +31,14 @@ type Cache interface {
 	// ZAdd adds members to a sorted set
 	ZAdd(ctx context.Context, key string, members ...Z) error
 
+	// ZRemRangeByRank removes members by rank, lowest score first. Negative
+	// indexes count from the end, so (0, -N-1) keeps the N highest-scoring
+	// members. Used to cap per-user timelines.
+	ZRemRangeByRank(ctx context.Context, key string, start, stop int64) error
+
+	// Expire sets a TTL on a key so timelines of dormant users fall out on their own
+	Expire(ctx context.Context, key string, ttl time.Duration) error
+
 	// SAdd adds members to a set
 	SAdd(ctx context.Context, key string, members ...interface{}) error
 
@@ -109,6 +117,14 @@ func (c *RedisCache) ZAdd(ctx context.Context, key string, members ...Z) error {
 	return c.client.ZAdd(ctx, key, zs...).Err()
 }
 
+func (c *RedisCache) ZRemRangeByRank(ctx context.Context, key string, start, stop int64) error {
+	return c.client.ZRemRangeByRank(ctx, key, start, stop).Err()
+}
+
+func (c *RedisCache) Expire(ctx context.Context, key string, ttl time.Duration) error {
+	return c.client.Expire(ctx, key, ttl).Err()
+}
+
 func (c *RedisCache) SAdd(ctx context.Context, key string, members ...interface{}) error {
 	return c.client.SAdd(ctx, key, members...).Err()
 }
@@ -150,6 +166,14 @@ func (c *NoOpCache) ZRem(ctx context.Context, key string, members ...interface{}
 }
 
 func (c *NoOpCache) ZAdd(ctx context.Context, key string, members ...Z) error {
+	return nil
+}
+
+func (c *NoOpCache) ZRemRangeByRank(ctx context.Context, key string, start, stop int64) error {
+	return nil
+}
+
+func (c *NoOpCache) Expire(ctx context.Context, key string, ttl time.Duration) error {
 	return nil
 }
 

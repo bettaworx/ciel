@@ -14,35 +14,17 @@ const sizeMap = {
   lg: "h-16 w-16",
 };
 
-export function Spinner({
-  size = "md",
-  variant = "default",
-  label,
-  className,
-}: SpinnerProps) {
+export function Spinner({ size = "md", variant = "default", label, className }: SpinnerProps) {
   const bgStroke = variant === "theme" ? "var(--c-ring)" : "var(--muted)";
   const fgStroke = variant === "theme" ? "var(--c-1)" : "var(--ring)";
 
   return (
     <div
       className={cn("relative", sizeMap[size], className)}
-      {...(label
-        ? { role: "status", "aria-label": label }
-        : { "aria-hidden": true })}
+      {...(label ? { role: "status", "aria-label": label } : { "aria-hidden": true })}
     >
-      <svg
-        className="animate-spin-fast"
-        viewBox="0 0 50 50"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <circle
-          cx="25"
-          cy="25"
-          r="20"
-          fill="none"
-          stroke={bgStroke}
-          strokeWidth="6"
-        />
+      <svg className="animate-spin-fast" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="25" cy="25" r="20" fill="none" stroke={bgStroke} strokeWidth="6" />
         <circle
           cx="25"
           cy="25"

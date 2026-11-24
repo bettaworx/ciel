@@ -37,7 +37,10 @@ export function createKotodoki(options: KotodokiOptions): Kotodoki {
 
     getMatchingPhrases(input?: KotodokiInput) {
       const context = this.resolveContext(input);
-      return getConditionalMatches(datasets.flatMap((dataset) => dataset.phrases), context);
+      return getConditionalMatches(
+        datasets.flatMap((dataset) => dataset.phrases),
+        context,
+      );
     },
 
     selectPhrase(input?: KotodokiInput, selectOptions?: SelectPhraseOptions) {
@@ -55,11 +58,7 @@ export function createKotodoki(options: KotodokiOptions): Kotodoki {
         matched,
         fallbacks,
         selected,
-        reason: selected
-          ? isFallbackPhrase(selected)
-            ? "fallback"
-            : "matched"
-          : "none",
+        reason: selected ? (isFallbackPhrase(selected) ? "fallback" : "matched") : "none",
       } satisfies KotodokiSelection;
     },
   };
@@ -69,9 +68,7 @@ function getConditionalMatches(
   phrases: readonly PhraseEntry[],
   context: ReturnType<typeof resolveKotodokiContext>,
 ) {
-  return phrases.filter(
-    (entry) => !isFallbackPhrase(entry) && entryMatchesContext(entry, context),
-  );
+  return phrases.filter((entry) => !isFallbackPhrase(entry) && entryMatchesContext(entry, context));
 }
 
 function getSelectionWeight(entry: PhraseEntry) {
@@ -109,18 +106,12 @@ function getSelectionWeight(entry: PhraseEntry) {
   return weight;
 }
 
-function chooseWeighted<T extends PhraseEntry>(
-  entries: readonly T[],
-  rng: RandomSource,
-): T | null {
+function chooseWeighted<T extends PhraseEntry>(entries: readonly T[], rng: RandomSource): T | null {
   if (entries.length === 0) {
     return null;
   }
 
-  const totalWeight = entries.reduce(
-    (total, entry) => total + getSelectionWeight(entry),
-    0,
-  );
+  const totalWeight = entries.reduce((total, entry) => total + getSelectionWeight(entry), 0);
   const target = normalizeRandomValue(rng()) * totalWeight;
   let cursor = 0;
 
@@ -136,7 +127,5 @@ function chooseWeighted<T extends PhraseEntry>(
 }
 
 function normalizeRandomValue(value: number) {
-  return Number.isFinite(value)
-    ? Math.min(Math.max(value, 0), 0.999_999_999)
-    : 0;
+  return Number.isFinite(value) ? Math.min(Math.max(value, 0), 0.999_999_999) : 0;
 }

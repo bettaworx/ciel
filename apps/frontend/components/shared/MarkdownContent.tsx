@@ -18,10 +18,7 @@ export function MarkdownContent({ content, className = "" }: MarkdownContentProp
   // Maps Markdown elements to shadcn/ui Typography styles
   const components: Components = {
     h1: ({ children, ...props }) => (
-      <h1
-        className="scroll-m-20 text-2xl font-extrabold tracking-tight first:mt-0"
-        {...props}
-      >
+      <h1 className="scroll-m-20 text-2xl font-extrabold tracking-tight first:mt-0" {...props}>
         {children}
       </h1>
     ),
@@ -34,18 +31,12 @@ export function MarkdownContent({ content, className = "" }: MarkdownContentProp
       </h2>
     ),
     h3: ({ children, ...props }) => (
-      <h3
-        className="scroll-m-20 text-lg font-semibold tracking-tight mt-4"
-        {...props}
-      >
+      <h3 className="scroll-m-20 text-lg font-semibold tracking-tight mt-4" {...props}>
         {children}
       </h3>
     ),
     h4: ({ children, ...props }) => (
-      <h4
-        className="scroll-m-20 text-base font-semibold tracking-tight mt-3"
-        {...props}
-      >
+      <h4 className="scroll-m-20 text-base font-semibold tracking-tight mt-3" {...props}>
         {children}
       </h4>
     ),
@@ -80,7 +71,7 @@ export function MarkdownContent({ content, className = "" }: MarkdownContentProp
     code: ({ children, className, node, ...props }) => {
       // Check if inline code by checking if className contains "language-"
       const isInline = !className?.includes("language-");
-      
+
       if (isInline) {
         return (
           <code
@@ -124,9 +115,7 @@ export function MarkdownContent({ content, className = "" }: MarkdownContentProp
         {children}
       </em>
     ),
-    hr: ({ ...props }) => (
-      <hr className="my-4 border-border" {...props} />
-    ),
+    hr: ({ ...props }) => <hr className="my-4 border-border" {...props} />,
     table: ({ children, ...props }) => (
       <div className="my-3 w-full overflow-y-auto text-sm">
         <table className="w-full border-collapse" {...props}>
@@ -158,10 +147,7 @@ export function MarkdownContent({ content, className = "" }: MarkdownContentProp
       </th>
     ),
     td: ({ children, ...props }) => (
-      <td
-        className="p-3 align-middle [&:has([role=checkbox])]:pr-0"
-        {...props}
-      >
+      <td className="p-3 align-middle [&:has([role=checkbox])]:pr-0" {...props}>
         {children}
       </td>
     ),

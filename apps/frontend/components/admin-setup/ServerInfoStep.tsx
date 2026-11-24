@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -70,17 +70,15 @@ export function ServerInfoStep({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <form 
-        id="admin-setup-server-info-form" 
+      <form
+        id="admin-setup-server-info-form"
         onSubmit={handleSubmit}
         className="flex-1 overflow-y-auto px-4"
       >
         <div className="w-full max-w-2xl mx-auto space-y-6 py-8">
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">{t("serverInfo.title")}</h2>
-            <p className="text-sm text-muted-foreground">
-              {t("serverInfo.description")}
-            </p>
+            <p className="text-sm text-muted-foreground">{t("serverInfo.description")}</p>
           </div>
 
           <div className="space-y-4">

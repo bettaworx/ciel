@@ -42,6 +42,11 @@ func TestReactionsService_List_UsesCache(t *testing.T) {
 		t.Fatalf("redis set: %v", err)
 	}
 
+	// The visibility check runs before the cache is read: the cached blob is
+	// keyed by post alone and says nothing about who may see it. Only this one
+	// query is expected, so the counts still come from Redis.
+	expectGetPostWithAuthor(mock, postID, uuid.New(), time.Unix(1_700_000_000, 0).UTC(), time.Unix(1_600_000_000, 0).UTC())
+
 	got, err := svc.List(context.Background(), postID, nil)
 	if err != nil {
 		t.Fatalf("List: %v", err)
@@ -86,6 +91,10 @@ func TestReactionsService_List_UsesPostAndUserCaches(t *testing.T) {
 	if err := rdb.Set(context.Background(), userReactionCacheKey(userID, postID), selfPayload, time.Hour).Err(); err != nil {
 		t.Fatalf("redis set user reactions: %v", err)
 	}
+
+	// See the note in TestReactionsService_List_UsesCache: the privacy gate is
+	// the one query allowed to precede the cache read.
+	expectGetPostWithAuthor(mock, postID, uuid.New(), time.Unix(1_700_000_000, 0).UTC(), time.Unix(1_600_000_000, 0).UTC())
 
 	got, err := svc.List(context.Background(), postID, &userID)
 	if err != nil {
@@ -164,6 +173,7 @@ func TestReactionsService_Add_UpdatesCache(t *testing.T) {
 	}
 
 	expectGetPostWithAuthor(mock, postID, userID, created, userCreated)
+	expectNotBlocked(mock)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO post_reaction_events`).WithArgs(userID, postID, "👍").
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(userID))
@@ -217,6 +227,9 @@ func TestReactionsService_Remove_UpdatesCache(t *testing.T) {
 		t.Fatalf("redis set: %v", err)
 	}
 
+	// Remove looks up the post author first, to find the notification to drop.
+	// Here the author is the reacting user, so no notification was ever created.
+	expectGetPostWithAuthor(mock, postID, userID, created, userCreated)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`DELETE FROM post_reaction_events`).WithArgs(userID, postID, "👍").
 		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(userID))

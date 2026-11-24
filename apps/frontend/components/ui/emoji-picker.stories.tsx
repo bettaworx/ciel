@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/hooks/use-queries";
 import {
   EmojiPicker,
   EmojiPickerSearch,
@@ -10,6 +12,19 @@ const meta = {
   title: "UI/EmojiPicker",
   component: EmojiPicker,
   tags: ["autodocs"],
+  // The picker loads emoji data through react-query. Custom emojis come from the
+  // API, so seed an empty list instead of hitting a backend Storybook doesn't have.
+  decorators: [
+    (Story) => {
+      const client = new QueryClient();
+      client.setQueryData(queryKeys.customEmojis, []);
+      return (
+        <QueryClientProvider client={client}>
+          <Story />
+        </QueryClientProvider>
+      );
+    },
+  ],
 } satisfies Meta<typeof EmojiPicker>;
 
 export default meta;

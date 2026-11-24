@@ -12,9 +12,23 @@ func BuildServerConfig(cfg *config.Config) api.ServerConfig {
 		SignupEnabled:        !cfg.Auth.InviteOnly,
 		ConfigVersion:        cfg.Server.LastUpdatedAt,
 		MaxPostContentLength: cfg.Post.MaxContentLength,
+		DrawingLimits: api.DrawingLimits{
+			FormatVersion:   api.DrawingLimitsFormatVersion(DrawingFormatVersion),
+			Width:           api.DrawingLimitsWidth(DrawingWidth),
+			Height:          api.DrawingLimitsHeight(DrawingHeight),
+			CoordinateScale: api.DrawingLimitsCoordinateScale(DrawingCoordinateScale),
+			MaxInputBytes:   MaxDrawingInputBytes,
+			MaxDataBytes:    MaxDrawingDataBytes,
+			MaxPreviewBytes: MaxDrawingPreviewBytes,
+			MaxStrokes:      MaxDrawingStrokes,
+			MaxPoints:       MaxDrawingPoints,
+		},
 		MediaLimits: api.MediaLimits{
 			MaxUploadSizeMB:   cfg.Media.MaxUploadSize,
 			AllowedExtensions: cfg.Media.AllowedExtensions,
+			MaxInputWidth:     cfg.Media.MaxInputWidth,
+			MaxInputHeight:    cfg.Media.MaxInputHeight,
+			MaxInputPixels:    cfg.Media.MaxInputPixels,
 			Post: api.MediaPostLimits{
 				Static: struct {
 					MaxSize int `json:"maxSize"`
@@ -74,6 +88,7 @@ func BuildServerConfig(cfg *config.Config) api.ServerConfig {
 				MaxUploadSizeMB:    cfg.Media.Video.MaxUploadSize,
 				MaxDurationSeconds: cfg.Media.Video.MaxDuration,
 				MaxSize:            cfg.Media.Video.MaxSize,
+				MaxFrameRate:       MaxVideoFrameRate,
 			},
 		},
 	}

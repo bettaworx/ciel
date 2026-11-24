@@ -220,6 +220,11 @@ func (s *SetupService) CreateAdminAccount(ctx context.Context, setupToken, usern
 			return err
 		}
 
+		// Same default bookmark list every other account gets at signup.
+		if err := q.CreateDefaultBookmarkList(ctx, u.ID); err != nil {
+			return err
+		}
+
 		return nil
 	})
 
@@ -233,7 +238,7 @@ func (s *SetupService) CreateAdminAccount(ctx context.Context, setupToken, usern
 		return nil, "", err
 	}
 
-	user := mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt)
+	user := mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt, ProfileFlags{IsPrivate: created.IsPrivate, IsBot: created.IsBot})
 	return &user, token, nil
 }
 
@@ -350,7 +355,7 @@ func optionalString(s string) *string {
 func (s *SetupService) buildServerInfoEvent(ctx context.Context, cfg *config.Config) api.ServerInfo {
 	versionStr := version.CommitOrDev()
 	branchStr := version.BranchOrDev()
-	semVer := version.Version
+	semVer := version.VersionOrDev()
 
 	info := api.ServerInfo{
 		ServerName:        optionalString(cfg.Server.Name),

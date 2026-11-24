@@ -1,0 +1,116 @@
+/ogp:
+  get:
+    tags:
+    - OGP
+    summary: Fetch Open Graph metadata for a URL
+    description: 'Fetches a third-party page and returns its Open Graph metadata
+      so clients can render link previews without exposing browsers to the
+      remote origin.
+
+      No authentication required. Rate limited per IP.
+
+
+      The fetch is SSRF-hardened: only http/https is followed, every resolved
+      address is checked against private and reserved ranges immediately before
+      the socket connects, redirects are capped, and the response body is size
+      limited. Results are cached server-side for 24 hours.
+
+      '
+    operationId: getOgp
+    parameters:
+    - name: url
+      in: query
+      required: true
+      description: Absolute http/https URL to inspect.
+      schema:
+        type: string
+        format: uri
+        maxLength: 2048
+    responses:
+      '200':
+        description: Open Graph metadata
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ogp.yml#/components/schemas/Ogp
+      '400':
+        description: Missing, malformed, or disallowed URL
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '404':
+        description: No Open Graph metadata found
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '429':
+        description: Rate limit exceeded
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '502':
+        description: Upstream fetch failed
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+/ogp/image:
+  get:
+    tags:
+    - OGP
+    summary: Proxy an Open Graph thumbnail
+    description: 'Streams a third-party image through the server so link preview
+      thumbnails do not leak the viewer''s IP to the remote origin and are
+      covered by the same SSRF guards as the metadata endpoint.
+
+      No authentication required. Rate limited per IP.
+
+
+      Only image content types are accepted and the body is size limited.
+
+      '
+    operationId: getOgpImage
+    parameters:
+    - name: url
+      in: query
+      required: true
+      description: Absolute http/https URL of the image to proxy.
+      schema:
+        type: string
+        format: uri
+        maxLength: 2048
+    responses:
+      '200':
+        description: The proxied image, with the upstream content type
+        content:
+          image/*:
+            schema:
+              type: string
+              format: binary
+      '400':
+        description: Missing, malformed, or disallowed URL
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '413':
+        description: Image exceeds the maximum allowed size
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '429':
+        description: Rate limit exceeded
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error
+      '502':
+        description: Upstream fetch failed
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/common.yml#/components/schemas/Error

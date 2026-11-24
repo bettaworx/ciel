@@ -2,7 +2,6 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
-    target-branch: development
     schedule:
       interval: weekly
       day: monday
@@ -19,11 +18,20 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
-      next:
+      tanstack:
         patterns:
-          - "next"
-          - "next-*"
-          - "eslint-config-next"
+          - "@tanstack/*"
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "vitest"
+          - "@vitest/*"
+      fontsource:
+        patterns:
+          - "@fontsource/*"
+          - "@fontsource-variable/*"
+
       radix-ui:
         patterns:
           - "@radix-ui/*"
@@ -51,7 +59,6 @@ updates:
 
   - package-ecosystem: gomod
     directory: /apps/backend
-    target-branch: development
     schedule:
       interval: weekly
       day: monday

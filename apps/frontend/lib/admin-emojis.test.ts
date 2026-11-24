@@ -58,6 +58,10 @@ describe("admin emoji helpers", () => {
     expect(form.get("license")).toBeNull();
     expect(form.get("image")).toBeInstanceOf(File);
     expect((form.get("image") as File).name).toBe("blobcat.png");
+    // The very same File, not a copy: passing a filename to FormData.set()
+    // constructs a new one, which loses the mark normalizeForUpload leaves on
+    // its output and makes the upload path convert the file a second time.
+    expect(form.get("image")).toBe(file);
   });
 
   it("builds update form data with explicit clear flags", () => {

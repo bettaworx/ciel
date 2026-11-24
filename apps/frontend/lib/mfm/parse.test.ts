@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  DEFAULT_MFM_SETTINGS,
-  type MfmSettings,
-} from "@/atoms/mfm-settings";
-import {
-  buildAllowListFromSettings,
-  filterMfmNodes,
-  parseMfm,
-} from "@/lib/mfm/parse";
+import { DEFAULT_MFM_SETTINGS, type MfmSettings } from "@/atoms/mfm-settings";
+import { buildAllowListFromSettings, filterMfmNodes, parseMfm } from "@/lib/mfm/parse";
 
 describe("mfm parse filtering", () => {
   it("preserves custom emoji inside disabled x3/x4 decorations", () => {

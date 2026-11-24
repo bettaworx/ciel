@@ -1,0 +1,35 @@
+components:
+  schemas:
+    Ogp:
+      type: object
+      description: 'Open Graph metadata scraped from a third-party URL.
+
+        Every field is optional because remote pages are not required to
+        provide any of them; a result is only returned at all when a title
+        could be determined.
+
+        '
+      properties:
+        title:
+          type: string
+          description: Page title (og:title > twitter:title > <title>)
+        description:
+          type: string
+          description: Page description (og:description > twitter:description > meta[name=description])
+        image:
+          type: string
+          format: uri
+          description: Absolute thumbnail URL (og:image > twitter:image)
+        imageWidth:
+          type: integer
+          description: Thumbnail width in pixels (og:image:width)
+        imageHeight:
+          type: integer
+          description: Thumbnail height in pixels (og:image:height)
+        siteName:
+          type: string
+          description: Site name (og:site_name > twitter:site)
+        url:
+          type: string
+          format: uri
+          description: Canonical URL (og:url > link[rel=canonical])

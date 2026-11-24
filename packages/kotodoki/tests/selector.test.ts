@@ -96,10 +96,7 @@ const otherCategoryDataset = {
   ],
 } satisfies KotodokiDataset;
 
-function createTestCatalog(
-  datasets: readonly KotodokiDataset[],
-  category = "test",
-) {
+function createTestCatalog(datasets: readonly KotodokiDataset[], category = "test") {
   const collection = {
     id: `${category}-collection`,
     category,
@@ -130,10 +127,7 @@ describe("createKotodoki", () => {
     const seasonResult = kotodoki.selectPhrase(input, { rng: () => 0.6 });
     const fallbackResult = kotodoki.selectPhrase(input, { rng: () => 0.9 });
 
-    expect(fallbackResult.matched.map((entry) => entry.id)).toEqual([
-      "noon",
-      "winter",
-    ]);
+    expect(fallbackResult.matched.map((entry) => entry.id)).toEqual(["noon", "winter"]);
     expect(timeResult.reason).toBe("matched");
     expect(timeResult.selected?.id).toBe("noon");
     expect(seasonResult.reason).toBe("matched");
@@ -175,11 +169,7 @@ describe("createKotodoki", () => {
     });
 
     expect(result.context.holidayIds).toEqual(["test_day"]);
-    expect(result.matched.map((entry) => entry.id)).toEqual([
-      "noon",
-      "holiday",
-      "winter",
-    ]);
+    expect(result.matched.map((entry) => entry.id)).toEqual(["noon", "holiday", "winter"]);
     expect(result.selected?.id).toBe("holiday");
   });
 
@@ -195,15 +185,9 @@ describe("createKotodoki", () => {
       region: "JP",
     };
 
-    expect(kotodoki.selectPhrase(input, { rng: () => 0 }).selected?.id).toBe(
-      "noon",
-    );
-    expect(kotodoki.selectPhrase(input, { rng: () => 0.4 }).selected?.id).toBe(
-      "holiday",
-    );
-    expect(kotodoki.selectPhrase(input, { rng: () => 0.8 }).selected?.id).toBe(
-      "winter",
-    );
+    expect(kotodoki.selectPhrase(input, { rng: () => 0 }).selected?.id).toBe("noon");
+    expect(kotodoki.selectPhrase(input, { rng: () => 0.4 }).selected?.id).toBe("holiday");
+    expect(kotodoki.selectPhrase(input, { rng: () => 0.8 }).selected?.id).toBe("winter");
 
     const fallbackResult = kotodoki.selectPhrase(input, { rng: () => 0.95 });
 
@@ -261,14 +245,8 @@ describe("createKotodoki", () => {
       region: "JP",
     });
 
-    expect(result.matched.map((entry) => entry.id)).toEqual([
-      "noon",
-      "winter",
-    ]);
-    expect(result.fallbacks.map((entry) => entry.id)).toEqual([
-      "fallback-a",
-      "fallback-b",
-    ]);
+    expect(result.matched.map((entry) => entry.id)).toEqual(["noon", "winter"]);
+    expect(result.fallbacks.map((entry) => entry.id)).toEqual(["fallback-a", "fallback-b"]);
   });
 
   it("returns no selection for missing categories", () => {

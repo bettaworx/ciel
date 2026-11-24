@@ -4,17 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { Smile } from "lucide-react";
 
-import {
-  defaultLocale,
-  locales,
-  type Locale,
-} from "@/i18n/constants";
+import { defaultLocale, locales, type Locale } from "@/i18n/constants";
 import { CATEGORY_META } from "./constants";
-import {
-  buildEmojiSearchText,
-  getEmojiSrc,
-  normalizeTwemojiEmoji,
-} from "./helpers";
+import { buildEmojiSearchText, getEmojiSrc, normalizeTwemojiEmoji } from "./helpers";
 import type { EmojiCategory, EmojiItem } from "./types";
 
 export type EmojibaseLocale = Locale;
@@ -88,9 +80,7 @@ const emojibaseDataLoaders: Record<EmojibaseLocale, EmojibaseDataLoader> = {
   },
 };
 
-export function normalizeEmojibaseLocale(
-  locale: string | null | undefined,
-): EmojibaseLocale {
+export function normalizeEmojibaseLocale(locale: string | null | undefined): EmojibaseLocale {
   const normalized = locale?.toLowerCase().split("-")[0];
 
   if (locales.includes(normalized as Locale)) {
@@ -130,10 +120,7 @@ function isSelectableEmojibaseEntry(
     return false;
   }
 
-  if (
-    componentGroupOrder !== undefined &&
-    entry.group === componentGroupOrder
-  ) {
+  if (componentGroupOrder !== undefined && entry.group === componentGroupOrder) {
     return false;
   }
 
@@ -156,9 +143,7 @@ function buildStandardEmojiItem(entry: EmojibaseEntry & { group: number }): Emoj
   };
 }
 
-export function buildStandardEmojiCategories(
-  bundle: EmojibaseDataBundle,
-): EmojiCategory[] {
+export function buildStandardEmojiCategories(bundle: EmojibaseDataBundle): EmojiCategory[] {
   const componentGroupOrder = bundle.messages.groups.find(
     (group) => group.key === "component",
   )?.order;
@@ -197,9 +182,7 @@ export function buildStandardEmojiCategories(
     .filter((category): category is EmojiCategory => category !== null);
 }
 
-export async function getEmojiData(
-  locale: string | null | undefined,
-): Promise<EmojiData> {
+export async function getEmojiData(locale: string | null | undefined): Promise<EmojiData> {
   const bundle = await loadEmojibaseData(locale);
 
   return {

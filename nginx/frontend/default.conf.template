@@ -1,0 +1,72 @@
+# Frontend web server (inside the frontend image).
+#
+# The frontend is a static SPA. nginx serves it, generates the deployment's
+# runtime config, and proxies the one endpoint that has to look same-origin.
+#
+# ${PORT} is substituted at container start by nginx:alpine's
+# 20-envsubst-on-templates.sh. The two included files are written by
+# 40-ciel-config.sh, which derives their contents from other variables.
+
+server {
+    listen ${PORT};
+    listen [::]:${PORT};
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Uploads never reach this server (the browser posts straight to the
+    # backend), so a small cap is enough and keeps stray bodies cheap.
+    client_max_body_size 1m;
+
+    gzip on;
+    gzip_vary on;
+    gzip_types text/plain text/css application/javascript application/json
+               image/svg+xml application/manifest+json;
+    gzip_min_length 1024;
+
+    # nginx only inherits add_header into a location that declares none of its
+    # own, so every block below that sets a header has to re-include this. The
+    # document response is the one that must never miss it.
+    include /etc/nginx/ciel/csp.conf;
+
+    # The Web App Manifest carries the instance's name and icon, so it comes
+    # from the backend — but it must be same-origin with the document or its
+    # relative start_url falls outside the app's scope.
+    location = /pwa/manifest.json {
+        include /etc/nginx/ciel/manifest-proxy.conf;
+    }
+
+    # Written at container start from this deployment's environment, so one
+    # image can be pointed at any backend.
+    location = /runtime-config.json {
+        include /etc/nginx/ciel/csp.conf;
+        add_header Cache-Control "no-store" always;
+        types { } default_type application/json;
+    }
+
+    # Hashed filenames, so these can be cached forever.
+    location /assets/ {
+        include /etc/nginx/ciel/csp.conf;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    # A stale service worker would pin users to an old build.
+    location = /sw.js {
+        include /etc/nginx/ciel/csp.conf;
+        add_header Cache-Control "public, max-age=0, must-revalidate" always;
+        add_header Service-Worker-Allowed "/" always;
+    }
+
+    # The shell must be revalidated, or a deploy never reaches anyone.
+    location = /index.html {
+        include /etc/nginx/ciel/csp.conf;
+        add_header Cache-Control "no-store" always;
+    }
+
+    # Client-side routing: every unknown path is a route, not a missing file.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

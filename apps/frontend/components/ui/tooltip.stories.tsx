@@ -1,11 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { Button } from "./button";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider,
-} from "./tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./tooltip";
 
 const meta = {
   title: "UI/Tooltip",
@@ -41,7 +36,9 @@ export const Positions: Story = {
     <div className="flex items-center gap-8 p-16">
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="outline" size="sm">Top</Button>
+          <Button variant="outline" size="sm">
+            Top
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="top">
           <p>Top tooltip</p>
@@ -49,7 +46,9 @@ export const Positions: Story = {
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="outline" size="sm">Bottom</Button>
+          <Button variant="outline" size="sm">
+            Bottom
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
           <p>Bottom tooltip</p>
@@ -57,7 +56,9 @@ export const Positions: Story = {
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="outline" size="sm">Left</Button>
+          <Button variant="outline" size="sm">
+            Left
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="left">
           <p>Left tooltip</p>
@@ -65,7 +66,9 @@ export const Positions: Story = {
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="outline" size="sm">Right</Button>
+          <Button variant="outline" size="sm">
+            Right
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="right">
           <p>Right tooltip</p>

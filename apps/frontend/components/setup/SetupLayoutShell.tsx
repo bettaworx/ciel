@@ -12,10 +12,7 @@ export function SetupLayoutShell({ children }: { children: React.ReactNode }) {
       fixedAspectRatio={true}
       header={
         progress.visible ? (
-          <SetupProgress
-            currentStep={progress.currentStep}
-            totalSteps={progress.totalSteps}
-          />
+          <SetupProgress currentStep={progress.currentStep} totalSteps={progress.totalSteps} />
         ) : null
       }
       footer={footer}

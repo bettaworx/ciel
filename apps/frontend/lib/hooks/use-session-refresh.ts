@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useCallback } from 'react';
-import { useAtomValue } from 'jotai';
-import { isAuthenticatedAtom } from '@/atoms/auth';
-import { createApiClient } from '@/lib/api/client';
+import { useEffect, useRef, useCallback } from "react";
+import { useAtomValue } from "jotai";
+import { isAuthenticatedAtom } from "@/atoms/auth";
+import { createApiClient } from "@/lib/api/client";
 
 /**
  * Refresh interval in milliseconds.
@@ -44,74 +44,71 @@ const api = createApiClient();
  * }
  */
 export function useSessionRefresh() {
-	const isAuthenticated = useAtomValue(isAuthenticatedAtom);
-	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-	const hiddenAtRef = useRef<number | null>(null);
-	const isRefreshingRef = useRef(false);
+  const isAuthenticated = useAtomValue(isAuthenticatedAtom);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hiddenAtRef = useRef<number | null>(null);
+  const isRefreshingRef = useRef(false);
 
-	const tryRefresh = useCallback(async () => {
-		if (isRefreshingRef.current) return;
-		isRefreshingRef.current = true;
-		try {
-			await api.refresh();
-		} catch {
-			// Network error or server issue — the 401 intercept handles token expiry
-		} finally {
-			isRefreshingRef.current = false;
-		}
-	}, []);
+  const tryRefresh = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
+    try {
+      await api.refresh();
+    } catch {
+      // Network error or server issue — the 401 intercept handles token expiry
+    } finally {
+      isRefreshingRef.current = false;
+    }
+  }, []);
 
-	const resetInterval = useCallback(
-		(callback: () => Promise<void>) => {
-			if (intervalRef.current) clearInterval(intervalRef.current);
-			intervalRef.current = setInterval(callback, REFRESH_INTERVAL_MS);
-		},
-		[]
-	);
+  const resetInterval = useCallback((callback: () => Promise<void>) => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(callback, REFRESH_INTERVAL_MS);
+  }, []);
 
-	useEffect(() => {
-		if (intervalRef.current) {
-			clearInterval(intervalRef.current);
-			intervalRef.current = null;
-		}
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
 
-		if (!isAuthenticated) {
-			return;
-		}
+    if (!isAuthenticated) {
+      return;
+    }
 
-		// Set up periodic token refresh
-		resetInterval(tryRefresh);
+    // Set up periodic token refresh
+    resetInterval(tryRefresh);
 
-		// Refresh immediately when the tab becomes visible after a long absence
-		const handleVisibilityChange = async () => {
-			if (document.visibilityState === 'hidden') {
-				hiddenAtRef.current = Date.now();
-				return;
-			}
-			const hiddenAt = hiddenAtRef.current;
-			hiddenAtRef.current = null;
-			if (hiddenAt !== null && Date.now() - hiddenAt >= VISIBILITY_REFRESH_THRESHOLD_MS) {
-				await tryRefresh();
-				resetInterval(tryRefresh); // reset so the next tick is a full interval away
-			}
-		};
+    // Refresh immediately when the tab becomes visible after a long absence
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAtRef.current = Date.now();
+        return;
+      }
+      const hiddenAt = hiddenAtRef.current;
+      hiddenAtRef.current = null;
+      if (hiddenAt !== null && Date.now() - hiddenAt >= VISIBILITY_REFRESH_THRESHOLD_MS) {
+        await tryRefresh();
+        resetInterval(tryRefresh); // reset so the next tick is a full interval away
+      }
+    };
 
-		// Refresh immediately when the browser comes back online
-		const handleOnline = async () => {
-			await tryRefresh();
-			resetInterval(tryRefresh);
-		};
+    // Refresh immediately when the browser comes back online
+    const handleOnline = async () => {
+      await tryRefresh();
+      resetInterval(tryRefresh);
+    };
 
-		document.addEventListener('visibilitychange', handleVisibilityChange);
-		window.addEventListener('online', handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("online", handleOnline);
 
-		return () => {
-			if (intervalRef.current) {
-				clearInterval(intervalRef.current);
-				intervalRef.current = null;
-			}
-			document.removeEventListener('visibilitychange', handleVisibilityChange);
-			window.removeEventListener('online', handleOnline);
-		};
-	}, [isAuthenticated, tryRefresh, resetInterval]);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [isAuthenticated, tryRefresh, resetInterval]);
 }

@@ -1,10 +1,7 @@
 import { memo, useState } from "react";
 import { parse as parseTwemoji } from "@twemoji/parser";
 import { cn } from "@/lib/utils";
-import {
-  buildTwemojiUrl,
-  type TwemojiAssetType,
-} from "@/lib/emoji-picker/constants";
+import { buildTwemojiUrl, type TwemojiAssetType } from "@/lib/emoji-picker/constants";
 
 // Pin to the 16.x series to match @twemoji/parser@16.0.0.
 // jsDelivr serves tagged URLs with Cache-Control: immutable.
@@ -15,15 +12,7 @@ interface TwemojiProps {
 }
 
 // Renders a single twemoji SVG image, falling back to native emoji on load error.
-function TwemojiImg({
-  src,
-  alt,
-  className,
-}: {
-  src: string;
-  alt: string;
-  className?: string;
-}) {
+function TwemojiImg({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
     return <span className={cn("mfm-inline-emoji", className)}>{alt}</span>;
@@ -42,11 +31,7 @@ function TwemojiImg({
   );
 }
 
-function TwemojiInner({
-  emoji,
-  className,
-  assetType = "svg",
-}: TwemojiProps) {
+function TwemojiInner({ emoji, className, assetType = "svg" }: TwemojiProps) {
   const entries = parseTwemoji(emoji, {
     buildUrl: (codepoints) => buildTwemojiUrl(codepoints, assetType),
     assetType,

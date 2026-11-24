@@ -4,24 +4,15 @@ import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useApi } from "@/lib/api/use-api";
 import { queryKeys } from "@/lib/hooks/use-queries";
-import {
-  getTimelineOwnerThreadMergeRootIds,
-  mergeTimelineOwnerThreads,
-} from "@/lib/post-thread";
+import { getTimelineOwnerThreadMergeRootIds, mergeTimelineOwnerThreads } from "@/lib/post-thread";
 import type { components } from "@/lib/api/api";
 
 type Post = components["schemas"]["Post"];
 
 export function useOwnerThreadTimelineItems(posts: Post[]) {
   const api = useApi();
-  const mergeRootIds = useMemo(
-    () => getTimelineOwnerThreadMergeRootIds(posts),
-    [posts],
-  );
-  const loadedPostIds = useMemo(
-    () => new Set(posts.map((post) => post.id)),
-    [posts],
-  );
+  const mergeRootIds = useMemo(() => getTimelineOwnerThreadMergeRootIds(posts), [posts]);
+  const loadedPostIds = useMemo(() => new Set(posts.map((post) => post.id)), [posts]);
   const missingMergeRootIds = useMemo(
     () => mergeRootIds.filter((rootId) => !loadedPostIds.has(rootId)),
     [loadedPostIds, mergeRootIds],

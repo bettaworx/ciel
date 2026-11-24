@@ -14,9 +14,6 @@ export function shouldCollapsePostContent({
   return collapseContent && !isExpanded && isOverflowing;
 }
 
-export function shouldShowPostContentToggle(
-  collapseContent: boolean,
-  isOverflowing: boolean,
-) {
+export function shouldShowPostContentToggle(collapseContent: boolean, isOverflowing: boolean) {
   return collapseContent && isOverflowing;
 }

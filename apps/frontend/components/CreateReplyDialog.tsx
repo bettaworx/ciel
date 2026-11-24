@@ -1,19 +1,25 @@
 "use client";
 
 import { User as UserIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { useAtomValue } from "jotai";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { userAtom } from "@/atoms/auth";
 import { useComposePost } from "./post-composer/useComposePost";
-import { PostComposerContent } from "./post-composer/PostComposerContent";
+import { fullscreenDialogClass, PostComposerContent } from "./post-composer/PostComposerContent";
+import type { components } from "@/lib/api/api";
+import { useComposerFullscreen } from "./post-composer/useComposerFullscreen";
+import { useDrawingDialogClose } from "./post-composer/useDrawingDialogClose";
+
+type Drawing = components["schemas"]["Drawing"];
 
 interface CreateReplyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   parentId: string;
   contentPrefix?: string;
+  parentDrawing?: Drawing | null;
 }
 
 export function CreateReplyDialog({
@@ -21,6 +27,7 @@ export function CreateReplyDialog({
   onOpenChange,
   parentId,
   contentPrefix,
+  parentDrawing,
 }: CreateReplyDialogProps) {
   const t = useTranslations();
   const user = useAtomValue(userAtom);
@@ -30,41 +37,40 @@ export function CreateReplyDialog({
     contentPrefix,
     onSuccess: () => onOpenChange(false),
   });
+  const { fullscreen, onFullscreenToggle } = useComposerFullscreen();
+  const drawingClose = useDrawingDialogClose(compose, () => onOpenChange(false));
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen && (compose.createPostMutation.isPending || compose.isUploading)) {
-      return;
-    }
-    onOpenChange(newOpen);
+    if (newOpen) onOpenChange(true);
+    else drawingClose.requestClose();
   };
 
   const avatarElement = (
     <Avatar className="h-11 w-11 sm:h-12 sm:w-12 shrink-0">
-      {user?.avatarUrl ? (
-        <AvatarImage src={user.avatarUrl} alt={user?.username} />
-      ) : (
-        <AvatarFallback>
-          <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-        </AvatarFallback>
-      )}
+      <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.username} />
+      <AvatarFallback>
+        <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+      </AvatarFallback>
     </Avatar>
   );
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        onDragOver={compose.handleDragOver}
-        onDragEnter={compose.handleDragEnter}
-        onDragLeave={compose.handleDragLeave}
-        onDrop={compose.handleDrop}
-        className="
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent
+          onDragOver={compose.handleDragOver}
+          onDragEnter={compose.handleDragEnter}
+          onDragLeave={compose.handleDragLeave}
+          onDrop={compose.handleDrop}
+          className={
+            fullscreen
+              ? `gap-0 p-0 [&>button]:hidden z-[60] ${fullscreenDialogClass}`
+              : `
         sm:max-w-2xl
         gap-0
         p-0
         [&>button]:hidden
-        sm:!top-6
-        sm:!translate-y-0
-        sm:m-6
+        ${compose.composerMode === "drawing" ? "" : "sm:!top-6 sm:!translate-y-0"}
         max-sm:!m-3
         max-sm:!top-0
         max-sm:!left-0
@@ -77,21 +83,27 @@ export function CreateReplyDialog({
         max-sm:!max-h-[calc(100vh-24px)]
         max-sm:overflow-hidden
         z-[60]
-      "
-      >
-        <DialogTitle className="sr-only">{t("createPost.replyTitle")}</DialogTitle>
+      `
+          }
+        >
+          <DialogTitle className="sr-only">{t("createPost.replyTitle")}</DialogTitle>
 
-        <PostComposerContent
-          layout="dialog"
-          compose={compose}
-          avatar={avatarElement}
-          onClose={() => handleOpenChange(false)}
-          closeDisabled={compose.createPostMutation.isPending || compose.isUploading}
-          placeholder={t("createPost.replyPlaceholder")}
-          submitLabel={t("createPost.reply")}
-          submittingLabel={t("createPost.replying")}
-        />
-      </DialogContent>
-    </Dialog>
+          <PostComposerContent
+            layout="dialog"
+            compose={compose}
+            avatar={avatarElement}
+            onClose={() => handleOpenChange(false)}
+            fullscreen={fullscreen}
+            onFullscreenToggle={onFullscreenToggle}
+            closeDisabled={compose.createPostMutation.isPending || compose.isUploading}
+            placeholder={t("createPost.replyPlaceholder")}
+            submitLabel={t("createPost.reply")}
+            submittingLabel={t("createPost.replying")}
+            replyDrawing={parentDrawing}
+          />
+        </DialogContent>
+      </Dialog>
+      {drawingClose.confirmation}
+    </>
   );
 }

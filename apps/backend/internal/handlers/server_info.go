@@ -25,7 +25,10 @@ func (h API) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 	// Build response
 	versionStr := version.CommitOrDev()
 	branchStr := version.BranchOrDev()
-	semVer := version.Version
+	semVer := version.VersionOrDev()
+	// Advertised so clients can hide their search entry points rather than
+	// offering a link that only ever answers 503.
+	searchEnabled := h.Search != nil && h.Search.Enabled()
 	response := api.ServerInfo{
 		ServerName:        stringPtr(cfg.Server.Name),
 		ServerDescription: stringPtr(cfg.Server.Description),
@@ -33,6 +36,7 @@ func (h API) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 		Commit:            &versionStr,
 		Branch:            &branchStr,
 		Version:           &semVer,
+		SearchEnabled:     &searchEnabled,
 		Stats:             api.ServerStats{},
 	}
 

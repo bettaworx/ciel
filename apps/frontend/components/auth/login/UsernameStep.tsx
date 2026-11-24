@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
@@ -10,9 +10,10 @@ import { useApi } from "@/lib/api/use-api";
 interface UsernameStepProps {
   onNext: (username: string) => void;
   initialValue?: string;
+  disabled?: boolean;
 }
 
-export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
+export function UsernameStep({ onNext, initialValue = "", disabled = false }: UsernameStepProps) {
   const t = useTranslations();
   const api = useApi();
   const [username, setUsername] = useState(initialValue);
@@ -23,6 +24,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (disabled) return;
     const trimmedUsername = username.trim();
 
     if (!trimmedUsername) {
@@ -47,7 +49,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
         // Other error
         setError(t("login.wizard.username.error"));
       }
-    } catch (err) {
+    } catch (_err) {
       // Network or other error
       setError(t("login.wizard.username.error"));
     } finally {
@@ -68,7 +70,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
     const syncAutofilledValue = () => {
       const autofilledUsername = input.value.trim();
 
-      if (!autofilledUsername || autofillAttemptedRef.current || isVerifying) {
+      if (!autofilledUsername || autofillAttemptedRef.current || isVerifying || disabled) {
         return;
       }
 
@@ -103,7 +105,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
       window.cancelAnimationFrame(animationFrameId);
       window.clearTimeout(timeoutId);
     };
-  }, [api, initialValue, isVerifying, onNext, t]);
+  }, [api, initialValue, isVerifying, onNext, t, disabled]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -114,12 +116,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
       >
         <div className="flex-1 flex flex-col justify-center">
           <div className="space-y-2 mb-6">
-            <h2 className="text-2xl font-bold">
-              {t("login.wizard.username.title")}
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              {t("login.wizard.username.description")}
-            </p>
+            <h2 className="text-2xl font-bold">{t("login.wizard.username.title")}</h2>
           </div>
 
           <div className="space-y-4">
@@ -137,7 +134,7 @@ export function UsernameStep({ onNext, initialValue = "" }: UsernameStepProps) {
               required
               autoFocus
               autoComplete="username"
-              disabled={isVerifying}
+              disabled={isVerifying || disabled}
               className="transition-colors duration-160 ease"
             />
 

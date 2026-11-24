@@ -52,6 +52,30 @@ func TestRateLimit_AuthLoginStart_PerIP(t *testing.T) {
 	}
 }
 
+func TestRateLimit_PasskeyLogin_PerIP(t *testing.T) {
+	for _, endpoint := range []string{"options", "verify"} {
+		t.Run(endpoint, func(t *testing.T) {
+			mr := miniredis.RunT(t)
+			rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+			t.Cleanup(func() { _ = rdb.Close() })
+			h := middleware.RateLimit(rdb, middleware.RateLimitOptions{})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+			for i := 0; i < 11; i++ {
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login/passkey/"+endpoint, nil)
+				req.RemoteAddr = "1.2.3.4:1234"
+				rr := httptest.NewRecorder()
+				h.ServeHTTP(rr, req)
+				expected := http.StatusOK
+				if i == 10 {
+					expected = http.StatusTooManyRequests
+				}
+				if rr.Code != expected {
+					t.Fatalf("request %d: expected %d, got %d", i+1, expected, rr.Code)
+				}
+			}
+		})
+	}
+}
+
 func TestRateLimit_Health_IsExcluded(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
@@ -184,6 +208,33 @@ func TestRateLimit_MediaGet_PerIP_PreseededLimit(t *testing.T) {
 	}
 }
 
+func TestRateLimit_DrawingUpload_PerUser_DailyLimit(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
+	now := time.Unix(1_700_000_000, 0)
+	mw := middleware.RateLimit(rdb, middleware.RateLimitOptions{Now: func() time.Time { return now }})
+	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	uid := uuid.New()
+	ctx := auth.WithUser(context.Background(), auth.User{ID: uid, Username: "u"})
+
+	key := rateLimitKey("drawing_upload", "user:"+uid.String(), 24*time.Hour, now)
+	if err := rdb.Set(context.Background(), key, "100", 24*time.Hour).Err(); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drawings", nil).WithContext(ctx)
+	req.RemoteAddr = "1.2.3.4:1234"
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429, got %d", rr.Code)
+	}
+}
+
 func TestRateLimit_MediaUpload_PerUser_DailyLimit(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
@@ -198,7 +249,7 @@ func TestRateLimit_MediaUpload_PerUser_DailyLimit(t *testing.T) {
 	ctx := auth.WithUser(context.Background(), auth.User{ID: uid, Username: "u"})
 
 	key := rateLimitKey("media_upload", "user:"+uid.String(), 24*time.Hour, now)
-	if err := rdb.Set(context.Background(), key, "50", 24*time.Hour).Err(); err != nil {
+	if err := rdb.Set(context.Background(), key, "200", 24*time.Hour).Err(); err != nil {
 		t.Fatalf("Set: %v", err)
 	}
 
@@ -223,7 +274,7 @@ func TestRateLimit_MediaUpload_Unauthed_FallsBackToIP(t *testing.T) {
 
 	ip := "1.2.3.4"
 	key := rateLimitKey("media_upload", "ip:"+ip, 10*time.Minute, now)
-	if err := rdb.Set(context.Background(), key, "10", 10*time.Minute).Err(); err != nil {
+	if err := rdb.Set(context.Background(), key, "40", 10*time.Minute).Err(); err != nil {
 		t.Fatalf("Set: %v", err)
 	}
 
@@ -267,4 +318,82 @@ func rateLimitKey(routeKey, subject string, window time.Duration, now time.Time)
 	windowSeconds := int64(window.Seconds())
 	start := (now.Unix() / windowSeconds) * windowSeconds
 	return "rl:" + routeKey + ":" + subject + ":" + strconv.FormatInt(windowSeconds, 10) + ":" + strconv.FormatInt(start, 10)
+}
+
+func TestRateLimit_Ogp_PerIP(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
+	now := time.Unix(1_700_000_000, 0)
+	mw := middleware.RateLimit(rdb, middleware.RateLimitOptions{Now: func() time.Time { return now }})
+
+	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	get := func(path, ip string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.RemoteAddr = ip + ":1234"
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		return rr
+	}
+
+	for i := 0; i < 30; i++ {
+		if rr := get("/api/v1/ogp?url=https://example.com", "1.2.3.4"); rr.Code != http.StatusOK {
+			t.Fatalf("request %d: expected 200, got %d", i+1, rr.Code)
+		}
+	}
+
+	rr := get("/api/v1/ogp?url=https://example.com", "1.2.3.4")
+	if rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 on the 31st request, got %d", rr.Code)
+	}
+	if rr.Header().Get("X-RateLimit-Limit") != "30" {
+		t.Fatalf("expected X-RateLimit-Limit=30, got %q", rr.Header().Get("X-RateLimit-Limit"))
+	}
+	if rr.Header().Get("Retry-After") == "" {
+		t.Fatalf("expected Retry-After header")
+	}
+
+	// The image proxy has its own, looser budget and must not be exhausted by
+	// the metadata calls above.
+	if rr := get("/api/v1/ogp/image?url=https://example.com/i.png", "1.2.3.4"); rr.Code != http.StatusOK {
+		t.Fatalf("image proxy should have its own budget, got %d", rr.Code)
+	}
+
+	// Limits are per-IP, so another client is unaffected.
+	if rr := get("/api/v1/ogp?url=https://example.com", "5.6.7.8"); rr.Code != http.StatusOK {
+		t.Fatalf("a different IP should not be limited, got %d", rr.Code)
+	}
+}
+
+func TestRateLimit_OgpImage_PerIP(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
+	now := time.Unix(1_700_000_000, 0)
+	mw := middleware.RateLimit(rdb, middleware.RateLimitOptions{Now: func() time.Time { return now }})
+
+	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	for i := 0; i < 60; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/ogp/image?url=https://example.com/i.png", nil)
+		req.RemoteAddr = "1.2.3.4:1234"
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("request %d: expected 200, got %d", i+1, rr.Code)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/ogp/image?url=https://example.com/i.png", nil)
+	req.RemoteAddr = "1.2.3.4:1234"
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 on the 61st request, got %d", rr.Code)
+	}
 }

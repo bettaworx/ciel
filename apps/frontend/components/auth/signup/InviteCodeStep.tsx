@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 
 interface InviteCodeStepProps {
@@ -9,10 +9,7 @@ interface InviteCodeStepProps {
   loading?: boolean;
 }
 
-export function InviteCodeStep({
-  onSubmit,
-  loading = false,
-}: InviteCodeStepProps) {
+export function InviteCodeStep({ onSubmit, loading = false }: InviteCodeStepProps) {
   const t = useTranslations();
   const [inviteCode, setInviteCode] = useState("");
 
@@ -41,9 +38,7 @@ export function InviteCodeStep({
       >
         <div className="flex-1 flex flex-col justify-center">
           <div className="space-y-2 mb-6">
-            <h2 className="text-2xl font-bold">
-              {t("signup.wizard.inviteCode.title")}
-            </h2>
+            <h2 className="text-2xl font-bold">{t("signup.wizard.inviteCode.title")}</h2>
             <p className="text-muted-foreground text-sm">
               {t("signup.wizard.inviteCode.description")}
             </p>

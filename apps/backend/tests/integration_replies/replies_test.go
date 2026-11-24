@@ -34,7 +34,7 @@ func TestIntegration_Replies_RootIdNormalization(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "rep1", "password123")
+	u := registerUser(t, client, base, "rep1", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	root := createPost(t, client, base, a, "root post")
@@ -89,7 +89,7 @@ func TestIntegration_Replies_InvalidParent(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "rep2", "password123")
+	u := registerUser(t, client, base, "rep2", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	// nonexistent parent
@@ -129,8 +129,8 @@ func TestIntegration_Replies_SurviveParentSoftDelete(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u1 := registerUser(t, client, base, "alice", "password123")
-	u2 := registerUser(t, client, base, "bob", "password123")
+	u1 := registerUser(t, client, base, "alice", "Password123")
+	u2 := registerUser(t, client, base, "bob", "Password123")
 	a1 := issueBearer(t, app.TokenManager, u1)
 	a2 := issueBearer(t, app.TokenManager, u2)
 
@@ -162,8 +162,8 @@ func TestIntegration_Replies_SurviveParentHardDelete(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u1 := registerUser(t, client, base, "carol", "password123")
-	u2 := registerUser(t, client, base, "dave", "password123")
+	u1 := registerUser(t, client, base, "carol", "Password123")
+	u2 := registerUser(t, client, base, "dave", "Password123")
 	a2 := issueBearer(t, app.TokenManager, u2)
 	a1 := issueBearer(t, app.TokenManager, u1)
 
@@ -197,9 +197,9 @@ func TestIntegration_Mentions_ExtractionAndIndependence(t *testing.T) {
 	base := app.Server.URL
 
 	// Existing users to be mentioned.
-	uAlice := registerUser(t, client, base, "alice2", "password123")
-	uBob := registerUser(t, client, base, "bob2", "password123")
-	uAuthor := registerUser(t, client, base, "author2", "password123")
+	uAlice := registerUser(t, client, base, "alice2", "Password123")
+	uBob := registerUser(t, client, base, "bob2", "Password123")
+	uAuthor := registerUser(t, client, base, "author2", "Password123")
 	aAuthor := issueBearer(t, app.TokenManager, uAuthor)
 
 	// Plain post mentioning two real users plus an unknown one — independent of replies.
@@ -248,7 +248,7 @@ func TestIntegration_Mentions_DuplicateAndSelfMention(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	uAuthor := registerUser(t, client, base, "selfauth", "password123")
+	uAuthor := registerUser(t, client, base, "selfauth", "Password123")
 	aAuthor := issueBearer(t, app.TokenManager, uAuthor)
 
 	resp := postJSON(t, client, base+"/api/v1/posts", map[string]any{
@@ -274,7 +274,7 @@ func TestIntegration_ReplyCount(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "rcuser", "password123")
+	u := registerUser(t, client, base, "rcuser", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	root := createPost(t, client, base, a, "root")
@@ -314,17 +314,21 @@ func TestIntegration_ListReplies(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "lruser", "password123")
+	u := registerUser(t, client, base, "lruser", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	root := createPost(t, client, base, a, "root")
 
 	// 5 replies in known order.
 	replies := make([]api.Post, 0, 5)
+	created := time.Now().UTC().Truncate(time.Millisecond).Add(123 * time.Microsecond)
 	for i := 0; i < 5; i++ {
 		r, _ := createReply(t, client, base, a, "reply "+strconv.Itoa(i), root.Id)
+		// Keep every reply within one millisecond to exercise cursor precision.
+		if _, err := app.SQLDB.Exec("UPDATE posts SET created_at = $1 WHERE id = $2", created.Add(time.Duration(i)*100*time.Microsecond), r.Id); err != nil {
+			t.Fatal(err)
+		}
 		replies = append(replies, r)
-		time.Sleep(3 * time.Millisecond)
 	}
 
 	// First page (limit=3) ordered ascending by creation time.
@@ -367,7 +371,7 @@ func TestIntegration_ListReplies_ParentNotFound(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "lrnf", "password123")
+	u := registerUser(t, client, base, "lrnf", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	// Non-existent parent → 404.
@@ -397,12 +401,22 @@ func TestIntegration_PostContext(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "ctxuser", "password123")
+	u := registerUser(t, client, base, "ctxuser", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	root := createPost(t, client, base, a, "root")
 	reply, _ := createReply(t, client, base, a, "reply", root.Id)
 	nested, _ := createReply(t, client, base, a, "nested", reply.Id)
+
+	directResp := get(t, client, base+"/api/v1/posts/"+reply.Id.String()+"/context", nil)
+	if directResp.StatusCode != http.StatusOK {
+		errBody := decodeJSON[map[string]any](t, directResp)
+		t.Fatalf("direct reply context: expected 200, got %d (%v)", directResp.StatusCode, errBody)
+	}
+	directContext := decodeJSON[api.PostContext](t, directResp)
+	if directContext.Parent == nil || directContext.Parent.ReplyCount != 1 {
+		t.Fatalf("direct reply parent details were not hydrated: %+v", directContext.Parent)
+	}
 
 	resp := get(t, client, base+"/api/v1/posts/"+nested.Id.String()+"/context", nil)
 	if resp.StatusCode != http.StatusOK {
@@ -442,7 +456,7 @@ func TestIntegration_PostThread_BoundedTreeAndContinuation(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "threaduser", "password123")
+	u := registerUser(t, client, base, "threaduser", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	root := createPost(t, client, base, a, "root")
@@ -505,7 +519,7 @@ func TestIntegration_PostThread_RejectsAnchorOutsideThread(t *testing.T) {
 	client := app.Server.Client()
 	base := app.Server.URL
 
-	u := registerUser(t, client, base, "threadbad", "password123")
+	u := registerUser(t, client, base, "threadbad", "Password123")
 	a := issueBearer(t, app.TokenManager, u)
 
 	rootA := createPost(t, client, base, a, "root A")
@@ -553,10 +567,10 @@ func TestIntegration_Mentions_PerPostCap(t *testing.T) {
 	for i := 0; i < total; i++ {
 		uname := fmt.Sprintf("capu%03d", i)
 		usernames = append(usernames, uname)
-		registerUser(t, client, base, uname, "password123")
+		registerUser(t, client, base, uname, "Password123")
 	}
 
-	uAuthor := registerUser(t, client, base, "capauthor", "password123")
+	uAuthor := registerUser(t, client, base, "capauthor", "Password123")
 	aAuthor := issueBearer(t, app.TokenManager, uAuthor)
 
 	var sb strings.Builder
