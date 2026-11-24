@@ -65,13 +65,13 @@ func (m *Meilisearch) EnsureIndexes(ctx context.Context) error {
 }
 
 func (m *Meilisearch) ensureIndex(ctx context.Context, uid string, settings *meilisearch.Settings) error {
-	if _, err := m.client.CreateIndexWithContext(ctx, &meilisearch.IndexConfig{
+	if _, err := m.client.CreateIndex(ctx, &meilisearch.IndexConfig{
 		Uid:        uid,
 		PrimaryKey: "id",
 	}); err != nil && !isIndexAlreadyExists(err) {
 		return fmt.Errorf("create index %s: %w", uid, err)
 	}
-	if _, err := m.client.Index(uid).UpdateSettingsWithContext(ctx, settings); err != nil {
+	if _, err := m.client.Index(uid).UpdateSettings(ctx, settings); err != nil {
 		return fmt.Errorf("update settings for %s: %w", uid, err)
 	}
 	return nil
@@ -79,7 +79,7 @@ func (m *Meilisearch) ensureIndex(ctx context.Context, uid string, settings *mei
 
 func isIndexAlreadyExists(err error) bool {
 	var apiErr *meilisearch.Error
-	if errors.As(err, &apiErr) && apiErr.MeilisearchApiError.Code == "index_already_exists" {
+	if errors.As(err, &apiErr) && apiErr.HasCode(meilisearch.APIErrCodeIndexAlreadyExists) {
 		return true
 	}
 	return strings.Contains(err.Error(), "index_already_exists")
@@ -91,7 +91,7 @@ func (m *Meilisearch) IndexPosts(ctx context.Context, docs ...PostDoc) error {
 	if len(docs) == 0 {
 		return nil
 	}
-	_, err := m.client.Index(postsIndex).AddDocumentsWithContext(ctx, docs, nil)
+	_, err := m.client.Index(postsIndex).AddDocuments(ctx, docs, nil)
 	return err
 }
 
@@ -99,7 +99,7 @@ func (m *Meilisearch) IndexUsers(ctx context.Context, docs ...UserDoc) error {
 	if len(docs) == 0 {
 		return nil
 	}
-	_, err := m.client.Index(usersIndex).AddDocumentsWithContext(ctx, docs, nil)
+	_, err := m.client.Index(usersIndex).AddDocuments(ctx, docs, nil)
 	return err
 }
 
@@ -113,7 +113,7 @@ func (m *Meilisearch) DeleteUsers(ctx context.Context, ids ...uuid.UUID) error {
 
 func (m *Meilisearch) DeletePostsByAuthor(ctx context.Context, userID uuid.UUID) error {
 	filter := fmt.Sprintf("userId = %s", quoteFilterValue(userID.String()))
-	_, err := m.client.Index(postsIndex).DeleteDocumentsByFilterWithContext(ctx, filter, nil)
+	_, err := m.client.Index(postsIndex).DeleteDocumentsByFilter(ctx, filter, nil)
 	return err
 }
 
@@ -125,7 +125,7 @@ func (m *Meilisearch) deleteDocuments(ctx context.Context, index string, ids []u
 	for _, id := range ids {
 		identifiers = append(identifiers, id.String())
 	}
-	_, err := m.client.Index(index).DeleteDocumentsWithContext(ctx, identifiers, nil)
+	_, err := m.client.Index(index).DeleteDocuments(ctx, identifiers, nil)
 	return err
 }
 
@@ -158,7 +158,7 @@ func (m *Meilisearch) search(ctx context.Context, index string, q Query, sort ..
 		req.Filter = filter
 	}
 
-	resp, err := m.client.Index(index).SearchWithContext(ctx, q.Text, req)
+	resp, err := m.client.Index(index).Search(ctx, q.Text, req)
 	if err != nil {
 		return Result{}, err
 	}
@@ -218,7 +218,7 @@ func (m *Meilisearch) UserCount(ctx context.Context) (int64, error) {
 }
 
 func (m *Meilisearch) count(ctx context.Context, index string) (int64, error) {
-	stats, err := m.client.Index(index).GetStatsWithContext(ctx, nil)
+	stats, err := m.client.Index(index).GetStats(ctx, nil)
 	if err != nil {
 		return 0, err
 	}

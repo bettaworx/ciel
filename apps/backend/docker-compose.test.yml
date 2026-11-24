@@ -29,6 +29,19 @@ services:
       timeout: 2s
       retries: 30
 
+  # Same version as the main docker-compose.yml. Its data lives in the
+  # container, so every run starts with empty indexes.
+  meili_test:
+    image: getmeili/meilisearch:v1.53
+    environment:
+      MEILI_MASTER_KEY: test-master-key-0123456789
+      MEILI_NO_ANALYTICS: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:7700/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
   backend_test:
     image: golang:1.27.3-alpine
     working_dir: /src
@@ -37,9 +50,13 @@ services:
         condition: service_healthy
       redis_test:
         condition: service_healthy
+      meili_test:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://ciel:ciel@db_test:5432/ciel?sslmode=disable
       REDIS_ADDR: redis_test:6379
+      MEILISEARCH_TEST_HOST: http://meili_test:7700
+      MEILISEARCH_TEST_API_KEY: test-master-key-0123456789
       JWT_SECRET: test-secret-test-secret-test-secret-32b
       MEDIA_DIR: /tmp/ciel-media
       # keep behavior consistent with local.
