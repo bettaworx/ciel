@@ -26,7 +26,7 @@ function AdminConfigPage() {
   if (!serverInfo || !settings) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <p className="text-muted-foreground">{t("error") || "Failed to load settings"}</p>
+        <p className="text-muted-foreground">{t("error")}</p>
       </div>
     );
   }

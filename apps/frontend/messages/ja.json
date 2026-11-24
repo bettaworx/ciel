@@ -1520,6 +1520,7 @@
     "config": {
       "title": "サーバー設定",
       "description": "サーバーの基本情報と動作設定を管理します",
+      "error": "設定の読み込みに失敗しました",
       "profile": {
         "title": "サーバープロフィール",
         "serverIconLabel": "サーバーアイコン",

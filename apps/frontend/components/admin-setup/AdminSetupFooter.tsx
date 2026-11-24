@@ -202,7 +202,7 @@ export function AdminSetupFooter({
           disabled={isLoading}
           className="bg-c-1 text-c-foreground hover:bg-c-2 transition-colors duration-160 ease"
         >
-          {isLoading ? t("adminSetup.saving") : t("adminSetup.complete")}
+          {isLoading ? t("adminSetup.saving") : t("setup.complete")}
         </Button>
       </div>
     );

@@ -32,6 +32,7 @@ const apiClient = createApiClient();
 export function AdminSetupWizard() {
   const router = useRouter();
   const t = useTranslations("adminSetup");
+  const tProfile = useTranslations("setup");
   const { setProgress, setFooter } = useSetupLayout();
   const upsertAccount = useSetAtom(upsertAccountAtom);
 
@@ -243,9 +244,9 @@ export function AdminSetupWizard() {
     if (displayName) {
       try {
         await updateProfile.mutateAsync({ displayName });
-        toast.success(t("setup.success"));
+        toast.success(tProfile("success"));
       } catch {
-        toast.error(t("setup.error"));
+        toast.error(tProfile("error"));
         return;
       }
     }
@@ -256,9 +257,9 @@ export function AdminSetupWizard() {
     if (file) {
       try {
         await updateAvatar.mutateAsync(file);
-        toast.success(t("setup.success"));
+        toast.success(tProfile("success"));
       } catch {
-        toast.error(t("setup.error"));
+        toast.error(tProfile("error"));
         return;
       }
     }
@@ -269,9 +270,9 @@ export function AdminSetupWizard() {
     if (bio) {
       try {
         await updateProfile.mutateAsync({ bio });
-        toast.success(t("setup.success"));
+        toast.success(tProfile("success"));
       } catch {
-        toast.error(t("setup.error"));
+        toast.error(tProfile("error"));
         // Continue even on error
       }
     }
