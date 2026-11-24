@@ -254,8 +254,8 @@ github.com/mattn/go-isatty v0.0.22 h1:j8l17JJ9i6VGPUFUYoTUKPSgKe/83EYU2zBC7YNKMw
 github.com/mattn/go-isatty v0.0.22/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
 github.com/mattn/go-runewidth v0.0.19 h1:v++JhqYnZuu5jSKrk9RbgF5v4CGUjqRfBm05byFGLdw=
 github.com/mattn/go-runewidth v0.0.19/go.mod h1:XBkDxAl56ILZc9knddidhrOlY5R/pDhgLpndooCuJAs=
-github.com/meilisearch/meilisearch-go v0.36.3 h1:Yx1aTY5jDgtbStPVkhJTDoLnZTy5sejQSPyjfNMy6e4=
-github.com/meilisearch/meilisearch-go v0.36.3/go.mod h1:hWcR0MuWLSzHfbz9GGzIr3s9rnXLm1jqkmHkJPbUSvM=
+github.com/meilisearch/meilisearch-go v0.37.0 h1:6rbL0N0IqbAWkHvFSAsIXLDWFkmD46cTOL1VGt4so1Q=
+github.com/meilisearch/meilisearch-go v0.37.0/go.mod h1:OX/+KCeBVpJEikK0bc7gh0rK/a8WPCnwNHzJBceWKgg=
 github.com/microcosm-cc/bluemonday v1.0.27 h1:MpEUotklkwCSLeH+Qdx1VJgNqLlpY2KXwXFM08ygZfk=
 github.com/microcosm-cc/bluemonday v1.0.27/go.mod h1:jFi9vgW+H7c3V0lb6nR74Ib/DIB5OBs92Dimizgw2cA=
 github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c h1:cqn374mizHuIWj+OSJCajGr/phAmuMug9qIX3l9CflE=
