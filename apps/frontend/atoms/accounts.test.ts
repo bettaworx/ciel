@@ -1,6 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { createStore } from "jotai";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { pickNextAccounts, refreshAccount, type AccountEntry } from "@/atoms/accounts";
+import {
+  accountsAtom,
+  orderedAccountsAtom,
+  pickNextAccounts,
+  refreshAccount,
+  removeAccountAtom,
+  updateCachedUnreadAtom,
+  upsertAccountAtom,
+  type AccountEntry,
+} from "@/atoms/accounts";
 
 function entry(userId: string, lastActiveAt?: number): AccountEntry {
   return {
@@ -61,5 +71,69 @@ describe("refreshAccount", () => {
     });
 
     expect(refreshed).toBe(accounts);
+  });
+});
+
+/**
+ * The account list lives in localStorage through jotai's atomWithStorage, so
+ * these pin what the switcher relies on from it: the list is read back when the
+ * atom is first used, and every write atom saves its result.
+ */
+describe("accounts store", () => {
+  let saved: Map<string, string>;
+
+  beforeEach(() => {
+    saved = new Map();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => saved.get(key) ?? null,
+        setItem: (key: string, value: string) => void saved.set(key, value),
+        removeItem: (key: string) => void saved.delete(key),
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // Mounting is what reads storage, as it is for a component in the app.
+  function mountedStore() {
+    const store = createStore();
+    store.sub(orderedAccountsAtom, () => {});
+    return store;
+  }
+
+  it("restores the accounts saved by an earlier page load", () => {
+    saved.set("ciel:accounts", JSON.stringify([entry("a", 1), entry("b", 2)]));
+
+    const store = mountedStore();
+
+    expect(store.get(orderedAccountsAtom).map((a) => a.userId)).toEqual(["b", "a"]);
+  });
+
+  it("saves every change for the next page load", () => {
+    const store = mountedStore();
+    const profile = (userId: string) => ({
+      userId,
+      username: userId,
+      displayName: null,
+      avatarUrl: null,
+    });
+
+    store.set(upsertAccountAtom, profile("a"));
+    store.set(upsertAccountAtom, profile("b"));
+    store.set(updateCachedUnreadAtom, { userId: "a", count: 3 });
+    store.set(removeAccountAtom, "b");
+
+    expect(JSON.parse(saved.get("ciel:accounts") ?? "null")).toEqual([
+      { ...profile("a"), cachedUnreadCount: 3 },
+    ]);
+  });
+
+  it("starts empty when the saved list cannot be read", () => {
+    saved.set("ciel:accounts", "{not json");
+
+    expect(mountedStore().get(accountsAtom)).toEqual([]);
   });
 });
