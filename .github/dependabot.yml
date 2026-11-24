@@ -11,6 +11,17 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
+    # These would land in the "others" group and fail its build every week.
+    ignore:
+      # TypeScript 7.0 ships the native compiler only, without the JS API that
+      # openapi-typescript (gen:openapi) and Storybook's react-docgen-typescript
+      # call. Drop this once openapi-typescript supports 7.
+      - dependency-name: typescript
+        versions: [">=7"]
+      # The React Compiler goes through @vitejs/plugin-react, whose peer range is
+      # >=0.152.0 <0.157.0. Drop this when plugin-react widens it.
+      - dependency-name: oxc-transform-react
+        versions: [">=0.157.0"]
     groups:
       react:
         patterns:
