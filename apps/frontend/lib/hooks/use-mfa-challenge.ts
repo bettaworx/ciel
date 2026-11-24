@@ -196,7 +196,7 @@ export function useMfaChallenge(
   };
 
   /** The backup-code fallback the chooser's primary button reaches. */
-  const useBackupCodes = () => {
+  const switchToBackupCodes = () => {
     setCodeState("");
     setError(null);
     setStage("backup");
@@ -230,7 +230,7 @@ export function useMfaChallenge(
     secondaryOverride,
     showTotp,
     choosePasskey,
-    useBackupCodes,
+    switchToBackupCodes,
     retryPasskey: runPasskey,
     goBack,
   };

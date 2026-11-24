@@ -72,8 +72,7 @@ export function MfaChallengeStep({
     if (stage === "choose") {
       // On the chooser the primary button is the backup-code fallback; the
       // factors themselves live in the body.
-      // biome-ignore lint/correctness/useHookAtTopLevel: useBackupCodes は challenge オブジェクトのメソッドでフックではない
-      challenge.useBackupCodes();
+      challenge.switchToBackupCodes();
       return;
     }
     if (stage === "passkey") {
