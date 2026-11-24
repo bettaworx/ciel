@@ -263,13 +263,17 @@ export function useComposePost(options: UseComposePostOptions = {}) {
       prev.map((m) => (m.type === "image" && m.localId === localId ? update(m) : m)),
     );
 
+  // Only extract OGP URL when there is no media attached (same rule as PostCard).
+  // Cleared once per attach, not per keystroke: a setState here on every
+  // content change queues a re-render after each typed character, and fast
+  // typing piles those up until React aborts the keystroke with error #185.
+  useEffect(() => {
+    if (hasMedia) setOgpUrl(null);
+  }, [hasMedia]);
+
   // OGP URL extraction with debounce
   useEffect(() => {
-    // Only extract OGP URL when there is no media attached (same rule as PostCard)
-    if (hasMedia) {
-      setOgpUrl(null);
-      return;
-    }
+    if (hasMedia) return;
 
     const timer = setTimeout(() => {
       const url = content ? extractFirstUrl(content) : null;
