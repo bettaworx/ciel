@@ -19,7 +19,7 @@ require (
 	github.com/lib/pq v1.12.3
 	github.com/meilisearch/meilisearch-go v0.37.0
 	github.com/oapi-codegen/oapi-codegen/v2 v2.8.2
-	github.com/oapi-codegen/runtime v1.9.0
+	github.com/oapi-codegen/runtime v1.9.1
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/sqlc-dev/pqtype v0.3.0
 	github.com/sqlc-dev/sqlc v1.31.1
