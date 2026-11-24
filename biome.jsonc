@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -35,6 +35,10 @@
     // apps/frontend/app/globals.css は Tailwind v4 の @theme / @apply を使う
     "parser": { "tailwindDirectives": true }
   },
+  // Biome 2.6 から YAML と Markdown も整形対象になった。OpenAPI 定義・ワークフロー・
+  // ドキュメントを一括で書き換えることになるため、2.5 までと同じく整形しない。
+  "yaml": { "formatter": { "enabled": false } },
+  "markdown": { "formatter": { "enabled": false } },
   "javascript": {
     "formatter": {
       "quoteStyle": "double",
