@@ -6,7 +6,12 @@ import { Smile } from "lucide-react";
 
 import { defaultLocale, locales, type Locale } from "@/i18n/constants";
 import { CATEGORY_META } from "./constants";
-import { buildEmojiSearchText, getEmojiSrc, normalizeTwemojiEmoji } from "./helpers";
+import {
+  buildEmojiSearchText,
+  getEmojiSrc,
+  isSingleTwemojiEmoji,
+  normalizeTwemojiEmoji,
+} from "./helpers";
 import type { EmojiCategory, EmojiItem } from "./types";
 
 export type EmojibaseLocale = Locale;
@@ -18,6 +23,8 @@ export interface EmojibaseSkin {
 
 export interface EmojibaseEntry {
   emoji: string;
+  /** Text presentation form; empty unless the character has a variation sequence. */
+  text?: string;
   label: string;
   group?: number;
   subgroup?: number;
@@ -127,8 +134,23 @@ function isSelectableEmojibaseEntry(
   return normalizeTwemojiEmoji(entry.emoji) !== null;
 }
 
-function buildStandardEmojiItem(entry: EmojibaseEntry & { group: number }): EmojiItem {
+/**
+ * The string the picker emits for an entry. Reactions are matched by exact
+ * string, so it must not change with the emojibase release: 18 spells ☕ and ⭕
+ * without the FE0F that 17 carried on characters with a variation sequence
+ * (those with a text form), and existing reactions were stored with it.
+ */
+function pickerEmoji(entry: EmojibaseEntry): string {
   const emoji = normalizeTwemojiEmoji(entry.emoji) ?? entry.emoji;
+  const withSelector = `${emoji}\uFE0F`;
+  if (entry.text && [...emoji].length === 1 && isSingleTwemojiEmoji(withSelector)) {
+    return withSelector;
+  }
+  return emoji;
+}
+
+function buildStandardEmojiItem(entry: EmojibaseEntry & { group: number }): EmojiItem {
+  const emoji = pickerEmoji(entry);
   const searchParts = [entry.label, ...(entry.tags ?? [])];
 
   return {
