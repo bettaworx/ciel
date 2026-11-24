@@ -50,6 +50,7 @@ type testApp struct {
 	RDB          *redis.Client
 	Hub          *realtime.Hub
 	Auth         *service.AuthService
+	SetupTokens  *service.SetupTokenManager
 }
 
 func newTestApp(t *testing.T) *testApp {
@@ -156,6 +157,7 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 
 	authSvc := service.NewAuthServiceWithOptions(store, tokenManager, authOpts)
 	authSvc.SetReactionsService(reactionsSvc)
+	setupTokens := service.NewSetupTokenManager(cacheImpl)
 
 	apiServer := handlers.API{
 		Auth:          authSvc,
@@ -172,6 +174,7 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 		Tokens:        tokenManager,
 		Redis:         rdb,
 		OAuth:         oauthSvc,
+		Setup:         service.NewSetupService(store, authSvc, setupTokens, nil),
 	}
 	api.HandlerFromMuxWithBaseURL(&apiServer, r, "/api/v1")
 
@@ -184,6 +187,7 @@ func newTestAppWithAuthOptions(t *testing.T, authOpts service.AuthServiceOptions
 		RDB:          rdb,
 		Hub:          hub,
 		Auth:         authSvc,
+		SetupTokens:  setupTokens,
 	}
 }
 

@@ -122,49 +122,50 @@ func (s *SetupService) VerifySetupPassword(ctx context.Context, password string)
 	return true, token, nil
 }
 
-// CreateAdminAccount creates the admin user account and assigns the admin role
-func (s *SetupService) CreateAdminAccount(ctx context.Context, setupToken, username, password string) (*api.User, string, error) {
+// CreateAdminAccount creates the admin user account, assigns the admin role and
+// signs it in the same way a password login does: it returns the login result
+// and the raw refresh token, which the handler sets as session cookies.
+func (s *SetupService) CreateAdminAccount(ctx context.Context, setupToken, username, password string) (api.LoginAuthenticated, string, error) {
 	if s.store == nil {
-		return nil, "", NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
+		return api.LoginAuthenticated{}, "", NewError(http.StatusServiceUnavailable, "service_unavailable", "database not configured")
 	}
 
 	// Validate setup token
 	valid, err := s.setupTokenMgr.ValidateSetupToken(ctx, setupToken)
 	if err != nil {
-		return nil, "", NewError(http.StatusInternalServerError, "token_validation_failed", "failed to validate setup token")
+		return api.LoginAuthenticated{}, "", NewError(http.StatusInternalServerError, "token_validation_failed", "failed to validate setup token")
 	}
 	if !valid {
-		return nil, "", NewError(http.StatusForbidden, "invalid_setup_token", "invalid or expired setup token")
+		return api.LoginAuthenticated{}, "", NewError(http.StatusForbidden, "invalid_setup_token", "invalid or expired setup token")
 	}
 
 	// Check if admin user already exists
 	adminExists, err := s.store.Q.HasAdminUser(ctx)
 	if err != nil {
-		return nil, "", err
+		return api.LoginAuthenticated{}, "", err
 	}
 	if adminExists {
-		return nil, "", NewError(http.StatusForbidden, "admin_exists", "admin account already exists")
+		return api.LoginAuthenticated{}, "", NewError(http.StatusForbidden, "admin_exists", "admin account already exists")
 	}
 
 	// Validate username and password
 	username = strings.TrimSpace(username)
 	if username == "" {
-		return nil, "", NewError(http.StatusBadRequest, "invalid_request", "username required")
+		return api.LoginAuthenticated{}, "", NewError(http.StatusBadRequest, "invalid_request", "username required")
 	}
 	if err := auth.ValidatePassword(password); err != nil {
-		return nil, "", NewError(http.StatusBadRequest, "invalid_request", err.Error())
+		return api.LoginAuthenticated{}, "", NewError(http.StatusBadRequest, "invalid_request", err.Error())
 	}
 
 	// Create the user using the auth service logic
 	salt, err := auth.RandomBytes(16)
 	if err != nil {
-		return nil, "", err
+		return api.LoginAuthenticated{}, "", err
 	}
 	iterations := auth.DefaultIterations
 	storedKey, serverKey := auth.DeriveVerifier(password, salt, iterations)
 
 	var created sqlc.User
-	var token string
 
 	err = s.store.WithTx(ctx, func(q *sqlc.Queries) error {
 		// Ensure roles and permissions are initialized
@@ -229,17 +230,14 @@ func (s *SetupService) CreateAdminAccount(ctx context.Context, setupToken, usern
 	})
 
 	if err != nil {
-		return nil, "", err
+		return api.LoginAuthenticated{}, "", err
 	}
 
-	// Generate JWT token for the new admin user
-	token, _, err = s.authService.tokens.Issue(auth.User{ID: created.ID, Username: created.Username})
+	login, _, refreshToken, err := s.authService.completeLogin(ctx, created.ID, created.Username)
 	if err != nil {
-		return nil, "", err
+		return api.LoginAuthenticated{}, "", err
 	}
-
-	user := mapUserWithProfile(created.ID, created.Username, created.CreatedAt, created.DisplayName, created.Bio, created.AvatarMediaID, sql.NullString{}, created.BannerMediaID, sql.NullString{}, sql.NullString{}, created.TermsVersion, created.PrivacyVersion, created.TermsAcceptedAt, created.PrivacyAcceptedAt, ProfileFlags{IsPrivate: created.IsPrivate, IsBot: created.IsBot})
-	return &user, token, nil
+	return login, refreshToken, nil
 }
 
 // ServerSetupParams contains the server configuration parameters

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSetAtom } from "jotai";
+import { upsertAccountAtom } from "@/atoms/accounts";
 import { useRouter } from "@/lib/navigation";
 import { useTranslations } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -31,6 +33,7 @@ export function AdminSetupWizard() {
   const router = useRouter();
   const t = useTranslations("adminSetup");
   const { setProgress, setFooter } = useSetupLayout();
+  const upsertAccount = useSetAtom(upsertAccountAtom);
 
   // State
   const [currentStep, setCurrentStep] = useState<AdminSetupStep>("welcome");
@@ -218,16 +221,16 @@ export function AdminSetupWizard() {
 
       setAdminUsername(username);
 
-      // Auto-login: The server sets an httpOnly cookie with the token
-      // Save user info to localStorage for UI purposes
-      const authState = {
-        status: "ready" as const,
-        user: result.data.user,
-        error: null,
-      };
-      localStorage.setItem("ciel-auth", JSON.stringify(authState));
-
-      // Reload page - initialization logic will detect admin exists and continue from admin-profile
+      // The response set the session cookies, as a password login does. List
+      // the account for the switcher the way a login does too; the reload
+      // mints its device token and resumes the wizard at admin-profile.
+      const { user } = result.data;
+      upsertAccount({
+        userId: user.id,
+        username: user.username,
+        displayName: user.displayName ?? null,
+        avatarUrl: user.avatarUrl ?? null,
+      });
       window.location.reload();
       return true;
     } finally {
