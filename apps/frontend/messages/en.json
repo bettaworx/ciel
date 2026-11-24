@@ -1520,6 +1520,7 @@
     "config": {
       "title": "Server Settings",
       "description": "Manage server information and operation settings",
+      "error": "Failed to load settings",
       "profile": {
         "title": "Server Profile",
         "serverIconLabel": "Server Icon",
